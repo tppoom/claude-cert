@@ -48,25 +48,31 @@ STARTERS = [
     r'งานแบบ(?:แบตช์)?',
     r'จอแสดงผล(?:ความคืบหน้า)?',
     r'UI\s*(?:แบบสด)?',
-    r'SDK\b', r'API\b', r'TypeScript\b', r'Python\b', r'LLM\b', r'JSON\b', r'MCP\b',
+    r'ปลั๊กอิน(?:ที่|นี้|จะ)?',
+    r'กลไก(?:เดียวนี้|นี้)?',
+    r'มี(?:สองวิธี|หลายวิธี|ข้อดี|ข้อเสีย|ตัวเลือก)',
+    r'การคิดแบบ(?:ปรับตัวได้|ขยาย)?',
+    r'งบประมาณ(?:ต้อง|โทเค็น)?',
     r'หน้าต่างบริบท(?:คือ|จะ|มี)?',
     r'สคีมา(?:คือ|จะ|มี)?',
     r'รูปแบบที่(?:ง่าย|ซับซ้อน|เหมาะ)?',
+    r'ขั้นตอน(?:สุดท้าย|แรก|ที่สอง|ที่สาม)',
+    r'ยืนยันว่า',
     
     # Connectives & Adverbs
-    r'ดังนั้น', r'นอกจากนี้', r'อย่างไรก็ตาม', r'ตัวอย่างเช่น', r'ในทางกลับกัน', r'ในขณะเดียวกัน',
+    r'นอกจากนี้', r'อย่างไรก็ตาม', r'ตัวอย่างเช่น', r'ในทางกลับกัน', r'ในขณะเดียวกัน',
     r'อันที่จริง', r'โดยสรุป', r'ท้ายที่สุด', r'นอกเหนือจาก(?:นั้น|พวกเขา|นี้)',
+    r'(?<!หลัง)จากนั้น(?:จะ|ก็)?',
     
     # Prepositional & Temporal
     r'ใน\s*(?:TypeScript|Python|กรณี|บทเรียน|การรัน|การวิจัย|สตรีม|ระบบ|เซสชัน|ที่สุด)',
     r'สำหรับ\s*(?:แอปพลิเคชัน|งาน|กรณี|ระบบ|โมเดล|เอเจนต์|ผู้ใช้|การ|สิ่งนั้น|ข้อมูลนี้|สิ่งนี้)',
     r'สําหรับ\s*(?:แอปพลิเคชัน|งาน|กรณี|ระบบ|โมเดล|เอเจนต์|ผู้ใช้|การ|สิ่งนั้น|ข้อมูลนี้|สิ่งนี้)',
     r'ภายใต้\s*(?:การ|โหมด|สภาวะ|auto)',
-    r'เมื่อ\s*(?:รันไทม์|คุณ|โมเดล|ระบบ|เซสชัน|เกิด)',
-    r'หาก\s*(?:คุณ|โมเดล|ระบบ|เพื่อนร่วมงาน|ผลลัพธ์|ต้องการ|ค่า)',
+    r'เมื่อ\s*(?:รันไทม์|คุณ|โมเดล|ระบบ|เซสชัน|เกิด|งาน)',
+    r'หาก\s*(?:คุณ|โมเดล|ระบบ|เพื่อนร่วมงาน|ผลลัพธ์|ต้องการ|ค่า|ไม่มี)',
     r'ถ้า\s*(?:คุณ|โมเดล|ระบบ)',
     r'เนื่องจาก\s*(?:เวิร์กโฟลว์|ระบบ|โมเดล|เอเจนต์|การ)?',
-    r'หลัง(?:จาก|การ)',
     r'ข้อ(?:แรก|ที่สอง|ที่สาม|สุดท้าย|สำคัญ)',
     r'ส่วน(?:นี้|ที่)',
     
@@ -178,7 +184,9 @@ def split_thai_sentences(text):
         
     merged = []
     for c in chunks:
-        if merged and (len(merged[-1]) < 35 or is_bad_prefix(merged[-1])):
+        if merged and c.startswith('ดังนั้น'):
+            merged[-1] = merged[-1] + ' ' + c
+        elif merged and (len(merged[-1]) < 35 or is_bad_prefix(merged[-1])):
             merged[-1] = merged[-1] + ' ' + c
         else:
             merged.append(c)
@@ -194,7 +202,7 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
     p_th = re.sub(r'^(?:กับดักการสอบ|Exam Trap:?\s*)(.+)$', r'⚠️ จุดที่ข้อสอบชอบหลอก: \1', p_th)
     p_th = re.sub(r'^(?:คาดการณ์ก่อน|Predict First:?\s*)(.+)$', r'🔮 คาดการณ์ก่อนตอบ: \1', p_th)
 
-    # 1. Numbered Sequence Step List (e.g. "1. The SDK... 2. Claude... 3. SDK...")
+    # 1. Numbered Sequence Step List (Cards with step badges)
     th_steps = extract_numbered_steps(p_th)
     raw_steps = extract_numbered_steps(p_raw) if p_raw else []
     
@@ -220,7 +228,7 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
             """
         return f'<ol class="space-y-3.5 my-5">{lis}</ol>'
 
-    # 2. Bullet list inside paragraph (e.g. "- ตัวแทน: โมเดล... - สภาพแวดล้อม: ที่ที่...")
+    # 2. Explicit Bullet list inside paragraph (e.g. "- ตัวแทน: โมเดล... - สภาพแวดล้อม: ที่ที่...")
     bullet_parts = [b.strip().lstrip('-•* \t') for b in re.split(r'(?:^|\s+)[-•*]\s+', p_th) if b.strip().lstrip('-•* \t')]
     if len(bullet_parts) >= 2:
         lis = ""
@@ -239,7 +247,7 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
             """
         return f'<ul class="space-y-2.5 my-4">{lis}</ul>'
 
-    # 3. Lead Concept Card (First paragraph of section)
+    # 3. Lead Concept Hero Card (First paragraph of section)
     if is_first_para:
         sents = split_thai_sentences(p_th)
         if len(sents) > 1:
@@ -247,7 +255,11 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
         else:
             body = f'<p class="text-sm sm:text-base text-slate-100 font-medium leading-relaxed sm:leading-loose">{highlight_tech_terms(p_th)}</p>'
         return f"""
-        <div class="my-5 p-4 sm:p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/70 shadow-sm space-y-1.5">
+        <div class="my-5 p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/80 shadow-md space-y-2.5">
+          <div class="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักของหัวข้อนี้ (Core Concept)</span>
+          </div>
           {body}
         </div>
         """
@@ -266,30 +278,91 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
         </div>
         """
 
-    # 5. Long paragraph with multiple sentences -> format into spaced sub-paragraphs
+    # 5. Multi-sentence Paragraph -> Card Box with Bullet Points & Highlights
     sents = split_thai_sentences(p_th)
-    if len(sents) >= 2 and len(p_th) > 140:
-        # Group sentences into readable sub-paragraphs of 1-2 sentences
-        sub_paras = []
-        curr = []
-        curr_len = 0
-        for s in sents:
-            if curr and (curr_len + len(s) > 200 or len(curr) >= 2):
-                sub_paras.append(" ".join(curr))
-                curr = [s]
-                curr_len = len(s)
+    if len(sents) >= 3:
+        intro = sents[0]
+        points = sents[1:]
+        normal_points = []
+        warnings = []
+        for pt in points:
+            if re.search(r'^(?:อย่า|ระวัง|ข้อควรระวัง|คําเตือน|คำเตือน|Exam Trap)', pt.strip()):
+                warnings.append(pt)
             else:
-                curr.append(s)
-                curr_len += len(s)
-        if curr:
-            sub_paras.append(" ".join(curr))
-            
-        paras_html = "".join(f'<p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">{highlight_tech_terms(sp)}</p>' for sp in sub_paras)
-        return f'<div class="my-4 space-y-3 p-0.5">{paras_html}</div>'
+                normal_points.append(pt)
+                
+        bullet_lis = ""
+        lead_topic_pat = re.compile(
+            r'^((?:งานแบบแบตช์|จอแสดงผลความคืบหน้า|UI\s*แบบสด|ใน\s+[A-Za-z]+|ประการ(?:แรก|ที่สอง|ที่สาม|สุดท้าย)|ตัวแทน|เอเจนต์(?:ย่อย)?|เวิร์กโฟลว์|การวิจัย|การค้นหา|การทดสอบ|การประเมิน|การแยกบริบท|การเฉพาะทาง|การจัดการ|การควบคุม|ความแตกต่าง|ผลลัพธ์|ต้นทุน|ข้อกำหนด|เป้าหมาย|กฎการออกแบบ|สคีมา|หน้าต่างบริบท|โมเดล|ระบบ|ไคลเอ็นต์|เซิร์ฟเวอร์))'
+            r'[:\s]*(.*)$'
+        )
+        for pt in normal_points:
+            m_colon = re.match(r'^([^:]{2,35}):\s*(.+)$', pt)
+            if m_colon:
+                term, desc = m_colon.group(1), m_colon.group(2)
+                pt_fmt = f'<strong class="text-indigo-300 font-semibold">{highlight_tech_terms(term)}:</strong> <span class="text-slate-200">{highlight_tech_terms(desc)}</span>'
+            else:
+                m_lead = lead_topic_pat.match(pt)
+                if m_lead and len(m_lead.group(2).strip()) > 3:
+                    head, rest = m_lead.group(1), m_lead.group(2).strip()
+                    pt_fmt = f'<strong class="text-indigo-300 font-semibold">{head}:</strong> <span class="text-slate-200">{highlight_tech_terms(rest)}</span>'
+                else:
+                    pt_fmt = f'<span class="text-slate-200">{highlight_tech_terms(pt)}</span>'
+                
+            bullet_lis += f"""
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow">{pt_fmt}</div>
+            </li>
+            """
 
-    # 6. Standard paragraph
-    return f"""
-    <p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3.5">
-      {highlight_tech_terms(p_th)}
-    </p>
-    """
+        warn_html = ""
+        for w in warnings:
+            warn_html += f"""
+            <div class="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/25 text-xs sm:text-sm text-amber-200 leading-relaxed flex items-start gap-2.5 mt-2.5 shadow-xs">
+              <span class="text-amber-400 shrink-0 text-base leading-none">⚠️</span>
+              <div class="grow"><strong class="text-amber-300 font-semibold">ข้อควรระวัง & จุดสังเกต:</strong> {highlight_tech_terms(w)}</div>
+            </div>
+            """
+            
+        return f"""
+        <div class="my-5 p-4 sm:p-5 rounded-2xl border border-slate-800/90 bg-slate-900/60 shadow-sm space-y-3.5">
+          <div class="text-slate-100 font-semibold text-sm sm:text-base flex items-start gap-2.5 leading-relaxed pb-2.5 border-b border-slate-800/70">
+            <span class="text-indigo-400 shrink-0 text-base mt-0.5">📌</span>
+            <span>{highlight_tech_terms(intro)}</span>
+          </div>
+          <ul class="space-y-2.5 pt-1">
+            {bullet_lis}
+          </ul>
+          {warn_html}
+        </div>
+        """
+
+    # 6. Two-sentence Paragraph -> Dual-Point Mini Card
+    elif len(sents) == 2:
+        return f"""
+        <div class="my-4 p-4 sm:p-4.5 rounded-xl border border-slate-800/85 bg-slate-900/50 hover:border-indigo-500/30 transition-colors shadow-xs flex items-start gap-3.5">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/15 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">🔹</span>
+          <div class="grow space-y-1.5 text-xs sm:text-sm leading-relaxed text-slate-200">
+            <div class="font-semibold text-slate-100 text-sm sm:text-[15px]">{highlight_tech_terms(sents[0])}</div>
+            <div class="text-slate-300 text-xs sm:text-sm leading-relaxed">{highlight_tech_terms(sents[1])}</div>
+          </div>
+        </div>
+        """
+
+    # 7. Single Sentence Statement / Transition Line
+    else:
+        if len(p_th) >= 140:
+            return f"""
+            <div class="my-3.5 p-3.5 sm:p-4 rounded-xl border border-slate-800/80 bg-slate-900/40 text-xs sm:text-sm text-slate-200 leading-relaxed flex items-start gap-3 shadow-xs">
+              <span class="text-indigo-400 text-sm shrink-0 mt-0.5">📌</span>
+              <div class="grow">{highlight_tech_terms(p_th)}</div>
+            </div>
+            """
+        else:
+            return f"""
+            <p class="text-slate-300 text-xs sm:text-sm font-medium leading-relaxed my-3 flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+              <span>{highlight_tech_terms(p_th)}</span>
+            </p>
+            """

@@ -568,14 +568,19 @@
           </h2>
           
           
-        <div class="my-5 p-4 sm:p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/70 shadow-sm space-y-1.5">
-          <p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">Calling Claude is an ordinary REST call, so the conventions your other services already follow carry over. The</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">API is served from https://api.anthropic.com, and a conversational request is POST /v1/messages. Every request has a</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">JSON body with content-type: application/json, an anthropic-version header such as 2023-06-01, and credentials in Authorization: Bearer &lt;token&gt;. The older x-api-key header still works as a fallback.</p>
+        <div class="my-5 p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/80 shadow-md space-y-2.5">
+          <div class="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักของหัวข้อนี้ (Core Concept)</span>
+          </div>
+          <p class="text-sm sm:text-base text-slate-100 font-medium leading-relaxed sm:leading-loose">Calling Claude is an ordinary REST call, so the conventions your other services already follow carry over. The API is served from https://api.anthropic.com, and a conversational request is POST /v1/messages. Every request has a JSON body with content-type: application/json, an anthropic-version header such as 2023-06-01, and credentials in Authorization: Bearer &lt;token&gt;. The older x-api-key header still works as a fallback.</p>
         </div>
         
-    <p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3.5">
-      The official SDKs set the authentication, version and content-type headers for you. They also add typed requests and responses, built-in retries, streaming support and request timeouts. With a raw HTTP client, all of that is your code to write. The one header you still pass yourself is anthropic-workspace-id, and only when your key covers more than one workspace.
-    </p>
-    
+            <div class="my-3.5 p-3.5 sm:p-4 rounded-xl border border-slate-800/80 bg-slate-900/40 text-xs sm:text-sm text-slate-200 leading-relaxed flex items-start gap-3 shadow-xs">
+              <span class="text-indigo-400 text-sm shrink-0 mt-0.5">📌</span>
+              <div class="grow">The official SDKs set the authentication, version and content-type headers for you. They also add typed requests and responses, built-in retries, streaming support and request timeouts. With a raw HTTP client, all of that is your code to write. The one header you still pass yourself is anthropic-workspace-id, and only when your key covers more than one workspace.</div>
+            </div>
+            
                 <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
                   
                     <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
@@ -602,11 +607,69 @@
   }
 }</code></pre>
                 </div>
-                <div class="my-4 space-y-3 p-0.5"><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">เนื่องจาก API ไม่มีสถานะ การสนทนา บริการของคุณจึงต้องจัดเก็บไว้</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">ไคลเอ็นต์จะส่งประวัติทั้งหมดพร้อมกับทุกคําขอ ตามที่อธิบายไว้ใน <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-950/60 text-indigo-300 border border-indigo-800/40 text-xs font-mono font-medium">📖 Stateless <strong class="text-indigo-300 font-semibold">Messages API</strong> (ไคลเอ็นต์ถือการสนทนา) (2.3)</span> ในทางปฏิบัติ ให้เก็บอาร์เรย์ข้อความเป็น</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">JSON แบบธรรมดา ซึ่งเป็นรายการของอ็อบเจกต์ {“role”, “content”} ในฐานข้อมูลของคุณเองหรือที่เก็บเซสชันที่คีย์ตาม</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">การสนทนา โหลด ผนวกทัวร์ใหม่ของผู้ใช้ ส่ง จากนั้นผนวกเนื้อหาของผู้ช่วยและบันทึกอีกครั้ง ทัวร์ก่อนหน้านี้ไม่จําเป็นต้องมาจาก Claude</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">ดังนั้นประวัติที่จัดเก็บไว้สามารถมีข้อความของผู้ช่วยสังเคราะห์ที่คุณเขียนเองได้</p></div>
-    <p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3.5">
-      That stored history grows with every turn, and request size is capped. Messages and Token Counting requests can be at most 32 MB, and anything larger returns 413 request_too_large. A long-lived chat that saves every turn forever will eventually hit that limit, so decide how history is trimmed before it does.
-    </p>
-    <div class="my-4 space-y-3 p-0.5"><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">A REST call spends almost all of its time waiting on the network, and asynchronous programming is how a program uses that wait for other work instead of freezing. With the async client, await client.messages.create(...) suspends only the current coroutine; the event loop runs other coroutines until the response arrives. The request and the returned Message are identical to a blocking call, so the change is in how the waiting is scheduled, not in the</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">JSON.</p></div><div class="my-4 space-y-3 p-0.5"><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">การแทรกแซงทำให้เกิดอันตรายที่โค้ดการบล็อกไม่มี Coroutines สามารถแทรกแซงได้</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">ดังนั้น การเรียก API บนเครื่องบินหลายครั้งที่ต่อท้ายรายการหรือ dict ที่แชร์รายการเดียวอาจทำให้รายการเสียหายได้ ซึ่งเป็นการแข่งขันสถานะที่แชร์แบบไม่แน่นอนแบบเดียวกับที่เธรดเป็นสาเหตุ ให้แต่ละโครูทีนส่งคืนผลลัพธ์ของตัวเองแล้วรวมเข้าด้วยกันในภายหลัง แทนที่จะเปลี่ยนสถานะที่แชร์จากภายในการโทร</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">นอกจากนี้ API ยังมี การทำงานแบบอะซิงโครนัสที่ระดับตำแหน่งข้อมูลอีกด้วย โดย Message Batches API ยอมรับคำขอทันทีและประมวลผลในภายหลัง</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">ดังนั้น การตอบสนอง HTTP จะยอมรับเฉพาะการส่งเท่านั้น</p></div>
+                
+        <div class="my-5 p-4 sm:p-5 rounded-2xl border border-slate-800/90 bg-slate-900/60 shadow-sm space-y-3.5">
+          <div class="text-slate-100 font-semibold text-sm sm:text-base flex items-start gap-2.5 leading-relaxed pb-2.5 border-b border-slate-800/70">
+            <span class="text-indigo-400 shrink-0 text-base mt-0.5">📌</span>
+            <span>เนื่องจาก API ไม่มีสถานะ การสนทนา บริการของคุณจึงต้องจัดเก็บไว้</span>
+          </div>
+          <ul class="space-y-2.5 pt-1">
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><strong class="text-indigo-300 font-semibold">ไคลเอ็นต์:</strong> <span class="text-slate-200">จะส่งประวัติทั้งหมดพร้อมกับทุกคําขอ ตามที่อธิบายไว้ใน <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-950/60 text-indigo-300 border border-indigo-800/40 text-xs font-mono font-medium">📖 Stateless <strong class="text-indigo-300 font-semibold">Messages API</strong> (ไคลเอ็นต์ถือการสนทนา) (2.3)</span> ในทางปฏิบัติ ให้เก็บอาร์เรย์ข้อความเป็น JSON แบบธรรมดา ซึ่งเป็นรายการของอ็อบเจกต์ {“role”, “content”} ในฐานข้อมูลของคุณเองหรือที่เก็บเซสชันที่คีย์ตาม</span></div>
+            </li>
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">การสนทนา โหลด ผนวกทัวร์ใหม่ของผู้ใช้ ส่ง</span></div>
+            </li>
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">จากนั้นผนวกเนื้อหาของผู้ช่วยและบันทึกอีกครั้ง ทัวร์ก่อนหน้านี้ไม่จําเป็นต้องมาจาก Claude ดังนั้นประวัติที่จัดเก็บไว้สามารถมีข้อความของผู้ช่วยสังเคราะห์ที่คุณเขียนเองได้</span></div>
+            </li>
+            
+          </ul>
+          
+        </div>
+        
+            <div class="my-3.5 p-3.5 sm:p-4 rounded-xl border border-slate-800/80 bg-slate-900/40 text-xs sm:text-sm text-slate-200 leading-relaxed flex items-start gap-3 shadow-xs">
+              <span class="text-indigo-400 text-sm shrink-0 mt-0.5">📌</span>
+              <div class="grow">That stored history grows with every turn, and request size is capped. Messages and Token Counting requests can be at most 32 MB, and anything larger returns 413 request_too_large. A long-lived chat that saves every turn forever will eventually hit that limit, so decide how history is trimmed before it does.</div>
+            </div>
+            
+            <div class="my-3.5 p-3.5 sm:p-4 rounded-xl border border-slate-800/80 bg-slate-900/40 text-xs sm:text-sm text-slate-200 leading-relaxed flex items-start gap-3 shadow-xs">
+              <span class="text-indigo-400 text-sm shrink-0 mt-0.5">📌</span>
+              <div class="grow">A REST call spends almost all of its time waiting on the network, and asynchronous programming is how a program uses that wait for other work instead of freezing. With the async client, await client.messages.create(...) suspends only the current coroutine; the event loop runs other coroutines until the response arrives. The request and the returned Message are identical to a blocking call, so the change is in how the waiting is scheduled, not in the JSON.</div>
+            </div>
+            
+        <div class="my-5 p-4 sm:p-5 rounded-2xl border border-slate-800/90 bg-slate-900/60 shadow-sm space-y-3.5">
+          <div class="text-slate-100 font-semibold text-sm sm:text-base flex items-start gap-2.5 leading-relaxed pb-2.5 border-b border-slate-800/70">
+            <span class="text-indigo-400 shrink-0 text-base mt-0.5">📌</span>
+            <span>การแทรกแซงทำให้เกิดอันตรายที่โค้ดการบล็อกไม่มี Coroutines สามารถแทรกแซงได้ ดังนั้น</span>
+          </div>
+          <ul class="space-y-2.5 pt-1">
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">การเรียก API บนเครื่องบินหลายครั้งที่ต่อท้ายรายการหรือ dict ที่แชร์รายการเดียวอาจทำให้รายการเสียหายได้ ซึ่งเป็นการแข่งขันสถานะที่แชร์แบบไม่แน่นอนแบบเดียวกับที่เธรดเป็นสาเหตุ ให้แต่ละโครูทีนส่งคืนผลลัพธ์ของตัวเองแล้วรวมเข้าด้วยกันในภายหลัง แทนที่จะเปลี่ยนสถานะที่แชร์จากภายในการโทร</span></div>
+            </li>
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">นอกจากนี้ API ยังมี การทำงานแบบอะซิงโครนัสที่ระดับตำแหน่งข้อมูลอีกด้วย โดย Message Batches API ยอมรับคำขอทันทีและประมวลผลในภายหลัง ดังนั้น</span></div>
+            </li>
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">การตอบสนอง HTTP จะยอมรับเฉพาะการส่งเท่านั้น</span></div>
+            </li>
+            
+          </ul>
+          
+        </div>
+        
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 sm:p-6 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
@@ -913,10 +976,40 @@
           </h2>
           
           
-        <div class="my-5 p-4 sm:p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/70 shadow-sm space-y-1.5">
-          <p class="text-sm sm:text-base text-slate-100 font-medium leading-relaxed sm:leading-loose">รูปแบบที่ง่ายที่สุดคือการบล็อกการเรียก client.messages.create(...) บนไคลเอ็นต์ Anthropic แบบซิงโครนัส รอจนกว่า Claude จะเสร็จสิ้น จากนั้นส่งคืน Message เต็มรูปแบบ ซึ่งเหมาะสําหรับสคริปต์ เครื่องมือ CLI และกระบวนการปฏิบัติงานที่จัดการคําขอครั้งละหนึ่งรายการ ซึ่งไม่มีอะไรอื่นที่ต้องการเธรดในขณะที่คําขออยู่ในระหว่างการดําเนินการ</p>
+        <div class="my-5 p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/80 shadow-md space-y-2.5">
+          <div class="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักของหัวข้อนี้ (Core Concept)</span>
+          </div>
+          <p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">รูปแบบที่ง่ายที่สุดคือการบล็อก การเรียก client.messages.create(...) บนไคลเอ็นต์ Anthropic แบบซิงโครนัส รอจนกว่า Claude จะเสร็จสิ้น</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">จากนั้นส่งคืน Message เต็มรูปแบบ ซึ่งเหมาะสําหรับสคริปต์ เครื่องมือ CLI และกระบวนการปฏิบัติงานที่จัดการคําขอครั้งละหนึ่งรายการ ซึ่งไม่มีอะไรอื่นที่ต้องการเธรดในขณะที่คําขออยู่ในระหว่างการดําเนินการ</p>
         </div>
-        <div class="my-4 space-y-3 p-0.5"><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">บริการที่สร้างขึ้นบนลูปเหตุการณ์จําเป็นต้องมีอย่างอื่น เนื่องจากการเรียกบล็อกที่นั่นจะหยุดการทํางานของโครูทีนอื่นๆ ทั้งหมดในขณะที่คําขอหนึ่งรออยู่บนเครือข่าย ไคลเอ็นต์ AsyncAnthropic ของ Python</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">SDK มีวิธีการ message.create เดียวกัน และคุณรอภายในฟังก์ชันแบบอะซิงโครนัส เนื้อหาคําขอและ Message ที่ส่งคืนจะไม่เปลี่ยนแปลง</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">ความแตกต่างเพียงอย่างเดียวคือโค้ดของคุณจะทํางานได้ในขณะที่รอ ไคลเอ็นต์แบบอะซิงโครนัสยังสามารถใช้แบ็คเอนด์ HTTP aiohttp แทนแบ็คเอนด์เริ่มต้น เมื่อคุณต้องการอัตราการโอนถ่ายข้อมูลแบบอะซิงโครนัสที่ดีกว่า</p></div>
+        
+        <div class="my-5 p-4 sm:p-5 rounded-2xl border border-slate-800/90 bg-slate-900/60 shadow-sm space-y-3.5">
+          <div class="text-slate-100 font-semibold text-sm sm:text-base flex items-start gap-2.5 leading-relaxed pb-2.5 border-b border-slate-800/70">
+            <span class="text-indigo-400 shrink-0 text-base mt-0.5">📌</span>
+            <span>บริการที่สร้างขึ้นบนลูปเหตุการณ์จําเป็นต้องมีอย่างอื่น</span>
+          </div>
+          <ul class="space-y-2.5 pt-1">
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">เนื่องจากการเรียกบล็อกที่นั่นจะหยุดการทํางานของโครูทีนอื่นๆ ทั้งหมดในขณะที่คําขอหนึ่งรออยู่บนเครือข่าย ไคลเอ็นต์ AsyncAnthropic ของ Python SDK มีวิธีการ message.create เดียวกัน และคุณรอภายในฟังก์ชันแบบอะซิงโครนัส เนื้อหาคําขอและ Message ที่ส่งคืนจะไม่เปลี่ยนแปลง</span></div>
+            </li>
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><strong class="text-indigo-300 font-semibold">ความแตกต่าง:</strong> <span class="text-slate-200">เพียงอย่างเดียวคือโค้ดของคุณจะทํางานได้ในขณะที่รอ ไคลเอ็นต์แบบอะซิงโครนัสยังสามารถใช้แบ็คเอนด์ HTTP aiohttp แทนแบ็คเอนด์เริ่มต้น</span></div>
+            </li>
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">เมื่อคุณต้องการอัตราการโอนถ่ายข้อมูลแบบอะซิงโครนัสที่ดีกว่า</span></div>
+            </li>
+            
+          </ul>
+          
+        </div>
+        
                 <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
                   
                     <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
@@ -1194,7 +1287,11 @@ asyncio.run(main())</code></pre>
       </div>
     </div>
     
-        <div class="my-5 p-4 sm:p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/70 shadow-sm space-y-1.5">
+        <div class="my-5 p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/80 shadow-md space-y-2.5">
+          <div class="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักของหัวข้อนี้ (Core Concept)</span>
+          </div>
           <p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">การสตรีมจะอยู่ระหว่างการบล็อกการโทรและงานเบื้องหลัง</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">การตอบสนองจะมาถึงเป็นส่วนๆ ผ่าน การเชื่อมต่อ HTTP แบบเปิดเดียว ตามที่อธิบายไว้ใน <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-950/60 text-indigo-300 border border-indigo-800/40 text-xs font-mono font-medium">📖 การสตรีมผ่านเหตุการณ์ที่ส่งโดยเซิร์ฟเวอร์ (5.2)</span> มันมีผลสําเร็จในสองสถานการณ์</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">ในกรณีแรก มีคนกําลังรออยู่ ดังนั้นการพิมพ์ข้อความขณะที่ข้อความมาถึงจะทําให้</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">การตอบสนองรู้สึกรวดเร็ว ในกรณีที่สอง</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">การตอบสนองมีความยาวเพียงพอ สําหรับการเชื่อมต่อที่เงียบเพียงครั้งเดียวจะทําให้ HTTP หมดเวลา</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">สําหรับกรณีที่สองนี้ SDK จําเป็นต้องใช้การสตรีม แม้ว่าคุณจะไม่ต้องการข้อความบางส่วนก็ตาม</p>
         </div>
         
@@ -1214,7 +1311,28 @@ with client.messages.stream(
 ) as stream:
     message = stream.get_final_message()</code></pre>
                 </div>
-                <div class="my-4 space-y-3 p-0.5"><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">การสตรีมยังเปลี่ยนวิธีที่ความล้มเหลวมาถึงคุณ ปัญหาที่การบล็อกการโทรแจ้งว่าเป็นสถานะ HTTP อาจมาถึงกลางสตรีมเป็นเหตุการณ์ข้อผิดพลาด กรณีที่พบบ่อยคือ Overload: เหตุการณ์ overloaded_error ที่การโทรที่ไม่ได้สตรีมจะได้รับ HTTP 529</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">การจัดการข้อผิดพลาดที่เขียนเฉพาะรอบ การตอบสนอง HTTP เริ่มต้นจะพลาดไป Python</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">SDK มีทั้งสตรีมซิงโครนัสและอะซิงโครนัส ดังนั้นการสตรีมจึงทํางานได้กับไคลเอ็นต์ทั้งสองจากส่วนก่อนหน้า</p></div>
+                
+        <div class="my-5 p-4 sm:p-5 rounded-2xl border border-slate-800/90 bg-slate-900/60 shadow-sm space-y-3.5">
+          <div class="text-slate-100 font-semibold text-sm sm:text-base flex items-start gap-2.5 leading-relaxed pb-2.5 border-b border-slate-800/70">
+            <span class="text-indigo-400 shrink-0 text-base mt-0.5">📌</span>
+            <span>การสตรีมยังเปลี่ยนวิธีที่ความล้มเหลวมาถึงคุณ ปัญหาที่การบล็อกการโทรแจ้งว่าเป็นสถานะ HTTP อาจมาถึงกลางสตรีมเป็นเหตุการณ์ข้อผิดพลาด กรณีที่พบบ่อยคือ Overload: เหตุการณ์ overloaded_error ที่การโทรที่ไม่ได้สตรีมจะได้รับ HTTP 529</span>
+          </div>
+          <ul class="space-y-2.5 pt-1">
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><strong class="text-indigo-300 font-semibold">การจัดการ:</strong> <span class="text-slate-200">ข้อผิดพลาดที่เขียนเฉพาะรอบ</span></div>
+            </li>
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">การตอบสนอง HTTP เริ่มต้นจะพลาดไป Python SDK มีทั้งสตรีมซิงโครนัสและอะซิงโครนัส ดังนั้นการสตรีมจึงทํางานได้กับไคลเอ็นต์ทั้งสองจากส่วนก่อนหน้า</span></div>
+            </li>
+            
+          </ul>
+          
+        </div>
+        
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 sm:p-6 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
@@ -1367,8 +1485,12 @@ with client.messages.stream(
           </h2>
           
           
-        <div class="my-5 p-4 sm:p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/70 shadow-sm space-y-1.5">
-          <p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">ส่งและโพลแยกส่งงานจากการเก็บผล คุณส่งงาน รับบัตรประจำตัวกลับ และตรวจสอบสถานะในภายหลัง Message Batches</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">API ซึ่งจัดการคำขอจำนวนมากแบบอะซิงโครนัสด้วยต้นทุนที่ต่ำกว่า คือตัวอย่างมาตรฐาน ราคาและขีดจำกัดครอบคลุมอยู่ใน <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-950/60 text-indigo-300 border border-indigo-800/40 text-xs font-mono font-medium">📖 Message Batches API และเรียลไทม์เทียบกับแบตช์ (2.3)</span> สำหรับโค้ดที่คุณเขียน สิ่งที่สำคัญคือรูปร่าง: แบทช์เริ่มต้นด้วยการประมวลผล สถานะ</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">ตั้งค่าเป็น in_progress และย้ายไปที่สิ้นสุดเมื่อทุกคำขอเสร็จสิ้นและผลลัพธ์พร้อมแล้ว</p>
+        <div class="my-5 p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/80 shadow-md space-y-2.5">
+          <div class="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักของหัวข้อนี้ (Core Concept)</span>
+          </div>
+          <p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">ส่งและโพลแยกส่งงานจากการเก็บผล คุณส่งงาน รับบัตรประจำตัวกลับ และตรวจสอบสถานะในภายหลัง Message Batches API ซึ่งจัดการคำขอจำนวนมากแบบอะซิงโครนัสด้วยต้นทุนที่ต่ำกว่า คือตัวอย่างมาตรฐาน ราคาและขีดจำกัดครอบคลุมอยู่ใน <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-950/60 text-indigo-300 border border-indigo-800/40 text-xs font-mono font-medium">📖 Message Batches API และเรียลไทม์เทียบกับแบตช์ (2.3)</span> สำหรับโค้ดที่คุณเขียน สิ่งที่สำคัญคือรูปร่าง: แบทช์เริ่มต้นด้วยการประมวลผล สถานะ</p><p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">ตั้งค่าเป็น in_progress และย้ายไปที่สิ้นสุดเมื่อทุกคำขอเสร็จสิ้นและผลลัพธ์พร้อมแล้ว</p>
         </div>
         
                 <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
@@ -1388,7 +1510,28 @@ while True:
     time.sleep(60)
 print(message_batch)</code></pre>
                 </div>
-                <div class="my-4 space-y-3 p-0.5"><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">การโพลมีค่าใช้จ่าย: ID งานต้องมีอายุ</p><p class="text-slate-300 text-sm sm:text-[15px] leading-relaxed sm:leading-loose my-3">การใช้งานนานกว่ากระบวนการที่ส่งมัน จัดเก็บ ID ชุดรวมพร้อมกับสิ่งใดก็ตามที่คุณจําเป็นต้องจับคู่ผลลัพธ์กลับไปยังบันทึกของคุณ จากนั้นโพลสามารถทํางานเป็นงานที่กําหนดเวลาไว้แยกต่างหาก และการรีสตาร์ทจะไม่สูญเสียงาน เลือกรูปแบบนี้เมื่ออัตราการโอนถ่ายข้อมูลและค่าใช้จ่ายสําคัญกว่าเวลาแฝง เช่น การดําเนินการจัดหมวดหมู่หรือประเมินในเวลากลางคืน อย่าเลือกเมื่อผู้ใช้กําลังรอคําตอบ</p></div>
+                
+        <div class="my-5 p-4 sm:p-5 rounded-2xl border border-slate-800/90 bg-slate-900/60 shadow-sm space-y-3.5">
+          <div class="text-slate-100 font-semibold text-sm sm:text-base flex items-start gap-2.5 leading-relaxed pb-2.5 border-b border-slate-800/70">
+            <span class="text-indigo-400 shrink-0 text-base mt-0.5">📌</span>
+            <span>การโพลมีค่าใช้จ่าย: ID งานต้องมีอายุ</span>
+          </div>
+          <ul class="space-y-2.5 pt-1">
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">การใช้งานนานกว่ากระบวนการที่ส่งมัน จัดเก็บ ID ชุดรวมพร้อมกับสิ่งใดก็ตามที่คุณจําเป็นต้องจับคู่ผลลัพธ์กลับไปยังบันทึกของคุณ</span></div>
+            </li>
+            
+            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow"><span class="text-slate-200">จากนั้นโพลสามารถทํางานเป็นงานที่กําหนดเวลาไว้แยกต่างหาก และการรีสตาร์ทจะไม่สูญเสียงาน เลือกรูปแบบนี้เมื่ออัตราการโอนถ่ายข้อมูลและค่าใช้จ่ายสําคัญกว่าเวลาแฝง เช่น การดําเนินการจัดหมวดหมู่หรือประเมินในเวลากลางคืน อย่าเลือกเมื่อผู้ใช้กําลังรอคําตอบ</span></div>
+            </li>
+            
+          </ul>
+          
+        </div>
+        
                 <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
                   <table class="w-full border-collapse text-left text-xs sm:text-sm">
                     <thead><tr><th class="px-4 py-3.5 border-b border-slate-700 bg-slate-800/95 break-words align-top"><div class="text-white font-bold text-xs sm:text-sm">Pattern</div><div class="text-[11px] sm:text-xs text-indigo-300/85 font-normal font-sans mt-1 leading-normal">รูปแบบ</div></th><th class="px-4 py-3.5 border-b border-slate-700 bg-slate-800/95 break-words align-top"><div class="text-white font-bold text-xs sm:text-sm">How your code waits</div><div class="text-[11px] sm:text-xs text-indigo-300/85 font-normal font-sans mt-1 leading-normal">วิธีที่โค้ดของคุณรอ</div></th><th class="px-4 py-3.5 border-b border-slate-700 bg-slate-800/95 break-words align-top"><div class="text-white font-bold text-xs sm:text-sm">Wins when</div><div class="text-[11px] sm:text-xs text-indigo-300/85 font-normal font-sans mt-1 leading-normal">ชนะเมื่อ</div></th></tr></thead>
