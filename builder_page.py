@@ -1,9 +1,10 @@
 import os, sys, json, re, html
 from bs4 import BeautifulSoup
-from render_engine import render_checkpoint_html, generate_section_deep_dive
+from render_engine import render_checkpoint_html
 from thai_synthesizer import generate_thai_section_prose
 from section_translator import get_thai_heading
 from domain_knowledge import get_thai_objective, get_thai_key_concept
+from quiz_translator import get_thai_explanation, clean_thai_spacing
 
 def build_sidebar_html(catalog, current_idx, course_type):
     domains_map = {}
@@ -30,9 +31,12 @@ def build_sidebar_html(catalog, current_idx, course_type):
             active_cls = "bg-indigo-600/30 text-indigo-300 font-semibold border-l-2 border-indigo-400 pl-2.5" if is_active else "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3"
             sub_prefix = f"<span class='text-xs opacity-75 mr-1 font-mono'>[{it['sub_no']}]</span>" if it.get("sub_no") else ""
             html_out += f"""
-            <a href="{it['filename']}" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors {active_cls}">
-              {sub_prefix}
-              <span class="truncate">{it['title']}</span>
+            <a href="{it['filename']}" class="flex items-center justify-between text-xs py-1.5 pr-2 rounded transition-colors {active_cls}">
+              <div class="flex items-center min-w-0 pr-1">
+                {sub_prefix}
+                <span class="truncate">{it['title']}</span>
+              </div>
+              <span class="lesson-check-icon shrink-0 text-emerald-400 font-bold ml-1 text-xs hidden" data-filename="{it['filename']}">✓</span>
             </a>
             """
         html_out += """
@@ -48,6 +52,8 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     course_home = "index.html"
     other_course_url = "../architect/index.html" if course_type == "foundations" else "../foundations/index.html"
     other_course_name = "สลับไปคอร์ส Architect (CCAR-P)" if course_type == "foundations" else "สลับไปคอร์ส Developer (CCDV-F)"
+    lesson_filename = p.get('filename', f"lesson-{current_idx:02d}.html")
+    lesson_key = f"{course_code}_{lesson_filename}"
     
     sidebar_html = build_sidebar_html(catalog, current_idx, course_type)
     
@@ -58,14 +64,14 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     # Badges
     badges_html = ""
     for b in p.get("badges", []):
-        badges_html += f'<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">{b}</span> '
+        badges_html += f'<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">{clean_thai_spacing(b)}</span> '
     if p.get("sub_no"):
         badges_html = f'<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Subdomain {p["sub_no"]}</span> ' + badges_html
         
     # Objectives (Thai)
     objs_html = ""
     if p.get("objectives"):
-        objs_list = "".join(f'<li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>{get_thai_objective(obj)}</span></li>' for obj in p["objectives"])
+        objs_list = "".join(f'<li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>{clean_thai_spacing(get_thai_objective(obj))}</span></li>' for obj in p["objectives"])
         objs_html = f"""
         <section class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur shadow-sm">
           <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3 flex items-center gap-2">
@@ -81,7 +87,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     # Key concept (Thai)
     kc_html = ""
     if p.get("key_concept"):
-        kc_thai = get_thai_key_concept(p["key_concept"])
+        kc_thai = clean_thai_spacing(get_thai_key_concept(p["key_concept"]))
         kc_html = f"""
         <section class="my-6 rounded-2xl border-l-4 border-l-amber-500 border-y border-r border-slate-800 bg-amber-950/20 p-5 sm:p-6 shadow-sm">
           <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
@@ -98,7 +104,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     toc_links = ""
     for sec in p.get("sections", []):
         h = sec["heading"]
-        th_h = get_thai_heading(h)
+        th_h = clean_thai_spacing(get_thai_heading(h))
         clean_id = re.sub(r"[^a-zA-Z0-9]+", "-", h).lower().strip("-")
         toc_links += f'<li><a href="#{clean_id}" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>{th_h}</span></a></li>'
     toc_html = f"""
@@ -120,11 +126,11 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     sections_html = ""
     for sec in p.get("sections", []):
         h = sec["heading"]
-        th_h = get_thai_heading(h)
+        th_h = clean_thai_spacing(get_thai_heading(h))
         clean_id = re.sub(r"[^a-zA-Z0-9]+", "-", h).lower().strip("-")
         
         # Collect raw paragraphs for synthesis & English reference
-        raw_paras = [it["text"] for it in sec.get("items", []) if it["type"] == "paragraph"]
+        raw_paras = [clean_thai_spacing(it["text"]) for it in sec.get("items", []) if it["type"] == "paragraph"]
         
         # Generate rich Thai prose
         thai_prose_html = generate_thai_section_prose(h, raw_paras)
@@ -134,22 +140,27 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
         for it in sec.get("items", []):
             itype = it["type"]
             if itype == "exam_trap":
+                trap_raw = it["text"]
+                trap_th = get_thai_explanation(trap_raw)
                 sec_elements += f"""
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm text-amber-200/90">{it["text"]}</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">{html.escape(trap_th)}</p>
+                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
+                    EN: {html.escape(clean_thai_spacing(trap_raw))}
+                  </div>
                 </aside>
                 """
             elif itype == "table":
-                t_headers = "".join(f'<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">{th}</th>' for th in it.get("headers", []))
+                t_headers = "".join(f'<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">{clean_thai_spacing(th)}</th>' for th in it.get("headers", []))
                 t_rows = ""
                 for r in it.get("rows", []):
-                    cells = "".join(f'<td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">{td}</td>' for td in r)
+                    cells = "".join(f'<td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">{clean_thai_spacing(td)}</td>' for td in r)
                     t_rows += f'<tr class="hover:bg-slate-800/40 transition-colors">{cells}</tr>'
-                cap_html = f'<figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">{it["caption"]}</figcaption>' if it.get("caption") else ""
+                cap_html = f'<figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">{clean_thai_spacing(it["caption"])}</figcaption>' if it.get("caption") else ""
                 sec_elements += f"""
                 <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
                   <table class="min-w-full divide-y divide-slate-800 text-left">
@@ -162,7 +173,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
             elif itype == "figure_text":
                 sec_elements += f"""
                 <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  {it["text"]}
+                  {clean_thai_spacing(it["text"])}
                 </div>
                 """
             elif itype == "code":
@@ -177,7 +188,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
             elif itype == "list":
                 tag = "ol" if it.get("ordered") else "ul"
                 cls = "list-decimal ml-5" if it.get("ordered") else "list-disc ml-5"
-                lis = "".join(f'<li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">{li}</li>' for li in it.get("items", []))
+                lis = "".join(f'<li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">{clean_thai_spacing(li)}</li>' for li in it.get("items", []))
                 sec_elements += f'<{tag} class="{cls} my-3 space-y-1">{lis}</{tag}>'
             elif itype == "checkpoint_ref":
                 ckey = it["key"]
@@ -190,9 +201,6 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                     qid = ckey[9:]
                     q_data = questions.get(qid)
                 sec_elements += render_checkpoint_html(ckey, b_data, q_data)
-                
-        # Deep Dive
-        deep_dive = generate_section_deep_dive(h, sec.get("items", []), p.get("domain_title", ""))
         
         # Folded original English reference
         eng_ref_paras = "".join(f'<p class="my-2">{p_text}</p>' for p_text in raw_paras)
@@ -219,7 +227,6 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
           </h2>
           {thai_prose_html}
           {sec_elements}
-          {deep_dive}
           {eng_details_html}
         </section>
         """
@@ -227,7 +234,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     # Sources
     sources_html = ""
     if p.get("sources"):
-        s_lis = "".join(f'<li><a href="{s["url"]}" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>{s["title"]}</span></a></li>' for s in p["sources"])
+        s_lis = "".join(f'<li><a href="{s["url"]}" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>{clean_thai_spacing(s["title"])}</span></a></li>' for s in p["sources"])
         sources_html = f"""
         <section class="mt-14 pt-8 border-t border-slate-800">
           <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
@@ -239,6 +246,27 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
           </ul>
         </section>
         """
+        
+    # Completion Banner
+    completion_box = f"""
+    <div class="my-12 p-6 rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 text-center space-y-4 shadow-xl">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-500/20 text-2xl text-indigo-300 mb-1">
+        🎓
+      </div>
+      <h3 class="text-lg sm:text-xl font-bold text-white">คุณได้ศึกษาเนื้อหาบทเรียนนี้ครบถ้วนแล้ว!</h3>
+      <p class="text-slate-300 text-xs sm:text-sm max-w-lg mx-auto leading-relaxed">
+        บันทึกความคืบหน้าของคุณลงใน LocalStorage เพื่อติดตามบทเรียนและแบบฝึกหัดที่ทำสำเร็จในหลักสูตร
+      </p>
+      <div class="pt-2 flex flex-wrap items-center justify-center gap-3">
+        <button id="btn-toggle-complete-bottom"
+                onclick="toggleLessonComplete()"
+                class="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all shadow-md bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer">
+          <span>✓</span>
+          <span>ทำเครื่องหมายว่าเรียนจบบทนี้แล้ว (Mark Complete)</span>
+        </button>
+      </div>
+    </div>
+    """
         
     # Prev / Next nav
     prev_btn = f"""
@@ -256,7 +284,8 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     """ if next_item else '<div class="flex-1"></div>'
     
     nav_footer = f"""
-    <nav class="mt-16 pt-8 border-t border-slate-800 flex flex-col sm:flex-row gap-4 justify-between">
+    {completion_box}
+    <nav class="mt-8 pt-8 border-t border-slate-800 flex flex-col sm:flex-row gap-4 justify-between">
       {prev_btn}
       {next_btn}
     </nav>
@@ -286,16 +315,34 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
   <!-- Header -->
   <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <a href="../index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition">
+      <div class="flex items-center gap-3 min-w-0">
+        <a href="../index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition shrink-0">
           <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20">A</span>
-          <span class="font-bold text-sm tracking-wide hidden sm:inline">Anthropic Cert Hub</span>
+          <span class="font-bold text-sm tracking-wide hidden md:inline">Anthropic Cert Hub</span>
         </a>
-        <span class="text-slate-600">/</span>
-        <a href="{course_home}" class="text-xs sm:text-sm font-medium text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] sm:max-w-none">{course_name}</a>
+        <span class="text-slate-600 hidden sm:inline">/</span>
+        <a href="{course_home}" class="text-xs sm:text-sm font-medium text-indigo-400 hover:text-indigo-300 truncate max-w-[180px] sm:max-w-xs">{course_name}</a>
       </div>
-      <div class="flex items-center gap-2">
-        <a href="{other_course_url}" class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
+      
+      <!-- Right actions: Progress & Toggle Completed -->
+      <div class="flex items-center gap-3 shrink-0">
+        <div class="hidden sm:flex items-center gap-2 text-xs text-slate-300 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400">คอร์ส:</span>
+          <span id="course-progress-text" class="font-bold text-indigo-400 font-mono">0/{len(catalog)}</span>
+          <div class="w-16 bg-slate-800 h-2 rounded-full overflow-hidden shrink-0">
+            <div id="course-progress-bar" class="bg-indigo-500 h-full w-0 transition-all duration-300"></div>
+          </div>
+          <span id="course-progress-pct" class="font-mono text-indigo-300 font-semibold">0%</span>
+        </div>
+        
+        <button id="btn-toggle-complete-top"
+                onclick="toggleLessonComplete()"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer">
+          <span>○</span>
+          <span>ทำเครื่องหมายว่าเรียนจบ</span>
+        </button>
+        
+        <a href="{other_course_url}" class="hidden lg:inline-flex text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
           {other_course_name}
         </a>
       </div>
@@ -328,9 +375,10 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
           <p class="text-xs sm:text-sm text-indigo-400/90 mt-1.5 font-mono font-medium">
             ต้นฉบับ: {p.get('title_en', p['title'])}
           </p>
-          <p class="text-xs text-slate-400 mt-1 font-mono">
-            {course_name} · สรุปและขยายความตามเอกสารทางการ 100%
-          </p>
+          <div class="flex items-center gap-4 mt-2 text-xs text-slate-400 font-mono">
+            <span>{course_name} · สรุปและขยายความตามเอกสารทางการ 100%</span>
+            <span id="lesson-quiz-stats" class="text-indigo-400 font-semibold"></span>
+          </div>
         </header>
 
         {objs_html}
@@ -348,13 +396,213 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     <p class="mt-1">แปล ขยายความ และรวบรวมเพื่อการเตรียมสอบ CCDV-F & CCAR-P อย่างครบถ้วนทุกบทเรียน</p>
   </footer>
 
+  <!-- Interactive Quiz & LocalStorage Engine -->
   <script>
-    window.addEventListener('scroll', () => {{
-      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
-      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const scrolled = (winScroll / height) * 100;
-      document.getElementById('progress').style.width = scrolled + '%';
+    const COURSE_CODE = "{course_code}";
+    const LESSON_FILENAME = "{lesson_filename}";
+    const LESSON_KEY = COURSE_CODE + "_" + LESSON_FILENAME;
+
+    // 1. Interactive Quiz Answer Handler
+    function handleQuizAnswer(qid, opt) {{
+      const card = document.getElementById('quiz-' + qid);
+      if (!card) return;
+      
+      const correctRaw = card.getAttribute('data-correct') || '';
+      const correctAnswers = correctRaw.split(',').map(s => s.trim());
+      const isCorrect = correctAnswers.includes(opt);
+      
+      const fb = document.getElementById('feedback-' + qid);
+      const sol = document.getElementById('solution-' + qid);
+      const statusBadge = document.getElementById('status-badge-' + qid);
+      
+      if (isCorrect) {{
+        // Reset previously clicked buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {{
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 text-slate-200 text-sm select-none transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        }});
+        
+        // Highlight correct option
+        const btn = document.getElementById('opt-' + qid + '-' + opt);
+        if (btn) {{
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-emerald-500/80 bg-emerald-950/40 text-emerald-200 ring-2 ring-emerald-500/30 select-none cursor-pointer transition-all";
+          const badge = btn.querySelector('.opt-badge');
+          if (badge) badge.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-500 text-xs font-bold text-white shrink-0";
+          const icon = btn.querySelector('.opt-icon');
+          if (icon) {{
+            icon.textContent = "✓ ถูกต้อง";
+            icon.className = "opt-icon ml-2 shrink-0 font-bold text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300";
+            icon.classList.remove('hidden');
+          }}
+        }}
+        
+        // Success banner
+        if (fb) {{
+          fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+          fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> คุณเลือกคำตอบที่ถูกต้องแล้ว</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+          fb.classList.remove('hidden');
+        }}
+        
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        if (sol) sol.classList.remove('hidden');
+        
+        // Save to LocalStorage
+        try {{
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{{}}');
+          quizProgress[qid] = {{ solved: true, selected: opt, updatedAt: Date.now() }};
+          localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        }} catch(e) {{}}
+        
+        updateQuizStats();
+      }} else {{
+        // Highlight wrong option (can retry immediately)
+        const btn = document.getElementById('opt-' + qid + '-' + opt);
+        if (btn) {{
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-rose-500/70 bg-rose-950/30 text-rose-200 select-none cursor-pointer transition-all";
+          const badge = btn.querySelector('.opt-badge');
+          if (badge) badge.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-500 text-xs font-bold text-white shrink-0";
+          const icon = btn.querySelector('.opt-icon');
+          if (icon) {{
+            icon.textContent = "✗ ยังไม่ใช่";
+            icon.className = "opt-icon ml-2 shrink-0 font-bold text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-300";
+            icon.classList.remove('hidden');
+          }}
+        }}
+        
+        // Gentle retry message
+        if (fb) {{
+          fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+          fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
+          fb.classList.remove('hidden');
+        }}
+      }}
+    }}
+
+    function toggleSolutionManual(qid) {{
+      const sol = document.getElementById('solution-' + qid);
+      if (sol) sol.classList.toggle('hidden');
+    }}
+
+    // 2. Lesson Completion Handling
+    function toggleLessonComplete() {{
+      try {{
+        const completed = JSON.parse(localStorage.getItem('claude_cert_completed_lessons') || '{{}}');
+        const isNowComplete = !completed[LESSON_KEY];
+        completed[LESSON_KEY] = isNowComplete;
+        localStorage.setItem('claude_cert_completed_lessons', JSON.stringify(completed));
+        updateLessonUI(isNowComplete);
+        updateSidebarProgress();
+      }} catch(e) {{}}
+    }}
+
+    function updateLessonUI(isComplete) {{
+      const topBtn = document.getElementById('btn-toggle-complete-top');
+      const bottomBtn = document.getElementById('btn-toggle-complete-bottom');
+      
+      if (isComplete) {{
+        if (topBtn) {{
+          topBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm flex items-center gap-1.5 transition cursor-pointer";
+          topBtn.innerHTML = '<span>✓</span><span>เรียนจบแล้ว</span>';
+        }}
+        if (bottomBtn) {{
+          bottomBtn.className = "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all shadow-md bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer";
+          bottomBtn.innerHTML = '<span>✓</span><span>เรียนจบแล้ว (คลิกเพื่อยกเลิก)</span>';
+        }}
+      }} else {{
+        if (topBtn) {{
+          topBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1.5 transition cursor-pointer";
+          topBtn.innerHTML = '<span>○</span><span>ทำเครื่องหมายว่าเรียนจบ</span>';
+        }}
+        if (bottomBtn) {{
+          bottomBtn.className = "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all shadow-md bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer";
+          bottomBtn.innerHTML = '<span>✓</span><span>ทำเครื่องหมายว่าเรียนจบบทนี้แล้ว (Mark Complete)</span>';
+        }}
+      }}
+    }}
+
+    // 3. Hydrate state on page load
+    document.addEventListener('DOMContentLoaded', () => {{
+      // Scroll Progress Bar
+      window.addEventListener('scroll', () => {{
+        const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+        const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+        const scrolled = (winScroll / height) * 100;
+        document.getElementById('progress').style.width = scrolled + '%';
+      }});
+
+      // Restore completed status
+      try {{
+        const completed = JSON.parse(localStorage.getItem('claude_cert_completed_lessons') || '{{}}');
+        if (completed[LESSON_KEY]) {{
+          updateLessonUI(true);
+        }}
+      }} catch(e) {{}}
+      
+      // Restore quiz answers
+      try {{
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{{}}');
+        document.querySelectorAll('.quiz-card').forEach(card => {{
+          const qid = card.getAttribute('data-qid');
+          if (quizProgress[qid] && quizProgress[qid].solved) {{
+            const opt = quizProgress[qid].selected;
+            handleQuizAnswer(qid, opt);
+          }}
+        }});
+      }} catch(e) {{}}
+      
+      updateSidebarProgress();
+      updateQuizStats();
     }});
+
+    function updateQuizStats() {{
+      const cards = document.querySelectorAll('.quiz-card');
+      if (!cards.length) return;
+      let solved = 0;
+      try {{
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{{}}');
+        cards.forEach(card => {{
+          const qid = card.getAttribute('data-qid');
+          if (quizProgress[qid] && quizProgress[qid].solved) solved++;
+        }});
+      }} catch(e) {{}}
+      
+      const el = document.getElementById('lesson-quiz-stats');
+      if (el) {{
+        el.textContent = `แบบฝึกหัดบทนี้: ${{solved}}/${{cards.length}} ข้อ`;
+      }}
+    }}
+
+    function updateSidebarProgress() {{
+      try {{
+        const completed = JSON.parse(localStorage.getItem('claude_cert_completed_lessons') || '{{}}');
+        let count = 0;
+        const checks = document.querySelectorAll('.lesson-check-icon');
+        checks.forEach(chk => {{
+          const fn = chk.getAttribute('data-filename');
+          const key = COURSE_CODE + "_" + fn;
+          if (completed[key]) {{
+            chk.classList.remove('hidden');
+            count++;
+          }} else {{
+            chk.classList.add('hidden');
+          }}
+        }});
+        
+        const total = {len(catalog)};
+        if (total > 0) {{
+          const pct = Math.round((count / total) * 100);
+          const txt = document.getElementById('course-progress-text');
+          const pctEl = document.getElementById('course-progress-pct');
+          const bar = document.getElementById('course-progress-bar');
+          if (txt) txt.textContent = `${{count}}/${{total}}`;
+          if (pctEl) pctEl.textContent = `${{pct}}%`;
+          if (bar) bar.style.width = `${{pct}}%`;
+        }}
+      }} catch(e) {{}}
+    }}
   </script>
 </body>
 </html>"""
@@ -386,7 +634,10 @@ def render_course_index_page(catalog, course_type):
               <div class="flex items-center gap-3 min-w-0">
                 {sub_badge}
                 <div class="min-w-0">
-                  <span class="text-sm text-slate-200 group-hover:text-indigo-300 font-medium truncate block">{it['title']}</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-slate-200 group-hover:text-indigo-300 font-medium truncate block">{it['title']}</span>
+                    <span class="badge-completed hidden text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0" data-filename="{it['filename']}">✓ จบแล้ว</span>
+                  </div>
                   <span class="text-xs text-slate-500 truncate block mt-0.5 font-mono">{it.get('title_en', '')}</span>
                 </div>
               </div>
@@ -410,28 +661,33 @@ def render_course_index_page(catalog, course_type):
         """
         
     return f"""<!DOCTYPE html>
-<html lang="th" class="dark">
+<html lang="th" class="dark scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{course_code} คู่มือเตรียมสอบ Anthropic ภาษาไทยฉบับสมบูรณ์</title>
+  <title>{course_name} | Anthropic Cert Hub (ภาษาไทย)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-    body {{ font-family: 'Prompt', 'Inter', sans-serif; }}
-    code, pre {{ font-family: 'JetBrains Mono', monospace; }}
+    body {{
+      font-family: 'Prompt', 'Inter', sans-serif;
+    }}
+    code, pre {{
+      font-family: 'JetBrains Mono', monospace;
+    }}
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen">
-  <header class="border-b border-slate-800/80 bg-slate-950/80 sticky top-0 z-40 backdrop-blur">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <a href="../index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition">
           <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20">A</span>
           <span class="font-bold text-sm tracking-wide">Anthropic Cert Hub</span>
         </a>
         <span class="text-slate-600">/</span>
-        <span class="text-sm font-medium text-indigo-400">{course_code}</span>
+        <span class="text-xs sm:text-sm font-semibold text-white">{course_code}</span>
       </div>
       <div>
         <a href="{other_course_url}" class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
@@ -441,36 +697,86 @@ def render_course_index_page(catalog, course_type):
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <div class="text-center max-w-3xl mx-auto mb-12">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold uppercase tracking-wider mb-3">
-        <span>📖 สารบัญหลักสูตรเตรียมสอบทางการ</span>
-      </div>
-      <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-4">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="mb-10 text-center max-w-3xl mx-auto">
+      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-4 font-mono">
+        {course_code} · 100% Complete Syllabus
+      </span>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-3">
         {course_name}
       </h1>
-      <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
+      <p class="text-slate-400 text-sm sm:text-base leading-relaxed mb-6">
         {course_desc}
       </p>
-      <div class="mt-6 flex flex-wrap justify-center gap-3">
-        <span class="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300">📚 ทั้งหมด {len(catalog)} ตอน</span>
-        <span class="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300">🇹🇭 แปลและขยายความภาษาไทย 100%</span>
-        <span class="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300">📝 ข้อสอบจำลองและเฉลยละเอียดครบทุกบท</span>
+      
+      <!-- Live Progress Summary Card -->
+      <div class="p-6 rounded-2xl border border-indigo-500/30 bg-slate-900/70 backdrop-blur shadow-xl text-left">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
+          <div>
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">ความคืบหน้าการเรียนของคุณ (Local Storage)</span>
+            <div class="text-2xl font-extrabold text-white">
+              <span id="idx-completed-count" class="text-indigo-400 font-mono">0</span> / {len(catalog)} บทเรียน
+              <span id="idx-completed-pct" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono ml-2">0%</span>
+            </div>
+          </div>
+          <div class="text-sm text-slate-300">
+            <span class="block text-xs text-slate-400 uppercase tracking-wider mb-1">แบบฝึกหัดที่ทำสำเร็จ</span>
+            <span id="idx-quiz-count" class="text-xl font-bold text-emerald-400 font-mono">0</span> ข้อ
+          </div>
+        </div>
+        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+          <div id="idx-progress-bar" class="bg-indigo-500 h-full w-0 transition-all duration-300"></div>
+        </div>
       </div>
     </div>
 
-    <div class="space-y-6">
+    <!-- Domain Sections -->
+    <div class="space-y-4">
       {domain_cards}
     </div>
   </main>
 
-  <footer class="mt-20 border-t border-slate-800 py-8 text-center text-xs text-slate-500">
+  <footer class="mt-20 border-t border-slate-800/80 bg-slate-950 py-8 text-center text-xs text-slate-500">
     <p>Anthropic Claude Certified Developer & Architect Study Hub (ภาษาไทยฉบับสมบูรณ์)</p>
+    <p class="mt-1">แปล ขยายความ และรวบรวมเพื่อการเตรียมสอบ CCDV-F & CCAR-P อย่างครบถ้วนทุกบทเรียน</p>
   </footer>
+
+  <script>
+    const COURSE_CODE = "{course_code}";
+    const TOTAL_LESSONS = {len(catalog)};
+
+    document.addEventListener('DOMContentLoaded', () => {{
+      try {{
+        const completed = JSON.parse(localStorage.getItem('claude_cert_completed_lessons') || '{{}}');
+        let count = 0;
+        document.querySelectorAll('.badge-completed').forEach(badge => {{
+          const fn = badge.getAttribute('data-filename');
+          const key = COURSE_CODE + "_" + fn;
+          if (completed[key]) {{
+            badge.classList.remove('hidden');
+            count++;
+          }}
+        }});
+        
+        const pct = Math.round((count / TOTAL_LESSONS) * 100);
+        document.getElementById('idx-completed-count').textContent = count;
+        document.getElementById('idx-completed-pct').textContent = pct + '%';
+        document.getElementById('idx-progress-bar').style.width = pct + '%';
+      }} catch(e) {{}}
+      
+      try {{
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{{}}');
+        const solvedCount = Object.values(quizProgress).filter(x => x && x.solved).length;
+        document.getElementById('idx-quiz-count').textContent = solvedCount;
+      }} catch(e) {{}}
+    }});
+  </script>
 </body>
 </html>"""
 
+
 def render_master_portal(f_cat, a_cat):
+    total_all = len(f_cat) + len(a_cat)
     return f"""<!DOCTYPE html>
 <html lang="th" class="dark">
 <head>
@@ -493,7 +799,7 @@ def render_master_portal(f_cat, a_cat):
         <span class="font-bold text-base tracking-wide text-white">Anthropic Certification Hub</span>
       </div>
       <div class="flex items-center gap-3 text-xs">
-        <span class="px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">ฉบับภาษาไทยสมบูรณ์</span>
+        <span class="px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-medium">ฉบับภาษาไทยสมบูรณ์ 100%</span>
       </div>
     </div>
   </header>
@@ -507,8 +813,23 @@ def render_master_portal(f_cat, a_cat):
       Anthropic Claude Certified <br><span class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Developer & Architect Hub</span>
     </h1>
     <p class="text-slate-400 text-base sm:text-lg max-w-3xl mx-auto leading-relaxed">
-      รวบรวมเนื้อหาการสอบทั้ง 2 หลักสูตร แปล ขยายความเชิงลึก และจัดทำแบบฝึกหัดพร้อมข้อสอบจำลองเฉลยละเอียดภาษาไทยครบถ้วน 100% ไม่ข้ามเนื้อหาแม้แต่หัวข้อเดียว
+      รวบรวมเนื้อหาการสอบทั้ง 2 หลักสูตร แปลและขยายความเชิงลึก พร้อมแบบฝึกหัดที่กดเลือกตอบได้จนกว่าจะถูกต้อง และบันทึกความคืบหน้าลงใน LocalStorage
     </p>
+    
+    <!-- Global Progress Banner -->
+    <div class="mt-8 max-w-2xl mx-auto p-5 rounded-2xl border border-indigo-500/30 bg-slate-900/60 backdrop-blur text-left">
+      <div class="flex items-center justify-between gap-4 mb-3">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">ความคืบหน้ารวมของคุณ:</span>
+        <span id="portal-progress-text" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">0 / {total_all} บทเรียน (0%)</span>
+      </div>
+      <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+        <div id="portal-progress-bar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-full w-0 transition-all duration-300"></div>
+      </div>
+      <div class="mt-3 flex items-center justify-between text-xs text-slate-400">
+        <span>ทำแบบฝึกหัดสำเร็จแล้ว: <span id="portal-quiz-count" class="font-bold text-emerald-400 font-mono">0</span> ข้อ</span>
+        <button onclick="resetAllProgress()" class="hover:text-rose-400 underline cursor-pointer text-[11px]">รีเซ็ตข้อมูลความคืบหน้า</button>
+      </div>
+    </div>
   </section>
 
   <!-- Courses Grid -->
@@ -590,7 +911,35 @@ def render_master_portal(f_cat, a_cat):
     <p>Anthropic Claude Certified Developer & Architect Study Hub</p>
     <p class="mt-1">แหล่งเรียนรู้และเตรียมสอบมาตรฐานระดับมืออาชีพสำหรับเทคโนโลยี Claude และ Anthropic</p>
   </footer>
+
+  <script>
+    const TOTAL_ALL = {total_all};
+
+    function updatePortalProgress() {{
+      try {{
+        const completed = JSON.parse(localStorage.getItem('claude_cert_completed_lessons') || '{{}}');
+        const count = Object.values(completed).filter(Boolean).length;
+        const pct = Math.round((count / TOTAL_ALL) * 100);
+        document.getElementById('portal-progress-text').textContent = `${{count}} / ${{TOTAL_ALL}} บทเรียน (${{pct}}%)`;
+        document.getElementById('portal-progress-bar').style.width = pct + '%';
+      }} catch(e) {{}}
+      
+      try {{
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{{}}');
+        const solvedCount = Object.values(quizProgress).filter(x => x && x.solved).length;
+        document.getElementById('portal-quiz-count').textContent = solvedCount;
+      }} catch(e) {{}}
+    }}
+
+    function resetAllProgress() {{
+      if (confirm('คุณต้องการรีเซ็ตข้อมูลความคืบหน้าการเรียนและแบบฝึกหัดทั้งหมดใช่หรือไม่?')) {{
+        localStorage.removeItem('claude_cert_completed_lessons');
+        localStorage.removeItem('claude_cert_quiz_progress');
+        updatePortalProgress();
+      }}
+    }}
+
+    document.addEventListener('DOMContentLoaded', updatePortalProgress);
+  </script>
 </body>
 </html>"""
-
-print("builder_page.py completely updated.")

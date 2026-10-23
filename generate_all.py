@@ -1,4 +1,5 @@
 from thai_catalog_titles import get_thai_title
+from quiz_translator import clean_thai_spacing
 import os, sys, json, re, html
 from bs4 import BeautifulSoup
 
@@ -12,7 +13,7 @@ os.makedirs(ARCHITECT_DIR, exist_ok=True)
 
 def clean(t):
     if not t: return ""
-    return " ".join(t.split())
+    return clean_thai_spacing(" ".join(t.split()))
 
 # Domain translation dictionaries
 DOMAIN_NAMES_TH = {
@@ -94,13 +95,13 @@ def parse_lesson_file(filepath):
     obj_sec = article.find(lambda t: t.name == "section" and "What you will be able to do" in t.get_text())
     if obj_sec:
         for li in obj_sec.find_all("li"):
-            objectives.append(clean(li.get_text()))
+            objectives.append(clean(li.get_text(separator=" ")))
             
     # Key concept
     key_concept = ""
     kc_sec = article.find(lambda t: t.name == "section" and "Key concept" in t.get_text())
     if kc_sec:
-        kc_text = clean(kc_sec.get_text()).replace("Key concept", "", 1).strip()
+        kc_text = clean(kc_sec.get_text(separator=" ")).replace("Key concept", "", 1).strip()
         key_concept = kc_text
         
     blocks, questions = extract_rsc(html_content)
@@ -110,7 +111,7 @@ def parse_lesson_file(filepath):
     for sec in article.find_all("section"):
         h2 = sec.find("h2")
         if not h2: continue
-        h2_text = clean(h2.get_text())
+        h2_text = clean(h2.get_text(separator=" "))
         if any(ignore in h2_text for ignore in ["What you will be able to do", "Key concept", "In this lesson", "Ready to test yourself?"]):
             continue
             
@@ -120,32 +121,32 @@ def parse_lesson_file(filepath):
                 continue
             
             if child.name == "aside":
-                items.append({"type": "exam_trap", "text": clean(child.get_text())})
+                items.append({"type": "exam_trap", "text": clean(child.get_text(separator=" "))})
             elif child.name == "figure":
                 table = child.find("table")
                 if table:
-                    headers = [clean(th.get_text()) for th in table.find_all("th")]
-                    rows = [[clean(td.get_text()) for td in tr.find_all("td")] for tr in table.find_all("tr") if tr.find_all("td")]
+                    headers = [clean(th.get_text(separator=" ")) for th in table.find_all("th")]
+                    rows = [[clean(td.get_text(separator=" ")) for td in tr.find_all("td")] for tr in table.find_all("tr") if tr.find_all("td")]
                     cap = child.find("figcaption")
                     items.append({
                         "type": "table",
-                        "caption": clean(cap.get_text()) if cap else "",
+                        "caption": clean(cap.get_text(separator=" ")) if cap else "",
                         "headers": headers,
                         "rows": rows
                     })
                 else:
-                    items.append({"type": "figure_text", "text": clean(child.get_text())})
+                    items.append({"type": "figure_text", "text": clean(child.get_text(separator=" "))})
             elif child.name == "pre":
                 items.append({"type": "code", "text": child.get_text()})
             elif child.name == "p":
-                t = clean(child.get_text())
+                t = clean(child.get_text(separator=" "))
                 if not re.match(r"^Sources\s*\d+", t):
                     items.append({"type": "paragraph", "text": t})
             elif child.name in ["ul", "ol"]:
                 items.append({
                     "type": "list",
                     "ordered": child.name == "ol",
-                    "items": [clean(li.get_text()) for li in child.find_all("li")]
+                    "items": [clean(li.get_text(separator=" ")) for li in child.find_all("li")]
                 })
             elif child.name == "div" and child.get("data-checkpoint-key"):
                 ckey = child.get("data-checkpoint-key")

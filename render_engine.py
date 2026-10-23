@@ -1,4 +1,5 @@
 import os, sys, json, re, html
+from quiz_translator import get_thai_explanation, clean_thai_spacing
 
 # Common Technical Dictionary for Anthropic Claude Systems
 TERM_MAP = [
@@ -28,169 +29,194 @@ TERM_MAP = [
 def thai_format_text(text):
     if not text: return ""
     res = text
-    # Apply term map if not inside code
     for pat, rep in TERM_MAP:
         res = re.sub(pat, rep, res, flags=re.IGNORECASE)
-    return res
+    return clean_thai_spacing(res)
 
-def generate_section_deep_dive(heading, items, domain_title):
-    """
-    Generates in-depth technical expansion explaining:
-    1. Operational mechanics under the hood
-    2. Architecture tradeoffs & token consumption
-    3. Crucial certification takeaways & pitfalls
-    """
-    clean_h = re.sub(r"^\d+\.\s*", "", heading).strip()
-    return f"""
-<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
-  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
-    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
-  </div>
-  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
-    <p>
-      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"{clean_h}"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
-    </p>
-    <p>
-      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
-    </p>
-    <p class="text-amber-300/90 font-medium">
-      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
-    </p>
-  </div>
-</div>
-"""
+def generate_section_deep_dive(heading, items, domain_title=""):
+    # Duplicate template removed completely as requested by user
+    return ""
 
 def render_checkpoint_html(key, block_data, question_data):
+    opt_letters = ["A", "B", "C", "D", "E"]
+    
     if question_data:
         q = question_data
-        stem = q.get("question", "")
-        options = q.get("options", [])
+        qid = str(q.get("id", ""))
+        stem_raw = q.get("question", "")
+        stem = clean_thai_spacing(stem_raw)
+        options = [clean_thai_spacing(opt) for opt in q.get("options", [])]
         correct_answers = q.get("correct_answers", ["A"])
         explanations = q.get("explanations", [])
         
-        # Build options HTML
-        opt_letters = ["A", "B", "C", "D", "E"]
+        # Build options interactive HTML
         opt_html = ""
         for i, opt in enumerate(options):
             let = opt_letters[i] if i < len(opt_letters) else str(i)
-            is_correct = let in correct_answers
             opt_html += f"""
-            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">{let}</span>
-              <span class="leading-relaxed">{html.escape(opt)}</span>
-            </div>
+            <button type="button"
+                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                    id="opt-{qid}-{let}"
+                    data-qid="{qid}"
+                    data-opt="{let}"
+                    onclick="handleQuizAnswer('{qid}', '{let}')">
+              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">{let}</span>
+              <span class="opt-text leading-relaxed mt-0.5 grow">{html.escape(opt)}</span>
+              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+            </button>
             """
             
         exp_html = ""
         for exp in explanations:
             let = exp.get("option", "")
             e_text = exp.get("explanation", "")
+            e_text_th = get_thai_explanation(e_text)
             is_c = let in correct_answers
-            color_cls = "text-emerald-400 font-bold" if is_c else "text-slate-400"
-            badge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>' if is_c else '<span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>'
+            badge = '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>' if is_c else '<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>'
+            border_cls = "border-emerald-500/30 bg-emerald-950/20" if is_c else "border-slate-800/80 bg-slate-900/40"
             exp_html += f"""
-            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="font-bold text-slate-200">ตัวเลือก {let}:</span>
+            <div class="p-3 rounded-lg border {border_cls} space-y-1.5">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-slate-200 text-xs">ตัวเลือก {let}:</span>
                 {badge}
               </div>
-              <p class="text-slate-300 text-xs leading-relaxed">{html.escape(e_text)}</p>
+              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">{html.escape(e_text_th)}</p>
+              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: {html.escape(e_text)}</div>
             </div>
             """
             
+        correct_str = ", ".join(correct_answers)
         return f"""
-        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
+             id="quiz-{qid}"
+             data-qid="{qid}"
+             data-correct="{correct_str}">
           <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
             <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
               <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
               <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
             </div>
-            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: {q.get('id', '')}</span>
+            <div class="flex items-center gap-2">
+              <span id="status-badge-{qid}" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: {qid}</span>
+            </div>
           </div>
-          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">{html.escape(stem)}</p>
-          <div class="space-y-2 mb-5">
+          
+          <div class="mb-4">
+            <p class="text-base font-medium text-slate-100 leading-relaxed">{html.escape(stem)}</p>
+          </div>
+          
+          <div class="space-y-2.5 mb-3" id="options-{qid}">
             {opt_html}
           </div>
-          <details class="group mt-4 pt-4 border-t border-slate-800">
-            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
-              <span class="flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
-              </span>
-              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
-            </summary>
-            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
-                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก {', '.join(correct_answers)}</span>
-              </div>
-              <div class="space-y-3 pt-2">
+          
+          <div id="feedback-{qid}" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+          
+          <div id="solution-{qid}" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก {correct_str}</span>
+            </div>
+            <div class="p-4 rounded-xl bg-indigo-950/40 border border-indigo-900/60 text-xs sm:text-sm text-slate-200 space-y-3">
+              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทยรายตัวเลือก (Option Analysis):</strong>
+              <div class="space-y-2">
                 {exp_html}
               </div>
             </div>
-          </details>
+          </div>
+          
+          <div class="flex items-center justify-between pt-2">
+            <button type="button" onclick="toggleSolutionManual('{qid}')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+              ดูเฉลยและคำอธิบาย
+            </button>
+            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+          </div>
         </div>
         """
     elif block_data:
         b = block_data
-        prompt = b.get("prompt", "")
-        options = b.get("options", [])
-        ans_idx = b.get("answerIndex")
-        explanation = b.get("explanation", "")
+        bid = str(b.get("id", key.replace("check:", "")))
+        prompt_raw = b.get("prompt", "")
+        prompt = clean_thai_spacing(prompt_raw)
+        options = [clean_thai_spacing(opt) for opt in b.get("options", [])]
+        ans_idx = b.get("answerIndex", 0)
+        explanation_raw = b.get("explanation", "")
+        explanation_th = get_thai_explanation(explanation_raw)
         citation = b.get("citation", {})
+        correct_letter = opt_letters[ans_idx] if ans_idx is not None and ans_idx < len(opt_letters) else "A"
         
         opt_html = ""
-        opt_letters = ["A", "B", "C", "D", "E"]
         for i, opt in enumerate(options):
             let = opt_letters[i] if i < len(opt_letters) else str(i)
             opt_html += f"""
-            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">{let}</span>
-              <span class="leading-relaxed">{html.escape(opt)}</span>
-            </div>
+            <button type="button"
+                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                    id="opt-{bid}-{let}"
+                    data-qid="{bid}"
+                    data-opt="{let}"
+                    onclick="handleQuizAnswer('{bid}', '{let}')">
+              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">{let}</span>
+              <span class="opt-text leading-relaxed mt-0.5 grow">{html.escape(opt)}</span>
+              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+            </button>
             """
             
-        correct_letter = opt_letters[ans_idx] if ans_idx is not None and ans_idx < len(opt_letters) else "N/A"
-        
         cit_html = ""
         if citation and citation.get("quote"):
             cit_html = f"""
             <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “{html.escape(citation.get('quote', ''))}”
+              “{html.escape(clean_thai_spacing(citation.get('quote', '')))}”
               <br><a href="{citation.get('sourceUrl', '#')}" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
             </div>
             """
             
         return f"""
-        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+             id="quiz-{bid}"
+             data-qid="{bid}"
+             data-correct="{correct_letter}">
           <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
             <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
               <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
               <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
             </div>
-            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+            <div class="flex items-center gap-2">
+              <span id="status-badge-{bid}" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+            </div>
           </div>
-          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">{html.escape(prompt)}</p>
-          <div class="space-y-2 mb-4">
+          
+          <div class="mb-4">
+            <p class="text-base font-medium text-slate-100 leading-relaxed">{html.escape(prompt)}</p>
+          </div>
+          
+          <div class="space-y-2.5 mb-3" id="options-{bid}">
             {opt_html}
           </div>
-          <details class="group mt-4 pt-3 border-t border-slate-800">
-            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
-              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
-              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
-            </summary>
-            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก {correct_letter}</span>
-              </div>
-              <p class="text-slate-300 leading-relaxed text-xs">{html.escape(explanation)}</p>
+          
+          <div id="feedback-{bid}" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+          
+          <div id="solution-{bid}" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก {correct_letter}</span>
+            </div>
+            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">{html.escape(explanation_th)}</p>
+              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: {html.escape(explanation_raw)}</div>
               {cit_html}
             </div>
-          </details>
+          </div>
+          
+          <div class="flex items-center justify-between pt-2">
+            <button type="button" onclick="toggleSolutionManual('{bid}')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+              ดูเฉลยและคำอธิบาย
+            </button>
+            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+          </div>
         </div>
         """
     return ""
 
-print("Loaded render engine module.")
+print("render_engine.py ready with interactive quiz support.")
