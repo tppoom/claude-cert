@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="th" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สถาปัตยกรรมเอเจนต์: เวิร์กโฟลว์, เอเจนต์ และลำดับชั้น Orchestrator–Subagent | CCDV-F คู่มือเตรียมสอบ Anthropic</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Prompt', 'Inter', sans-serif;
+    }
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
+  <!-- Progress Bar -->
+  <div id="progress" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-50 transition-all duration-150" style="width: 0%"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition">
+          <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20">A</span>
+          <span class="font-bold text-sm tracking-wide hidden sm:inline">Anthropic Cert Hub</span>
+        </a>
+        <span class="text-slate-600">/</span>
+        <a href="index.html" class="text-xs sm:text-sm font-medium text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] sm:max-w-none">Anthropic Claude Certified Developer – Foundations (CCDV-F)</a>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="../architect/index.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
+          สลับไปคอร์ส Architect (CCAR-P)
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <!-- Sidebar -->
+    <aside class="hidden lg:block w-72 shrink-0">
+      <div class="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-3 space-y-2">
+        <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-800">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">สารบัญบทเรียน (45 บท)</span>
+          <a href="index.html" class="text-xs text-indigo-400 hover:underline">หน้าหลักคอร์ส</a>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 1: Agents and Workflows (สถาปัตยกรรมเอเจนต์และเวิร์กโฟลว์)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-01.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors bg-indigo-600/30 text-indigo-300 font-semibold border-l-2 border-indigo-400 pl-2.5">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.1]</span>
+              <span class="truncate">สถาปัตยกรรมเอเจนต์: เวิร์กโฟลว์, เอเจนต์ และลำดับชั้น Orchestrator–Subagent</span>
+            </a>
+            
+            <a href="lesson-02.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">แนวทางการสร้างและโฮสต์ Claude Agent ด้วย Agent SDK</span>
+            </a>
+            
+            <a href="lesson-03.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">การทำงานของ query() loop, Hooks และ Subagents ใน Agent SDK</span>
+            </a>
+            
+            <a href="lesson-04.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.3]</span>
+              <span class="truncate">รูปแบบเอเจนต์และเฟรมเวิร์ก: เวิร์กโฟลว์, เอเจนต์ย่อย และการจัดการหน่วยความจำ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 2: Applications and Integration (การพัฒนาแอปพลิเคชันและการเชื่อมต่อระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-05.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">การแปลงข้อกำหนดเชิงฟังก์ชันสู่การเลือกรุ่น Claude Model</span>
+            </a>
+            
+            <a href="lesson-06.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">ข้อกำหนดด้านโครงสร้างพื้นฐาน: แพลตฟอร์ม, Data Residency, ZDR และ Capacity</span>
+            </a>
+            
+            <a href="lesson-07.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">วงจรชีวิตโมเดล Claude: การยกเลิก (Deprecation), การปลดระวาง และการย้ายระบบ</span>
+            </a>
+            
+            <a href="lesson-08.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">การประเมินผล การกำหนดเวอร์ชัน และการ Rollout การเปลี่ยนแปลงในระบบ Claude</span>
+            </a>
+            
+            <a href="lesson-09.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">กลไก Claude Messages API: Requests, State, Tools, Streaming และ Vision</span>
+            </a>
+            
+            <a href="lesson-10.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">Message Batches API และการเลือกใช้งานแบบ Batch เทียบกับ Realtime</span>
+            </a>
+            
+            <a href="lesson-11.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST, JSON และรูปแบบ Sync vs Async</span>
+            </a>
+            
+            <a href="lesson-12.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การผสาน Claude Code กับ Git, CI, Code Review และ Refactoring</span>
+            </a>
+            
+            <a href="lesson-13.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การออกแบบแอปพลิเคชัน: พื้นผิวอินพุต, การวางคำสั่ง และขอบเขตบริบท</span>
+            </a>
+            
+            <a href="lesson-14.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การดูแลสุขอนามัยของเซสชันและการจัดการปลั๊กอินใน Claude Code</span>
+            </a>
+            
+            <a href="lesson-15.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.6]</span>
+              <span class="truncate">การจัดการการตั้งค่าสำหรับ Claude: CLAUDE.md, settings.json และลำดับความสำคัญ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 3: Claude Code (การใช้งานและการตั้งค่า Claude Code)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-16.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การตั้งค่าโปรเจกต์ Claude Code: CLAUDE.md, Rules, Auto Memory และ settings.json</span>
+            </a>
+            
+            <a href="lesson-17.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การรัน Claude Code: Skills, Subagents, Sessions, Headless และ Auto Mode</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 4: Eval, Testing, and Debugging (การประเมินผล การทดสอบ และการแก้จุดบกพร่อง)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-18.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">ประเภทข้อผิดพลาดของ Claude API และกลยุทธ์การกู้คืนระบบ (Error Recovery)</span>
+            </a>
+            
+            <a href="lesson-19.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">การสืบค้นและระบุจุดบกพร่อง: ปัญหาที่ชั้น Integration เทียบกับ Model Output</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 5: Model Selection and Optimization (การเลือกรุ่นโมเดลและการปรับแต่งประสิทธิภาพ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-20.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">การทำงานพื้นฐานของ LLM: โทเค็น, Context Window และพารามิเตอร์การสุ่ม (Sampling)</span>
+            </a>
+            
+            <a href="lesson-21.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">ตัวเลือกโมเดล Claude: Thinking Modes, ระดับ Effort, Fast Mode และ Few-shot</span>
+            </a>
+            
+            <a href="lesson-22.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST: Endpoints, Headers และ SDKs</span>
+            </a>
+            
+            <a href="lesson-23.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การสตรีมผลลัพธ์ของ Claude ผ่าน Server-Sent Events (SSE)</span>
+            </a>
+            
+            <a href="lesson-24.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">การเลือกรุ่น Claude: ลำดับชั้นโมเดล (Tiers), ความหน่วง (Latency) และต้นทุน (Cost)</span>
+            </a>
+            
+            <a href="lesson-25.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">โหมดการคิดของ Claude (Thinking Modes) และข้อควรระวังเรื่องการเปลี่ยนแปลงข้ามรุ่น</span>
+            </a>
+            
+            <a href="lesson-26.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">ราคาโทเค็น Claude, การนับโทเค็น (Token Counting) และการติดตามการใช้งาน</span>
+            </a>
+            
+            <a href="lesson-27.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">Prompt Caching: จุดเบรกพอยต์, TTLs และการประหยัดต้นทุนด้วยการแคช</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 6: Prompt and Context Engineering (วิศวกรรมพร้อมต์และการจัดการ Context Window)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-28.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การจัดสรรงบประมาณ Context Window และการตัดทอนผลลัพธ์เครื่องมือ (Pruning)</span>
+            </a>
+            
+            <a href="lesson-29.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การบีบอัดบริบท (Compaction) และการแยก Context Isolation ใน Subagents</span>
+            </a>
+            
+            <a href="lesson-30.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.2]</span>
+              <span class="truncate">วิศวกรรมพร้อมต์สำหรับ Claude: ความชัดเจน, ตัวอย่าง Few-shot และข้อกำหนดผลลัพธ์</span>
+            </a>
+            
+            <a href="lesson-31.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การสร้าง Structured Outputs และ Strict Tool Use เพื่อให้ได้ผลลัพธ์ JSON ที่แม่นยำ</span>
+            </a>
+            
+            <a href="lesson-32.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การตรวจสอบผลลัพธ์ของ Claude ก่อนนำไปใช้งาน (Stop Reason, Empty Turns, Hallucination)</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 7: Security and Safety (ความปลอดภัย การควบคุม และการป้องกันระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-33.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การป้องกัน Prompt Injection และ Jailbreak สำหรับแอปพลิเคชัน Claude</span>
+            </a>
+            
+            <a href="lesson-34.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การกำหนดสิทธิ์เอเจนต์ (Agent Permissions), การจัดการความลับ และการคุ้มครองข้อมูล</span>
+            </a>
+            
+            <a href="lesson-35.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การวาง Guardrail หลายชั้นและนโยบายเนื้อหา (Content Policy) สำหรับ Claude</span>
+            </a>
+            
+            <a href="lesson-36.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การติดตั้งระบบแบบ Secure-by-Design: หลักสิทธิ์ต่ำสุด (Least Privilege) และความเป็นส่วนตัว</span>
+            </a>
+            
+            <a href="lesson-37.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">เหตุการณ์ Claude Code Hooks, Matchers และประเภทของ Handlers</span>
+            </a>
+            
+            <a href="lesson-38.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">การสกัดกั้นคำสั่งเครื่องมือที่เป็นอันตรายด้วย PreToolUse Decisions</span>
+            </a>
+            
+            <a href="lesson-39.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">คีย์ Claude API: ประเภทคีย์, การจัดเก็บอย่างปลอดภัย, การหมุนเวียน และการตอบสนองเมื่อคีย์รั่วไหล</span>
+            </a>
+            
+            <a href="lesson-40.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">Workload Identity Federation และลำดับความสำคัญของ Credential ใน SDK</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 8: Tools and MCPs (การใช้งานเครื่องมือและ Model Context Protocol)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-41.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การนิยามเครื่องมือสำหรับ Claude: โครงสร้าง Schema, คำอธิบาย และการออกแบบชุดเครื่องมือ</span>
+            </a>
+            
+            <a href="lesson-42.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การจัดการการเรียกใช้เครื่องมือ: วงรอบเอเจนต์ (Agentic Loop), ข้อผิดพลาด และการอนุมัติ</span>
+            </a>
+            
+            <a href="lesson-43.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">พื้นฐานองค์ประกอบ MCP Server: Tools, Resources และ Prompts</span>
+            </a>
+            
+            <a href="lesson-44.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">MCP Transports และการเชื่อมต่อเซิร์ฟเวอร์เข้ากับ Claude Code และ Agent SDK</span>
+            </a>
+            
+            <a href="lesson-45.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.3]</span>
+              <span class="truncate">เปรียบเทียบ Built-in Tools, Custom Tools, Skills และ MCP: การเลือกวิธีขยายขีดความสามารถ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 min-w-0 max-w-4xl mx-auto">
+      <article>
+        <!-- Header -->
+        <header class="mb-8">
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Subdomain 1.1</span> <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">✓</span> 
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            สถาปัตยกรรมเอเจนต์: เวิร์กโฟลว์, เอเจนต์ และลำดับชั้น Orchestrator–Subagent
+          </h1>
+          <p class="text-xs sm:text-sm text-indigo-400/90 mt-1.5 font-mono font-medium">
+            ต้นฉบับ: Agent architecture: workflows, agents and orchestrator–subagent hierarchies
+          </p>
+          <p class="text-xs text-slate-400 mt-1 font-mono">
+            Anthropic Claude Certified Developer – Foundations (CCDV-F) · สรุปและขยายความตามเอกสารทางการ 100%
+          </p>
+        </header>
+
+        
+        <section class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur shadow-sm">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3 flex items-center gap-2">
+            <span class="text-base">🎯</span>
+            <span>สิ่งที่คุณจะสามารถทำได้หลังจบบทเรียนนี้ (What you will be able to do)</span>
+          </h2>
+          <ul class="space-y-2.5 text-sm sm:text-[15px] text-slate-200 leading-relaxed">
+            <li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>แยกแยะความแตกต่างระหว่าง Workflow และ Agent โดยพิจารณาว่าใครเป็นผู้ตัดสินใจในขั้นตอนถัดไป (โค้ดของคุณ หรือ โมเดล)</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>เลือกใช้ขั้นต่ำที่สุดของบันไดระดับความเป็นอิสระ (Autonomy Ladder) ที่เพียงพอต่อข้อกำหนด และประเมินต้นทุนที่เพิ่มขึ้นเมื่อขยับขั้น</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>อธิบายกลไกที่ Orchestrator Agent กระจายงานไปยัง Subagents และวิธีการรับผลลัพธ์กลับมารวบรวม</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>ระบุ 3 สถานการณ์หลักที่การใช้ Subagents ให้ผลลัพธ์ดีกว่า Agent เดี่ยว พร้อมประเมินผลกระทบด้านโทเค็นและความหน่วง</span></li>
+          </ul>
+        </section>
+        
+        
+        <section class="my-6 rounded-2xl border-l-4 border-l-amber-500 border-y border-r border-slate-800 bg-amber-950/20 p-5 sm:p-6 shadow-sm">
+          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักสำคัญ (Key Concept)</span>
+          </div>
+          <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
+            สิทธิ์การควบคุมกระบวนการ (Ownership of the Control Flow) — เส้นแบ่งสำคัญระหว่าง Workflow และ Agent คือ 'ใครเป็นผู้กำหนดขั้นตอนถัดไป' ใน Workflow โค้ดที่คุณเขียนจะกำหนดลำดับการเรียก LLM และเครื่องมือไว้อย่างตายตัว แต่ใน Agent ตัวโมเดลจะเป็นผู้ตัดสินใจเลือกลำดับขั้นตอนและเครื่องมือด้วยตัวเองขณะทำงาน (Runtime)
+          </p>
+        </section>
+        
+        
+    <nav class="my-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-xs sm:text-sm">
+      <div class="font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+        <span>📑</span>
+        <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
+      </div>
+      <ul class="space-y-2 ml-1">
+        <li><a href="#1-workflows-and-agents-differ-in-who-owns-the-control-flow" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. ความแตกต่างระหว่าง Workflow และ Agent: ใครเป็นผู้ถือสิทธิ์ควบคุมกระบวนการ (Control Flow)</span></a></li><li><a href="#2-start-at-the-bottom-of-the-autonomy-ladder" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. เริ่มต้นจากขั้นต่ำสุดของบันไดระดับความเป็นอิสระ (Autonomy Ladder)</span></a></li><li><a href="#3-manager-supervisor-hierarchies-an-orchestrator-and-its-subagents" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. สถาปัตยกรรมลำดับชั้นแบบผู้จัดการ: Orchestrator และ Subagents</span></a></li><li><a href="#4-when-subagents-improve-the-result-and-what-they-cost" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. เมื่อใดที่การใช้ Subagents ให้ผลลัพธ์ดีกว่า และต้นทุนที่ต้องแลกคืออะไร</span></a></li>
+      </ul>
+    </nav>
+    
+        
+        <section id="1-workflows-and-agents-differ-in-who-owns-the-control-flow" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>1. ความแตกต่างระหว่าง Workflow และ Agent: ใครเป็นผู้ถือสิทธิ์ควบคุมกระบวนการ (Control Flow)</span>
+          </h2>
+          
+        <div class="space-y-4">
+          <p class="text-slate-200 text-sm sm:text-base leading-relaxed">
+            ทุกระบบที่นำโมเดลภาษาขนาดใหญ่ (LLM) มาทำงานร่วมกับเครื่องมือ (Tools) จะต้องตัดสินใจเรื่องสถาปัตยกรรมที่สำคัญที่สุดหนึ่งข้อเสมอ นั่นคือ: <strong class="text-white">ใครเป็นผู้กำหนดว่าขั้นตอนถัดไปคืออะไร (Who decides what happens next)</strong>
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+            <div class="p-4 rounded-xl border border-blue-500/30 bg-blue-950/20 shadow-sm">
+              <div class="font-bold text-blue-400 mb-2 flex items-center gap-2 text-sm">
+                <span class="text-base">🔄</span>
+                <span>Workflow (เวิร์กโฟลว์)</span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-2">
+                เส้นทางการทำงานทั้งหมดถูกกำหนดไว้ล่วงหน้าในโค้ดของคุณ (Predefined Code Paths) โปรแกรมเป็นผู้สั่งการว่าเมื่อใดจะเรียกโมเดลร่างข้อความ ตรวจสอบเงื่อนไข หรือเรียกใช้เครื่องมือ
+              </p>
+              <div class="text-xs text-blue-300/80 font-medium bg-blue-900/30 p-2 rounded border border-blue-800/40">
+                ✓ จุดเด่น: คาดเดาผลลัพธ์ได้ 100% (Predictability), ทดสอบง่าย, และควบคุมต้นทุนได้แม่นยำ
+              </div>
+            </div>
+            <div class="p-4 rounded-xl border border-purple-500/30 bg-purple-950/20 shadow-sm">
+              <div class="font-bold text-purple-400 mb-2 flex items-center gap-2 text-sm">
+                <span class="text-base">🤖</span>
+                <span>Agent (เอเจนต์)</span>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-2">
+                ปล่อยให้ตัว LLM เป็นผู้ควบคุมกระบวนการและทิศทางการทำงานด้วยตนเอง โมเดลจะพิจารณาเป้าหมายและผลลัพธ์ของเครื่องมือก่อนหน้า แล้วเลือกว่าจะเรียกเครื่องมือใดต่อหรือจะตอบผู้ใช้
+              </p>
+              <div class="text-xs text-purple-300/80 font-medium bg-purple-900/30 p-2 rounded border border-purple-800/40">
+                ✓ จุดเด่น: ยืดหยุ่นสูงมาก (Flexibility), เหมาะกับงานวิจัยหรืองานที่ไม่รู้ขั้นตอนล่วงหน้า
+              </div>
+            </div>
+          </div>
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/70 text-sm text-slate-300 leading-relaxed">
+            <strong class="text-white block mb-1">ความแตกต่างที่เห็นได้ชัดเจนในตัวโค้ด:</strong>
+            ในระบบแบบ Workflow ลำดับขั้นตอนทั้งหมดจะปรากฏอยู่ในโค้ดของคุณ หากคุณอ่านโค้ด คุณจะทราบทุกเส้นทางที่เป็นไปได้ แต่ในระบบแบบ Agent โค้ดของคุณจะเป็นเพียงตัวหมุนวนลูป (Loop) ขณะที่ตัวเลือกในการเรียกเครื่องมือและจำนวนรอบ (Turns) ทั้งหมดจะถูกตัดสินใจแบบ Real-time โดยตัวโมเดลเอง
+          </div>
+        </div>
+        
+          
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A support system classifies each ticket and then sends it to one of three prompts. The classifier is an LLM call, and a Python `if` statement picks the next prompt from the classifier&#x27;s label. How should this system be described?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">An agent, because an LLM makes the classification decision</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">A workflow, because code you wrote fixes the possible paths, even though an LLM&#x27;s output picks one of them</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">An agent, because it uses more than one prompt</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Neither, because it has no tool calls</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">The model fills in a value, but the set of paths and the order of the steps are fixed in code, so the system is a workflow. It would be an agent only if the model chose its own process and tool use.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “Agents, on the other hand, are systems where LLMs dynamically direct their own processes and tool usage, maintaining control over how they accomplish tasks.”
+              <br><a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Workflows and agents differ in who owns the control flow"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Every system that puts an LLM to work with tools makes one architectural choice: who decides what happens next. Anthropic groups all of these systems under the name agentic systems and splits them into two kinds. A workflow runs LLMs and tools along code paths you defined in advance. An agent lets the LLM direct its own process and tool use, so the model stays in control of how the task gets done.</p><p class="my-2">You can see the difference in the code. In a workflow, the order of steps is written in your program: call the model to draft, run a check, call it again to translate. If you read the code, you know every path the system can take. In an agent, your code runs a loop and the model makes the choices. On each turn Claude looks at where things stand and decides whether to answer, call a tool, or both. Tool results go back to the model, and the loop continues until Claude replies without asking for a tool. How the Claude Agent SDK runs that loop for you is covered in [the Agent SDK query() loop](lesson:1.2). What matters here is that neither the number of turns nor the order of the calls is in your code.</p><p class="my-2">That one difference drives everything else. Because a workflow has fixed paths, it gives you predictability and consistency: you can test each path and know what it costs. An agent gives you flexibility for tasks whose steps can't be known in advance. Research is the standard example. The next search depends on what the last one found, and a linear, one-shot pipeline can't follow leads it didn't know would appear.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="2-start-at-the-bottom-of-the-autonomy-ladder" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>2. เริ่มต้นจากขั้นต่ำสุดของบันไดระดับความเป็นอิสระ (Autonomy Ladder)</span>
+          </h2>
+          
+        <div class="space-y-4">
+          <p class="text-slate-200 text-sm sm:text-base leading-relaxed">
+            <strong class="text-emerald-400">กฎการออกแบบหลักของ Anthropic:</strong> จงสร้างระบบที่เรียบง่ายที่สุดเท่าที่สามารถแก้ปัญหาได้ (Build the simplest thing that works) และเพิ่มความซับซ้อนเฉพาะเมื่อมีข้อกำหนดที่จำเป็นจริงๆ เท่านั้น
+          </p>
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm text-slate-300 space-y-2">
+            <span class="font-bold text-indigo-400 block text-xs uppercase tracking-wider">บันไดระดับความเป็นอิสระ (The Autonomy Ladder)</span>
+            <p>ทางเลือกในการออกแบบสามารถเปรียบเสมือนขั้นบันได ยิ่งปีนขึ้นไปขั้นสูงขึ้น สิทธิ์ในการตัดสินใจจะถูกส่งมอบให้โมเดลมากขึ้นเรื่อยๆ:</p>
+            <ol class="list-decimal ml-5 space-y-1.5 text-xs sm:text-sm text-slate-300">
+              <li><strong>Single LLM Call:</strong> การเรียกใช้งานโมเดลครั้งเดียว เหมาะสำหรับงานสรุปหรือจัดหมวดหมู่พื้นฐาน</li>
+              <li><strong>Prompt Chaining / Routing:</strong> การต่อท่อคำสั่งหรือการกระจายสายงานแบบกำหนดเงื่อนไขตายตัวด้วยโค้ด</li>
+              <li><strong>Evaluator-Optimizer:</strong> วงรอบให้โมเดลหนึ่งตัวสร้างผลงาน และอีกตัวประเมินและปรับปรุงตามเกณฑ์</li>
+              <li><strong>Autonomous Agent:</strong> โมเดลเป็นผู้ตัดสินใจเลือกเครื่องมือและวนลูปการทำงานด้วยตนเองอย่างอิสระ</li>
+            </ol>
+          </div>
+          <p class="text-xs text-amber-300/90 bg-amber-950/20 p-3 rounded-lg border border-amber-900/40">
+            ⚠️ <strong>ข้อควรระวัง:</strong> การเปลี่ยนจาก Workflow ที่ทำงานได้ดีอยู่แล้วไปเป็น Agent ไม่ได้การันตีว่าจะได้ผลลัพธ์ที่ดีขึ้นเสมอไป แต่จะทำให้เสียความสามารถในการคาดเดาได้ (Predictability) ไป และต้องแลกด้วยต้นทุนโทเค็นและความหน่วงที่สูงขึ้นโดยไม่จำเป็น
+          </p>
+        </div>
+        
+          
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Rung</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Who decides the steps</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Enough when</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Single LLM call with retrieval and in-context examples</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Nobody: there is only one step</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">One well-prompted call meets the quality bar</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Fixed workflow (prompt chaining, routing, parallelization)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Your code</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The task splits cleanly into subtasks or categories known in advance</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Orchestrator-workers</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A central LLM picks the subtasks; your code runs the structure around it</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You can't predict the subtasks, such as how many files a code change touches</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Autonomous agent</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The model, turn by turn</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The task needs flexibility and model-driven decisions at scale</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Rungs of the autonomy ladder and when each one is enough</figcaption>
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapsOrchestrator-workers is just parallelization with an extra LLM on top.Why is that wrong?The two look alike, but in orchestrator-workers the model decides the subtasks at runtime from the input. In parallelization the subtasks are fixed in advance.An autonomous agent is always the upgrade from a workflow.Why is that wrong?Agentic systems trade latency and cost for performance. When the task is well defined, a workflow, or even one optimized call, is often the better design.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A team&#x27;s document pipeline drafts an outline, checks it against criteria, then writes the document. It meets its quality target, and the team now wants to replace it with an autonomous agent. What is the strongest argument against the change?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Agents can&#x27;t use tools such as retrieval</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">The pipeline already meets the requirement, and an agent would give up its predictability in exchange for latency and cost the task doesn&#x27;t need</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Agents always produce lower-quality output than workflows</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Workflows can&#x27;t include programmatic checks between steps</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">The rule is to add complexity only when needed. A workflow that already meets its target offers predictability and consistency, and agentic designs trade latency and cost for performance this task doesn&#x27;t require.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “workflows offer predictability and consistency for well-defined tasks, whereas agents are the better option when flexibility and model-driven decision-making are needed at scale.”
+              <br><a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55277</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A platform support team routes every incoming ticket into one of five known categories (billing, account access, bug report, feature request, or general inquiry). Once a ticket&#x27;s category is identified, the exact sequence of downstream steps -- which system to query, what template to draft, and who to notify -- is fixed and never varies for that category. The team wants an architecture that keeps this dispatch-then-fixed-path behavior explicit and predictable. Which architecture should they implement?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Build an orchestrator-workers system where a central LLM decides at runtime which systems to query and which template to draft for each ticket.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Build a routing workflow that classifies each ticket into its category and then executes that category&#x27;s predefined, fixed sequence of steps.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Deploy a fully autonomous agent that chooses its own tools and stopping point based on ongoing feedback from the ticketing system.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Chain five fixed LLM calls that always run in the same order for every ticket regardless of which category it belongs to.</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- orchestrator-workers is for cases where subtasks aren&#x27;t predefined; here the steps per category are already fixed, so a dynamically deciding orchestrator adds unneeded flexibility.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct -- routing directs input to specialized, predefined downstream paths, matching the fixed-path-per-category requirement exactly.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- a fully autonomous agent introduces unpredictable steps, which conflicts with the team&#x27;s need for a fixed, predictable path per category.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- running the same five steps for every category regardless of type skips the classification step entirely and can&#x27;t represent different fixed paths per category.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Start at the bottom of the autonomy ladder"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">The design rule is to build the simplest thing that works and add complexity only when a requirement forces it. Sometimes that means building no agentic system at all. For many applications, a single LLM call improved with retrieval and in-context examples is enough. Each added layer of autonomy costs latency and money in return for better task performance, so ask whether that trade is worth it before you climb.</p><p class="my-2">Think of the options as rungs on a ladder. Each rung hands more of the control flow to the model. [The five workflow patterns (prompt chaining, routing, parallelization, orchestrator-workers, evaluator-optimizer)](lesson:1.3) sit between a single call and a fully autonomous agent. Most of them keep the step sequence in your code. Orchestrator-workers is the rung where the model starts choosing the subtasks: they aren't defined in advance but decided by the orchestrator from the specific input.</p><p class="my-2">Swapping a tested workflow for an agent changes more than quality. An agent keeps calling tools until it decides it is done, so you no longer set the turn count, the token bill or the response time in code. A workflow's fixed paths are also what made it easy to test. Frameworks add a separate risk on top: their layers of abstraction can hide the underlying prompts and responses, which makes debugging harder and makes it tempting to add complexity a simpler setup didn't need.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="3-manager-supervisor-hierarchies-an-orchestrator-and-its-subagents" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>3. สถาปัตยกรรมลำดับชั้นแบบผู้จัดการ: Orchestrator และ Subagents</span>
+          </h2>
+          
+        <div class="space-y-4">
+          <p class="text-slate-200 text-sm sm:text-base leading-relaxed">
+            สถาปัตยกรรมแบบลำดับชั้นผู้จัดการ/ผู้ควบคุม (<strong class="text-indigo-400">Orchestrator–Subagent Pattern</strong>) เป็นรูปแบบ Multi-Agent ยอดนิยมที่ประกอบด้วย 2 องค์ประกอบหลัก:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 my-3">
+            <div class="p-3.5 rounded-lg border border-indigo-500/30 bg-indigo-950/20">
+              <span class="font-bold text-indigo-300 block mb-1">👑 1. Orchestrator (ตัวประสานงานกลาง)</span>
+              <span class="text-xs text-slate-300 leading-relaxed">ทำหน้าที่วิเคราะห์โจทย์ วางแผนกลยุทธ์ แตกงานย่อย (Subtasks) และรวบรวมสังเคราะห์ข้อค้นพบขั้นสุดท้าย</span>
+            </div>
+            <div class="p-3.5 rounded-lg border border-slate-700 bg-slate-900/60">
+              <span class="font-bold text-slate-200 block mb-1">🛠️ 2. Subagents (เอเจนต์ย่อยเฉพาะทาง)</span>
+              <span class="text-xs text-slate-300 leading-relaxed">รับงานย่อยเฉพาะเรื่องไปดำเนินการในห้องบริบทแยกส่วน (Isolated Context) และส่งกลับเฉพาะข้อสรุปที่จำเป็น</span>
+            </div>
+          </div>
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/70 text-sm text-slate-300 leading-relaxed">
+            <strong class="text-white block mb-1">โครงสร้างและข้อเท็จจริงสำคัญ:</strong>
+            สิ่งที่ส่งกลับขึ้นมาตามลำดับชั้นคือ <em>"ผลลัพธ์ข้อสรุป"</em> ไม่ใช่ประวัติการสนทนาหรือการเรียกเครื่องมือทั้งหมด เอเจนต์ย่อยจะกักกันผลลัพธ์ของเครื่องมือ (เช่น การอ่านไฟล์ยาวๆ หรือผลการค้นหาเว็บขนาดใหญ่) ไว้ในเซสชันของตนเอง ทำให้ Context Window ของ Orchestrator สะอาดและไม่เกิดปัญหา Context Pollution
+          </div>
+        </div>
+        
+          
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
+                  The orchestrator's three jobs in code: break the query into parts, run a subagent for each part concurrently, combine the resultspythonasync def research_topic(query: str) -> dict: # Lead agent breaks query into research facets facets = await lead_agent.decompose_query(query) # Spawn subagents to research each facet in parallel tasks = [ research_subagent(facet) for facet in facets ] results = await asyncio.gather(*tasks) # Lead agent synthesizes findings return await lead_agent.synthesize(results)
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapThe orchestrator sees every tool call and file a subagent worked through.Why is that wrong?A subagent's intermediate work stays in its own conversation. The parent gets only the final message, usually a short summary.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Put the steps of the Research system&#x27;s orchestrator loop in order.</p>
+          <div class="space-y-2 mb-4">
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก N/A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">The lead plans first, delegates, combines the results, and loops back if needed. Citation is a separate final step that runs after the research loop ends.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “The LeadResearcher synthesizes these results and decides whether more research is needed”
+              <br><a href="https://www.anthropic.com/engineering/multi-agent-research-system" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55279</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A content team needs to produce localized marketing copy. Every request goes through the same three steps in the same order: draft the copy, run a fixed compliance check on the draft, then translate the approved draft into the target language. Each step consumes the previous step&#x27;s output, and the sequence never changes. Which workflow pattern fits this process?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Orchestrator-workers, where a central LLM decides which of the three steps apply based on the content of each request.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Evaluator-optimizer, where one LLM drafts copy and a second LLM iterates with it until compliance criteria are met.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Routing, where the request is classified first and then sent to one of several separate three-step pipelines.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Prompt chaining, where each LLM call processes the fixed output of the step directly before it in an unchanging sequence.</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก D</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- the three steps always run in the same fixed order for every request, so there&#x27;s no runtime decision for an orchestrator to make about which steps apply.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- evaluator-optimizer implies an iterative critique-and-revise loop until criteria are satisfied, but this process is a single fixed pass through three steps, not a repeated refinement loop.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- there&#x27;s only one pipeline used for every request; routing would require multiple distinct pipelines chosen by classification, which isn&#x27;t described here.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct -- prompt chaining describes a fixed, unchanging sequence where each call processes the prior step&#x27;s output, exactly matching draft, then check, then translate.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Manager/supervisor hierarchies: an orchestrator and its subagents"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">A manager/supervisor hierarchy, usually called the orchestrator–subagent pattern, is a multi-agent system with a single top agent. A lead agent breaks the task into parts, starts specialized subagents for specific subtasks, and manages them. Each agent is a separate LLM instance with its own conversation context, and code coordinates them. Among the multi-agent coordination patterns, this one has the simplest coordination model, so it is the usual starting point.</p><p class="my-2">The key structural fact is what goes up the hierarchy. A subagent runs in its own conversation. Its intermediate tool calls and results stay inside that conversation, and only its final message returns to the parent. A subagent that reads dozens of files sends back a short summary, not the files. The orchestrator therefore works from a compressed view of each subtask.</p><p class="my-2">Anthropic's Research feature is a production example of this structure. A LeadResearcher plans the approach and saves the plan to memory, because anything past 200,000 tokens of context gets truncated. It then creates subagents with specific research tasks. Each subagent searches on its own and returns findings. The lead combines them and decides whether more research is needed. When it has enough, a separate CitationAgent attributes the claims to sources. With Claude Opus 4 as lead and Claude Sonnet 4 subagents, this setup outperformed single-agent Claude Opus 4 by 90.2% on an internal research eval.</p><p class="my-2">Two structural choices shape how well a hierarchy performs. First, the Research lead runs subagents synchronously: it waits for each batch to finish before it continues. That keeps coordination simple, but one slow subagent can hold up the whole system. Second, passing every output back through the lead turns into a game of telephone. Subagents can instead write their work to external storage and return only a lightweight reference, which keeps detail intact and avoids copying large outputs through the conversation.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="4-when-subagents-improve-the-result-and-what-they-cost" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>4. เมื่อใดที่การใช้ Subagents ให้ผลลัพธ์ดีกว่า และต้นทุนที่ต้องแลกคืออะไร</span>
+          </h2>
+          
+        <div class="space-y-4">
+          <p class="text-slate-200 text-sm sm:text-base leading-relaxed">
+            การแยกงานให้ <strong>Subagents</strong> ทำจะช่วยยกระดับผลลัพธ์ให้ดีขึ้นใน <strong class="text-emerald-400">3 สถานการณ์หลัก</strong> เท่านั้น หากอยู่นอกเหนือจากนี้ การประสานงานมักจะสร้างต้นทุนมากกว่าประโยชน์:
+          </p>
+          <div class="space-y-2.5 my-3">
+            <div class="p-3 rounded-lg border border-slate-800 bg-slate-900/60 text-xs sm:text-sm">
+              <strong class="text-indigo-400 block mb-0.5">1. ป้องกัน Context Pollution (ผลลัพธ์เครื่องมือมีขนาดใหญ่มาก):</strong>
+              <span class="text-slate-300">เมื่อการทำงานย่อยสร้างโทเค็นที่ไม่เกี่ยวข้องมากกว่า 1,000 โทเค็น (เช่น อ่านเอกสารหนาๆ หรือค้นหาเว็บ) การให้ Subagent ทำจะช่วยกักกันข้อมูลส่วนเกินไม่ให้รบกวนการตัดสินใจของ Orchestrator</span>
+            </div>
+            <div class="p-3 rounded-lg border border-slate-800 bg-slate-900/60 text-xs sm:text-sm">
+              <strong class="text-indigo-400 block mb-0.5">2. เมื่องานสามารถทำพร้อมกันได้ (Parallelization):</strong>
+              <span class="text-slate-300">หากงานย่อยหลายชิ้นเป็นอิสระต่อกัน (เช่น ตรวจสอบความปลอดภัย 3 ด้านคนละมุม) การส่งให้ Subagents ทำงานขนานกันจะช่วยลด Latency รวมของระบบได้อย่างมหาศาล</span>
+            </div>
+            <div class="p-3 rounded-lg border border-slate-800 bg-slate-900/60 text-xs sm:text-sm">
+              <strong class="text-indigo-400 block mb-0.5">3. เมื่องานต้องการเครื่องมือเฉพาะทางสูง (Tool Specialization):</strong>
+              <span class="text-slate-300">การใส่เครื่องมือให้เอเจนต์ตัวเดียวมากเกินไป (Capability Bloat) จะทำให้ความแม่นยำในการเลือกเครื่องมือลดลง การแยก Subagent ตามหน้าที่ช่วยให้แต่ละตัวมีเครื่องมือเฉพาะทางเพียง 3-5 ชิ้นเท่านั้น</span>
+            </div>
+          </div>
+          <div class="p-3.5 rounded-lg border border-rose-900/40 bg-rose-950/20 text-xs sm:text-sm text-slate-300 leading-relaxed">
+            <strong class="text-rose-400 block mb-1">💰 ต้นทุนโทเค็นที่ต้องแลก (Token Cost):</strong>
+            สำหรับงานประเภทเดียวกัน ระบบ Multi-Agent มักใช้โทเค็นมากกว่าระบบเอเจนต์เดี่ยวประมาณ <strong class="text-amber-300">3 ถึง 10 เท่า</strong> เนื่องจากต้องส่งคำสั่งระบบซ้ำให้กับ Subagent แต่ละตัว และต้องเสียโทเค็นในรอบการรวบรวมข้อมูล
+          </div>
+        </div>
+        
+          
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Situation</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">What goes wrong with one agent</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">What the subagent provides</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Context pollution</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Output from one subtask, such as 2000+ tokens of order history, crowds out reasoning on the next</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A clean, separate context that returns only a short summary</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Parallel work</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">One agent searching step by step covers too little ground</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Several subagents exploring separate parts of the question at the same time</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Specialization</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Too many tools (often 20+) across unrelated domains confuse tool selection</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A focused toolset and system prompt for each responsibility</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">The three situations where subagents beat a single agent</figcaption>
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapSplitting work across parallel subagents makes the whole job finish faster than a single agent.Why is that wrong?Parallelism buys coverage. A multi-agent system does so much more total work that it often takes longer overall than a single agent.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Which field limits this Agent SDK subagent to read-only tools?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">tools</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">allowedTools</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">disallowedTools</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">permissionMode</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Inside an agent definition, `tools` is the list of tools that subagent may use. `allowedTools` is the top-level option that auto-approves tools for the whole query, and `disallowedTools` removes named tools rather than listing the allowed ones.</p>
+              
+            </div>
+          </details>
+        </div>
+        
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Predict firstA research task is split across five subagents that run in parallel, where a single agent would have done it alone. Compared with the single agent, what usually happens to total wall-clock time?It is often longer, because total computation rises so muchIt drops a little, because coordination eats some of the gainIt drops to about a fifthRunning in parallel beats running the same multi-agent work one task at a time, but the multi-agent system does far more work in total than a single agent, so it often takes longer overall.“multi-agent systems often take longer overall than single-agent systems because of the sheer increase in total computation.”Source: claude.com</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Match each symptom in a single-agent system to the subagent benefit that addresses it.</p>
+          <div class="space-y-2 mb-4">
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก N/A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">These are the three situations where multiple agents consistently outperform one: context pollution, parallelizable tasks, and tool or task specialization.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “when context pollution degrades performance, when tasks can run in parallel, and when specialization improves tool selection or task focus.”
+              <br><a href="https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55280</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A security team reviews every pull request by running several independent prompts against the same diff at the same time -- one focused on injection vulnerabilities, one on authentication issues, one on dependency risks -- and then combines the separate flagged findings into one report. Which pattern is this?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Parallelization by sectioning, where independent subtasks examine the same input simultaneously and their separate results are aggregated.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Parallelization by voting, where the same vulnerability-scanning prompt runs several times and the majority finding is kept.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Evaluator-optimizer, where one prompt flags vulnerabilities and a second prompt critiques and refines those findings iteratively.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Orchestrator-workers, where a central LLM decides at runtime which vulnerability categories are worth reviewing for this diff.</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct -- sectioning splits the work into independent subtasks that run in parallel over the same input, with results aggregated afterward, matching the three simultaneous, differently-focused reviews.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- voting runs the identical task multiple times for diverse outputs on the same question; here the three prompts each examine a different aspect, not the same question repeated.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- evaluator-optimizer requires an iterative critique loop between two LLMs, but these three reviews run independently and simultaneously with no feedback loop between them.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect -- the three review categories are fixed and predetermined, not dynamically chosen at runtime by a central orchestrating LLM.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"When subagents improve the result, and what they cost"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Subagents improve a task in three situations. Outside them, coordination usually costs more than it returns. Teams have spent months building multi-agent systems only to find that better prompting on a single agent got the same results. A single agent with good tools can do more than most developers expect.</p><p class="my-2">Context isolation pays off most when a subtask produces a lot of output (more than 1000 tokens) and most of it doesn't matter to the main task. Lookups and retrieval that need filtering before use are typical examples. Specialization also works as a safety measure. In the Agent SDK, each subagent can have its own system prompt and a restricted tool list, so a reviewer given only read tools can analyze files but can't change them.</p><p class="my-2">The cost is mainly tokens. For the same task, multi-agent systems typically use 3 to 10 times more tokens than a single agent. The extra comes from duplicating context in each agent, messages between agents, and summaries written for each handoff. Parallel subagents do finish in the time of the slowest one rather than the sum of all of them, but that only speeds up the multi-agent work itself. The real gain from parallelism is thoroughness, not speed. The money is worth spending only when the task is valuable enough to pay for the better result.</p><p class="my-2">Some tasks resist this split. Work where every agent needs the same context, or where agents depend heavily on each other, is a poor fit, and most coding tasks have fewer truly parallel pieces than research does. Coordination also brings its own failures. Early versions of the Research system started 50 subagents for simple queries, and teams that split planning, execution and review into separate agents lost context at every handoff and spent more tokens coordinating than executing. Each extra agent is one more point of failure and one more prompt to maintain.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        
+        <section class="mt-14 pt-8 border-t border-slate-800">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <span>📚</span>
+            <span>เอกสารอ้างอิงทางการจาก Anthropic (Official Citations)</span>
+          </div>
+          <ul class="space-y-2">
+            <li><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://code.claude.com/docs/en/agent-sdk/agent-loop</span></a></li><li><a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://www.anthropic.com/engineering/building-effective-agents</span></a></li><li><a href="https://www.anthropic.com/engineering/multi-agent-research-system" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://www.anthropic.com/engineering/multi-agent-research-system</span></a></li><li><a href="https://code.claude.com/docs/en/agent-sdk/subagents" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://code.claude.com/docs/en/agent-sdk/subagents</span></a></li><li><a href="https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them</span></a></li>
+          </ul>
+        </section>
+        
+        
+    <nav class="mt-16 pt-8 border-t border-slate-800 flex flex-col sm:flex-row gap-4 justify-between">
+      <div class="flex-1"></div>
+      
+    <a href="lesson-02.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-right items-end group">
+      <span class="text-xs text-indigo-400 flex items-center gap-1 mb-1">บทเรียนถัดไป →</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">แนวทางการสร้างและโฮสต์ Claude Agent ด้วย Agent SDK</span>
+    </a>
+    
+    </nav>
+    
+      </article>
+    </main>
+  </div>
+
+  <footer class="mt-20 border-t border-slate-800/80 bg-slate-950 py-8 text-center text-xs text-slate-500">
+    <p>Anthropic Claude Certified Developer & Architect Study Hub (ภาษาไทยฉบับสมบูรณ์)</p>
+    <p class="mt-1">แปล ขยายความ และรวบรวมเพื่อการเตรียมสอบ CCDV-F & CCAR-P อย่างครบถ้วนทุกบทเรียน</p>
+  </footer>
+
+  <script>
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progress').style.width = scrolled + '%';
+    });
+  </script>
+</body>
+</html>

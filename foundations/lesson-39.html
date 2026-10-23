@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="th" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>คีย์ Claude API: ประเภทคีย์, การจัดเก็บอย่างปลอดภัย, การหมุนเวียน และการตอบสนองเมื่อคีย์รั่วไหล | CCDV-F คู่มือเตรียมสอบ Anthropic</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Prompt', 'Inter', sans-serif;
+    }
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
+  <!-- Progress Bar -->
+  <div id="progress" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-50 transition-all duration-150" style="width: 0%"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition">
+          <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20">A</span>
+          <span class="font-bold text-sm tracking-wide hidden sm:inline">Anthropic Cert Hub</span>
+        </a>
+        <span class="text-slate-600">/</span>
+        <a href="index.html" class="text-xs sm:text-sm font-medium text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] sm:max-w-none">Anthropic Claude Certified Developer – Foundations (CCDV-F)</a>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="../architect/index.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
+          สลับไปคอร์ส Architect (CCAR-P)
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <!-- Sidebar -->
+    <aside class="hidden lg:block w-72 shrink-0">
+      <div class="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-3 space-y-2">
+        <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-800">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">สารบัญบทเรียน (45 บท)</span>
+          <a href="index.html" class="text-xs text-indigo-400 hover:underline">หน้าหลักคอร์ส</a>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 1: Agents and Workflows (สถาปัตยกรรมเอเจนต์และเวิร์กโฟลว์)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-01.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.1]</span>
+              <span class="truncate">สถาปัตยกรรมเอเจนต์: เวิร์กโฟลว์, เอเจนต์ และลำดับชั้น Orchestrator–Subagent</span>
+            </a>
+            
+            <a href="lesson-02.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">แนวทางการสร้างและโฮสต์ Claude Agent ด้วย Agent SDK</span>
+            </a>
+            
+            <a href="lesson-03.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">การทำงานของ query() loop, Hooks และ Subagents ใน Agent SDK</span>
+            </a>
+            
+            <a href="lesson-04.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.3]</span>
+              <span class="truncate">รูปแบบเอเจนต์และเฟรมเวิร์ก: เวิร์กโฟลว์, เอเจนต์ย่อย และการจัดการหน่วยความจำ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 2: Applications and Integration (การพัฒนาแอปพลิเคชันและการเชื่อมต่อระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-05.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">การแปลงข้อกำหนดเชิงฟังก์ชันสู่การเลือกรุ่น Claude Model</span>
+            </a>
+            
+            <a href="lesson-06.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">ข้อกำหนดด้านโครงสร้างพื้นฐาน: แพลตฟอร์ม, Data Residency, ZDR และ Capacity</span>
+            </a>
+            
+            <a href="lesson-07.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">วงจรชีวิตโมเดล Claude: การยกเลิก (Deprecation), การปลดระวาง และการย้ายระบบ</span>
+            </a>
+            
+            <a href="lesson-08.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">การประเมินผล การกำหนดเวอร์ชัน และการ Rollout การเปลี่ยนแปลงในระบบ Claude</span>
+            </a>
+            
+            <a href="lesson-09.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">กลไก Claude Messages API: Requests, State, Tools, Streaming และ Vision</span>
+            </a>
+            
+            <a href="lesson-10.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">Message Batches API และการเลือกใช้งานแบบ Batch เทียบกับ Realtime</span>
+            </a>
+            
+            <a href="lesson-11.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST, JSON และรูปแบบ Sync vs Async</span>
+            </a>
+            
+            <a href="lesson-12.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การผสาน Claude Code กับ Git, CI, Code Review และ Refactoring</span>
+            </a>
+            
+            <a href="lesson-13.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การออกแบบแอปพลิเคชัน: พื้นผิวอินพุต, การวางคำสั่ง และขอบเขตบริบท</span>
+            </a>
+            
+            <a href="lesson-14.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การดูแลสุขอนามัยของเซสชันและการจัดการปลั๊กอินใน Claude Code</span>
+            </a>
+            
+            <a href="lesson-15.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.6]</span>
+              <span class="truncate">การจัดการการตั้งค่าสำหรับ Claude: CLAUDE.md, settings.json และลำดับความสำคัญ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 3: Claude Code (การใช้งานและการตั้งค่า Claude Code)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-16.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การตั้งค่าโปรเจกต์ Claude Code: CLAUDE.md, Rules, Auto Memory และ settings.json</span>
+            </a>
+            
+            <a href="lesson-17.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การรัน Claude Code: Skills, Subagents, Sessions, Headless และ Auto Mode</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 4: Eval, Testing, and Debugging (การประเมินผล การทดสอบ และการแก้จุดบกพร่อง)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-18.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">ประเภทข้อผิดพลาดของ Claude API และกลยุทธ์การกู้คืนระบบ (Error Recovery)</span>
+            </a>
+            
+            <a href="lesson-19.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">การสืบค้นและระบุจุดบกพร่อง: ปัญหาที่ชั้น Integration เทียบกับ Model Output</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 5: Model Selection and Optimization (การเลือกรุ่นโมเดลและการปรับแต่งประสิทธิภาพ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-20.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">การทำงานพื้นฐานของ LLM: โทเค็น, Context Window และพารามิเตอร์การสุ่ม (Sampling)</span>
+            </a>
+            
+            <a href="lesson-21.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">ตัวเลือกโมเดล Claude: Thinking Modes, ระดับ Effort, Fast Mode และ Few-shot</span>
+            </a>
+            
+            <a href="lesson-22.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST: Endpoints, Headers และ SDKs</span>
+            </a>
+            
+            <a href="lesson-23.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การสตรีมผลลัพธ์ของ Claude ผ่าน Server-Sent Events (SSE)</span>
+            </a>
+            
+            <a href="lesson-24.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">การเลือกรุ่น Claude: ลำดับชั้นโมเดล (Tiers), ความหน่วง (Latency) และต้นทุน (Cost)</span>
+            </a>
+            
+            <a href="lesson-25.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">โหมดการคิดของ Claude (Thinking Modes) และข้อควรระวังเรื่องการเปลี่ยนแปลงข้ามรุ่น</span>
+            </a>
+            
+            <a href="lesson-26.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">ราคาโทเค็น Claude, การนับโทเค็น (Token Counting) และการติดตามการใช้งาน</span>
+            </a>
+            
+            <a href="lesson-27.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">Prompt Caching: จุดเบรกพอยต์, TTLs และการประหยัดต้นทุนด้วยการแคช</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 6: Prompt and Context Engineering (วิศวกรรมพร้อมต์และการจัดการ Context Window)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-28.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การจัดสรรงบประมาณ Context Window และการตัดทอนผลลัพธ์เครื่องมือ (Pruning)</span>
+            </a>
+            
+            <a href="lesson-29.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การบีบอัดบริบท (Compaction) และการแยก Context Isolation ใน Subagents</span>
+            </a>
+            
+            <a href="lesson-30.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.2]</span>
+              <span class="truncate">วิศวกรรมพร้อมต์สำหรับ Claude: ความชัดเจน, ตัวอย่าง Few-shot และข้อกำหนดผลลัพธ์</span>
+            </a>
+            
+            <a href="lesson-31.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การสร้าง Structured Outputs และ Strict Tool Use เพื่อให้ได้ผลลัพธ์ JSON ที่แม่นยำ</span>
+            </a>
+            
+            <a href="lesson-32.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การตรวจสอบผลลัพธ์ของ Claude ก่อนนำไปใช้งาน (Stop Reason, Empty Turns, Hallucination)</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 7: Security and Safety (ความปลอดภัย การควบคุม และการป้องกันระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-33.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การป้องกัน Prompt Injection และ Jailbreak สำหรับแอปพลิเคชัน Claude</span>
+            </a>
+            
+            <a href="lesson-34.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การกำหนดสิทธิ์เอเจนต์ (Agent Permissions), การจัดการความลับ และการคุ้มครองข้อมูล</span>
+            </a>
+            
+            <a href="lesson-35.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การวาง Guardrail หลายชั้นและนโยบายเนื้อหา (Content Policy) สำหรับ Claude</span>
+            </a>
+            
+            <a href="lesson-36.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การติดตั้งระบบแบบ Secure-by-Design: หลักสิทธิ์ต่ำสุด (Least Privilege) และความเป็นส่วนตัว</span>
+            </a>
+            
+            <a href="lesson-37.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">เหตุการณ์ Claude Code Hooks, Matchers และประเภทของ Handlers</span>
+            </a>
+            
+            <a href="lesson-38.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">การสกัดกั้นคำสั่งเครื่องมือที่เป็นอันตรายด้วย PreToolUse Decisions</span>
+            </a>
+            
+            <a href="lesson-39.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors bg-indigo-600/30 text-indigo-300 font-semibold border-l-2 border-indigo-400 pl-2.5">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">คีย์ Claude API: ประเภทคีย์, การจัดเก็บอย่างปลอดภัย, การหมุนเวียน และการตอบสนองเมื่อคีย์รั่วไหล</span>
+            </a>
+            
+            <a href="lesson-40.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">Workload Identity Federation และลำดับความสำคัญของ Credential ใน SDK</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 8: Tools and MCPs (การใช้งานเครื่องมือและ Model Context Protocol)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-41.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การนิยามเครื่องมือสำหรับ Claude: โครงสร้าง Schema, คำอธิบาย และการออกแบบชุดเครื่องมือ</span>
+            </a>
+            
+            <a href="lesson-42.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การจัดการการเรียกใช้เครื่องมือ: วงรอบเอเจนต์ (Agentic Loop), ข้อผิดพลาด และการอนุมัติ</span>
+            </a>
+            
+            <a href="lesson-43.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">พื้นฐานองค์ประกอบ MCP Server: Tools, Resources และ Prompts</span>
+            </a>
+            
+            <a href="lesson-44.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">MCP Transports และการเชื่อมต่อเซิร์ฟเวอร์เข้ากับ Claude Code และ Agent SDK</span>
+            </a>
+            
+            <a href="lesson-45.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.3]</span>
+              <span class="truncate">เปรียบเทียบ Built-in Tools, Custom Tools, Skills และ MCP: การเลือกวิธีขยายขีดความสามารถ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 min-w-0 max-w-4xl mx-auto">
+      <article>
+        <!-- Header -->
+        <header class="mb-8">
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Subdomain 7.4</span> <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">✓</span> 
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            คีย์ Claude API: ประเภทคีย์, การจัดเก็บอย่างปลอดภัย, การหมุนเวียน และการตอบสนองเมื่อคีย์รั่วไหล
+          </h1>
+          <p class="text-xs sm:text-sm text-indigo-400/90 mt-1.5 font-mono font-medium">
+            ต้นฉบับ: Claude API keys: identity, storage, rotation and leak response
+          </p>
+          <p class="text-xs text-slate-400 mt-1 font-mono">
+            Anthropic Claude Certified Developer – Foundations (CCDV-F) · สรุปและขยายความตามเอกสารทางการ 100%
+          </p>
+        </header>
+
+        
+        <section class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur shadow-sm">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3 flex items-center gap-2">
+            <span class="text-base">🎯</span>
+            <span>สิ่งที่คุณจะสามารถทำได้หลังจบบทเรียนนี้ (What you will be able to do)</span>
+          </h2>
+          <ul class="space-y-2.5 text-sm sm:text-[15px] text-slate-200 leading-relaxed">
+            <li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Choose between personal, service account, legacy workspace and Admin API keys based on whose identity each carries and when it stops working</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Tell an authentication failure (401) from an insufficient-level failure (403) and fix each one</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Predict how the API responds when a key's workspace scope and the request's workspace don't match</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Store, expire and rotate keys from a laptop .env file through to a production secrets manager</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Respond to a suspected leak and limit its damage with scanning, deactivation, spend limits and usage monitoring</span></li>
+          </ul>
+        </section>
+        
+        
+        <section class="my-6 rounded-2xl border-l-4 border-l-amber-500 border-y border-r border-slate-800 bg-amber-950/20 p-5 sm:p-6 shadow-sm">
+          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักสำคัญ (Key Concept)</span>
+          </div>
+          <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
+            Identity-backed API key — A personal or service account key acts as a user or service account your organization already manages, so its access follows that identity. When the identity is removed, the key stops working and can't outlive its owner.
+          </p>
+        </section>
+        
+        
+    <nav class="my-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-xs sm:text-sm">
+      <div class="font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+        <span>📑</span>
+        <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
+      </div>
+      <ul class="space-y-2 ml-1">
+        <li><a href="#1-key-types-and-whose-identity-a-key-carries" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1.Key types and whose identity a key carries</span></a></li><li><a href="#2-how-the-api-verifies-which-workspace-a-key-can-act-in" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2.How the API verifies which workspace a key can act in</span></a></li><li><a href="#3-storing-expiring-and-rotating-keys" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3.Storing, expiring and rotating keys</span></a></li><li><a href="#4-detecting-a-leak-shutting-it-down-and-watching-usage" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4.Detecting a leak, shutting it down and watching usage</span></a></li>
+      </ul>
+    </nav>
+    
+        
+        <section id="1-key-types-and-whose-identity-a-key-carries" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>1.Key types and whose identity a key carries</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Key types and whose identity a key carries</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Key type</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Acts as</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Stops working when</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Personal key</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You, with your roles and permissions</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You lose access to the organization (or to the workspace, for a single-workspace key); archived keys are not restored if you are re-invited</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Service account key</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A service account</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The service account is archived or, for a single-workspace key, removed from that workspace</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Workspace key (legacy)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No one: it belongs to the workspace</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">It expires, is disabled or deleted, or its workspace is archived, whatever happens to its creator</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">API key types compared</figcaption>
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapsRemoving an engineer from the organization revokes every API key they created.Why is that wrong?Removal archives their personal keys, but a legacy workspace key belongs to the workspace and keeps working until it expires, is disabled or deleted, or the workspace is archived.A 403 from the Admin or Compliance APIs means the key is invalid and should be replaced with a fresh one of the same kind.Why is that wrong?A 403 means the key authenticated but lacks the level the endpoint needs. Scopes are fixed at creation, so the fix is a new key carrying the missing scopes, not a re-issue of the same one.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">An engineer leaves the company and is removed from the organization. Which of their keys still authenticate requests the next day?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Only the legacy workspace keys they created</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Only their personal keys scoped to a single workspace</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">All of their keys, until each one reaches its expiration date</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">None of them, because every key type is tied to its creator</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Personal keys are archived when their owner is removed. A workspace key belongs to its workspace, not to a person, so it survives its creator&#x27;s departure.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “It expires, is disabled or deleted, or its workspace is archived, regardless of whether its creator leaves the organization”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55746</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A team configures their Claude Agent SDK session with `permission_mode: &quot;bypassPermissions&quot;` and `allowed_tools: [&quot;Read&quot;]`, believing this restricts the agent to read-only file access for safety during an autonomous refactor. During the run, the agent successfully executes a `Bash` command that deletes a directory. What is the correct explanation for this outcome?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">`allowed_tools` only pre-approves the tools listed; unlisted tools like `Bash` are not matched by any allow rule and fall through to the permission mode, where `bypassPermissions` approves them anyway.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">The team&#x27;s configuration contains a syntax error, since `allowed_tools` cannot be combined with `bypassPermissions` in the same session and the SDK should have rejected it at startup.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">`bypassPermissions` only applies to tools explicitly named in `allowed_tools`, so `Bash` should have been blocked; this indicates a bug in the SDK&#x27;s permission evaluator.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">The deletion happened because a `PreToolUse` hook was missing, and hooks are the only mechanism capable of blocking destructive Bash commands in bypass mode.</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct. allowed_tools does not constrain bypassPermissions: it only pre-approves listed tools, and any tool not covered by an allow or deny rule still falls through to the permission mode step, where bypass mode approves everything.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. This combination is valid syntax and a documented (if dangerous) configuration; the SDK does not reject it.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. This is the inverse of the actual behavior: bypassPermissions approves tools regardless of allowed_tools, not only the ones listed in it, so nothing here indicates a bug.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. While a PreToolUse hook could have blocked this, hooks are not the only mechanism; using disallowed_tools to remove Bash entirely, or avoiding bypassPermissions, would also have prevented it.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Put the steps for replacing a legacy workspace key in order.</p>
+          <div class="space-y-2 mb-4">
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก N/A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">The new identity and key must exist and be serving traffic before the old key is deleted. Otherwise the integration loses access in between.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “Confirm that requests succeed, then delete the workspace key on the API keys page.”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Key types and whose identity a key carries"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Every Claude API request acts as someone, and the type of key decides who. A static API key is an sk-ant-api... secret sent as Authorization: Bearer <key> on each request. When you create one in the Claude Console under Settings → API keys, the Linked account field sets its type. Link it to yourself for a personal key, or to a service account for a key that several people or a workload share. The type decides what the key can reach and when it stops working.</p><p class="my-2">Personal and service account keys are identity-backed. Every request runs with the permissions of a user or service account the organization already manages, so removing that identity cuts off the key too. The legacy workspace key is the exception. It has no owner, so it keeps working after the engineer who created it leaves. That is why a departed colleague's workspace key can still drive a pipeline months later, and it is why new integrations should prefer identity-backed keys.</p><p class="my-2">Choosing between the two identity-backed types depends on who runs the code. Your own scripts and development use a personal key. A personal key shared with a team acts as one person and breaks when that person leaves. CI jobs and production services need their own service account, which an organization admin creates so the workload has its own identity.</p><p class="my-2">Admin API keys are a separate kind of credential, used to manage the organization rather than call models. In the Claude Console only organization members with the admin role can create one, under Settings → Admin keys, and it carries the prefix sk-ant-admin01-.... One Admin API key authenticates the Admin API, the Usage and Cost API, the Rate Limits API and the other Admin-section APIs. A key created in one organization cannot manage a different one.</p><p class="my-2">Authentication is the API establishing who is calling, and the key is the proof. A key travels as a bearer token in the Authorization header; the older x-api-key header is still accepted in its place, and Admin API calls are normally sent that way. A key that is unknown, archived or expired fails at this step with 401 authentication_error. An expired key never comes back, so the fix is a new key. Federated workload identity is the other route to a Claude token, covered in the federation pages of this lesson.</p><p class="my-2">Level verification is the separate check that an authenticated caller is allowed to do this particular thing, and its failure looks different: 403 Forbidden. For a personal key, the level is the owner's organization role. A developer can manage API keys, while managing users takes admin. Claude Enterprise keys carry explicit scopes such as read:members or read:analytics, fixed when the key is created. A call outside them returns a 403 naming the scopes the key has and the scopes the endpoint needs. Widening a key means creating a new one. Console Admin API keys have no selectable scopes and carry full access to every endpoint that accepts them, and the service-account and federation endpoints accept only an org:admin OAuth token, so an Admin API key is refused there however privileged its creator is. Read the status code first: 401 means fix the credential, 403 means fix the level.</p><p class="my-2">Moving an integration off a workspace key follows a fixed sequence. The old key goes last, so traffic never runs without a working credential.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="2-how-the-api-verifies-which-workspace-a-key-can-act-in" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>2.How the API verifies which workspace a key can act in</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>How the API verifies which workspace a key can act in</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">This request uses a multi-workspace key. Which header name completes it?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">anthropic-workspace-id</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">x-api-key</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">anthropic-version</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">anthropic-organization-id</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">A key that isn&#x27;t scoped to a workspace has to send `anthropic-workspace-id` on every request. You can also set it once with `default_headers` on the client.</p>
+              
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A service account key with access to all workspaces sends a valid-format workspace ID for a workspace the service account was never added to. What comes back?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">400 invalid_request_error, because the header is required</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">404 not_found_error, as if the workspace did not exist</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">401 authentication_error, because the key is rejected</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">200, with the request redirected to the Default Workspace</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">A valid ID that the key&#x27;s identity can&#x27;t reach gets the same 404 as an unknown workspace. A 400 is only for a missing or malformed header.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “the key&#x27;s user or service account doesn&#x27;t have access to it, the API returns a 404 not_found_error”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"How the API verifies which workspace a key can act in"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">A key's workspace scope decides how much each request has to tell the API. If a key was created for one workspace, it works only there, and its requests can leave out the workspace ID. A key that isn't scoped to a workspace has to name one on every request in the anthropic-workspace-id header. If the header is missing, the API returns 400 invalid_request_error.</p><p class="my-2">The header names a workspace, and the key's identity still has to be allowed in it. A malformed ID gets a 400. A well-formed ID for a workspace the key's user or service account can't access gets 404 not_found_error, the same response as for a workspace that doesn't exist. Because both cases look the same, a 404 here usually points to missing membership, not a typo. Service accounts are implicitly members of the Default Workspace, and every other workspace has to be added to them explicitly.</p><p class="my-2">The Admin API checks scope the other way around. It accepts a personal or service account key only when that key is not scoped to a specific workspace. A single-workspace personal key from an admin's laptop will therefore fail against organization-management endpoints, even though the admin's role would allow the action.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="3-storing-expiring-and-rotating-keys" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>3.Storing, expiring and rotating keys</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Storing, expiring and rotating keys</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapAn expired key can be reactivated, or have its expiration extended, from the Console.Why is that wrong?Expiration is fixed when the key is created. An expired key returns 401 and can't be reactivated, so you have to create a new key.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A team created a key with a 30-day expiration and now wants it to last 90 days. What should they do?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Edit the key&#x27;s expiration on the API keys page</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Call the Admin API to update the key&#x27;s expires_at</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Create a new key with the longer expiration and rotate to it</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Disable and re-enable the key to reset its lifetime</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก C</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Expiration is fixed at creation. Getting a different lifetime means creating a new key and rotating to it.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “expiration is set at creation time and cannot be changed afterward”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Storing, expiring and rotating keys"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Leaks most often happen in two ways: a plaintext key committed to a public repository, or a key pasted into a third-party tool. Anything you give a key to can spend from your account. Uploading a key to a web IDE, cloud provider or CI/CD platform gives that tool's developer access to your Claude Console account, so add it only as an encrypted secret and never in code or config files. Each person who needs API access should get their own key rather than borrow yours.</p><p class="my-2">Where you store a key depends on where the code runs. On a laptop, a .env file loaded with python-dotenv is fine, provided the file is listed in .gitignore. In the cloud, use encrypted secret storage instead of dotenv files: the platform's secret manager injects the key as ANTHROPIC_API_KEY, which the SDK reads automatically. As the number of keys grows, a key management system gives you one encrypted store with fine-grained access control, audit trails and easier rotation.</p><p class="my-2">Expiration is set once, when the key is created. The Console offers presets of 3 hours, 1 day, 7 days or 30 days, a custom duration, or Never for keys you keep in a secrets manager and rotate yourself. An organization can set a maximum expiration policy, which caps the choices and removes Never. Once created, a key's expiration can't be changed. Anthropic emails the creator before expiry: 7 days ahead for keys with a lifetime of at least 14 days, and 1 day ahead for keys with a lifetime of at least 7 days. After expiry, requests return 401 authentication_error, and the only fix is a new key.</p><p class="my-2">Rotation means creating the new key before retiring the old one, on a regular schedule such as every 90 days. Expiration limits how long a leaked key stays usable. It is not a substitute for good secret hygiene.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="4-detecting-a-leak-shutting-it-down-and-watching-usage" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>4.Detecting a leak, shutting it down and watching usage</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Detecting a leak, shutting it down and watching usage</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapDeleting a suspect key is reversible, the same as disabling it.Why is that wrong?Disable can be undone with Re-enable. Delete is permanent: the key is archived and only kept on record.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Match each key state or action to its consequence.</p>
+          <div class="space-y-2 mb-4">
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก N/A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Only Disable can be undone. Deleted and expired keys can&#x27;t be brought back, and a key exposed on public GitHub is deactivated without any action from you.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “Disable is reversible (the Admin API reports the key&#x27;s status as &quot;inactive&quot;, and Re-enable returns it to &quot;active&quot;)”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55740</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A compliance auditor asks an engineering team to produce evidence of which Claude API keys are nearing expiration across all workspaces, so stale credentials can be rotated proactively before they lapse. Which action retrieves this information programmatically?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Call the Admin API&#x27;s List API Keys endpoint with an Admin API key and inspect each returned key&#x27;s `expires_at` timestamp, treating a `null` value as a key with no expiration.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Query the Compliance API&#x27;s Activity Feed for `key.created` events and compute expiration by adding 30 days to each event&#x27;s timestamp.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Call the Usage and Cost API for each workspace and filter the returned line items for entries whose `cost` field is exactly zero.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Use the Rate Limits API to list per-workspace rate limit configurations, since keys that are near expiration are automatically assigned a reduced rate limit.</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct. The Admin API&#x27;s List API Keys endpoint returns each key&#x27;s expires_at timestamp directly (null for keys without an expiration), which is exactly the audit signal needed.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. The Compliance API&#x27;s Activity Feed logs events but does not report expiration timestamps, and 30 days is not a fixed or reliable default expiration to assume.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. Usage and cost data reflects consumption, not credential lifecycle; a zero-cost line item has no relationship to key expiration.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. Rate limits are not automatically tied to a key&#x27;s expiration status; the Rate Limits API has no such behavior.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Detecting a leak, shutting it down and watching usage"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Secret scanning catches keys before or soon after they leak. You can turn on scanning in your source control provider, run a SAST tool such as Gitleaks over your repositories, and add scanning to CI/CD so a secret is caught before it reaches the main branch. Public GitHub has an extra safety net. Through GitHub's Secret scanning partner program, a Claude API key found in a public repository is reported to Anthropic, which deactivates it automatically and emails the affected user.</p><p class="my-2">If you suspect a key is compromised, revoke it immediately, then create a replacement and store it in a secrets manager. The Console offers two actions, and they differ in whether you can undo them. Disable can be undone: the key reports inactive, and Re-enable makes it active again. That suits a key you aren't yet sure about. Delete is permanent: the key is archived and still shows in List API Keys with status: "archived". An expired key can only be deleted.</p><p class="my-2">Spend controls limit what a leaked key can cost before anyone notices. The broader limits model is covered in [Rate limits, spend limits and service tiers](lesson:2.1). For a leaked key, the relevant settings are these: Custom Rate Limit organizations should set usage and spend limits, and Standard Rate Limit organizations should set the auto-reload threshold with care, because every reload is more credit an attacker can use.</p><p class="my-2">Monitoring is how you tell authorized use from unauthorized use. Review logs and usage patterns for each key in the Console. Use separate keys for development, testing and production, so usage maps to one purpose and a compromise means disabling only that one. The Admin API returns each key's expires_at from List API Keys and Retrieve API Key, so you can audit keys and rotate them ahead of expiry. Identity-backed keys also make it clear which user or service account made each call.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        
+        <section class="mt-14 pt-8 border-t border-slate-800">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <span>📚</span>
+            <span>เอกสารอ้างอิงทางการจาก Anthropic (Official Citations)</span>
+          </div>
+          <ul class="space-y-2">
+            <li><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/manage-claude/authentication</span></a></li><li><a href="https://platform.claude.com/docs/en/manage-claude/admin-api-keys" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/manage-claude/admin-api-keys</span></a></li><li><a href="https://platform.claude.com/docs/en/manage-claude/admin-api" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/manage-claude/admin-api</span></a></li><li><a href="https://support.claude.com/en/articles/9767949-api-key-best-practices-keeping-your-keys-safe-and-secure" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://support.claude.com/en/articles/9767949-api-key-best-practices-keeping-your-keys-safe-and-secure</span></a></li><li><a href="https://support.claude.com/en/articles/8384961-what-should-i-do-if-i-suspect-my-api-key-has-been-compromised" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://support.claude.com/en/articles/8384961-what-should-i-do-if-i-suspect-my-api-key-has-been-compromised</span></a></li>
+          </ul>
+        </section>
+        
+        
+    <nav class="mt-16 pt-8 border-t border-slate-800 flex flex-col sm:flex-row gap-4 justify-between">
+      
+    <a href="lesson-38.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-left group">
+      <span class="text-xs text-slate-400 flex items-center gap-1 mb-1 group-hover:text-indigo-400">← บทเรียนก่อนหน้า</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">การสกัดกั้นคำสั่งเครื่องมือที่เป็นอันตรายด้วย PreToolUse Decisions</span>
+    </a>
+    
+      
+    <a href="lesson-40.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-right items-end group">
+      <span class="text-xs text-indigo-400 flex items-center gap-1 mb-1">บทเรียนถัดไป →</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">Workload Identity Federation และลำดับความสำคัญของ Credential ใน SDK</span>
+    </a>
+    
+    </nav>
+    
+      </article>
+    </main>
+  </div>
+
+  <footer class="mt-20 border-t border-slate-800/80 bg-slate-950 py-8 text-center text-xs text-slate-500">
+    <p>Anthropic Claude Certified Developer & Architect Study Hub (ภาษาไทยฉบับสมบูรณ์)</p>
+    <p class="mt-1">แปล ขยายความ และรวบรวมเพื่อการเตรียมสอบ CCDV-F & CCAR-P อย่างครบถ้วนทุกบทเรียน</p>
+  </footer>
+
+  <script>
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progress').style.width = scrolled + '%';
+    });
+  </script>
+</body>
+</html>

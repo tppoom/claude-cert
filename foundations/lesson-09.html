@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="th" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>กลไก Claude Messages API: Requests, State, Tools, Streaming และ Vision | CCDV-F คู่มือเตรียมสอบ Anthropic</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Prompt', 'Inter', sans-serif;
+    }
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
+  <!-- Progress Bar -->
+  <div id="progress" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-50 transition-all duration-150" style="width: 0%"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition">
+          <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20">A</span>
+          <span class="font-bold text-sm tracking-wide hidden sm:inline">Anthropic Cert Hub</span>
+        </a>
+        <span class="text-slate-600">/</span>
+        <a href="index.html" class="text-xs sm:text-sm font-medium text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] sm:max-w-none">Anthropic Claude Certified Developer – Foundations (CCDV-F)</a>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="../architect/index.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
+          สลับไปคอร์ส Architect (CCAR-P)
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <!-- Sidebar -->
+    <aside class="hidden lg:block w-72 shrink-0">
+      <div class="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-3 space-y-2">
+        <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-800">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">สารบัญบทเรียน (45 บท)</span>
+          <a href="index.html" class="text-xs text-indigo-400 hover:underline">หน้าหลักคอร์ส</a>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 1: Agents and Workflows (สถาปัตยกรรมเอเจนต์และเวิร์กโฟลว์)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-01.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.1]</span>
+              <span class="truncate">สถาปัตยกรรมเอเจนต์: เวิร์กโฟลว์, เอเจนต์ และลำดับชั้น Orchestrator–Subagent</span>
+            </a>
+            
+            <a href="lesson-02.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">แนวทางการสร้างและโฮสต์ Claude Agent ด้วย Agent SDK</span>
+            </a>
+            
+            <a href="lesson-03.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">การทำงานของ query() loop, Hooks และ Subagents ใน Agent SDK</span>
+            </a>
+            
+            <a href="lesson-04.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.3]</span>
+              <span class="truncate">รูปแบบเอเจนต์และเฟรมเวิร์ก: เวิร์กโฟลว์, เอเจนต์ย่อย และการจัดการหน่วยความจำ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 2: Applications and Integration (การพัฒนาแอปพลิเคชันและการเชื่อมต่อระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-05.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">การแปลงข้อกำหนดเชิงฟังก์ชันสู่การเลือกรุ่น Claude Model</span>
+            </a>
+            
+            <a href="lesson-06.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">ข้อกำหนดด้านโครงสร้างพื้นฐาน: แพลตฟอร์ม, Data Residency, ZDR และ Capacity</span>
+            </a>
+            
+            <a href="lesson-07.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">วงจรชีวิตโมเดล Claude: การยกเลิก (Deprecation), การปลดระวาง และการย้ายระบบ</span>
+            </a>
+            
+            <a href="lesson-08.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">การประเมินผล การกำหนดเวอร์ชัน และการ Rollout การเปลี่ยนแปลงในระบบ Claude</span>
+            </a>
+            
+            <a href="lesson-09.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors bg-indigo-600/30 text-indigo-300 font-semibold border-l-2 border-indigo-400 pl-2.5">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">กลไก Claude Messages API: Requests, State, Tools, Streaming และ Vision</span>
+            </a>
+            
+            <a href="lesson-10.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">Message Batches API และการเลือกใช้งานแบบ Batch เทียบกับ Realtime</span>
+            </a>
+            
+            <a href="lesson-11.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST, JSON และรูปแบบ Sync vs Async</span>
+            </a>
+            
+            <a href="lesson-12.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การผสาน Claude Code กับ Git, CI, Code Review และ Refactoring</span>
+            </a>
+            
+            <a href="lesson-13.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การออกแบบแอปพลิเคชัน: พื้นผิวอินพุต, การวางคำสั่ง และขอบเขตบริบท</span>
+            </a>
+            
+            <a href="lesson-14.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การดูแลสุขอนามัยของเซสชันและการจัดการปลั๊กอินใน Claude Code</span>
+            </a>
+            
+            <a href="lesson-15.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.6]</span>
+              <span class="truncate">การจัดการการตั้งค่าสำหรับ Claude: CLAUDE.md, settings.json และลำดับความสำคัญ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 3: Claude Code (การใช้งานและการตั้งค่า Claude Code)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-16.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การตั้งค่าโปรเจกต์ Claude Code: CLAUDE.md, Rules, Auto Memory และ settings.json</span>
+            </a>
+            
+            <a href="lesson-17.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การรัน Claude Code: Skills, Subagents, Sessions, Headless และ Auto Mode</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 4: Eval, Testing, and Debugging (การประเมินผล การทดสอบ และการแก้จุดบกพร่อง)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-18.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">ประเภทข้อผิดพลาดของ Claude API และกลยุทธ์การกู้คืนระบบ (Error Recovery)</span>
+            </a>
+            
+            <a href="lesson-19.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">การสืบค้นและระบุจุดบกพร่อง: ปัญหาที่ชั้น Integration เทียบกับ Model Output</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 5: Model Selection and Optimization (การเลือกรุ่นโมเดลและการปรับแต่งประสิทธิภาพ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-20.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">การทำงานพื้นฐานของ LLM: โทเค็น, Context Window และพารามิเตอร์การสุ่ม (Sampling)</span>
+            </a>
+            
+            <a href="lesson-21.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">ตัวเลือกโมเดล Claude: Thinking Modes, ระดับ Effort, Fast Mode และ Few-shot</span>
+            </a>
+            
+            <a href="lesson-22.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST: Endpoints, Headers และ SDKs</span>
+            </a>
+            
+            <a href="lesson-23.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การสตรีมผลลัพธ์ของ Claude ผ่าน Server-Sent Events (SSE)</span>
+            </a>
+            
+            <a href="lesson-24.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">การเลือกรุ่น Claude: ลำดับชั้นโมเดล (Tiers), ความหน่วง (Latency) และต้นทุน (Cost)</span>
+            </a>
+            
+            <a href="lesson-25.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">โหมดการคิดของ Claude (Thinking Modes) และข้อควรระวังเรื่องการเปลี่ยนแปลงข้ามรุ่น</span>
+            </a>
+            
+            <a href="lesson-26.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">ราคาโทเค็น Claude, การนับโทเค็น (Token Counting) และการติดตามการใช้งาน</span>
+            </a>
+            
+            <a href="lesson-27.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">Prompt Caching: จุดเบรกพอยต์, TTLs และการประหยัดต้นทุนด้วยการแคช</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 6: Prompt and Context Engineering (วิศวกรรมพร้อมต์และการจัดการ Context Window)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-28.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การจัดสรรงบประมาณ Context Window และการตัดทอนผลลัพธ์เครื่องมือ (Pruning)</span>
+            </a>
+            
+            <a href="lesson-29.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การบีบอัดบริบท (Compaction) และการแยก Context Isolation ใน Subagents</span>
+            </a>
+            
+            <a href="lesson-30.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.2]</span>
+              <span class="truncate">วิศวกรรมพร้อมต์สำหรับ Claude: ความชัดเจน, ตัวอย่าง Few-shot และข้อกำหนดผลลัพธ์</span>
+            </a>
+            
+            <a href="lesson-31.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การสร้าง Structured Outputs และ Strict Tool Use เพื่อให้ได้ผลลัพธ์ JSON ที่แม่นยำ</span>
+            </a>
+            
+            <a href="lesson-32.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การตรวจสอบผลลัพธ์ของ Claude ก่อนนำไปใช้งาน (Stop Reason, Empty Turns, Hallucination)</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 7: Security and Safety (ความปลอดภัย การควบคุม และการป้องกันระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-33.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การป้องกัน Prompt Injection และ Jailbreak สำหรับแอปพลิเคชัน Claude</span>
+            </a>
+            
+            <a href="lesson-34.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การกำหนดสิทธิ์เอเจนต์ (Agent Permissions), การจัดการความลับ และการคุ้มครองข้อมูล</span>
+            </a>
+            
+            <a href="lesson-35.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การวาง Guardrail หลายชั้นและนโยบายเนื้อหา (Content Policy) สำหรับ Claude</span>
+            </a>
+            
+            <a href="lesson-36.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การติดตั้งระบบแบบ Secure-by-Design: หลักสิทธิ์ต่ำสุด (Least Privilege) และความเป็นส่วนตัว</span>
+            </a>
+            
+            <a href="lesson-37.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">เหตุการณ์ Claude Code Hooks, Matchers และประเภทของ Handlers</span>
+            </a>
+            
+            <a href="lesson-38.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">การสกัดกั้นคำสั่งเครื่องมือที่เป็นอันตรายด้วย PreToolUse Decisions</span>
+            </a>
+            
+            <a href="lesson-39.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">คีย์ Claude API: ประเภทคีย์, การจัดเก็บอย่างปลอดภัย, การหมุนเวียน และการตอบสนองเมื่อคีย์รั่วไหล</span>
+            </a>
+            
+            <a href="lesson-40.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">Workload Identity Federation และลำดับความสำคัญของ Credential ใน SDK</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 8: Tools and MCPs (การใช้งานเครื่องมือและ Model Context Protocol)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-41.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การนิยามเครื่องมือสำหรับ Claude: โครงสร้าง Schema, คำอธิบาย และการออกแบบชุดเครื่องมือ</span>
+            </a>
+            
+            <a href="lesson-42.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การจัดการการเรียกใช้เครื่องมือ: วงรอบเอเจนต์ (Agentic Loop), ข้อผิดพลาด และการอนุมัติ</span>
+            </a>
+            
+            <a href="lesson-43.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">พื้นฐานองค์ประกอบ MCP Server: Tools, Resources และ Prompts</span>
+            </a>
+            
+            <a href="lesson-44.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">MCP Transports และการเชื่อมต่อเซิร์ฟเวอร์เข้ากับ Claude Code และ Agent SDK</span>
+            </a>
+            
+            <a href="lesson-45.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.3]</span>
+              <span class="truncate">เปรียบเทียบ Built-in Tools, Custom Tools, Skills และ MCP: การเลือกวิธีขยายขีดความสามารถ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 min-w-0 max-w-4xl mx-auto">
+      <article>
+        <!-- Header -->
+        <header class="mb-8">
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Subdomain 2.3</span> <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">✓</span> 
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            กลไก Claude Messages API: Requests, State, Tools, Streaming และ Vision
+          </h1>
+          <p class="text-xs sm:text-sm text-indigo-400/90 mt-1.5 font-mono font-medium">
+            ต้นฉบับ: Claude Messages API mechanics: requests, state, tools, streaming and vision
+          </p>
+          <p class="text-xs text-slate-400 mt-1 font-mono">
+            Anthropic Claude Certified Developer – Foundations (CCDV-F) · สรุปและขยายความตามเอกสารทางการ 100%
+          </p>
+        </header>
+
+        
+        <section class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur shadow-sm">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3 flex items-center gap-2">
+            <span class="text-base">🎯</span>
+            <span>สิ่งที่คุณจะสามารถทำได้หลังจบบทเรียนนี้ (What you will be able to do)</span>
+          </h2>
+          <ul class="space-y-2.5 text-sm sm:text-[15px] text-slate-200 leading-relaxed">
+            <li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Read a Messages API response: its content blocks, stop_reason and usage</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Keep conversation state in your own code and resend it on every call without breaking the prompt cache</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Run a client-side tool loop that passes thinking blocks back unmodified</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Consume a streamed response event by event, or let the SDK accumulate it</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Send images inline, by URL, or by Files API file_id</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Say what changes in a request when Claude is called through Google Cloud or Amazon Bedrock</span></li>
+          </ul>
+        </section>
+        
+        
+        <section class="my-6 rounded-2xl border-l-4 border-l-amber-500 border-y border-r border-slate-800 bg-amber-950/20 p-5 sm:p-6 shadow-sm">
+          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักสำคัญ (Key Concept)</span>
+          </div>
+          <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
+            Stateless Messages API — The Messages API keeps no memory between calls. Your application holds the conversation and sends all of it, every earlier turn, tool result and image, on every request.
+          </p>
+        </section>
+        
+        
+    <nav class="my-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-xs sm:text-sm">
+      <div class="font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+        <span>📑</span>
+        <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
+      </div>
+      <ul class="space-y-2 ml-1">
+        <li><a href="#1-how-a-messages-request-and-response-are-shaped" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1.How a Messages request and response are shaped</span></a></li><li><a href="#2-conversation-state-lives-in-your-code" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2.Conversation state lives in your code</span></a></li><li><a href="#3-tool-calls-and-thinking-blocks-in-the-request-loop" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3.Tool calls and thinking blocks in the request loop</span></a></li><li><a href="#4-streaming-responses-as-server-sent-events" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4.Streaming responses as server-sent events</span></a></li><li><a href="#5-sending-images-and-files-inline-by-url-or-by-file-id" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>5.Sending images and files: inline, by URL, or by file ID</span></a></li><li><a href="#6-what-changes-when-you-call-claude-through-a-cloud-vendor" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>6.What changes when you call Claude through a cloud vendor</span></a></li>
+      </ul>
+    </nav>
+    
+        
+        <section id="1-how-a-messages-request-and-response-are-shaped" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>1.How a Messages request and response are shaped</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>How a Messages request and response are shaped</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
+                  A complete response to a one-line user message: one text block, a stop reason and token usagejson{ "id": "msg_01XFDUDYJgAACzvnptvVoYEL", "type": "message", "role": "assistant", "content": [ { "type": "text", "text": "Hello!" } ], "model": "claude-opus-5-5", "stop_reason": "end_turn", "stop_sequence": null, "usage": { "input_tokens": 12, "output_tokens": 6 } }
+                </div>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Your moderation dashboard needs to record why Claude declined a request. Which part of the response gives you that?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">The text of the first content block, parsed with a regex</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">The stop_details object that comes with stop_reason &quot;refusal&quot;</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">The stop_sequence field</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">The usage object, where output_tokens is zero for refusals</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Refusals carry a structured stop_details object that names the policy category, so you never need to parse prose to find it. stop_sequence only reports which custom stop string matched.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “Refusal responses (stop_reason: &quot;refusal&quot;) also include a stop_details object identifying the policy category that triggered the refusal”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/working-with-messages" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"How a Messages request and response are shaped"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">The Messages API gives you direct access to the model, and it is the surface you use when you want to write your own agent loop. Each call is one request with three required parts: a model, a max_tokens ceiling on the reply, and a messages list in which every entry has a role (user or assistant) and some content. Instructions that should hold from the first turn go in the top-level system field, outside the list.</p><p class="my-2">The reply is one assistant message. Its content is an array of typed blocks, not a string. A plain answer is a single text block. The same array can also hold tool_use blocks and thinking blocks, so code that reads content[0].text will break once you turn those features on. Two other fields carry the facts your code branches on. stop_reason says why generation stopped: end_turn, max_tokens, stop_sequence, tool_use or refusal. usage reports input_tokens and output_tokens, which is where your billing and context-size numbers come from.</p><p class="my-2">A stop_reason of max_tokens means the reply was cut off at your ceiling. It is not a finished answer. With refusal, the response also includes a stop_details object that names the policy category behind the refusal, so you can log it or tell the user why.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="2-conversation-state-lives-in-your-code" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>2.Conversation state lives in your code</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Conversation state lives in your code</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Predict firstA chat backend saves the msg_ id from turn 1. For turn 2 it sends only the user's new question. What context does Claude have when it answers?Only the new question, because the API keeps no history between callsTurn 1 as well, because the same SDK client object keeps the conversationTurn 1 as well, because the API looks up earlier turns by the message idThe API is stateless. The only context Claude has is what is in the request, so turn 1 is gone unless you send it again.“The Messages API is stateless, which means that you always send the full conversational history to the API.”Source: platform.claude.com</p>
+                </aside>
+                
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
+                  Turn two of a conversation: the earlier user and assistant turns are sent again with the new questionpythonmessage = anthropic.Anthropic().messages.create( model="claude-opus-5-5", max_tokens=1024, messages=[ {"role": "user", "content": "Hello, Claude"}, {"role": "assistant", "content": "Hello!"}, {"role": "user", "content": "Can you describe LLMs to me?"}, ], )
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapOnce Claude has seen an image or document in an earlier turn, a later turn can refer to it without including it again.Why is that wrong?The API keeps nothing between calls. The image, or a file_id reference to it, has to be in the history of every request that relies on it.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55439</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A compliance-document assistant sends the same 40,000-token reference manual as cached context, but users only ask questions roughly every 20-30 minutes, well beyond the default cache lifetime. Which caching configuration change best fits this access pattern?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Set the ephemeral cache breakpoint&#x27;s `ttl` to `&quot;1h&quot;` on the reference manual block, accepting the higher write cost for reduced re-write frequency over the longer idle gaps</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Add a second explicit `cache_control` breakpoint immediately after the manual so the 5-minute cache automatically refreshes itself between user questions</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Switch to automatic caching by adding a single top-level `cache_control` flag, which extends the default lifetime to match the longest gap between requests</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Reduce the manual to under 1,024 tokens so the minimum cacheable threshold no longer applies and the entry persists indefinitely between calls</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct. The 1-hour cache duration is designed for content used less frequently than every 5 minutes but still within an hour; paying the 2x write cost once and reading at 0.1x for a subsequent question in the same hour is more efficient than repeatedly re-writing the full 5-minute cache.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">A second breakpoint helps manage the 20-block lookback for growing conversations, but it doesn&#x27;t extend the underlying cache lifetime past 5 minutes on its own; the cache still expires if no request arrives within that window.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Automatic caching simplifies breakpoint placement to a single parameter, but it does not change the underlying TTL options; the default lifetime is still 5 minutes unless the 1-hour TTL is explicitly requested.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Shrinking content below the minimum threshold makes it ineligible for caching altogether rather than making it persist longer, which is the opposite of the desired outcome.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A team puts a static 6,000-token manual in one system block and the &quot;Current time&quot; line in a second system block after it. The only cache_control marker sits on the time block. Across thousands of calls, cache_read_input_tokens stays at zero. What is the fix?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Switch to the 1-hour TTL so entries live longer</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Move the marker onto the manual block, so the breakpoint sits before the timestamp</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Add a second marker on the time block as well</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Send the history as one long user message instead of separate turns</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">The breakpoint covers the timestamp, so the cached prefix changes on every request and never repeats. Ending the prefix at the last stable block lets the manual be read from cache. A longer TTL or an extra marker on the changing block does nothing for a prefix that never repeats.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “keep the breakpoint before it, on the last stable block.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Conversation state lives in your code"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">The API has no session, so your application is the conversation store. After each reply, append the assistant message to your list, append the next user turn, and send the whole list. Data access works the same way: anything Claude should be able to see in turn 7 (a document, a screenshot, a tool result from turn 2) has to be in the turn 7 request.</p><p class="my-2">Since you write the history yourself, you can put things in it. Assistant turns don't have to come from Claude: a synthetic few-shot exchange is valid input. On older models such as Claude Sonnet 4.5, an assistant message in the last position works as a prefill, and Claude continues from where it ends. Pair a prefill of The answer is ( with max_tokens: 1 and you get back a single multiple-choice letter. Don't build new code on that pattern: Claude Opus 4.6 already rejects prefilled assistant turns, and the Opus 5.5 migration checklist says to remove them. On recent models such as Claude Opus 5.5 and Sonnet 5.5, you can instead add a role: "system" message after a user turn to bring in an instruction partway through. It cannot be the first entry in messages.</p><p class="my-2">Prompt caching reuses work across those resent histories. A cache_control marker on a content block sets a cache breakpoint: everything up to and including that block is the reusable prefix. In the response's usage, cache_read_input_tokens counts tokens served from that cached prefix, and cache_creation_input_tokens counts tokens newly written to it. A read count stuck at zero means the prefix never repeats.</p><p class="my-2">Resending the full history on every call is what makes [prompt caching](lesson:5.4) worth using, and it puts one requirement on how you build requests: the prefix has to stay byte-identical. The cache key is a hash of the prompt up to the breakpoint, so anything that changes early in the request, like a timestamp in the system prompt, a reordered tool list or an edited earlier turn, produces a new key and a cache miss. Put changing content at the end. A mid-conversation system message is appended to the end of the history, so it leaves the cached prefix before it intact.</p><p class="my-2">How long an entry survives is set on the marker. The default lifetime is 5 minutes, refreshed at no extra cost each time the entry is used, and it is measured from the start of the request, so a slow streamed response eats into it. Adding "ttl": "1h" to cache_control requests a one-hour entry instead. Writes cost more than ordinary input: 25% extra for the 5-minute entry and 2x the base input price for the 1-hour one. The longer entry pays for itself when requests arrive more than five minutes apart or responses run long enough to outlast the window.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="3-tool-calls-and-thinking-blocks-in-the-request-loop" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>3.Tool calls and thinking blocks in the request loop</span>
+          </h2>
+          
+        <div class="space-y-4">
+          <p class="text-slate-200 text-sm sm:text-base leading-relaxed">
+            ใน Claude Agent SDK การทำงานหลักถูกขับเคลื่อนด้วยฟังก์ชัน <strong class="text-emerald-400 font-mono">query()</strong> ซึ่งทำหน้าที่จัดการวงรอบเอเจนต์ (Agentic Loop) ให้อัตโนมัติ:
+          </p>
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-xs sm:text-sm text-slate-300 space-y-2">
+            <span class="font-bold text-indigo-400 block text-xs uppercase tracking-wider">วงรอบการทำงานของ query() Loop:</span>
+            <ol class="list-decimal ml-5 space-y-1.5">
+              <li>ส่งพร้อมต์และประวัติการสนทนาไปยัง Claude API</li>
+              <li>รับผลลัพธ์จากโมเดล หากโมเดลส่ง <code class="font-mono text-indigo-300">stop_reason: "tool_use"</code> ระบบจะรันเครื่องมือที่ระบุ</li>
+              <li>นำผลลัพธ์ของเครื่องมือส่งกลับไปให้ Claude ประเมินซ้ำ</li>
+              <li>ลูปนี้จะหมุนต่อเนื่องไปเรื่อยๆ จนกระทั่งโมเดลส่ง <code class="font-mono text-emerald-300">stop_reason: "end_turn"</code> โดยไม่มีการเรียกเครื่องมือเพิ่ม</li>
+            </ol>
+          </div>
+        </div>
+        
+          
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapThinking blocks are just display text, so a tool loop can drop them or keep only the tool_use blocks when it sends the assistant turn back.Why is that wrong?The thinking blocks have to go back complete, signatures included. Edited, reordered or partly dropped thinking blocks are rejected with a 400.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">To save tokens, an agent rebuilds each assistant turn with only its tool_use blocks before appending the tool results. Thinking is enabled. What happens on the next request?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">It works and costs fewer input tokens</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">It works, but Claude loses track of its earlier reasoning</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">The API rejects the request with a 400 error</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">The API fills in the missing thinking blocks from the signature</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก C</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Dropping the thinking blocks counts as a partially dropped thinking sequence, which the API refuses with a 400. Echo the assistant message unchanged.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “the API rejects edited, reordered, or partially dropped thinking blocks with a 400 error.”
+              <br><a href="https://platform.claude.com/docs/en/models/opus-5-5/migration-guide" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55440</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A developer configures `thinking={&quot;type&quot;: &quot;enabled&quot;, &quot;budget_tokens&quot;: 32000}` alongside `max_tokens=16000` and the request fails validation. What is the correct fix?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Lower `budget_tokens` to a value strictly less than `max_tokens`, since the thinking budget must fit within the overall output token ceiling</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Remove `max_tokens` entirely, since extended thinking requests calculate the output ceiling automatically from the thinking budget</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Switch `budget_tokens` to a negative offset from `max_tokens` so the API can compute the remaining space for the final text response</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Increase `max_tokens` to exactly double `budget_tokens`, which is the fixed ratio the API enforces between thinking and final output tokens</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct. `budget_tokens` must be less than `max_tokens`; here 32000 exceeds 16000, so lowering the thinking budget below the max_tokens ceiling resolves the validation error.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">`max_tokens` is still a required parameter for standard (non-adaptive) requests; extended thinking doesn&#x27;t remove the need to set an overall output ceiling.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">There&#x27;s no negative-offset mechanism in the API; `budget_tokens` and `max_tokens` are both positive integers with a simple less-than constraint.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">The API does not enforce a fixed 2x ratio between `max_tokens` and `budget_tokens`; the only documented constraint is that the budget must be smaller than the max token ceiling.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Tool calls and thinking blocks in the request loop"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Tool use runs on the same stateless request cycle. Claude never runs anything itself. When it wants a tool, the response has stop_reason: "tool_use" and one or more tool_use blocks, each with a tool name and a JSON object of arguments. Your code runs the operation and sends the output back as tool_result blocks in a new user message. That message goes at the end of the full history, after the assistant turn that asked for the tool. Keep looping while stop_reason is tool_use. Any other stop reason ends the loop. Writing the tool schemas themselves is covered in [Tool implementation](lesson:8.1).</p><p class="my-2">Server tools are different. For web_search, web_fetch, code_execution and tool_search, Anthropic runs the code, and you never build a tool_result. The response shows server_tool_use blocks for what ran. That server-side loop has an iteration cap. When it hits the cap, the response comes back with stop_reason: "pause_turn", and you continue by sending the conversation again with the paused response included.</p><p class="my-2">[Extended and adaptive thinking](lesson:5.3) adds thinking blocks to the assistant's content, and each one carries a signature. In a tool loop, send those blocks back exactly as you received them, including blocks whose thinking text is empty. The safe way is to append the assistant message as you received it. Don't filter its blocks by type and don't rebuild it from parts. The API rejects thinking blocks that have been edited, reordered or partly dropped with a 400 error.</p><p class="my-2">On Claude Opus 5.5, thinking is not optional: every request runs with adaptive thinking, so any response can open with thinking blocks. Thinking tokens are billed as output tokens even when the thinking text is not returned, and they count against max_tokens, which stays a hard limit on thinking plus reply text. A ceiling tuned for a model that ran without thinking can now cut the answer short, and at xhigh or max effort the migration guide suggests starting at 64k.</p><p class="my-2">Depth is controlled by the effort parameter rather than by a thinking budget. Set output_config={"effort": "medium"} (the Opus 5.5 default) and lower it to spend fewer tokens on thinking. The old thinking: {"type": "enabled", "budget_tokens": N} form is replaced by thinking: {"type": "adaptive"} plus effort, or by no thinking field at all. On models that still use manual extended thinking, the budget counts toward max_tokens too. What you see is also a setting: thinking.display defaults to "omitted", so thinking blocks arrive with an empty thinking field and a signature. Set "summarized" to receive readable summaries, and treat the field as display text only.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="4-streaming-responses-as-server-sent-events" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>4.Streaming responses as server-sent events</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Streaming responses as server-sent events</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Event</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">What it carries</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">message_start</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A Message object with empty content</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">content_block_start / content_block_delta / content_block_stop</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">One block, built up by deltas; its index matches its position in the final content array</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">message_delta</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Top-level changes such as stop_reason and output usage</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">message_stop</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">End of the stream</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">ping / error</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Keep-alives at any point; errors such as overloaded_error mid-stream</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">The event sequence of one streamed message</figcaption>
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapEach input_json_delta in a streamed tool_use block is a complete JSON object you can parse right away.Why is that wrong?The deltas are fragments of a JSON string. Collect them and parse at content_block_stop, or use the SDK's streaming helpers.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">This request uses a 128,000-token max_tokens and only needs the finished message. Which helper completes it?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">get_final_message</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">text_stream</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">until_done</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">create</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">get_final_message() gathers every event into the complete Message object. text_stream is an iterator of text pieces, not a method that returns the message.</p>
+              
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Streaming responses as server-sent events"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Set "stream": true and the response arrives as server-sent events, so a UI can show text as it is generated. Streaming also helps when nobody is watching. With a large max_tokens, the SDK requires streaming to avoid HTTP timeouts. Its accumulation helper streams under the hood and hands you the same complete Message object that messages.create() would.</p><p class="my-2">Each kind of block streams a different delta. A text_delta carries a piece of text. A tool_use block streams input_json_delta events made of partial JSON strings, so collect them and parse once content_block_stop arrives, or use the SDK helpers that parse as the input streams. Thinking streams as thinking_delta, followed by one signature_delta just before the block closes. That signature is what the tool loop above must send back. Errors can also arrive mid-stream: overloaded_error is the streaming version of an HTTP 529. And because new event types may be added, a parser should skip unknown events rather than crash on them.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="5-sending-images-and-files-inline-by-url-or-by-file-id" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>5.Sending images and files: inline, by URL, or by file ID</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Sending images and files: inline, by URL, or by file ID</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
+                  A base64 image block followed by the question about it, in a single user turnpythonmessage = anthropic.Anthropic().messages.create( model="claude-opus-5-5", max_tokens=1024, messages=[ { "role": "user", "content": [ { "type": "image", "source": { "type": "base64", "media_type": image_media_type, "data": image_data, }, }, {"type": "text", "text": "What is in the above image?"}, ], } ], )
+                </div>
+                
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
+                  Uploading a PDF once to the Files API to get a reusable file_idpythonuploaded = client.files.upload( file=("document.pdf", open("/path/to/document.pdf", "rb"), "application/pdf"), ) file_id = uploaded.id print(file_id)
+                </div>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A review assistant attaches the same 2 MB product photo to every turn of a long conversation. What change stops the photo bytes from being sent on every request?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Send it only in turn 1, since Claude remembers images it has seen</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Upload it once to the Files API and use a file source with its file_id in each turn</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Switch to a url source, since Claude fetches the image once and keeps a copy between turns</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Move the image into the top-level system field</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">The image still has to be in each request&#x27;s history, because the API is stateless. A file_id reference keeps it there without uploading the content again.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “Upload files once, reference them by file_id in Messages requests, and download outputs created by skills or the code execution tool.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/files" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Sending images and files: inline, by URL, or by file ID"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">An image is just another content block in a user turn. Its source takes one of three types. base64 embeds the bytes and needs a media_type. url points at a hosted image. file refers to something already uploaded to the Files API. The supported formats are image/jpeg, image/png, image/gif and image/webp. Put the image block before the text that asks about it, as in this example.</p><p class="my-2">Statelessness is what makes inline images expensive. Suppose a support tool sends two screenshots in turn 1 and asks about "the first image" in turn 3. Those screenshots have to be in the turn 3 request, so a base64 image is re-encoded and re-sent every turn. The Files API avoids that: upload once, get back a file_id, and from then on each request refers to the file by ID. The history still has to include the image, but now as a short reference. The same upload works for documents such as PDFs, and files can be listed, retrieved and deleted.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="6-what-changes-when-you-call-claude-through-a-cloud-vendor" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>6.What changes when you call Claude through a cloud vendor</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>What changes when you call Claude through a cloud vendor</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Aspect</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Claude API</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Agent Platform</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Where the model goes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">model field in the request body</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">In the Google Cloud endpoint URL</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">API version</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Sent as a header</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">anthropic_version in the body, set to vertex-2023-10-16</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">SDK</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Anthropic client SDK</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Same SDK with the vertex extra: pip install -U "anthropic[vertex]"</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Messages API request versus Claude on Google Cloud's Agent Platform</figcaption>
+                </div>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Match each platform to the request detail that is specific to it</p>
+          <div class="space-y-2 mb-4">
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก N/A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Agent Platform moves the model into the URL and the version into the body. Bedrock addresses models through inference profiles. The Claude API takes model as a body field.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “On Agent Platform, model is not passed in the request body. Instead, it is specified in the Google Cloud endpoint URL.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/claude-on-vertex-ai" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"What changes when you call Claude through a cloud vendor"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Which platform you buy Claude through is a decision about [data residency and platform choice](lesson:2.1). Once that is decided, your request code changes in specific ways. On Google Cloud's Agent Platform the body looks almost the same as a Messages API request, with two changes. The model moves out of the body and into the endpoint URL. The API version moves into the body as anthropic_version.</p><p class="my-2">Model IDs also differ by platform. On Amazon Bedrock, for the models covered by its Opus 4.6-and-earlier guide, you pass an inference profile instead of the base model ID: a regional prefix plus the Bedrock ID, such as us.anthropic.claude-sonnet-4-5-20250929-v1:0, or the full inference-profile ARN. Model availability varies by region, and lifecycle dates on partner platforms are set by the partner, so the retirement date on Bedrock or Google Cloud can differ from the Claude API's. Some feature behaviour changes too. Prompt caches are isolated per workspace on the Claude API but per organization on Bedrock and Google Cloud.</p><p class="my-2">The SDK client and the authentication change with the platform as well. For Bedrock models in the Opus 4.6-and-earlier guide, install anthropic[bedrock] and use AnthropicBedrock: it takes AWS keys or the default AWS credential providers, or a bearer token through the AWS_BEARER_TOKEN_BEDROCK environment variable. Opus 4.7 and later models run on Claude in Amazon Bedrock instead, through AnthropicBedrockMantle, which resolves credentials by the standard AWS precedence and uses IDs with an anthropic. prefix, such as anthropic.claude-opus-5-5. On Google Cloud, AnthropicVertex takes a project_id and a region, where global gives dynamic routing for maximum availability. Authenticate first, usually with gcloud auth application-default login.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        
+        <section class="mt-14 pt-8 border-t border-slate-800">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <span>📚</span>
+            <span>เอกสารอ้างอิงทางการจาก Anthropic (Official Citations)</span>
+          </div>
+          <ul class="space-y-2">
+            <li><a href="https://platform.claude.com/docs/en/build-with-claude/working-with-messages" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/working-with-messages</span></a></li><li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works</span></a></li><li><a href="https://platform.claude.com/docs/en/models/opus-5-5/migration-guide" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/models/opus-5-5/migration-guide</span></a></li><li><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/prompt-caching</span></a></li><li><a href="https://platform.claude.com/docs/en/api/beta/messages" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/api/beta/messages</span></a></li><li><a href="https://platform.claude.com/docs/en/build-with-claude/streaming" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/streaming</span></a></li><li><a href="https://platform.claude.com/docs/en/build-with-claude/files" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/files</span></a></li><li><a href="https://platform.claude.com/docs/en/build-with-claude/claude-on-vertex-ai" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/claude-on-vertex-ai</span></a></li><li><a href="https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock-legacy" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock-legacy</span></a></li><li><a href="https://platform.claude.com/docs/en/build-with-claude/claude-in-amazon-bedrock" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/claude-in-amazon-bedrock</span></a></li>
+          </ul>
+        </section>
+        
+        
+    <nav class="mt-16 pt-8 border-t border-slate-800 flex flex-col sm:flex-row gap-4 justify-between">
+      
+    <a href="lesson-08.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-left group">
+      <span class="text-xs text-slate-400 flex items-center gap-1 mb-1 group-hover:text-indigo-400">← บทเรียนก่อนหน้า</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">การประเมินผล การกำหนดเวอร์ชัน และการ Rollout การเปลี่ยนแปลงในระบบ Claude</span>
+    </a>
+    
+      
+    <a href="lesson-10.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-right items-end group">
+      <span class="text-xs text-indigo-400 flex items-center gap-1 mb-1">บทเรียนถัดไป →</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">Message Batches API และการเลือกใช้งานแบบ Batch เทียบกับ Realtime</span>
+    </a>
+    
+    </nav>
+    
+      </article>
+    </main>
+  </div>
+
+  <footer class="mt-20 border-t border-slate-800/80 bg-slate-950 py-8 text-center text-xs text-slate-500">
+    <p>Anthropic Claude Certified Developer & Architect Study Hub (ภาษาไทยฉบับสมบูรณ์)</p>
+    <p class="mt-1">แปล ขยายความ และรวบรวมเพื่อการเตรียมสอบ CCDV-F & CCAR-P อย่างครบถ้วนทุกบทเรียน</p>
+  </footer>
+
+  <script>
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progress').style.width = scrolled + '%';
+    });
+  </script>
+</body>
+</html>

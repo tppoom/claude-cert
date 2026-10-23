@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="th" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>การจัดสรรงบประมาณ Context Window และการตัดทอนผลลัพธ์เครื่องมือ (Pruning) | CCDV-F คู่มือเตรียมสอบ Anthropic</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Prompt', 'Inter', sans-serif;
+    }
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
+  <!-- Progress Bar -->
+  <div id="progress" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-50 transition-all duration-150" style="width: 0%"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition">
+          <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20">A</span>
+          <span class="font-bold text-sm tracking-wide hidden sm:inline">Anthropic Cert Hub</span>
+        </a>
+        <span class="text-slate-600">/</span>
+        <a href="index.html" class="text-xs sm:text-sm font-medium text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] sm:max-w-none">Anthropic Claude Certified Developer – Foundations (CCDV-F)</a>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="../architect/index.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
+          สลับไปคอร์ส Architect (CCAR-P)
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <!-- Sidebar -->
+    <aside class="hidden lg:block w-72 shrink-0">
+      <div class="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-3 space-y-2">
+        <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-800">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">สารบัญบทเรียน (45 บท)</span>
+          <a href="index.html" class="text-xs text-indigo-400 hover:underline">หน้าหลักคอร์ส</a>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 1: Agents and Workflows (สถาปัตยกรรมเอเจนต์และเวิร์กโฟลว์)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-01.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.1]</span>
+              <span class="truncate">สถาปัตยกรรมเอเจนต์: เวิร์กโฟลว์, เอเจนต์ และลำดับชั้น Orchestrator–Subagent</span>
+            </a>
+            
+            <a href="lesson-02.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">แนวทางการสร้างและโฮสต์ Claude Agent ด้วย Agent SDK</span>
+            </a>
+            
+            <a href="lesson-03.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">การทำงานของ query() loop, Hooks และ Subagents ใน Agent SDK</span>
+            </a>
+            
+            <a href="lesson-04.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.3]</span>
+              <span class="truncate">รูปแบบเอเจนต์และเฟรมเวิร์ก: เวิร์กโฟลว์, เอเจนต์ย่อย และการจัดการหน่วยความจำ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 2: Applications and Integration (การพัฒนาแอปพลิเคชันและการเชื่อมต่อระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-05.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">การแปลงข้อกำหนดเชิงฟังก์ชันสู่การเลือกรุ่น Claude Model</span>
+            </a>
+            
+            <a href="lesson-06.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">ข้อกำหนดด้านโครงสร้างพื้นฐาน: แพลตฟอร์ม, Data Residency, ZDR และ Capacity</span>
+            </a>
+            
+            <a href="lesson-07.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">วงจรชีวิตโมเดล Claude: การยกเลิก (Deprecation), การปลดระวาง และการย้ายระบบ</span>
+            </a>
+            
+            <a href="lesson-08.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">การประเมินผล การกำหนดเวอร์ชัน และการ Rollout การเปลี่ยนแปลงในระบบ Claude</span>
+            </a>
+            
+            <a href="lesson-09.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">กลไก Claude Messages API: Requests, State, Tools, Streaming และ Vision</span>
+            </a>
+            
+            <a href="lesson-10.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">Message Batches API และการเลือกใช้งานแบบ Batch เทียบกับ Realtime</span>
+            </a>
+            
+            <a href="lesson-11.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST, JSON และรูปแบบ Sync vs Async</span>
+            </a>
+            
+            <a href="lesson-12.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การผสาน Claude Code กับ Git, CI, Code Review และ Refactoring</span>
+            </a>
+            
+            <a href="lesson-13.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การออกแบบแอปพลิเคชัน: พื้นผิวอินพุต, การวางคำสั่ง และขอบเขตบริบท</span>
+            </a>
+            
+            <a href="lesson-14.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การดูแลสุขอนามัยของเซสชันและการจัดการปลั๊กอินใน Claude Code</span>
+            </a>
+            
+            <a href="lesson-15.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.6]</span>
+              <span class="truncate">การจัดการการตั้งค่าสำหรับ Claude: CLAUDE.md, settings.json และลำดับความสำคัญ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 3: Claude Code (การใช้งานและการตั้งค่า Claude Code)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-16.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การตั้งค่าโปรเจกต์ Claude Code: CLAUDE.md, Rules, Auto Memory และ settings.json</span>
+            </a>
+            
+            <a href="lesson-17.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การรัน Claude Code: Skills, Subagents, Sessions, Headless และ Auto Mode</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 4: Eval, Testing, and Debugging (การประเมินผล การทดสอบ และการแก้จุดบกพร่อง)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-18.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">ประเภทข้อผิดพลาดของ Claude API และกลยุทธ์การกู้คืนระบบ (Error Recovery)</span>
+            </a>
+            
+            <a href="lesson-19.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">การสืบค้นและระบุจุดบกพร่อง: ปัญหาที่ชั้น Integration เทียบกับ Model Output</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 5: Model Selection and Optimization (การเลือกรุ่นโมเดลและการปรับแต่งประสิทธิภาพ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-20.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">การทำงานพื้นฐานของ LLM: โทเค็น, Context Window และพารามิเตอร์การสุ่ม (Sampling)</span>
+            </a>
+            
+            <a href="lesson-21.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">ตัวเลือกโมเดล Claude: Thinking Modes, ระดับ Effort, Fast Mode และ Few-shot</span>
+            </a>
+            
+            <a href="lesson-22.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST: Endpoints, Headers และ SDKs</span>
+            </a>
+            
+            <a href="lesson-23.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การสตรีมผลลัพธ์ของ Claude ผ่าน Server-Sent Events (SSE)</span>
+            </a>
+            
+            <a href="lesson-24.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">การเลือกรุ่น Claude: ลำดับชั้นโมเดล (Tiers), ความหน่วง (Latency) และต้นทุน (Cost)</span>
+            </a>
+            
+            <a href="lesson-25.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">โหมดการคิดของ Claude (Thinking Modes) และข้อควรระวังเรื่องการเปลี่ยนแปลงข้ามรุ่น</span>
+            </a>
+            
+            <a href="lesson-26.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">ราคาโทเค็น Claude, การนับโทเค็น (Token Counting) และการติดตามการใช้งาน</span>
+            </a>
+            
+            <a href="lesson-27.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">Prompt Caching: จุดเบรกพอยต์, TTLs และการประหยัดต้นทุนด้วยการแคช</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 6: Prompt and Context Engineering (วิศวกรรมพร้อมต์และการจัดการ Context Window)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-28.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors bg-indigo-600/30 text-indigo-300 font-semibold border-l-2 border-indigo-400 pl-2.5">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การจัดสรรงบประมาณ Context Window และการตัดทอนผลลัพธ์เครื่องมือ (Pruning)</span>
+            </a>
+            
+            <a href="lesson-29.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การบีบอัดบริบท (Compaction) และการแยก Context Isolation ใน Subagents</span>
+            </a>
+            
+            <a href="lesson-30.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.2]</span>
+              <span class="truncate">วิศวกรรมพร้อมต์สำหรับ Claude: ความชัดเจน, ตัวอย่าง Few-shot และข้อกำหนดผลลัพธ์</span>
+            </a>
+            
+            <a href="lesson-31.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การสร้าง Structured Outputs และ Strict Tool Use เพื่อให้ได้ผลลัพธ์ JSON ที่แม่นยำ</span>
+            </a>
+            
+            <a href="lesson-32.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การตรวจสอบผลลัพธ์ของ Claude ก่อนนำไปใช้งาน (Stop Reason, Empty Turns, Hallucination)</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 7: Security and Safety (ความปลอดภัย การควบคุม และการป้องกันระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-33.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การป้องกัน Prompt Injection และ Jailbreak สำหรับแอปพลิเคชัน Claude</span>
+            </a>
+            
+            <a href="lesson-34.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การกำหนดสิทธิ์เอเจนต์ (Agent Permissions), การจัดการความลับ และการคุ้มครองข้อมูล</span>
+            </a>
+            
+            <a href="lesson-35.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การวาง Guardrail หลายชั้นและนโยบายเนื้อหา (Content Policy) สำหรับ Claude</span>
+            </a>
+            
+            <a href="lesson-36.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การติดตั้งระบบแบบ Secure-by-Design: หลักสิทธิ์ต่ำสุด (Least Privilege) และความเป็นส่วนตัว</span>
+            </a>
+            
+            <a href="lesson-37.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">เหตุการณ์ Claude Code Hooks, Matchers และประเภทของ Handlers</span>
+            </a>
+            
+            <a href="lesson-38.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">การสกัดกั้นคำสั่งเครื่องมือที่เป็นอันตรายด้วย PreToolUse Decisions</span>
+            </a>
+            
+            <a href="lesson-39.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">คีย์ Claude API: ประเภทคีย์, การจัดเก็บอย่างปลอดภัย, การหมุนเวียน และการตอบสนองเมื่อคีย์รั่วไหล</span>
+            </a>
+            
+            <a href="lesson-40.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">Workload Identity Federation และลำดับความสำคัญของ Credential ใน SDK</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 8: Tools and MCPs (การใช้งานเครื่องมือและ Model Context Protocol)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-41.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การนิยามเครื่องมือสำหรับ Claude: โครงสร้าง Schema, คำอธิบาย และการออกแบบชุดเครื่องมือ</span>
+            </a>
+            
+            <a href="lesson-42.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การจัดการการเรียกใช้เครื่องมือ: วงรอบเอเจนต์ (Agentic Loop), ข้อผิดพลาด และการอนุมัติ</span>
+            </a>
+            
+            <a href="lesson-43.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">พื้นฐานองค์ประกอบ MCP Server: Tools, Resources และ Prompts</span>
+            </a>
+            
+            <a href="lesson-44.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">MCP Transports และการเชื่อมต่อเซิร์ฟเวอร์เข้ากับ Claude Code และ Agent SDK</span>
+            </a>
+            
+            <a href="lesson-45.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.3]</span>
+              <span class="truncate">เปรียบเทียบ Built-in Tools, Custom Tools, Skills และ MCP: การเลือกวิธีขยายขีดความสามารถ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 min-w-0 max-w-4xl mx-auto">
+      <article>
+        <!-- Header -->
+        <header class="mb-8">
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Subdomain 6.1</span> <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">✓</span> 
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            การจัดสรรงบประมาณ Context Window และการตัดทอนผลลัพธ์เครื่องมือ (Pruning)
+          </h1>
+          <p class="text-xs sm:text-sm text-indigo-400/90 mt-1.5 font-mono font-medium">
+            ต้นฉบับ: Context Window Budget and Tool Output Pruning
+          </p>
+          <p class="text-xs text-slate-400 mt-1 font-mono">
+            Anthropic Claude Certified Developer – Foundations (CCDV-F) · สรุปและขยายความตามเอกสารทางการ 100%
+          </p>
+        </header>
+
+        
+        <section class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur shadow-sm">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3 flex items-center gap-2">
+            <span class="text-base">🎯</span>
+            <span>สิ่งที่คุณจะสามารถทำได้หลังจบบทเรียนนี้ (What you will be able to do)</span>
+          </h2>
+          <ul class="space-y-2.5 text-sm sm:text-[15px] text-slate-200 leading-relaxed">
+            <li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>List everything in a Claude API request that counts toward the context window, including cached prefixes and thinking</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Explain why context rot makes curating the window as important as its size</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Configure tool result clearing and thinking block clearing with context editing, and predict how each one affects prompt caching</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Choose among tool search, programmatic tool calling, prompt caching and context editing based on where the context pressure comes from</span></li>
+          </ul>
+        </section>
+        
+        
+        <section class="my-6 rounded-2xl border-l-4 border-l-amber-500 border-y border-r border-slate-800 bg-amber-950/20 p-5 sm:p-6 shadow-sm">
+          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+            <span class="text-base">💡</span>
+            <span>แนวคิดหลักสำคัญ (Key Concept)</span>
+          </div>
+          <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
+            Context rot — As the context window fills, the model gets less accurate and recalls less of what it was given. So the job is to curate what goes into the window, not to fill it just because there is room.
+          </p>
+        </section>
+        
+        
+    <nav class="my-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-xs sm:text-sm">
+      <div class="font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+        <span>📑</span>
+        <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
+      </div>
+      <ul class="space-y-2 ml-1">
+        <li><a href="#1-what-actually-fills-the-context-window" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1.What actually fills the context window</span></a></li><li><a href="#2-pruning-stale-tool-output-with-context-editing" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2.Pruning stale tool output with context editing</span></a></li><li><a href="#3-matching-the-fix-to-the-source-of-bloat" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3.Matching the fix to the source of bloat</span></a></li>
+      </ul>
+    </nav>
+    
+        
+        <section id="1-what-actually-fills-the-context-window" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>1.What actually fills the context window</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>What actually fills the context window</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Item</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Counts toward the window?</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Note</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">System prompt and tool definitions</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Yes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Sent on every request</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Tool results, images, documents in messages</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Yes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Pile up turn after turn</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Output for the current turn, including extended thinking</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Yes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Thinking tokens are part of max_tokens</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Previous thinking blocks</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Depends on model</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Kept on Opus 4.5+ / Sonnet 4.6+ / Fable / Mythos; stripped on earlier Opus/Sonnet and all Haiku</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Cached prompt prefix</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Yes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">cache_read_input_tokens and cache_creation_input_tokens both count</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">What counts toward the context window, and what changes it</figcaption>
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapPrompt caching shrinks how much of the context window a large, stable prefix uses.Why is that wrong?Cached tokens still count toward the window in full. Caching only changes their price, so it does nothing against context rot or the window limit.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A team caches a 40k-token system prompt and its tool definitions. Every later request is a cache hit. How much of that prefix counts against the context window on those requests?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">None of it, because cache hits are served from the cache and not from the window</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">About 10% of it, in line with the cache-read discount</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">All of it. Caching changes what the tokens cost, not whether they occupy the window</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Only the part written in the most recent cache_creation_input_tokens</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก C</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Cached input is reported in cache_read_input_tokens and cache_creation_input_tokens. Both count toward the window, just as input_tokens does. Caching lowers the price, not the footprint.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “Cached prompt prefixes still occupy the context window: prompt caching changes what you pay for those tokens, not whether they count.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/context-windows" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"What actually fills the context window"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">The context window is the model's working memory for one request. It holds all the text Claude can refer to while it writes a response, and the response itself takes up room too. In a standard API conversation nothing falls out by itself. Each turn's user message and assistant reply are added and kept in full, so every request carries the whole history plus the new message. The 1M-token models (including Claude Opus 5.5, Claude Sonnet 5.5 and Claude Fable 5.1) offer a lot of room. Other models, such as Claude Sonnet 4.5, have 200k. But the docs are clear that more context isn't automatically better. Accuracy and recall drop as the token count grows. The exam guide calls this "context drift", and the documentation calls it context rot. It is why the rest of this lesson is about removing things.</p><p class="my-2">Before you can prune anything, you need an accurate count of what is in the window. Everything in the request counts: the system prompt, every message (including tool results, images and documents), and your tool definitions. Claude's output for the turn counts too, extended thinking included. Each response's usage field reports what the request used, and the token counting API estimates a request before you send it. Previous thinking blocks are handled differently by model generation. Claude Opus 4.5 and later Opus models, Claude Sonnet 4.6 and later Sonnet models, and the Fable and Mythos models keep them by default, and they count as ordinary input. Earlier Opus and Sonnet models and all Haiku models strip them automatically when you pass them back.</p><p class="my-2">Some models can see their own budget. Claude Sonnet 5, Sonnet 4.6, Sonnet 4.5 and Haiku 4.5 have context awareness. The API puts a <budget:token_budget> tag in the system prompt and sends a usage system_warning after each tool call, so the model can pace a long task against the space it has left. You never send these tags yourself. Claude Opus 4.7 and later Opus models, Claude Sonnet 5.5, and the Fable and Mythos models don't get them. For those, the beta task budgets feature lets you give an explicit budget.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="2-pruning-stale-tool-output-with-context-editing" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>2.Pruning stale tool output with context editing</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Pruning stale tool output with context editing</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapsAfter turning on context editing, your client has to delete the cleared tool results from its own message history to stay in sync.Why is that wrong?Context editing runs on the server before the prompt reaches Claude. The client keeps and resends the full, unmodified history.Tool result clearing is free from a caching point of view, because it only removes tokens.Why is that wrong?Clearing invalidates the cached prefix where content is removed, so each clear costs a cache write. clear_at_least exists to make sure that cost is worth paying.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Which strategy type completes this minimal request that turns on tool result clearing with default settings?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">clear_tool_uses_20250919</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">clear_thinking_20251015</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">compact-2026-09-04</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">web_search_20250305</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">clear_tool_uses_20250919 is the tool result clearing strategy. clear_thinking_20251015 clears thinking blocks, and compact-2026-09-04 is the beta header for compaction, not a context editing strategy.</p>
+              
+            </div>
+          </details>
+        </div>
+        
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Predict firstWhen tool result clearing fires, what does Claude see in the spot where an old tool result used to be?Placeholder text telling Claude the result was removedA short summary of the result that Claude wrote earlierNothing. The tool_use/tool_result pair is deleted from the historyThe API clears the oldest results first and puts placeholder text in their place. By default Claude's original tool calls stay visible.“The API replaces each cleared result with placeholder text indicating to Claude that it was removed.”Source: platform.claude.com</p>
+                </aside>
+                
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
+                  Tuning tool result clearing: when it fires, how much it keeps, and which tools it never touchespython context_management={ "edits": [ { "type": "clear_tool_uses_20250919", # Trigger clearing when threshold is exceeded "trigger": {"type": "input_tokens", "value": 30000}, # Number of tool uses to keep after clearing "keep": {"type": "tool_uses", "value": 3}, # Optional: Clear at least this many tokens "clear_at_least": {"type": "input_tokens", "value": 5000}, # Exclude these tools from being cleared "exclude_tools": ["web_search"], } ] },
+                </div>
+                
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Option</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Default</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">What it controls</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">trigger</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">100,000 input tokens</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">When clearing starts (input_tokens or tool_uses)</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">keep</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">3 tool uses</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">How many recent tool use/result pairs survive</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">clear_at_least</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">None</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Minimum tokens to clear, or the strategy is skipped</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">exclude_tools</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">None</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Tools whose uses and results are never cleared</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">clear_tool_inputs</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">false</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Also clear the tool call parameters</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">clear_tool_uses_20250919 options and defaults</figcaption>
+                </div>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">An agent&#x27;s tool result clearing fires often, each time freeing only a few hundred tokens, and its cache hit rate has collapsed. Which change targets this most directly?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Set clear_tool_inputs to true so each clear removes more</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Set clear_at_least so clearing is skipped unless it frees enough tokens to be worth breaking the cache</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Switch to clear_thinking_20251015, which never affects caching</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Lower the trigger so clearing happens earlier</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Every clear invalidates the cached prefix. clear_at_least makes each clear free a minimum number of tokens, so the cache write pays for itself. Thinking clearing also invalidates the cache when it clears.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “If the API can&#x27;t clear at least the specified amount, the strategy will not be applied.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/context-editing" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Pruning stale tool output with context editing"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">In agentic workflows, tool results usually grow fastest. A file Claude read twenty turns ago, or a search result it has already used, keeps taking space and attention on every later request. Context editing deals with this by clearing specific content from the history according to rules you set. The docs frame this as curation, not only a way to cut cost: context is finite, it gives diminishing returns, and irrelevant content hurts focus. You turn it on with the context-management-2025-06-27 beta and a context_management object that lists edits.</p><p class="my-2">Once the trigger is crossed, the API clears the oldest tool results in chronological order. Each one becomes a placeholder. By default only the results are cleared and Claude's tool calls remain. Set clear_tool_inputs to true to clear the call parameters as well. The edit happens on the server before the prompt reaches Claude, so your client keeps the full, unmodified history. You don't have to sync your local state with the edited version.</p><p class="my-2">clear_at_least exists because of prompt caching. Clearing tool results invalidates the cached prefix at the point where content is removed, so a small clear means paying a cache write for very little space. If the API can't clear at least the amount you set, it skips the edit. The companion strategy, clear_thinking_20251015, uses keep (for example {type: "thinking_turns", value: 2}, or "all") to decide how many recent thinking turns survive. Keeping them preserves the cache. Clearing them frees space but invalidates the cache from that point. You can list both strategies in one edits array.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="3-matching-the-fix-to-the-source-of-bloat" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>3.Matching the fix to the source of bloat</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Matching the fix to the source of bloat</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Match each approach to the context pressure it reduces</p>
+          <div class="space-y-2 mb-4">
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก N/A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Each approach targets a different source of pressure. Only prompt caching leaves the in-context token count unchanged.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “Prompt caching doesn&#x27;t reduce the number of tokens in context, but it reduces what you pay for them on subsequent requests.”
+              <br><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/manage-tool-context" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55600</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Before a long session compacts, a team wants to archive the full, unsummarized transcript for audit purposes. Which mechanism should they use?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">A PreCompact hook, which runs custom logic before compaction occurs and can write the full transcript somewhere before the summary replaces it</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">A PostToolUse hook, which fires after each tool call completes and stores a running copy of every tool result for later review</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">The compact_boundary system message payload, which already contains the full pre-compaction transcript embedded as a field</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">A SessionEnd hook, since compaction only ever happens once the session has fully ended and the transcript is finalized</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct. PreCompact is a hook that runs custom logic before compaction occurs, which is the documented way to archive the full transcript ahead of summarization, and it receives a trigger field (manual or auto).</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. PostToolUse fires after individual tool calls, not specifically before compaction, so it isn&#x27;t positioned to archive the pre-compaction transcript as a whole.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. The compact_boundary message marks that compaction happened; it is not documented as carrying the full unsummarized transcript as an embedded field.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Incorrect. Compaction happens mid-session while the context window fills, well before the session ends, so a SessionEnd hook would fire too late to intercept the pre-compaction state.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Matching the fix to the source of bloat"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Context editing removes results after they have served their purpose. That is only one of four approaches, and each one works at a different point in the pipeline. Tool definitions and the tool_result blocks that pile up both use the window, so start by finding where your tokens are actually going. Tool search keeps definitions out of the window until Claude asks for them: one tool_search tool replaces dozens of upfront schemas, at the cost of an extra turn. Programmatic tool calling turns a chain of calls into one script that runs in Anthropic's code execution sandbox, so the intermediate results never enter the history. Prompt caching doesn't reduce the token count. It only cuts what you pay for a stable prefix.</p><p class="my-2">You can combine these approaches. The suggested order for a high-volume agent is: cache tool definitions from day one, add tool search once the toolset passes roughly 20 tools, add context editing when conversations run long enough for early results to stop mattering, and consider programmatic tool calling when you see repeated chains of small calls.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        
+        <section class="mt-14 pt-8 border-t border-slate-800">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <span>📚</span>
+            <span>เอกสารอ้างอิงทางการจาก Anthropic (Official Citations)</span>
+          </div>
+          <ul class="space-y-2">
+            <li><a href="https://platform.claude.com/docs/en/build-with-claude/context-windows" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/context-windows</span></a></li><li><a href="https://platform.claude.com/docs/en/build-with-claude/context-editing" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/context-editing</span></a></li><li><a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/manage-tool-context" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/agents-and-tools/tool-use/manage-tool-context</span></a></li>
+          </ul>
+        </section>
+        
+        
+    <nav class="mt-16 pt-8 border-t border-slate-800 flex flex-col sm:flex-row gap-4 justify-between">
+      
+    <a href="lesson-27.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-left group">
+      <span class="text-xs text-slate-400 flex items-center gap-1 mb-1 group-hover:text-indigo-400">← บทเรียนก่อนหน้า</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">Prompt Caching: จุดเบรกพอยต์, TTLs และการประหยัดต้นทุนด้วยการแคช</span>
+    </a>
+    
+      
+    <a href="lesson-29.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-right items-end group">
+      <span class="text-xs text-indigo-400 flex items-center gap-1 mb-1">บทเรียนถัดไป →</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">การบีบอัดบริบท (Compaction) และการแยก Context Isolation ใน Subagents</span>
+    </a>
+    
+    </nav>
+    
+      </article>
+    </main>
+  </div>
+
+  <footer class="mt-20 border-t border-slate-800/80 bg-slate-950 py-8 text-center text-xs text-slate-500">
+    <p>Anthropic Claude Certified Developer & Architect Study Hub (ภาษาไทยฉบับสมบูรณ์)</p>
+    <p class="mt-1">แปล ขยายความ และรวบรวมเพื่อการเตรียมสอบ CCDV-F & CCAR-P อย่างครบถ้วนทุกบทเรียน</p>
+  </footer>
+
+  <script>
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progress').style.width = scrolled + '%';
+    });
+  </script>
+</body>
+</html>

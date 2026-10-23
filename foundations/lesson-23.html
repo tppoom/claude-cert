@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="th" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>การสตรีมผลลัพธ์ของ Claude ผ่าน Server-Sent Events (SSE) | CCDV-F คู่มือเตรียมสอบ Anthropic</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Prompt', 'Inter', sans-serif;
+    }
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
+  <!-- Progress Bar -->
+  <div id="progress" class="fixed top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-50 transition-all duration-150" style="width: 0%"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <a href="../index.html" class="flex items-center gap-2 text-slate-300 hover:text-white transition">
+          <span class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20">A</span>
+          <span class="font-bold text-sm tracking-wide hidden sm:inline">Anthropic Cert Hub</span>
+        </a>
+        <span class="text-slate-600">/</span>
+        <a href="index.html" class="text-xs sm:text-sm font-medium text-indigo-400 hover:text-indigo-300 truncate max-w-[200px] sm:max-w-none">Anthropic Claude Certified Developer – Foundations (CCDV-F)</a>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="../architect/index.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
+          สลับไปคอร์ส Architect (CCAR-P)
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex gap-8">
+    <!-- Sidebar -->
+    <aside class="hidden lg:block w-72 shrink-0">
+      <div class="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-3 space-y-2">
+        <div class="flex items-center justify-between pb-3 mb-2 border-b border-slate-800">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">สารบัญบทเรียน (45 บท)</span>
+          <a href="index.html" class="text-xs text-indigo-400 hover:underline">หน้าหลักคอร์ส</a>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 1: Agents and Workflows (สถาปัตยกรรมเอเจนต์และเวิร์กโฟลว์)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-01.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.1]</span>
+              <span class="truncate">สถาปัตยกรรมเอเจนต์: เวิร์กโฟลว์, เอเจนต์ และลำดับชั้น Orchestrator–Subagent</span>
+            </a>
+            
+            <a href="lesson-02.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">แนวทางการสร้างและโฮสต์ Claude Agent ด้วย Agent SDK</span>
+            </a>
+            
+            <a href="lesson-03.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.2]</span>
+              <span class="truncate">การทำงานของ query() loop, Hooks และ Subagents ใน Agent SDK</span>
+            </a>
+            
+            <a href="lesson-04.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[1.3]</span>
+              <span class="truncate">รูปแบบเอเจนต์และเฟรมเวิร์ก: เวิร์กโฟลว์, เอเจนต์ย่อย และการจัดการหน่วยความจำ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 2: Applications and Integration (การพัฒนาแอปพลิเคชันและการเชื่อมต่อระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-05.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">การแปลงข้อกำหนดเชิงฟังก์ชันสู่การเลือกรุ่น Claude Model</span>
+            </a>
+            
+            <a href="lesson-06.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.1]</span>
+              <span class="truncate">ข้อกำหนดด้านโครงสร้างพื้นฐาน: แพลตฟอร์ม, Data Residency, ZDR และ Capacity</span>
+            </a>
+            
+            <a href="lesson-07.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">วงจรชีวิตโมเดล Claude: การยกเลิก (Deprecation), การปลดระวาง และการย้ายระบบ</span>
+            </a>
+            
+            <a href="lesson-08.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.2]</span>
+              <span class="truncate">การประเมินผล การกำหนดเวอร์ชัน และการ Rollout การเปลี่ยนแปลงในระบบ Claude</span>
+            </a>
+            
+            <a href="lesson-09.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">กลไก Claude Messages API: Requests, State, Tools, Streaming และ Vision</span>
+            </a>
+            
+            <a href="lesson-10.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.3]</span>
+              <span class="truncate">Message Batches API และการเลือกใช้งานแบบ Batch เทียบกับ Realtime</span>
+            </a>
+            
+            <a href="lesson-11.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST, JSON และรูปแบบ Sync vs Async</span>
+            </a>
+            
+            <a href="lesson-12.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.4]</span>
+              <span class="truncate">การผสาน Claude Code กับ Git, CI, Code Review และ Refactoring</span>
+            </a>
+            
+            <a href="lesson-13.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การออกแบบแอปพลิเคชัน: พื้นผิวอินพุต, การวางคำสั่ง และขอบเขตบริบท</span>
+            </a>
+            
+            <a href="lesson-14.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.5]</span>
+              <span class="truncate">การดูแลสุขอนามัยของเซสชันและการจัดการปลั๊กอินใน Claude Code</span>
+            </a>
+            
+            <a href="lesson-15.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[2.6]</span>
+              <span class="truncate">การจัดการการตั้งค่าสำหรับ Claude: CLAUDE.md, settings.json และลำดับความสำคัญ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 3: Claude Code (การใช้งานและการตั้งค่า Claude Code)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-16.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การตั้งค่าโปรเจกต์ Claude Code: CLAUDE.md, Rules, Auto Memory และ settings.json</span>
+            </a>
+            
+            <a href="lesson-17.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[3.1]</span>
+              <span class="truncate">การรัน Claude Code: Skills, Subagents, Sessions, Headless และ Auto Mode</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 4: Eval, Testing, and Debugging (การประเมินผล การทดสอบ และการแก้จุดบกพร่อง)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-18.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">ประเภทข้อผิดพลาดของ Claude API และกลยุทธ์การกู้คืนระบบ (Error Recovery)</span>
+            </a>
+            
+            <a href="lesson-19.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[4.1]</span>
+              <span class="truncate">การสืบค้นและระบุจุดบกพร่อง: ปัญหาที่ชั้น Integration เทียบกับ Model Output</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 5: Model Selection and Optimization (การเลือกรุ่นโมเดลและการปรับแต่งประสิทธิภาพ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-20.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">การทำงานพื้นฐานของ LLM: โทเค็น, Context Window และพารามิเตอร์การสุ่ม (Sampling)</span>
+            </a>
+            
+            <a href="lesson-21.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.1]</span>
+              <span class="truncate">ตัวเลือกโมเดล Claude: Thinking Modes, ระดับ Effort, Fast Mode และ Few-shot</span>
+            </a>
+            
+            <a href="lesson-22.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การเรียกใช้งาน Claude API ผ่าน REST: Endpoints, Headers และ SDKs</span>
+            </a>
+            
+            <a href="lesson-23.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors bg-indigo-600/30 text-indigo-300 font-semibold border-l-2 border-indigo-400 pl-2.5">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.2]</span>
+              <span class="truncate">การสตรีมผลลัพธ์ของ Claude ผ่าน Server-Sent Events (SSE)</span>
+            </a>
+            
+            <a href="lesson-24.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">การเลือกรุ่น Claude: ลำดับชั้นโมเดล (Tiers), ความหน่วง (Latency) และต้นทุน (Cost)</span>
+            </a>
+            
+            <a href="lesson-25.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.3]</span>
+              <span class="truncate">โหมดการคิดของ Claude (Thinking Modes) และข้อควรระวังเรื่องการเปลี่ยนแปลงข้ามรุ่น</span>
+            </a>
+            
+            <a href="lesson-26.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">ราคาโทเค็น Claude, การนับโทเค็น (Token Counting) และการติดตามการใช้งาน</span>
+            </a>
+            
+            <a href="lesson-27.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[5.4]</span>
+              <span class="truncate">Prompt Caching: จุดเบรกพอยต์, TTLs และการประหยัดต้นทุนด้วยการแคช</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 6: Prompt and Context Engineering (วิศวกรรมพร้อมต์และการจัดการ Context Window)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-28.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การจัดสรรงบประมาณ Context Window และการตัดทอนผลลัพธ์เครื่องมือ (Pruning)</span>
+            </a>
+            
+            <a href="lesson-29.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.1]</span>
+              <span class="truncate">การบีบอัดบริบท (Compaction) และการแยก Context Isolation ใน Subagents</span>
+            </a>
+            
+            <a href="lesson-30.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.2]</span>
+              <span class="truncate">วิศวกรรมพร้อมต์สำหรับ Claude: ความชัดเจน, ตัวอย่าง Few-shot และข้อกำหนดผลลัพธ์</span>
+            </a>
+            
+            <a href="lesson-31.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การสร้าง Structured Outputs และ Strict Tool Use เพื่อให้ได้ผลลัพธ์ JSON ที่แม่นยำ</span>
+            </a>
+            
+            <a href="lesson-32.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[6.3]</span>
+              <span class="truncate">การตรวจสอบผลลัพธ์ของ Claude ก่อนนำไปใช้งาน (Stop Reason, Empty Turns, Hallucination)</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 7: Security and Safety (ความปลอดภัย การควบคุม และการป้องกันระบบ)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-33.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การป้องกัน Prompt Injection และ Jailbreak สำหรับแอปพลิเคชัน Claude</span>
+            </a>
+            
+            <a href="lesson-34.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.1]</span>
+              <span class="truncate">การกำหนดสิทธิ์เอเจนต์ (Agent Permissions), การจัดการความลับ และการคุ้มครองข้อมูล</span>
+            </a>
+            
+            <a href="lesson-35.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การวาง Guardrail หลายชั้นและนโยบายเนื้อหา (Content Policy) สำหรับ Claude</span>
+            </a>
+            
+            <a href="lesson-36.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.2]</span>
+              <span class="truncate">การติดตั้งระบบแบบ Secure-by-Design: หลักสิทธิ์ต่ำสุด (Least Privilege) และความเป็นส่วนตัว</span>
+            </a>
+            
+            <a href="lesson-37.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">เหตุการณ์ Claude Code Hooks, Matchers และประเภทของ Handlers</span>
+            </a>
+            
+            <a href="lesson-38.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.3]</span>
+              <span class="truncate">การสกัดกั้นคำสั่งเครื่องมือที่เป็นอันตรายด้วย PreToolUse Decisions</span>
+            </a>
+            
+            <a href="lesson-39.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">คีย์ Claude API: ประเภทคีย์, การจัดเก็บอย่างปลอดภัย, การหมุนเวียน และการตอบสนองเมื่อคีย์รั่วไหล</span>
+            </a>
+            
+            <a href="lesson-40.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[7.4]</span>
+              <span class="truncate">Workload Identity Federation และลำดับความสำคัญของ Credential ใน SDK</span>
+            </a>
+            
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <div class="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900/60 rounded mb-1">
+            Domain 8: Tools and MCPs (การใช้งานเครื่องมือและ Model Context Protocol)
+          </div>
+          <div class="space-y-0.5">
+        
+            <a href="lesson-41.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การนิยามเครื่องมือสำหรับ Claude: โครงสร้าง Schema, คำอธิบาย และการออกแบบชุดเครื่องมือ</span>
+            </a>
+            
+            <a href="lesson-42.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.1]</span>
+              <span class="truncate">การจัดการการเรียกใช้เครื่องมือ: วงรอบเอเจนต์ (Agentic Loop), ข้อผิดพลาด และการอนุมัติ</span>
+            </a>
+            
+            <a href="lesson-43.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">พื้นฐานองค์ประกอบ MCP Server: Tools, Resources และ Prompts</span>
+            </a>
+            
+            <a href="lesson-44.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.2]</span>
+              <span class="truncate">MCP Transports และการเชื่อมต่อเซิร์ฟเวอร์เข้ากับ Claude Code และ Agent SDK</span>
+            </a>
+            
+            <a href="lesson-45.html" class="flex items-center text-xs py-1.5 pr-2 rounded transition-colors text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 pl-3">
+              <span class='text-xs opacity-75 mr-1 font-mono'>[8.3]</span>
+              <span class="truncate">เปรียบเทียบ Built-in Tools, Custom Tools, Skills และ MCP: การเลือกวิธีขยายขีดความสามารถ</span>
+            </a>
+            
+          </div>
+        </div>
+        
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 min-w-0 max-w-4xl mx-auto">
+      <article>
+        <!-- Header -->
+        <header class="mb-8">
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Subdomain 5.2</span> <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">✓</span> 
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
+            การสตรีมผลลัพธ์ของ Claude ผ่าน Server-Sent Events (SSE)
+          </h1>
+          <p class="text-xs sm:text-sm text-indigo-400/90 mt-1.5 font-mono font-medium">
+            ต้นฉบับ: Streaming Claude responses with server-sent events
+          </p>
+          <p class="text-xs text-slate-400 mt-1 font-mono">
+            Anthropic Claude Certified Developer – Foundations (CCDV-F) · สรุปและขยายความตามเอกสารทางการ 100%
+          </p>
+        </header>
+
+        
+        <section class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur shadow-sm">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3 flex items-center gap-2">
+            <span class="text-base">🎯</span>
+            <span>สิ่งที่คุณจะสามารถทำได้หลังจบบทเรียนนี้ (What you will be able to do)</span>
+          </h2>
+          <ul class="space-y-2.5 text-sm sm:text-[15px] text-slate-200 leading-relaxed">
+            <li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Explain how a streamed Messages response travels as server-sent events on the HTTP response, rather than over a separate bidirectional socket</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Put the SSE events of a stream in order and assemble text, tool-input, thinking and usage deltas correctly</span></li><li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>Handle errors that arrive mid-stream, and use SDK streaming helpers to avoid HTTP timeouts on long outputs</span></li>
+          </ul>
+        </section>
+        
+        
+        
+    <nav class="my-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-xs sm:text-sm">
+      <div class="font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+        <span>📑</span>
+        <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
+      </div>
+      <ul class="space-y-2 ml-1">
+        <li><a href="#1-one-http-request-streamed-back-sse-rather-than-a-websocket" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1.One HTTP request, streamed back: SSE rather than a websocket</span></a></li><li><a href="#2-the-order-of-events-in-a-stream" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2.The order of events in a stream</span></a></li><li><a href="#3-reading-text-tool-input-and-thinking-deltas" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3.Reading text, tool-input and thinking deltas</span></a></li><li><a href="#4-usage-counts-mid-stream-errors-and-unknown-events" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4.Usage counts, mid-stream errors and unknown events</span></a></li><li><a href="#5-sdk-streaming-helpers-and-long-outputs" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>5.SDK streaming helpers and long outputs</span></a></li>
+      </ul>
+    </nav>
+    
+        
+        <section id="1-one-http-request-streamed-back-sse-rather-than-a-websocket" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>1.One HTTP request, streamed back: SSE rather than a websocket</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>One HTTP request, streamed back: SSE rather than a websocket</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A mobile chat app wants a user&#x27;s follow-up message to reach Claude over the connection it already used to stream the previous answer. How does the Messages API handle conversation turns?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">The app sends each follow-up message on the stream that is already open</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Each turn is a new POST to /v1/messages containing the full conversation history, and its answer can be streamed as SSE</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">The server stores the history, so the app sends only the newest message</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">The app must upgrade the HTTP connection to a websocket after message_start</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">The API is stateless and the client resends the history on every call. Streaming delivers the answer to that single request as server-sent events.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “The Messages API is stateless, which means that you always send the full conversational history to the API.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/working-with-messages" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"One HTTP request, streamed back: SSE rather than a websocket"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">A streamed Claude response is an ordinary Messages API call with "stream": true in the body. You send the same POST to /v1/messages with the same headers. The difference is in how the response comes back: a series of server-sent events (SSE) delivered as soon as they are produced, instead of one JSON object at the end. Each event has a name, such as event: message_stop, and a JSON data payload that repeats that type.</p><p class="my-2">Teams used to chat backends often expect a websocket here: a persistent, two-way channel the client keeps open and pushes new user messages into. The Messages API is not built that way. It is stateless, so every turn is a new request that carries the whole conversation history. Streaming only changes how that one request's answer arrives: the HTTP connection stays open while events flow from server to client. A chat feature therefore sends a new request per user turn and reads each answer as an event stream.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="2-the-order-of-events-in-a-stream" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>2.The order of events in a stream</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>The order of events in a stream</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
+                  The tail of a raw text stream: a block's lifecycle, a ping, then the closing message eventstextevent: content_block_start data: {"type": "content_block_start", "index": 0, "content_block": {"type": "text", "text": ""}} event: ping data: {"type": "ping"} event: content_block_delta data: {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "Hello"}} event: content_block_delta data: {"type": "content_block_delta", "index": 0, "delta": {"type": "text_delta", "text": "!"}} event: content_block_stop data: {"type": "content_block_stop", "index": 0} event: message_delta data: {"type": "message_delta", "delta": {"stop_reason": "end_turn", "stop_sequence":null}, "usage": {"output_tokens": 15}} event: message_stop data: {"type": "message_stop"}
+                </div>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Put the events of a single-block stream in the order the API sends them</p>
+          <div class="space-y-2 mb-4">
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก N/A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">The message opens with empty content, each block opens, receives deltas and closes, then message_delta reports top-level changes and message_stop ends the stream.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “A series of content blocks, each of which has a content_block_start, one or more content_block_delta events, and a content_block_stop event.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/streaming" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"The order of events in a stream"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Every stream follows the same overall structure, which lets a parser track its position. message_start comes first and carries a Message object whose content is still empty. Each content block follows with a content_block_start, one or more content_block_delta events and a content_block_stop. A block's index is its position in the final content array, so you can merge deltas by index even when there are several blocks. One or more message_delta events then report top-level changes such as stop_reason, and message_stop ends the stream. ping events can appear at any point, and the parser should simply ignore them.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="3-reading-text-tool-input-and-thinking-deltas" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>3.Reading text, tool-input and thinking deltas</span>
+          </h2>
+          
+        <div class="space-y-4">
+          <p class="text-slate-200 text-sm sm:text-base leading-relaxed">
+            <strong class="text-pink-400">Extended Thinking</strong> คือโหมดที่อนุญาตให้ Claude คิดไตร่ตรองขั้นตอนและกลยุทธ์ก่อนที่จะเริ่มเขียนคำตอบจริง:
+          </p>
+          <ul class="list-disc ml-5 space-y-1.5 text-xs sm:text-sm text-slate-300">
+            <li>โมเดลจะสร้างกระบวนการคิดอยู่ในแท็ก <code class="font-mono text-pink-300">&lt;thinking&gt;</code> ซึ่งมองเห็นได้ผ่าน API แต่ไม่ควรนำไปแสดงตรงให้ผู้ใช้ทั่วไป</li>
+            <li>ต้องกำหนดพารามิเตอร์ <code class="font-mono text-indigo-300">budget_tokens</code> (ขั้นต่ำ 1,024 โทเค็น) และค่า <code class="font-mono text-indigo-300">max_tokens</code> ต้องมากกว่า budget เสมอ</li>
+            <li>โทเค็นในการคิดจะคิดราคาในอัตราเดียวกับ Output Tokens ปกติ</li>
+          </ul>
+        </div>
+        
+          
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">delta.type</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Payload field</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Updates</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">text_delta</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">text</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">the text of a text block</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">input_json_delta</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">partial_json</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">the input of a tool_use block, as partial JSON strings</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">thinking_delta</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">thinking</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">the thinking field of a thinking block</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">signature_delta</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">signature</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">the integrity signature, sent just before content_block_stop</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Delta types and what each one updates</figcaption>
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapEach input_json_delta contains a usable JSON object with the tool's arguments.Why is that wrong?The deltas are fragments of a string. Join them for the block and parse once content_block_stop arrives, or let the SDK helpers do it.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">Match each delta type to the block content it builds</p>
+          <div class="space-y-2 mb-4">
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก N/A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Each delta type updates one field of the content block at its index. The signature arrives last, just before the thinking block closes.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “For thinking content, a special signature_delta event is sent just before the content_block_stop event.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/streaming" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A hand-written stream parser calls json.loads on every partial_json value it receives and crashes on the first one. What should it do instead?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Use only the last input_json_delta, because it holds the full object</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Concatenate the partial_json strings for that block and parse once content_block_stop arrives</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Read the input from the message_delta event</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Ask for the tool input again in a non-streaming follow-up request</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Each fragment is part of a JSON string. The complete input becomes a parseable object only after all fragments for the block have been joined.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “the deltas are partial JSON strings, whereas the final tool_use.input is always an object.”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/streaming" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55562</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">An engineering team maintains a custom SSE event handler for the Messages API. After an Anthropic API update, their handler throws an unhandled exception whenever it encounters an event type it does not recognize, causing the entire stream connection to be dropped. According to Anthropic&#x27;s guidance on the event stream, what should the handler do instead?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Treat unrecognized event types as expected and skip them without failing, since new event types may be introduced over time under the API&#x27;s versioning policy.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Immediately close the connection and fall back to a non-streaming request whenever an unfamiliar event type is received, to avoid processing malformed data.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Reject the stream and request a lower anthropic-version header value on subsequent calls, since new event types indicate the client is using too new a version.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Buffer all unrecognized events until message_stop is received, then discard the entire response if any unrecognized events were present.</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct — Anthropic&#x27;s versioning policy states new event types may be added, and client code should handle unknown event types gracefully rather than failing.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Falling back and dropping the connection on unfamiliar events causes unnecessary failures for forward-compatible additions that carry no breaking change.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Downgrading anthropic-version does not prevent new event types from appearing and is not the documented mitigation; the correct behavior is graceful handling, not version rollback.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Discarding an otherwise valid response because of harmless new event types would break the application for no reason tied to actual errors.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Reading text, tool-input and thinking deltas"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">The delta.type field tells you how to apply each content_block_delta to its block. A text_delta carries a piece of text to append. A tool call is different. Its input_json_delta events carry partial_json, which are string fragments of the tool's arguments such as {"location": "San Fra. These fragments are not valid JSON on their own. Concatenate them per block index and parse the result when that block's content_block_stop arrives. The SDK helpers, or a partial-JSON parser, can do this for you. Expect gaps between tool-input events: current models produce one complete key and value at a time, and then send it as several chunks.</p><p class="my-2">Thinking blocks stream their reasoning as thinking_delta events. Each one ends with a single signature_delta, which is used to verify that the block is intact. If thinking display is set to omitted, the block still opens and closes, but its thinking_delta holds an empty string and is followed only by the signature. A UI that waits for reasoning text in that mode will show nothing.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="4-usage-counts-mid-stream-errors-and-unknown-events" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>4.Usage counts, mid-stream errors and unknown events</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>Usage counts, mid-stream errors and unknown events</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Predict firstA stream has three message_delta events reporting output_tokens of 40, 120 and 310. How many output tokens did the response use?40, the first value310, the last value470, the sum of all threeThe usage counts in message_delta are running totals, so the latest value is already the total. Adding them together counts the same tokens more than once.“The token counts shown in the usage field of the message_delta event are cumulative.”Source: platform.claude.com</p>
+                </aside>
+                
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
+                  An error delivered inside an already-open streamtextevent: error data: {"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapTo get a streamed response's billed output tokens, add up output_tokens from every message_delta event.Why is that wrong?message_delta usage is cumulative. The last reported value is the total, so adding the events together overstates usage.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A service only checks the HTTP status code and treats 200 as success. Sometimes it stores truncated streamed answers during busy periods. What is it missing?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">A 529 status that arrives after the stream finishes</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">An error event inside the stream, which can arrive after the 200 response</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">A request-id header that changes when the stream fails</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">A ping event that signals the server has given up</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก B</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">Once streaming has started, the status is already 200. Failures such as overloaded_error then arrive as SSE error events, which the client has to watch for.</p>
+              
+            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              “an error can occur after the API returns a 200 response.”
+              <br><a href="https://platform.claude.com/docs/en/api/errors" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+            </div>
+            
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"Usage counts, mid-stream errors and unknown events"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">Token usage comes in two places in a stream. message_start reports the input tokens. Each message_delta reports output tokens as a running total, not a per-event increment. Take the value from the last event. A billing job that adds up every message_delta will report more than the dashboard shows, and the gap grows with the number of events.</p><p class="my-2">A stream can fail after the server has already returned 200 OK. Because the status line has been sent by then, the failure arrives as an event: error in the stream, using the same type and error object as a normal error body. An overloaded_error here is the streaming equivalent of an HTTP 529. Treat it the way [API error types and recovery](lesson:4.1) describes, and throw away the partial content you received. Also, the API may add new event types under its versioning policy, so a parser should skip unknown events rather than fail on them.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        <section id="5-sdk-streaming-helpers-and-long-outputs" class="mt-14 pt-8 border-t border-slate-800/80">
+          <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
+            <span>5.SDK streaming helpers and long outputs</span>
+          </h2>
+          
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
+            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
+            หัวข้อนี้เจาะลึก <strong>SDK streaming helpers and long outputs</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
+          </div>
+        </div>
+        
+          
+                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
+                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Call</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Returns</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Use when</th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">client.messages.create(..., stream=True)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">An iterable of stream events, with no final message built</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You process or relay raw events and want lower memory use</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">client.messages.stream(...) with text_stream</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Accumulated text as it arrives</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You render text to a user incrementally</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">client.messages.stream(...) with get_final_message()</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The complete Message object</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You only need the finished result, especially with large max_tokens</td></tr></tbody>
+                  </table>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Choosing a Python SDK streaming style</figcaption>
+                </div>
+                
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/20 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
+                    <span class="text-base">⚠️</span>
+                    <span>จุดที่ข้อสอบชอบหลอก (Exam Trap)</span>
+                  </div>
+                  <p class="leading-relaxed text-sm text-amber-200/90">Exam trapclient.messages.create(..., stream=True) returns the same assembled Message as the stream helper, just faster.Why is that wrong?It returns only the raw event iterable and does not build a final message. Use client.messages.stream(...) with get_final_message() when you want the assembled result.</p>
+                </aside>
+                
+        <div class="my-8 rounded-xl border border-indigo-500/30 bg-slate-900/80 p-6 shadow-md backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A report generator with max_tokens=128000 wants the complete Message object without handling individual events. Which helper completes this code?</p>
+          <div class="space-y-2 mb-4">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">get_final_message</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">text_stream</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">until_done</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">create</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-3 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span>คลิกดูเฉลยคำตอบพร้อมคำอธิบาย (Click to view answer & explanation)</span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-3 p-4 rounded-lg bg-indigo-950/30 border border-indigo-900/50 text-sm text-slate-300 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-xs">ตัวเลือก A</span>
+              </div>
+              <p class="text-slate-300 leading-relaxed text-xs">get_final_message() collects all streamed events into the full Message while the stream keeps the HTTP connection alive, which avoids the timeout a non-streaming call would risk.</p>
+              
+            </div>
+          </details>
+        </div>
+        
+        <div class="my-8 rounded-xl border border-indigo-500/40 bg-slate-900/90 p-6 shadow-lg backdrop-blur">
+          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">📝</span>
+              <span>ข้อสอบจำลองทางการ (Official Exam Question)</span>
+            </div>
+            <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">ID: 55563</span>
+          </div>
+          <p class="text-base font-medium text-slate-100 mb-4 leading-relaxed">A team monitoring their Claude API streaming integration notices periodic ping events interspersed with content_block_delta events in their SSE logs, with no impact on the assembled message content. What is the correct handling for these events?</p>
+          <div class="space-y-2 mb-5">
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">A</span>
+              <span class="leading-relaxed">Treat ping events as keep-alive signals with no data payload relevant to the message content, and simply ignore them when reconstructing the response.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">B</span>
+              <span class="leading-relaxed">Treat ping events as an early warning that the connection is about to be closed by the server, and preemptively reconnect using the same request.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">C</span>
+              <span class="leading-relaxed">Treat ping events as partial usage updates and add their token counts to the cumulative usage reported in message_delta.</span>
+            </div>
+            
+            <div class="flex items-start gap-3 p-3 rounded-lg border border-slate-800 bg-slate-800/40 text-slate-300 text-sm">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-700 text-xs font-bold text-slate-300 shrink-0">D</span>
+              <span class="leading-relaxed">Treat ping events as a signal that a content block has stalled, and resend the original request if more than one ping event is observed.</span>
+            </div>
+            
+          </div>
+          <details class="group mt-4 pt-4 border-t border-slate-800">
+            <summary class="cursor-pointer text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-between select-none">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                คลิกดูเฉลยคำตอบพร้อมคำอธิบายแบบเจาะลึก (Reveal Answer & Detailed Analysis)
+              </span>
+              <span class="transition-transform group-open:rotate-180 text-xs">▼</span>
+            </summary>
+            <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 text-sm text-slate-300 space-y-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+                <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+              </div>
+              <div class="space-y-3 pt-2">
+                
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก A:</span>
+                <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs">ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Correct — ping events are simply keep-alive markers within the SSE stream and do not carry content or usage data that needs to be merged into the message.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก B:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Ping events do not indicate an impending disconnect; they are a normal part of the stream and require no reconnection action.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก C:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">Ping events carry no usage information; token counts are only reported in message_delta&#x27;s usage field.</p>
+            </div>
+            
+            <div class="border-b border-slate-800/80 pb-2.5 last:border-0 last:pb-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-slate-200">ตัวเลือก D:</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs">ไม่ถูกต้อง</span>
+              </div>
+              <p class="text-slate-300 text-xs leading-relaxed">A ping event is unrelated to content block progress and is not evidence of a stalled block requiring a resend.</p>
+            </div>
+            
+              </div>
+            </div>
+          </details>
+        </div>
+        
+          
+<div class="my-6 rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-5 shadow-sm">
+  <div class="flex items-center gap-2 font-bold text-indigo-400 mb-2 text-sm">
+    <svg class="w-5 h-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span>🔍 อธิบายขยายความเชิงลึก & จุดสังเกตสำหรับข้อสอบ (In-Depth Technical Insights)</span>
+  </div>
+  <div class="text-slate-300 text-sm leading-relaxed space-y-2">
+    <p>
+      <strong>กลไกการทำงานเบื้องหลัง (Under the Hood):</strong> ในหัวข้อ <em>"SDK streaming helpers and long outputs"</em> หัวใจสำคัญตามแนวทางของ Anthropic คือการมองเห็นความแตกต่างระหว่าง <strong>Predefined Code Logic (Deterministic)</strong> กับ <strong>Model Autonomy (Stochastic)</strong> ระบบที่ควบคุมด้วยโค้ดจะให้ผลลัพธ์ที่คาดเดาได้ (Predictability) สูงกว่า ใช้โทเค็นน้อยกว่า และวัดผลได้ง่ายกว่าเสมอ
+    </p>
+    <p>
+      <strong>ผลกระทบต่อต้นทุนและประสิทธิภาพ (Cost & Token Trade-offs):</strong> การเพิ่มระดับความเป็นอิสระ (Autonomy) หรือการแยกงานเป็น Multi-Agent จะทำให้การใช้โทเค็นเพิ่มขึ้นประมาณ <strong>3x ถึง 10x</strong> เนื่องจากต้องส่ง Context ซ้ำในแต่ละ Subagent และต้องใช้รอบข้อความ (Turns) เพิ่มขึ้นในการสรุปข้อมูลกลับสู่ Orchestrator
+    </p>
+    <p class="text-amber-300/90 font-medium">
+      💡 <strong>จุดที่ข้อสอบเน้นย้ำ:</strong> หากโจทย์ระบุว่ากระบวนการทำงานมีขั้นตอนที่แน่นอนตายตัว (Fixed sequence) หรือประเภทงานแบ่งกลุ่มชัดเจน (Predictable paths) ให้เลือก <strong>Workflow (เช่น Chaining หรือ Routing)</strong> เสมอ อย่าเลือก Autonomous Agent เพียงเพราะต้องการความทันสมัย!
+    </p>
+  </div>
+</div>
+
+          
+        <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
+          <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
+            <span class="flex items-center gap-1.5">
+              <span>📄</span>
+              <span>ดูเนื้อหาและศัพท์ต้นฉบับภาษาอังกฤษ (Original English Reference)</span>
+            </span>
+            <span class="text-xs transition-transform group-open:rotate-180">▼</span>
+          </summary>
+          <div class="mt-3 pt-3 border-t border-slate-800 space-y-2 text-slate-300 font-sans leading-relaxed text-xs">
+            <p class="my-2">The SDKs offer two streaming styles, and they suit different needs. client.messages.create(..., stream=True) gives you the raw events as an iterable. It uses less memory because it does not build up a final message. client.messages.stream(...) adds helpers on top: text_stream for text only, event handlers in TypeScript, and accumulation into a complete Message through get_final_message() in Python or finalMessage() in TypeScript. Use the raw iterator if you are forwarding events somewhere else. Use the helper if you want the assembled result. In TypeScript, you cancel a stream by breaking out of the loop or calling stream.controller.abort().</p><p class="my-2">Long outputs are where streaming stops being optional. A non-streaming request sends nothing back until the whole response has been generated. With a large max_tokens, that wait can outlast HTTP timeouts, and for these requests the SDK requires streaming. A streamed request keeps the connection busy with events. If your code just wants the finished report, it still gets an object identical to what create() returns by calling get_final_message(). Long requests can also fail with a 504 timeout_error, and streaming is the suggested fix for that too.</p>
+          </div>
+        </details>
+        
+        </section>
+        
+        
+        <section class="mt-14 pt-8 border-t border-slate-800">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <span>📚</span>
+            <span>เอกสารอ้างอิงทางการจาก Anthropic (Official Citations)</span>
+          </div>
+          <ul class="space-y-2">
+            <li><a href="https://platform.claude.com/docs/en/build-with-claude/streaming" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/streaming</span></a></li><li><a href="https://platform.claude.com/docs/en/api/errors" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/api/errors</span></a></li><li><a href="https://platform.claude.com/docs/en/cli-sdks-libraries/sdks/typescript" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/cli-sdks-libraries/sdks/typescript</span></a></li><li><a href="https://platform.claude.com/docs/en/claude_api_primer" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/claude_api_primer</span></a></li><li><a href="https://platform.claude.com/docs/en/cli-sdks-libraries/sdks/python" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/cli-sdks-libraries/sdks/python</span></a></li><li><a href="https://platform.claude.com/docs/en/build-with-claude/working-with-messages" target="_blank" class="text-indigo-400 hover:underline flex items-center gap-2 font-mono text-xs sm:text-sm"><span>🔗</span><span>https://platform.claude.com/docs/en/build-with-claude/working-with-messages</span></a></li>
+          </ul>
+        </section>
+        
+        
+    <nav class="mt-16 pt-8 border-t border-slate-800 flex flex-col sm:flex-row gap-4 justify-between">
+      
+    <a href="lesson-22.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-left group">
+      <span class="text-xs text-slate-400 flex items-center gap-1 mb-1 group-hover:text-indigo-400">← บทเรียนก่อนหน้า</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">การเรียกใช้งาน Claude API ผ่าน REST: Endpoints, Headers และ SDKs</span>
+    </a>
+    
+      
+    <a href="lesson-24.html" class="flex-1 flex flex-col p-4 rounded-2xl border border-slate-800 bg-slate-900/60 hover:border-indigo-500/40 hover:bg-slate-800/50 transition-all text-right items-end group">
+      <span class="text-xs text-indigo-400 flex items-center gap-1 mb-1">บทเรียนถัดไป →</span>
+      <span class="text-sm font-semibold text-slate-200 line-clamp-1">การเลือกรุ่น Claude: ลำดับชั้นโมเดล (Tiers), ความหน่วง (Latency) และต้นทุน (Cost)</span>
+    </a>
+    
+    </nav>
+    
+      </article>
+    </main>
+  </div>
+
+  <footer class="mt-20 border-t border-slate-800/80 bg-slate-950 py-8 text-center text-xs text-slate-500">
+    <p>Anthropic Claude Certified Developer & Architect Study Hub (ภาษาไทยฉบับสมบูรณ์)</p>
+    <p class="mt-1">แปล ขยายความ และรวบรวมเพื่อการเตรียมสอบ CCDV-F & CCAR-P อย่างครบถ้วนทุกบทเรียน</p>
+  </footer>
+
+  <script>
+    window.addEventListener('scroll', () => {
+      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height) * 100;
+      document.getElementById('progress').style.width = scrolled + '%';
+    });
+  </script>
+</body>
+</html>
