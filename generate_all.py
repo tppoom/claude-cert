@@ -39,7 +39,7 @@ with open(os.path.join(BASE_DIR, "raw_data/foundations_slugs.json")) as f:
 with open(os.path.join(BASE_DIR, "raw_data/architect_slugs.json")) as f:
     a_slugs = json.load(f)
 
-# Extract RSC block & questions
+# Extract RSC block, questions & predict challenges
 def extract_rsc(html_str):
     pushes = re.findall(r"self\.__next_f\.push\(\[1,\"(.*?)\"\]\)", html_str)
     full_rsc = "".join(pushes).replace('\\"', '"').replace('\\\\', '\\')
@@ -60,7 +60,27 @@ def extract_rsc(html_str):
             if q_id: questions[str(q_id)] = q_data
         except Exception: pass
         
-    return blocks, questions
+    predicts = []
+    for m in re.finditer(r'\"id\":\"predict:', full_rsc):
+        idx = m.start()
+        start = full_rsc.rfind('{', 0, idx)
+        depth = 0
+        end = -1
+        for i in range(start, len(full_rsc)):
+            if full_rsc[i] == '{': depth += 1
+            elif full_rsc[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        if end != -1:
+            try:
+                p_data = json.loads(full_rsc[start:end])
+                if "prompt" in p_data and "answerIndex" in p_data and "options" in p_data:
+                    predicts.append(p_data)
+            except Exception: pass
+            
+    return blocks, questions, predicts
 
 # Match correct option for predict_first asides
 def find_correct_predict_option(options, explanation):
@@ -117,7 +137,7 @@ def parse_lesson_file(filepath):
         kc_text = clean(kc_sec.get_text(separator=" ")).replace("Key concept", "", 1).strip()
         key_concept = kc_text
         
-    blocks, questions = extract_rsc(html_content)
+    blocks, questions, predicts = extract_rsc(html_content)
     
     # Sections
     sections = []
@@ -144,7 +164,28 @@ def parse_lesson_file(filepath):
                     explanation = clean(sol_div.find("p").get_text(separator=" ")) if sol_div and sol_div.find("p") else (clean(sol_div.get_text(separator=" ")) if sol_div else "")
                     quote = clean(child.find("blockquote").get_text(separator=" ")) if child.find("blockquote") else ""
                     citation_url = child.find("a").get("href", "") if child.find("a") else ""
-                    correct_idx = find_correct_predict_option(options, explanation + " " + quote)
+                    
+                    # 100% Ground truth match from RSC payload
+                    correct_idx = -1
+                    norm_p = re.sub(r'[^a-zA-Z0-9]+', '', prompt.lower())
+                    for p_obj in predicts:
+                        obj_norm_p = re.sub(r'[^a-zA-Z0-9]+', '', p_obj.get("prompt", "").lower())
+                        if obj_norm_p in norm_p or norm_p in obj_norm_p:
+                            corr_text = p_obj["options"][p_obj["answerIndex"]]
+                            norm_corr = re.sub(r'[^a-zA-Z0-9]+', '', corr_text.lower())
+                            for i, opt in enumerate(options):
+                                if re.sub(r'[^a-zA-Z0-9]+', '', opt.lower()) == norm_corr:
+                                    correct_idx = i
+                                    break
+                            if correct_idx != -1:
+                                break
+                    if correct_idx == -1 and "200 long reports" in prompt.lower():
+                        for i, opt in enumerate(options):
+                            if "rouge-l" in opt.lower():
+                                correct_idx = i
+                                break
+                    if correct_idx == -1:
+                        correct_idx = find_correct_predict_option(options, explanation + " " + quote)
                     
                     items.append({
                         "type": "predict_first",

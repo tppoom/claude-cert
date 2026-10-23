@@ -286,9 +286,10 @@ def render_checkpoint_html(key, block_data, question_data):
                 terms_html += f"""
                 <button type="button"
                         id="match-term-{bid}-{idx}"
-                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
-                        onclick="handleMatchSelectTerm('{bid}', {idx})">
-                  <span id="match-badge-term-{bid}-{idx}" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">{idx+1}</span>
+                        data-term-idx="{idx}"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700/80 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5 shadow-sm"
+                        onclick="handleMatchClick('{bid}', 'term', {idx}, {total_pairs})">
+                  <span id="match-badge-term-{bid}-{idx}" class="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">{idx+1}</span>
                   <div class="leading-relaxed grow">
                     <span class="text-xs sm:text-sm font-bold text-white block">{html.escape(term_en)}</span>
                     <span class="text-[11px] text-indigo-300/80 block mt-0.5 font-sans">{highlight_tech_terms(term_th)}</span>
@@ -303,9 +304,10 @@ def render_checkpoint_html(key, block_data, question_data):
                 defs_html += f"""
                 <button type="button"
                         id="match-def-{bid}-{orig_idx}"
-                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
-                        onclick="handleMatchSelectDef('{bid}', {orig_idx}, {total_pairs})">
-                  <span id="match-badge-def-{bid}-{orig_idx}" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                        data-def-idx="{orig_idx}"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700/80 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5 shadow-sm"
+                        onclick="handleMatchClick('{bid}', 'def', {orig_idx}, {total_pairs})">
+                  <span id="match-badge-def-{bid}-{orig_idx}" class="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
                   <div class="leading-relaxed grow">
                     <span class="text-xs sm:text-sm font-semibold text-slate-100 block">{html.escape(def_en)}</span>
                     <span class="text-[11px] text-indigo-200/80 block mt-1 leading-normal font-sans">{highlight_tech_terms(def_th)}</span>
@@ -361,8 +363,8 @@ def render_checkpoint_html(key, block_data, question_data):
               <!-- Interactive Matching Board -->
               <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
                 <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
-                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
-                  <span id="match-counter-{bid}" class="text-slate-400 font-mono">จับคู่ได้ 0/{total_pairs}</span>
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้ายหรือคำอธิบายฝั่งขวาเพื่อจับคู่ (คลิกคู่ที่จับแล้วเพื่อยกเลิกได้)</span></span>
+                  <span id="match-counter-{bid}" class="text-slate-400 font-mono">จับคู่ได้ 0/{total_pairs} คู่</span>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                   <!-- Terms (Left) -->
@@ -433,16 +435,27 @@ def render_checkpoint_html(key, block_data, question_data):
             for slot_idx, (orig_idx, s) in enumerate(scrambled):
                 s_th = get_thai_explanation(s)
                 scrambled_html += f"""
-                <button type="button"
-                        id="order-step-{bid}-{orig_idx}"
-                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
-                        onclick="handleOrderStepClick('{bid}', {orig_idx}, {total_steps})">
-                  <span id="order-badge-{bid}-{orig_idx}" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
-                  <div class="leading-relaxed grow">
-                    <span class="text-xs sm:text-sm font-semibold text-white block">{html.escape(s)}</span>
-                    <span class="text-xs text-indigo-300/80 block mt-1 leading-normal font-sans">{highlight_tech_terms(s_th)}</span>
+                <div class="order-step-item flex items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-700/80 bg-slate-800/60 text-slate-200 transition-all shadow-sm"
+                     id="order-item-{bid}-{orig_idx}"
+                     data-orig-idx="{orig_idx}">
+                  <div class="flex items-start gap-3 grow min-w-0">
+                    <span class="order-rank-badge inline-flex items-center justify-center min-w-[32px] h-8 px-2 rounded-lg bg-slate-700/80 text-slate-200 font-mono font-bold text-xs shrink-0 select-none mt-0.5">{slot_idx + 1}</span>
+                    <div class="leading-relaxed min-w-0">
+                      <span class="text-xs sm:text-sm font-bold text-white block leading-relaxed">{html.escape(s)}</span>
+                      <span class="text-xs text-indigo-300/80 block mt-1 leading-normal font-sans">{highlight_tech_terms(s_th)}</span>
+                    </div>
                   </div>
-                </button>
+                  <div class="flex flex-col gap-1 shrink-0 ml-1">
+                    <button type="button"
+                            title="เลื่อนขึ้น (Move Up)"
+                            class="order-move-up-btn w-8 h-8 rounded-lg bg-slate-700/70 hover:bg-indigo-600 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center text-xs font-bold transition cursor-pointer"
+                            onclick="moveOrderStep('{bid}', this, -1)">▲</button>
+                    <button type="button"
+                            title="เลื่อนลง (Move Down)"
+                            class="order-move-down-btn w-8 h-8 rounded-lg bg-slate-700/70 hover:bg-indigo-600 active:scale-95 text-slate-300 hover:text-white flex items-center justify-center text-xs font-bold transition cursor-pointer"
+                            onclick="moveOrderStep('{bid}', this, 1)">▼</button>
+                  </div>
+                </div>
                 """
                 
             verified_steps_html = ""
@@ -486,8 +499,8 @@ def render_checkpoint_html(key, block_data, question_data):
               <!-- Interactive Step Ordering Board -->
               <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
                 <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
-                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกขั้นตอนตามลำดับที่ถูกต้องตั้งแต่ขั้นตอนที่ 1 ถึง {total_steps}</span></span>
-                  <span id="order-counter-{bid}" class="text-slate-400 font-mono">เรียงแล้ว 0/{total_steps}</span>
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: กดปุ่ม ▲ หรือ ▼ บนการ์ดเพื่อสลับเรียงลำดับขั้นตอนที่ถูกต้องจาก 1 ถึง {total_steps} แล้วกด "ตรวจคำตอบ"</span></span>
+                  <span class="text-slate-400 font-mono">ทั้งหมด {total_steps} ขั้นตอน</span>
                 </div>
                 <div class="space-y-2.5 pt-1" id="order-cards-{bid}">
                   {scrambled_html}
@@ -501,18 +514,23 @@ def render_checkpoint_html(key, block_data, question_data):
               <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <div class="flex items-center gap-3">
                   <button type="button"
-                          onclick="resetOrderGame('{bid}')"
-                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
-                    <span>🔄</span>
-                    <span>รีเซ็ตลำดับเพื่อลองใหม่ (Reset)</span>
+                          onclick="checkOrderSequence('{bid}', {total_steps})"
+                          class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm shadow-md transition cursor-pointer flex items-center gap-2">
+                    <span>✓</span>
+                    <span>ตรวจคำตอบ (Check Order)</span>
                   </button>
                   <button type="button"
-                          onclick="toggleSolutionManual('{bid}')"
-                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-                    ดูเฉลยลำดับที่ถูกต้อง
+                          onclick="resetOrderGame('{bid}')"
+                          class="px-3 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>คืนค่าเริ่มต้น (Reset)</span>
                   </button>
                 </div>
-                <span class="text-[11px] text-slate-400">คลิกจัดลำดับจนครบเพื่อตรวจสอบคำตอบ</span>
+                <button type="button"
+                        onclick="toggleSolutionManual('{bid}')"
+                        class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยลำดับที่ถูกต้อง
+                </button>
               </div>
               
               <!-- Solution Box -->
