@@ -250,7 +250,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 sec_elements += render_checkpoint_html(ckey, b_data, q_data)
         
         # Folded original English reference
-        eng_ref_paras = "".join(f'<p class="my-2">{p_text}</p>' for p_text in raw_paras)
+        eng_ref_paras = "".join(f'<p class="my-2">{html.escape(p_text)}</p>' for p_text in raw_paras)
         eng_details_html = f"""
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -783,7 +783,9 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
           }}
           if (fb) {{
             fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
-            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame(\'' + bid + '\')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button type="button" class="order-retry-btn px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            const retryBtn = fb.querySelector('.order-retry-btn');
+            if (retryBtn) retryBtn.onclick = () => resetOrderGame(bid);
             fb.classList.remove('hidden');
           }}
         }}
