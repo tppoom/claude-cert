@@ -158,9 +158,10 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed sm:leading-loose text-sm sm:text-[15px] text-amber-100 font-medium">{trap_hl}</p>
-                  <div class="mt-3 pt-2.5 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: {html.escape(clean_thai_spacing(trap_raw))}
+                  <p class="leading-relaxed sm:leading-loose text-sm sm:text-base text-white font-medium">{html.escape(clean_thai_spacing(trap_raw))}</p>
+                  <div class="mt-3 pt-2.5 border-t border-amber-900/40 text-xs sm:text-sm text-amber-200/90 leading-relaxed">
+                    <span class="text-amber-400 font-bold mr-1">🇹🇭 คำอธิบายเจาะลึก:</span>
+                    <span>{trap_hl}</span>
                   </div>
                 </aside>
                 """
