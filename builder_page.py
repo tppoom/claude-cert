@@ -160,7 +160,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                   </div>
                   <p class="leading-relaxed sm:leading-loose text-sm sm:text-base text-white font-medium">{html.escape(clean_thai_spacing(trap_raw))}</p>
                   <div class="mt-3 pt-2.5 border-t border-amber-900/40 text-xs sm:text-sm text-amber-200/90 leading-relaxed">
-                    <span class="text-amber-400 font-bold mr-1">🇹🇭 คำอธิบายเจาะลึก:</span>
+                    <span class="text-amber-400 font-bold mr-1">คำอธิบายเจาะลึก:</span>
                     <span>{trap_hl}</span>
                   </div>
                 </aside>
