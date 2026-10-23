@@ -1,6 +1,7 @@
 import os, sys, json, time
 from generate_all import f_catalog, a_catalog, parse_lesson_file, FOUNDATIONS_DIR, ARCHITECT_DIR, BASE_DIR
 from builder_page import render_lesson_page, render_course_index_page, render_master_portal
+from quiz_translator import save_cache
 
 print("Starting generation process with full Thai titles and rich metadata...")
 start_time = time.time()
@@ -57,5 +58,6 @@ master_html = render_master_portal(f_catalog, a_catalog)
 with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
     f.write(master_html)
 
+save_cache()
 elapsed = time.time() - start_time
 print(f"All 98 lessons and 3 indices generated successfully in {elapsed:.2f} seconds!")

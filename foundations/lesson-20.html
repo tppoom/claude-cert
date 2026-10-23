@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -538,7 +545,7 @@
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
-            Next-token generation — A language model writes its answer one token at a time. Each token is picked from what tends to follow the text so far. The same process makes the output fluent and also lets it state plausible things that are false.
+            การสร้างโทเค็นถัดไป – โมเดลภาษาจะเขียนคําตอบทีละโทเค็น โทเค็นแต่ละโทเค็นจะถูกเลือกจากโทเค็นที่มีแนวโน้มที่จะตามข้อความไปจนถึงตอนนี้ กระบวนการเดียวกันทําให้เอาต์พุตเป็นไปอย่างราบรื่น และยังทําให้สามารถระบุสิ่งที่น่าเชื่อถือซึ่งเป็นเท็จได้
           </p>
         </section>
         
@@ -549,7 +556,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-tokens-the-unit-the-model-reads-and-writes" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Tokens: the unit the model reads and writes</span></a></li><li><a href="#2-next-token-generation-and-why-it-hallucinates" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Next-token generation and why it hallucinates</span></a></li><li><a href="#3-the-context-window-is-the-model-s-working-memory" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. The context window is the model's working memory</span></a></li><li><a href="#4-why-examples-steer-the-model-without-retraining-it" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Why examples steer the model without retraining it</span></a></li><li><a href="#5-sampling-why-the-same-prompt-gives-different-answers" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>5. Sampling: why the same prompt gives different answers</span></a></li><li><a href="#6-non-determinism-building-for-outputs-that-vary-between-runs" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>6. Non-determinism: building for outputs that vary between runs</span></a></li>
+        <li><a href="#1-tokens-the-unit-the-model-reads-and-writes" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. โทเค็น: หน่วยที่โมเดลอ่านและเขียน</span></a></li><li><a href="#2-next-token-generation-and-why-it-hallucinates" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Next-token generation และทำไมมันถึงเห็นภาพหลอน</span></a></li><li><a href="#3-the-context-window-is-the-model-s-working-memory" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. หน้าต่างบริบทคือหน่วยความจําการทํางานของโมเดล</span></a></li><li><a href="#4-why-examples-steer-the-model-without-retraining-it" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. เหตุใดตัวอย่างจึงชี้นําโมเดลโดยไม่ต้องฝึกซ้ํา</span></a></li><li><a href="#5-sampling-why-the-same-prompt-gives-different-answers" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>5. การสุ่มตัวอย่าง: เหตุใดพร้อมท์เดียวกันจึงให้คําตอบที่แตกต่างกัน</span></a></li><li><a href="#6-non-determinism-building-for-outputs-that-vary-between-runs" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>6. ความไม่แน่นอน: การสร้างสําหรับเอาต์พุตที่แตกต่างกันระหว่างการเรียกใช้</span></a></li>
       </ul>
     </nav>
     
@@ -557,112 +564,128 @@
         <section id="1-tokens-the-unit-the-model-reads-and-writes" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. Tokens: the unit the model reads and writes</span>
+            <span>1. โทเค็น: หน่วยที่โมเดลอ่านและเขียน</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Tokens: the unit the model reads and writes</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-4fce18d48c35"
-             data-qid="4fce18d48c35"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-4fce18d48c35" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A product manager estimates a 7,000-character English document at about 7,000 tokens, &quot;one per character&quot;. What is the better estimate, and why?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-4fce18d48c35">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4fce18d48c35-A"
-                    data-qid="4fce18d48c35"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('4fce18d48c35', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">About 2,000 tokens, because a Claude token covers roughly 3.5 English characters</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4fce18d48c35-B"
-                    data-qid="4fce18d48c35"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('4fce18d48c35', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">About 7,000 tokens, because Claude tokenizes text one character at a time</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4fce18d48c35-C"
-                    data-qid="4fce18d48c35"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('4fce18d48c35', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">About 1,000 tokens, because every token is exactly one English word</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4fce18d48c35-D"
-                    data-qid="4fce18d48c35"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('4fce18d48c35', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">It cannot be estimated, because tokens are only produced for output text</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-4fce18d48c35" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-4fce18d48c35" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">โทเค็นอาจเป็นคำ คำย่อย หรืออักขระก็ได้ สำหรับ Claude โทเค็นภาษาอังกฤษมีความยาวเฉลี่ยประมาณ 3.5 อักขระ ดังนั้น 7,000 อักขระจึงคิดเป็นประมาณ 2,000 โทเค็น จำนวนที่แน่นอนจะแตกต่างกันไปตามภาษา</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Tokens can be words, subwords or characters. For Claude, an English token averages about 3.5 characters, so 7,000 characters comes to roughly 2,000 tokens. The exact count varies by language.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  โมเดลจะไม่เห็นอักขระหรือคําโดยตรง แต่จะเห็นโทเค็น ก่อนที่คล็อดจะอ่านข้อความแจ้ง ข้อความจะถูกแบ่งออกเป็นลําดับโทเค็น และทุกคําตอบที่คล็อดเขียนจะถูกสร้างเป็นโทเค็นด้วย โทเค็นอาจเป็นคําทั้งคํา ส่วนหนึ่งของคํา อักขระเดียว หรือแม้แต่ไบต์ โทเค็นขนาดใหญ่ทําให้การประมวลผลมีประสิทธิภาพ และโทเค็นขนาดเล็กช่วยให้โมเดลสามารถจัดการกับคําหายากที่มันไม่เคยเห็นทั้งคําได้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  สําหรับภาษาอังกฤษ กฎทั่วไปคือโทเค็นคล็อดหนึ่งโทเค็นครอบคลุมประมาณ 3.5 อักขระ อัตราส่วนจะแตกต่างกันไปตามภาษา ดังนั้นประโยคเดียวกันในภาษาอื่นอาจให้จํานวนโทเค็นที่แตกต่างกัน สิ่งนี้มีความสําคัญมากกว่าเรื่องเล็กน้อย โทเค็นคือสิ่งที่หน้าต่างบริบทวัดด้วย max_tokens ตัวพิมพ์ใหญ่ และสิ่งที่คําขอเรียกเก็บเงิน เมื่อการตอบสนอง API รายงานการใช้งาน มันจะรายงานโทเค็น ไม่ใช่คําหรืออักขระ
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-4fce18d48c35"
+                 data-qid="4fce18d48c35"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-4fce18d48c35" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “For Claude, a token approximately represents 3.5 English characters, though the exact number can vary depending on the language used.”
-              <br><a href="https://platform.claude.com/docs/en/about-claude/glossary" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ผู้จัดการผลิตภัณฑ์ประเมินเอกสารภาษาอังกฤษ 7,000 อักขระที่ประมาณ 7,000 โทเค็น “หนึ่งโทเค็นต่ออักขระ” การประเมินที่ดีกว่าคืออะไรและทําไม?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A product manager estimates a 7,000-character English document at about 7,000 tokens, &quot;one per character&quot;. What is the better estimate, and why?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-4fce18d48c35">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4fce18d48c35-A"
+                        data-qid="4fce18d48c35"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('4fce18d48c35', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ประมาณ 2,000 โทเค็น เนื่องจากโทเค็นคล็อดครอบคลุมอักขระภาษาอังกฤษประมาณ 3.5 ตัว</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: About 2,000 tokens, because a Claude token covers roughly 3.5 English characters</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4fce18d48c35-B"
+                        data-qid="4fce18d48c35"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('4fce18d48c35', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ประมาณ 7,000 โทเค็น เนื่องจาก Claude ทําโทเค็นข้อความทีละอักขระ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: About 7,000 tokens, because Claude tokenizes text one character at a time</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4fce18d48c35-C"
+                        data-qid="4fce18d48c35"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('4fce18d48c35', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ประมาณ 1,000 โทเค็น เนื่องจากแต่ละโทเค็นเป็นคําภาษาอังกฤษเพียงคําเดียว</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: About 1,000 tokens, because every token is exactly one English word</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4fce18d48c35-D"
+                        data-qid="4fce18d48c35"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('4fce18d48c35', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ไม่สามารถประเมินได้ เนื่องจากโทเค็นจะถูกสร้างขึ้นสําหรับข้อความเอาต์พุตเท่านั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: It cannot be estimated, because tokens are only produced for output text</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-4fce18d48c35" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-4fce18d48c35" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">โทเค็นอาจเป็นคำ คำย่อย หรืออักขระก็ได้ สำหรับ Claude โทเค็นภาษาอังกฤษมีความยาวเฉลี่ยประมาณ 3.5 อักขระ ดังนั้น 7,000 อักขระจึงคิดเป็นประมาณ 2,000 โทเค็น จำนวนที่แน่นอนจะแตกต่างกันไปตามภาษา</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Tokens can be words, subwords or characters. For Claude, an English token averages about 3.5 characters, so 7,000 characters comes to roughly 2,000 tokens. The exact count varies by language.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “สําหรับคล็อด โทเค็นแสดงถึงอักขระภาษาอังกฤษประมาณ 3.5 ตัว แม้ว่าจํานวนที่แน่นอนอาจแตกต่างกันขึ้นอยู่กับภาษาที่ใช้”
+              <br><a href="https://platform.claude.com/docs/en/about-claude/glossary" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('4fce18d48c35')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('4fce18d48c35')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -682,123 +705,227 @@
         <section id="2-next-token-generation-and-why-it-hallucinates" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Next-token generation and why it hallucinates</span>
+            <span>2. Next-token generation และทำไมมันถึงเห็นภาพหลอน</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Next-token generation and why it hallucinates</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">คาดการณ์ก่อน คุณขอให้แบบจำลองอธิบายแนวคิดที่รู้จักกันดี จากนั้นขอให้แบบจำลองมีการอ้างอิงสามครั้งพร้อมวันที่เผยแพร่ที่แน่นอน การประดิษฐ์มีแนวโน้มมากที่สุดที่ใด ในทั้งสองอย่างเท่าเทียมกัน เนื่องจากภาพหลอนเป็นสัญญาณรบกวนแบบสุ่มที่กระจายเท่าๆ กันทั่วทั้งเอาต์พุต ในคำอธิบาย เนื่องจากข้อความที่ยาวทำให้แบบจำลองมีพื้นที่มากขึ้นในการล่องลอยในการอ้างอิงและวันที่ เนื่องจากข้อมูลเฉพาะเจาะจงที่แม่นยำคือจุดที่การประดิษฐ์มุ่งความสนใจไปที่แนวคิดทั่วไปที่เป็นไปตามรูปแบบที่แบบจำลองเคยเห็นมาหลายครั้ง ชื่อ วันที่ และการอ้างอิงที่แน่นอนจำเป็นต้องมีความแตกต่างที่เป็นจริงและเป็นไปได้ซึ่งโทเค็นรุ่นถัดไปไม่ได้สร้างขึ้น “การประดิษฐ์เน้นที่ความจำเพาะ: ชื่อ วันที่ สถิติ การอ้างอิง URL เครื่องหมายคำพูด” ที่มา: academy.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: You ask a model to explain a well-known concept, then ask it for three citations with exact publication dates. Where are fabrications most likely? Equally in both, because hallucination is random noise spread evenly across output In the explanation, because long passages give the model more room to drift In the citations and dates, because precise specifics are where fabrication concentrates Common concepts follow patterns the model has seen many times. Exact names, dates and citations need a true-versus-plausible distinction that next-token generation does not make. “ Fabrication concentrates in specificity: names, dates, statistics, citations, URLs, quotes. ” Source: academy.claude.com
-                  </div>
-                </aside>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_f48597d4"
+         data-qid="pred_f48597d4"
+         data-correct="C">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_f48597d4" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">คุณขอให้โมเดลอธิบายแนวคิดที่รู้จักกันดี จากนั้นขอคําอ้างอิงสามคําพร้อมวันที่ตีพิมพ์ที่แน่นอน การสร้างสรรค์มีแนวโน้มมากที่สุดอยู่ที่ไหน?</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: You ask a model to explain a well-known concept, then ask it for three citations with exact publication dates. Where are fabrications most likely?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_f48597d4">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_f48597d4-A"
+                data-qid="pred_f48597d4"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_f48597d4', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">อย่างเท่าเทียมกันในทั้งสองกรณี เนื่องจากภาพหลอนคือเสียงรบกวนแบบสุ่มที่กระจายอย่างเท่าเทียมกันในข้อมูลออก</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Equally in both, because hallucination is random noise spread evenly across output</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_f48597d4-B"
+                data-qid="pred_f48597d4"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_f48597d4', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ในคําอธิบาย เนื่องจากช่วงที่ยาวทําให้โมเดลมีพื้นที่ในการเคลื่อนที่มากขึ้น</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: In the explanation, because long passages give the model more room to drift</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_f48597d4-C"
+                data-qid="pred_f48597d4"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_f48597d4', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ในการอ้างอิงและวันที่ เนื่องจากรายละเอียดที่แม่นยําเป็นจุดที่การผลิตรวมตัวกัน</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: In the citations and dates, because precise specifics are where fabrication concentrates</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_f48597d4" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_f48597d4" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">แนวคิดทั่วไปเป็นไปตามรูปแบบที่โมเดลเคยเห็นมาหลายครั้ง ชื่อ วันที่ และการอ้างอิงที่แม่นยําจําเป็นต้องมีความแตกต่างระหว่างจริงและสมเหตุสมผล ซึ่งรุ่นถัดไปที่ได้รับโทเค็นไม่ได้ทํา</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: Common concepts follow patterns the model has seen many times. Exact names, dates and citations need a true-versus-plausible distinction that next-token generation does not make.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““การผลิตมุ่งเน้นไปที่ความเฉพาะเจาะจง: ชื่อ วันที่ สถิติ การอ้างอิง URL การอ้างอิง””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “Fabrication concentrates in specificity: names, dates, statistics, citations, URLs, quotes.”</div>
+          <div class="mt-1.5 not-italic"><a href="https://academy.claude.com/courses/ai-capabilities-and-limitations/next-token-prediction" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://academy.claude.com/courses/ai-capabilities-and-limitations/next-token-prediction</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_f48597d4')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  AI ช่วยสร้างมีความคล้ายคลึงกับเครื่องมือเติมคําอัตโนมัติที่ซับซ้อนมากกว่าเครื่องมือค้นหา โดยจะเขียนโทเค็นคําตอบทีละโทเค็น โดยแต่ละครั้งจะเลือกโทเค็นที่มีแนวโน้มที่จะตามข้อความไปจนถึงตอนนี้ ไม่มีอะไรในวงนั้นที่ค้นหาข้อเท็จจริงหรือตรวจสอบข้อเท็จจริง โมเดลจะขยายลําดับต่อไปในลักษณะที่การฝึกอบรมทําให้เป็นธรรมชาติที่สุด
+                </p>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-89db05d9f244"
-             data-qid="89db05d9f244"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-89db05d9f244" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A research assistant built on Claude produces a polished literature summary. Which part should a reviewer verify first?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-89db05d9f244">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-89db05d9f244-A"
-                    data-qid="89db05d9f244"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('89db05d9f244', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The overall structure of the summary, since next-token generation struggles with organization</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-89db05d9f244-B"
-                    data-qid="89db05d9f244"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('89db05d9f244', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The fluency of the prose, since fluent text is a signal of fabrication</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-89db05d9f244-C"
-                    data-qid="89db05d9f244"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('89db05d9f244', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The author names, statistics and URLs, since precise claims are where fabrication concentrates</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-89db05d9f244-D"
-                    data-qid="89db05d9f244"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('89db05d9f244', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Nothing, since a confident tone indicates the model retrieved the facts</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-89db05d9f244" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-89db05d9f244" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Fluency and structure come from well-worn patterns. Specific, checkable details are where generated text most often invents things, so the more precise a claim, the more it warrants verification.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Fluency and structure come from well-worn patterns. Specific, checkable details are where generated text most often invents things, so the more precise a claim, the more it warrants verification.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  กลไกเดียวนี้อธิบายทั้งสิ่งที่โมเดลทําได้ดีและวิธีที่โมเดลล้มเหลว เมื่องานคล้ายกับรูปแบบที่โมเดลเคยเห็นหลายครั้ง เช่น การสรุป การจัดรูปแบบใหม่ หรือการอธิบายแนวคิดทั่วไป ความต่อเนื่องที่เป็นไปได้มักจะเป็นสิ่งที่ถูกต้องเช่นกัน ในพื้นที่ที่ขาดแคลนหรือแปลกใหม่ หรือที่ใดก็ตามที่งานต้องการคําว่า “จริง” แทนคําว่า “ฟังดูจริง” ความต่อเนื่องที่เป็นไปได้อาจคล่องแคล่ว มั่นใจ และประดิษฐ์ขึ้น การอ้างอิงที่สร้างขึ้นอ่านได้เหมือนจริงเพราะมันถูกสร้างขึ้นด้วยวิธีเดียวกัน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ใช้สิ่งนี้เพื่อตัดสินใจว่าจะใช้เวลาในการตรวจสอบที่ใด ยิ่งคําอ้างอิงมีความแม่นยํามากเท่าไร (สถิติ URL การอ้างอิงโดยตรง ชื่องาน) ก็ยิ่งต้องการการตรวจสอบมากขึ้นเท่านั้น การอ้างอิง การส่งสัญญาณความไม่แน่นอน การสร้างแบบจํากัด และวงจรตัวสร้าง-ตัวตรวจสอบ ล้วนมีอยู่เพื่อผลักดันข้อจํากัดนี้ไปอีกขั้น
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-89db05d9f244"
+                 data-qid="89db05d9f244"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-89db05d9f244" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “The more precise a claim, the more it warrants verification.”
-              <br><a href="https://academy.claude.com/courses/ai-capabilities-and-limitations/next-token-prediction" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ผู้ช่วยวิจัยที่สร้างขึ้นจากคล็อดจะสร้างสรุปวรรณกรรมที่เรียบง่าย ผู้ตรวจสอบควรตรวจสอบส่วนใดก่อน?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A research assistant built on Claude produces a polished literature summary. Which part should a reviewer verify first?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-89db05d9f244">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-89db05d9f244-A"
+                        data-qid="89db05d9f244"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('89db05d9f244', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">โครงสร้างโดยรวมของบทสรุป เนื่องจากรุ่นโทเค็นถัดไปต่อสู้กับองค์กร</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The overall structure of the summary, since next-token generation struggles with organization</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-89db05d9f244-B"
+                        data-qid="89db05d9f244"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('89db05d9f244', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ความคล่องตัวของวรรณกรรม เนื่องจากข้อความที่คล่องตัวเป็นสัญญาณของการสร้างสรรค์</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The fluency of the prose, since fluent text is a signal of fabrication</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-89db05d9f244-C"
+                        data-qid="89db05d9f244"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('89db05d9f244', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ชื่อผู้เขียน สถิติ และ URL เนื่องจากการอ้างอิงที่แม่นยําเป็นจุดที่การผลิตมีความเข้มข้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The author names, statistics and URLs, since precise claims are where fabrication concentrates</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-89db05d9f244-D"
+                        data-qid="89db05d9f244"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('89db05d9f244', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ไม่มีอะไร เนื่องจากน้ําเสียงที่มั่นใจบ่งบอกว่าโมเดลได้ดึงข้อมูลข้อเท็จจริงแล้ว</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Nothing, since a confident tone indicates the model retrieved the facts</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-89db05d9f244" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-89db05d9f244" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ความคล่องแคล่วและโครงสร้างมาจากรูปแบบที่คุ้นเคยดี รายละเอียดเฉพาะที่สามารถตรวจสอบได้เป็นส่วนที่ข้อความที่สร้างขึ้นมักจะสร้างสิ่งต่าง ๆ ขึ้นมากที่สุด ดังนั้น ยิ่งคําอ้างอิงมีความแม่นยํามากเท่าไร ก็ยิ่งต้องการการตรวจสอบยืนยันมากขึ้นเท่านั้น</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Fluency and structure come from well-worn patterns. Specific, checkable details are where generated text most often invents things, so the more precise a claim, the more it warrants verification.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ยิ่งคําอ้างอิงมีความแม่นยํามากเท่าไร ก็ยิ่งต้องการการตรวจสอบยืนยันมากเท่านั้น”
+              <br><a href="https://academy.claude.com/courses/ai-capabilities-and-limitations/next-token-prediction" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('89db05d9f244')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('89db05d9f244')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -818,23 +945,28 @@
         <section id="3-the-context-window-is-the-model-s-working-memory" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. The context window is the model's working memory</span>
+            <span>3. หน้าต่างบริบทคือหน่วยความจําการทํางานของโมเดล</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>The context window is the model's working memory</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Model</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Context window</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Opus 5.5, Claude Opus 4.8, Claude Opus 4.7</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1M tokens</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Sonnet 5.5, Claude Sonnet 5, Claude Sonnet 4.6</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1M tokens</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Sonnet 4.5, Claude Haiku 4.5</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">200k tokens</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  หน้าต่างบริบทคือข้อความทั้งหมดที่โมเดลสามารถอ้างอิงได้ในขณะที่สร้างการตอบสนอง รวมถึงการตอบสนองเอง มันแยกออกจากข้อมูลขนาดใหญ่ที่โมเดลได้รับการฝึกฝนมา คิดว่ามันเป็นหน่วยความจําที่ทํางานสําหรับคําขอเดียว หากมีบางสิ่งไม่ได้อยู่ในหน้าต่าง โมเดลจะไม่สามารถตอบสนองได้ในคําขอนั้น
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ทุกอย่างในคำขอใช้พื้นที่: พร้อมท์ระบบทุกข้อความในข้อความ (รวมผลลัพธ์ของเครื่องมือรูปภาพและเอกสาร) และคำจำกัดความของเครื่องมือของคุณผลผลิต Claude สร้างสำหรับเทิร์นยังนับรวมถึงการคิดแบบขยายใดๆด้วยในการสนทนาแบบหลายเทิร์นผ่าน API การตอบสนองแต่ละครั้งจะกลายเป็นส่วนหนึ่งของอินพุตสำหรับเทิร์นถัดไปและเทิร์นก่อนหน้าจะถูกเก็บไว้อย่างเต็มรูปแบบดังนั้นหน้าต่างจะเต็มเมื่อการสนทนาดำเนินต่อไปทุกการตอบกลับจะรายงานสิ่งที่ใช้ในฟิลด์การใช้งาน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ขนาดของหน้าต่างถูกกําหนดไว้สําหรับแต่ละรุ่น Claude Opus 5.5, Opus 4.8, Sonnet 5.5, Sonnet 4.6 และรุ่นชั้นนําอื่น ๆ ในปัจจุบันมีหน้าต่างโทเค็น 1M และ 1M เป็นค่าเริ่มต้นโดยไม่มีส่วนหัวเบต้า Claude Sonnet 4.5, Claude Haiku 4.5 และรุ่นเก่าอื่น ๆ มี 200k ดังนั้นสัญญาโทเค็น 700,000 รายการจึงเหมาะกับคําขอเดียวสําหรับ Opus 4.8 แต่ไม่เหมาะกับ Sonnet 4.5 อย่างไรก็ตาม การมีขนาดใหญ่ขึ้นไม่ได้ดีขึ้นโดยอัตโนมัติ เมื่อจํานวนโทเค็นเพิ่มขึ้น ความแม่นยําและการเรียกคืนจะลดลง ซึ่งเรียกว่าการเสื่อมสภาพของบริบท สิ่งที่คุณใส่ลงในหน้าต่างสําคัญพอ ๆ กับพื้นที่ที่มี
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">แบบอย่าง</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Model</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">หน้าต่างบริบท</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Context window</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Claude Opus 5.5, Claude Opus 4.8, Claude Opus 4.7</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Opus 5.5, Claude Opus 4.8, Claude Opus 4.7</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โทเค็น 1M</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1M tokens</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Claude Sonnet 5.5, Claude Sonnet 5, Claude Sonnet 4.6</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Sonnet 5.5, Claude Sonnet 5, Claude Sonnet 4.6</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โทเค็น 1M</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1M tokens</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โคล้ด ซอนเน็ต 4.5, โคล้ด ไฮกุ 4.5</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Sonnet 4.5, Claude Haiku 4.5</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โทเค็น 200,000 รายการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 200k tokens</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Context window size by model (selected models)</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ขนาดหน้าต่างบริบทตามรุ่น (รุ่นที่เลือก)</figcaption>
                 </div>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
@@ -842,107 +974,122 @@
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Prompt caching frees context window space, because cached tokens are not re-sent. (ทำไมถึงผิด): Caching changes the price of the cached prefix, but those tokens still occupy the context window.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Prompt caching ปลดปล่อยพื้นที่หน้าต่างบริบท เนื่องจากโทเค็นที่แคชไว้จะไม่ถูกส่งอีกครั้ง (ทําไมถึงผิดพลาด): การแคชจะเปลี่ยนราคาของคํานําหน้าที่แคชไว้ แต่โทเค็นเหล่านั้นยังคงใช้พื้นที่หน้าต่างบริบท</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Prompt caching frees context window space, because cached tokens are not re-sent. (ทำไมถึงผิด): Caching changes the price of the cached prefix, but those tokens still occupy the context window.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-ae82d51bcac8"
-             data-qid="ae82d51bcac8"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-ae82d51bcac8" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An agent&#x27;s request carries a large system prompt that is prompt-cached, twenty tool definitions, and the conversation so far. Which statement about its context window is accurate?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-ae82d51bcac8">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-ae82d51bcac8-A"
-                    data-qid="ae82d51bcac8"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('ae82d51bcac8', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Cached prefixes are free of the window, so only uncached messages count</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-ae82d51bcac8-B"
-                    data-qid="ae82d51bcac8"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('ae82d51bcac8', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Tool definitions are metadata and do not count toward the window</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-ae82d51bcac8-C"
-                    data-qid="ae82d51bcac8"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('ae82d51bcac8', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The cached prefix, tool definitions, messages and the generated output all count toward the window</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-ae82d51bcac8-D"
-                    data-qid="ae82d51bcac8"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('ae82d51bcac8', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Only input counts; the response is generated into a separate output budget outside the window</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-ae82d51bcac8" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-ae82d51bcac8" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Every part of the request counts, and so does the output. Caching changes what you pay for the prefix tokens, not whether they occupy the window.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Every part of the request counts, and so does the output. Caching changes what you pay for the prefix tokens, not whether they occupy the window.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-ae82d51bcac8"
+                 data-qid="ae82d51bcac8"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-ae82d51bcac8" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Cached prompt prefixes still occupy the context window: prompt caching changes what you pay for those tokens, not whether they count.”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/context-windows" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">คำขอของตัวแทนประกอบด้วยพรอมต์ระบบขนาดใหญ่ที่มีการแคชพร้อมต์ คำจำกัดความของเครื่องมือ 20 รายการ และการสนทนาจนถึงขณะนี้ ข้อความเกี่ยวกับหน้าต่างบริบทในข้อใดถูกต้อง</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An agent&#x27;s request carries a large system prompt that is prompt-cached, twenty tool definitions, and the conversation so far. Which statement about its context window is accurate?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-ae82d51bcac8">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-ae82d51bcac8-A"
+                        data-qid="ae82d51bcac8"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('ae82d51bcac8', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">คํานําหน้าที่แคชไว้เป็นอิสระจากหน้าต่าง ดังนั้นเฉพาะข้อความที่ไม่ได้แคชเท่านั้นที่จะถูกนับ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Cached prefixes are free of the window, so only uncached messages count</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-ae82d51bcac8-B"
+                        data-qid="ae82d51bcac8"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('ae82d51bcac8', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">คำจำกัดความของเครื่องมือคือข้อมูลเมตาและไม่นับรวมในหน้าต่าง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Tool definitions are metadata and do not count toward the window</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-ae82d51bcac8-C"
+                        data-qid="ae82d51bcac8"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('ae82d51bcac8', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">คํานําหน้าที่แคชไว้ คําจํากัดความของเครื่องมือ ข้อความ และเอาต์พุตที่สร้างขึ้นทั้งหมดนับไปยังหน้าต่าง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The cached prefix, tool definitions, messages and the generated output all count toward the window</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-ae82d51bcac8-D"
+                        data-qid="ae82d51bcac8"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('ae82d51bcac8', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">มีเพียงอินพุตเท่านั้นที่นับได้ การตอบสนองจะถูกสร้างขึ้นเป็นงบประมาณเอาต์พุตแยกต่างหากนอกหน้าต่าง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only input counts; the response is generated into a separate output budget outside the window</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-ae82d51bcac8" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-ae82d51bcac8" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ทุกส่วนของคําขอจะนับรวม และเอาต์พุตก็เช่นกัน การแคชจะเปลี่ยนสิ่งที่คุณจ่ายสําหรับโทเค็นคํานําหน้า ไม่ใช่ว่าโทเค็นเหล่านั้นจะครอบคลุมหน้าต่างหรือไม่</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Every part of the request counts, and so does the output. Caching changes what you pay for the prefix tokens, not whether they occupy the window.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “คํานําหน้าพร้อมท์ที่แคชไว้จะยังคงอยู่ในหน้าต่างบริบท: การแคชพร้อมท์จะเปลี่ยนสิ่งที่คุณจ่ายสําหรับโทเค็นเหล่านั้น ไม่ใช่ว่าพวกเขาจะนับหรือไม่”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/context-windows" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('ae82d51bcac8')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('ae82d51bcac8')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55537"
              data-qid="55537"
@@ -958,8 +1105,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team is building an autonomous coding agent expected to run for well over 30 minutes, making repeated tool calls and exploring a large codebase, with a token budget in the millions. Which effort level should they start with?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมงานกำลังสร้างเอเจนต์การเขียนโค้ดอัตโนมัติที่คาดว่าจะทำงานได้นานกว่า 30 นาที ทำการเรียกใช้เครื่องมือซ้ำๆ และสำรวจโค้ดเบสขนาดใหญ่ด้วยงบประมาณโทเค็นเป็นล้าน พวกเขาควรเริ่มต้นด้วยความพยายามระดับใด</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team is building an autonomous coding agent expected to run for well over 30 minutes, making repeated tool calls and exploring a large codebase, with a token budget in the millions. Which effort level should they start with?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55537">
@@ -971,7 +1119,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55537', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">low</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ต่ํา</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: low</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -982,7 +1133,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55537', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">medium</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ปานกลาง</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: medium</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -993,7 +1147,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55537', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">high</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">สูง</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: high</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1004,7 +1161,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55537', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">xhigh</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">xhigh</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: xhigh</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1026,7 +1186,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ความพยายามต่ำเป็นการตั้งค่าที่ระมัดระวังที่สุด และมีไว้สำหรับงานที่เรียบง่ายในขอบเขตสั้น ไม่ใช่การสำรวจเอเจนต์หลายเครื่องมือแบบขยาย</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ความพยายามต่ำเป็นการตั้งค่าที่ระมัดระวังที่สุด และมีไว้สำหรับงานที่เรียบง่ายในขอบเขตสั้น ไม่ใช่การสำรวจเอเจนต์หลายเครื่องมือแบบขยาย</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Low effort is the most conservative setting and is intended for simple, short-scoped tasks, not extended multi-tool agentic exploration.</div>
             </div>
             
@@ -1035,7 +1195,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ความพยายามปานกลางให้การประหยัดโทเค็นในระดับปานกลางสำหรับปริมาณงานที่สมดุล แต่ไม่ได้ปรับให้เหมาะกับงานตัวแทนในขอบเขตระยะยาวซึ่งครอบคลุมการเรียกใช้เครื่องมือจำนวนมาก</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ความพยายามปานกลางให้การประหยัดโทเค็นในระดับปานกลางสำหรับปริมาณงานที่สมดุล แต่ไม่ได้ปรับให้เหมาะกับงานตัวแทนในขอบเขตระยะยาวซึ่งครอบคลุมการเรียกใช้เครื่องมือจำนวนมาก</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Medium effort offers moderate token savings for balanced workloads but is not tailored to long-horizon agentic work spanning many tool calls.</div>
             </div>
             
@@ -1044,7 +1204,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">สูงเป็นค่าเริ่มต้นของ API และเหมาะสมกับการใช้เหตุผลและการเขียนโค้ดที่ซับซ้อน แต่ไม่ใช่ระดับที่ออกแบบมาโดยเฉพาะสำหรับงานตัวแทนที่ใช้เวลานานเกิน 30 นาที</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">สูงเป็นค่าเริ่มต้นของ API และเหมาะสมกับการใช้เหตุผลและการเขียนโค้ดที่ซับซ้อน แต่ไม่ใช่ระดับที่ออกแบบมาโดยเฉพาะสำหรับงานตัวแทนที่ใช้เวลานานเกิน 30 นาที</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: High is the API default and suits complex reasoning and coding, but it is not the level specifically designed for long-running agentic work exceeding 30 minutes.</div>
             </div>
             
@@ -1053,7 +1213,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Xhigh is described as extended capability for long-horizon agentic and coding tasks over 30 minutes with token budgets in the millions, matching this scenario exactly.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Xhigh ถูกอธิบายว่าเป็นความสามารถที่ขยายออกไปสําหรับงานด้านเอเจนต์และการเขียนโค้ดระยะยาวที่ต้องใช้เวลามากกว่า 30 นาที โดยมีงบประมาณโทเค็นหลายล้าน ซึ่งตรงกับสถานการณ์นี้อย่างแม่นยํา</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Xhigh is described as extended capability for long-horizon agentic and coding tasks over 30 minutes with token budgets in the millions, matching this scenario exactly.</div>
             </div>
             
@@ -1088,112 +1248,132 @@
         <section id="4-why-examples-steer-the-model-without-retraining-it" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>4. Why examples steer the model without retraining it</span>
+            <span>4. เหตุใดตัวอย่างจึงชี้นําโมเดลโดยไม่ต้องฝึกซ้ํา</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Why examples steer the model without retraining it</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-cc5d140ac796"
-             data-qid="cc5d140ac796"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-cc5d140ac796" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team adds five labelled examples to a classification prompt, and accuracy improves. A colleague suggests removing them from later requests because &quot;the model has learned them now&quot;. What happens?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-cc5d140ac796">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-cc5d140ac796-A"
-                    data-qid="cc5d140ac796"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('cc5d140ac796', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Accuracy stays high, because the examples updated the model&#x27;s weights on the first request</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-cc5d140ac796-B"
-                    data-qid="cc5d140ac796"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('cc5d140ac796', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Accuracy stays high for an hour, because examples are cached into the model for the session</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-cc5d140ac796-C"
-                    data-qid="cc5d140ac796"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('cc5d140ac796', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The benefit disappears, because examples only steer the model while they are in the request&#x27;s context</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-cc5d140ac796-D"
-                    data-qid="cc5d140ac796"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('cc5d140ac796', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The API rejects the request, because few-shot prompts must keep a consistent example count</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-cc5d140ac796" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-cc5d140ac796" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ตัวอย่างดำเนินการผ่านหน้าต่างบริบท ซึ่งเป็นหน่วยความจำในการทำงานตามคำขอของโมเดล ไม่ใช่ผ่านการฝึกอบรม การเปลี่ยนโมเดลจะต้องมีการปรับแต่งอย่างละเอียด ดังนั้นทุกคำขอจะต้องมีตัวอย่างของตัวเอง</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Examples act through the context window, the model&#x27;s per-request working memory, not through training. Changing the model would need fine-tuning, so every request has to carry its own examples.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เคล็ดลับอาจไม่รวมถึงตัวอย่างตัวอย่างหนึ่งตัวอย่างหรือมากกว่า: ศูนย์ทริกเกอร์ทริกเกอร์เดียวและทริกเกอร์หลายตัว วิธีการเขียนแต่ละครั้งใน[ศูนย์, หนึ่งและหลายภาพ] (บทเรียน 6.2) คําถามที่นี่คือว่าทําไมพวกเขาถึงทํางาน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ตัวอย่างทํางานได้เพราะอยู่ในหน้าต่างบริบท โมเดลจะจับรูปแบบที่นั่นในระหว่างคําขอ เช่นเดียวกับที่มันจับข้อความอื่น ๆ ที่มันสนใจ ไม่มีอะไรเกี่ยวกับโมเดลที่เปลี่ยนแปลง การเปลี่ยนแปลงโมเดลนั้นเป็นการปรับแต่ง ซึ่งหมายถึงการฝึกโมเดลที่ได้รับการฝึกไว้ล่วงหน้าเพิ่มเติมด้วยข้อมูลเพิ่มเติม และ Claude API ไม่ได้เสนอสิ่งนี้ในขณะนี้ สิ่งใดก็ตามที่พรอมป์ไม่กี่ช็อตสอนจะคงอยู่เฉพาะสําหรับคําขอนั้นเท่านั้น คําขอถัดไปต้องรับตัวอย่างอีกครั้ง และพวกมันจะใช้พื้นที่หน้าต่างทุกครั้ง
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การสร้างโทเค็นถัดไปยังอธิบายว่าทำไมการเลือกตัวอย่างจึงมีความสำคัญ โมเดลจะดำเนินต่อไปตามรูปแบบใดก็ตามที่บริบทแสดง รวมถึงรูปแบบที่คุณไม่ได้ตั้งใจ หากทุกตัวอย่างมีความยาวหรือวลีเปิดเท่ากัน ผลลัพธ์ก็จะคัดลอกสิ่งนั้นเช่นกัน ตัวอย่างที่หลากหลายซึ่งครอบคลุม Edge Case จะสอนรูปแบบที่คุณต้องการและไม่ใช่อุบัติเหตุในการเขียนตัวอย่าง
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-cc5d140ac796"
+                 data-qid="cc5d140ac796"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-cc5d140ac796" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “This is different from the large corpus of data the language model was trained on, and instead represents a &quot;working memory&quot; for the model.”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/context-windows" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมงานเพิ่มตัวอย่างที่มีป้ายกำกับห้าตัวอย่างลงในพรอมต์การจำแนกประเภท และปรับปรุงความแม่นยำ เพื่อนร่วมงานแนะนำให้ลบออกจากคำขอในภายหลังเนื่องจาก &quot;โมเดลได้เรียนรู้แล้ว&quot; เกิดอะไรขึ้น?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team adds five labelled examples to a classification prompt, and accuracy improves. A colleague suggests removing them from later requests because &quot;the model has learned them now&quot;. What happens?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-cc5d140ac796">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-cc5d140ac796-A"
+                        data-qid="cc5d140ac796"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('cc5d140ac796', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ความแม่นยํายังคงสูง เนื่องจากตัวอย่างอัปเดตน้ําหนักของโมเดลในคําขอแรก</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Accuracy stays high, because the examples updated the model&#x27;s weights on the first request</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-cc5d140ac796-B"
+                        data-qid="cc5d140ac796"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('cc5d140ac796', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ความแม่นยํายังคงสูงเป็นเวลาหนึ่งชั่วโมง เนื่องจากตัวอย่างจะถูกแคชไว้ในโมเดลสําหรับเซสชัน</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Accuracy stays high for an hour, because examples are cached into the model for the session</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-cc5d140ac796-C"
+                        data-qid="cc5d140ac796"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('cc5d140ac796', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ประโยชน์จะหายไปเนื่องจากตัวอย่างจะชี้นําโมเดลเฉพาะในขณะที่อยู่ในบริบทของคําขอเท่านั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The benefit disappears, because examples only steer the model while they are in the request&#x27;s context</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-cc5d140ac796-D"
+                        data-qid="cc5d140ac796"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('cc5d140ac796', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">API ปฏิเสธคําขอ เนื่องจากการแจ้งแบบไม่กี่ครั้งต้องมีการนับตัวอย่างที่สอดคล้องกัน</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The API rejects the request, because few-shot prompts must keep a consistent example count</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-cc5d140ac796" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-cc5d140ac796" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ตัวอย่างดำเนินการผ่านหน้าต่างบริบท ซึ่งเป็นหน่วยความจำในการทำงานตามคำขอของโมเดล ไม่ใช่ผ่านการฝึกอบรม การเปลี่ยนโมเดลจะต้องมีการปรับแต่งอย่างละเอียด ดังนั้นทุกคำขอจะต้องมีตัวอย่างของตัวเอง</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Examples act through the context window, the model&#x27;s per-request working memory, not through training. Changing the model would need fine-tuning, so every request has to carry its own examples.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “สิ่งนี้แตกต่างจากชุดข้อมูลขนาดใหญ่ที่โมเดลภาษาได้รับการฝึกฝน และแทนที่จะเป็น “หน่วยความจําการทํางาน” สําหรับโมเดล”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/context-windows" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('cc5d140ac796')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('cc5d140ac796')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1213,79 +1393,255 @@
         <section id="5-sampling-why-the-same-prompt-gives-different-answers" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>5. Sampling: why the same prompt gives different answers</span>
+            <span>5. การสุ่มตัวอย่าง: เหตุใดพร้อมท์เดียวกันจึงให้คําตอบที่แตกต่างกัน</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Sampling: why the same prompt gives different answers</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ทําซ้ําคําขอเดียวกันในบทสนทนาใหม่และคุณมักจะได้รับคําตอบที่แตกต่างกันสองคํา นี่คือวิธีการทํางานของ generation ไม่ใช่ bug. ในแต่ละขั้นตอนโมเดลมีหลายโทเค็นต่อไปที่เป็นไปได้ซึ่งจะสุ่มตัวอย่างหนึ่งในโทเค็นแทนที่จะเลือกโทเค็นที่เป็นไปได้มากที่สุดเสมอ ความแตกต่างระหว่างการทํางานคือการสุ่มตัวอย่างในการทํางาน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  มีพารามิเตอร์สามพารามิเตอร์ที่กําหนดรูปแบบการสุ่มตัวอย่าง:
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  - อุณหภูมิควบคุมความสุ่มของการเลือก ค่าเริ่มต้นคือ 1.0 และอยู่ในช่วง 0.0 ถึง 1.0 ค่าที่ต่ํากว่าจะรักษาวลีที่มีความเป็นไปได้มากที่สุด ค่าที่สูงกว่าจะอนุญาตให้มีคําที่หายากและน่าประหลาดใจมากขึ้น ใช้ค่าใกล้เคียงกับ 0.0 สําหรับงานวิเคราะห์หรือหลายตัวเลือก และใกล้เคียงกับ 1.0 สําหรับงานสร้างสรรค์ - top_k สุ่มตัวอย่างเฉพาะจากตัวเลือกที่มีความเป็นไปได้มากที่สุด K สําหรับโทเค็นถัดไปแต่ละรายการ ซึ่งจะตัดหางยาวของตัวเลือกที่ไม่น่าจะเป็นไปได้ - top_p (การสุ่มตัวอย่างหลัก) ตัดตัวเลือกตามความน่าจะเป็นสะสมแทนที่จะเป็นจํานวน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ข้อควรระวังสองประการมีผลบังคับใช้ ประการแรก อุณหภูมิ 0 ไม่ได้ทําให้ Claude เป็นแบบแน่นอน: อินพุตที่เหมือนกันยังสามารถให้เอาต์พุตที่แตกต่างกันในการเรียกใช้ API ได้ การออกแบบสําหรับการเปลี่ยนแปลงโดยการตรวจสอบเอาต์พุตและไม่พึ่งพาการตอบสนองที่เหมือนกันทุกไบต์ ประการที่สอง ในรุ่นปัจจุบัน ปุ่มเหล่านี้ส่วนใหญ่จะถูกล็อค บน Claude Opus 5.5, Opus 4.8, Opus 4.7, Sonnet 5.5, Sonnet 5 และรุ่น Claude 5 อื่นๆ อุณหภูมิใดๆ ที่ไม่ใช่ค่าเริ่มต้น top_p หรือ top_k จะส่งคืนข้อผิดพลาด 400 บนรุ่นเก่ากว่า ข้อจํากัดนี้ใช้ได้เฉพาะในขณะที่เปิดใช้งานการคิดเท่านั้น
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Setting temperature to 0 makes Claude&#x27;s output fully deterministic, so identical prompts always return identical text. (ทำไมถึงผิด): Temperature 0 favours the most probable choices, but identical inputs can still produce different outputs across API calls. Lowering temperature is always a valid way to make answers more consistent on any Claude model. (ทำไมถึงผิด): On Claude 5 models and Opus 4.7 or later, any non-default temperature, top_p or top_k returns a 400 error, whether or not thinking is used.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การตั้งอุณหภูมิเป็น 0 ทําให้เอาต์พุตของ Claude เป็นที่แน่นอนอย่างสมบูรณ์ ดังนั้นการแจ้งที่เหมือนกันจะส่งคืนข้อความที่เหมือนกันเสมอ (ทําไมจึงผิดพลาด): อุณหภูมิ 0 ส่งผลให้มีตัวเลือกที่เป็นไปได้มากที่สุด แต่อินพุตที่เหมือนกันยังสามารถส่งคืนเอาต์พุตที่แตกต่างกันผ่านการเรียกใช้ API ได้ การลดอุณหภูมิเป็นวิธีที่ถูกต้องเสมอในการทําให้คําตอบมีความสอดคล้องกันมากขึ้นในโมเดล Claude ใด ๆ (ทําไมจึงผิดพลาด): ในโมเดล Claude 5 และ Opus 4.7 หรือใหม่กว่า อุณหภูมิที่ไม่ใช่ค่าเริ่มต้น, top_p หรือ top_k จะส่งคืนข้อผิดพลาด 400 ไม่ว่าจะใช้การคิดหรือไม่ก็ตาม</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Setting temperature to 0 makes Claude&#x27;s output fully deterministic, so identical prompts always return identical text. (ทำไมถึงผิด): Temperature 0 favours the most probable choices, but identical inputs can still produce different outputs across API calls. Lowering temperature is always a valid way to make answers more consistent on any Claude model. (ทำไมถึงผิด): On Claude 5 models and Opus 4.7 or later, any non-default temperature, top_p or top_k returns a 400 error, whether or not thinking is used.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-667c1dab1674"
-             data-qid="667c1dab1674"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-667c1dab1674" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Match each sampling setting to its effect</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-667c1dab1674">
-            
-          </div>
-          
-          <div id="feedback-667c1dab1674" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-667c1dab1674" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">อุณหภูมิแลกเปลี่ยนความสามารถในการคาดการณ์เพื่อความหลากหลาย และ top_k จะลบตัวเลือกส่วนท้ายที่มีความน่าจะเป็นต่ำออก แม้ที่อุณหภูมิ 0 อินพุตที่เหมือนกันก็สามารถสร้างเอาต์พุตที่แตกต่างกันได้</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Temperature trades predictability for variety, and top_k removes low-probability tail options. Even at temperature 0, identical inputs can produce different outputs.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-667c1dab1674"
+                 data-qid="667c1dab1674"
+                 data-correct="MATCH"
+                 data-total-pairs="4">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔄</span>
+                  <span>แบบฝึกหัดจับคู่ความสัมพันธ์ (Matching Challenge)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-667c1dab1674" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตรวจสอบแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Match (4 คู่)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Lower temperatures result in more conservative and deterministic outputs that stick to the most probable phrasing and answers.”
-              <br><a href="https://platform.claude.com/docs/en/about-claude/glossary" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">จับคู่การตั้งค่าการสุ่มตัวอย่างแต่ละรายการกับเอฟเฟกต์</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Match each sampling setting to its effect</p>
+              </div>
+
+              <!-- Interactive Matching Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
+                  <span id="match-counter-667c1dab1674" class="text-slate-400 font-mono">จับคู่ได้ 0/4</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <!-- Terms (Left) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">1. รายการคำศัพท์ / หัวข้อ:</div>
+                    
+                <button type="button"
+                        id="match-term-667c1dab1674-0"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('667c1dab1674', 0)">
+                  <span id="match-badge-term-667c1dab1674-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">อุณหภูมิต่ํา</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Low temperature</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-667c1dab1674-1"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('667c1dab1674', 1)">
+                  <span id="match-badge-term-667c1dab1674-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">อุณหภูมิสูง</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: High temperature</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-667c1dab1674-2"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('667c1dab1674', 2)">
+                  <span id="match-badge-term-667c1dab1674-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">top_k</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: top_k</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-667c1dab1674-3"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('667c1dab1674', 3)">
+                  <span id="match-badge-term-667c1dab1674-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">อุณหภูมิ 0</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Temperature 0</span>
+                  </div>
+                </button>
+                
+                  </div>
+                  <!-- Definitions (Right) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">2. คำอธิบาย / ความหมาย (สลับตำแหน่ง):</div>
+                    
+                <button type="button"
+                        id="match-def-667c1dab1674-1"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('667c1dab1674', 1, 4)">
+                  <span id="match-badge-def-667c1dab1674-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">ผลลัพธ์ที่หลากหลายมากขึ้น ซึ่งสํารวจตัวเลือกคําที่หายากหรือน่าประหลาดใจ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: More diverse output that explores rare or surprising word choices</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-667c1dab1674-3"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('667c1dab1674', 3, 4)">
+                  <span id="match-badge-def-667c1dab1674-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">ยังคงไม่แน่นอนอย่างสมบูรณ์ในการเรียกใช้ API</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Still not fully deterministic across API calls</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-667c1dab1674-2"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('667c1dab1674', 2, 4)">
+                  <span id="match-badge-def-667c1dab1674-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">ตัวอย่างจากตัวเลือก K ที่น่าจะเป็นมากที่สุดสําหรับแต่ละโทเค็นถัดไปเท่านั้น</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Samples only from the K most likely options for each next token</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-667c1dab1674-0"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('667c1dab1674', 0, 4)">
+                  <span id="match-badge-def-667c1dab1674-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">ผลลัพธ์แบบอนุรักษ์นิยมที่ยึดติดกับวลีและคําตอบที่เป็นไปได้มากที่สุด</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Conservative output that sticks to the most probable phrasing and answers</span>
+                  </div>
+                </button>
+                
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-667c1dab1674" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetMatchGame('667c1dab1674')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>เริ่มจับคู่ใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('667c1dab1674')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยคู่ความสัมพันธ์
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">จับคู่ให้ครบทุกข้อเพื่อบันทึกผลสำเร็จอัตโนมัติ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-667c1dab1674" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ เฉลยคู่ความสัมพันธ์ที่ถูกต้อง (Verified Pairs):</strong>
+                <div class="space-y-2.5">
+                  
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">1</span>
+                    <span class="font-semibold text-slate-100">อุณหภูมิต่ํา</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Low temperature)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ ผลลัพธ์แบบอนุรักษ์นิยมที่ยึดติดกับวลีและคําตอบที่เป็นไปได้มากที่สุด</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Conservative output that sticks to the most probable phrasing and answers</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">2</span>
+                    <span class="font-semibold text-slate-100">อุณหภูมิสูง</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(High temperature)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ ผลลัพธ์ที่หลากหลายมากขึ้น ซึ่งสํารวจตัวเลือกคําที่หายากหรือน่าประหลาดใจ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: More diverse output that explores rare or surprising word choices</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">3</span>
+                    <span class="font-semibold text-slate-100">top_k</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(top_k)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ ตัวอย่างจากตัวเลือก K ที่น่าจะเป็นมากที่สุดสําหรับแต่ละโทเค็นถัดไปเท่านั้น</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Samples only from the K most likely options for each next token</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">4</span>
+                    <span class="font-semibold text-slate-100">อุณหภูมิ 0</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Temperature 0)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ ยังคงไม่แน่นอนอย่างสมบูรณ์ในการเรียกใช้ API</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Still not fully deterministic across API calls</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
+                  <p class="leading-relaxed">อุณหภูมิแลกเปลี่ยนความสามารถในการคาดการณ์เพื่อความหลากหลาย และ top_k จะลบตัวเลือกส่วนท้ายที่มีความน่าจะเป็นต่ำออก แม้ที่อุณหภูมิ 0 อินพุตที่เหมือนกันก็สามารถสร้างเอาต์พุตที่แตกต่างกันได้</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Temperature trades predictability for variety, and top_k removes low-probability tail options. Even at temperature 0, identical inputs can produce different outputs.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “อุณหภูมิที่ต่ําลงส่งผลให้ผลลัพธ์ที่อนุรักษ์นิยมและแน่นอนมากขึ้น ซึ่งยึดติดกับวลีและคําตอบที่เป็นไปได้มากที่สุด”
+              <br><a href="https://platform.claude.com/docs/en/about-claude/glossary" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('667c1dab1674')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
@@ -1316,123 +1672,151 @@
         <section id="6-non-determinism-building-for-outputs-that-vary-between-runs" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>6. Non-determinism: building for outputs that vary between runs</span>
+            <span>6. ความไม่แน่นอน: การสร้างสําหรับเอาต์พุตที่แตกต่างกันระหว่างการเรียกใช้</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Non-determinism: building for outputs that vary between runs</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Non-determinism เป็นคุณสมบัติที่อินพุตที่เหมือนกันอาจสร้างเอาต์พุตที่แตกต่างกันในการเรียก API โดยแยกทุกอย่างที่เปรียบเทียบสองคำตอบ: การทดสอบการถดถอยที่แตกต่างจากคำตอบของวันนี้กับคำตอบที่เก็บไว้ แคชที่คีย์บนข้อความเอาต์พุต การตรวจสอบที่คาดว่าจะมีการทำซ้ำเพื่อสร้างการตัดสินใจอีกครั้ง สาเหตุคือการสุ่มตัวอย่างต่อโทเค็นที่อธิบายไว้ใน [ส่วนการสุ่มตัวอย่างด้านบน] และเก็บไว้ในบริการอนุมานบุคคลที่หนึ่งของ Anthropic และผ่านทางผู้ให้บริการคลาวด์บุคคลที่สาม การย้ายปริมาณงานไปยังผู้ให้บริการระบบคลาวด์ไม่ได้ซื้อเอาต์พุตที่ทำซ้ำได้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ไม่มีการตั้งค่าใดที่เคยปิดการทำงาน อุณหภูมิ 0 ไม่เคยรับประกันว่าเอาต์พุตจะเหมือนกัน แม้แต่ในรุ่นเก่าที่ยอมรับ ดังนั้นโค้ดที่ย้ายไปยังรุ่นใหม่กว่าจะไม่สูญเสียอะไรเลยเมื่ออุณหภูมิลดลง = 0 ทิ้งสมมติฐานของการทำซ้ำพร้อมกับพารามิเตอร์
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ความผันแปรมาถึงจำนวนโทเค็นไม่ใช่แค่ถ้อยคำด้วยความคิดที่ปรับเปลี่ยนได้ Claude ตัดสินใจจัดสรรความคิดตามคำขอดังนั้นการคิดการใช้โทเค็นการเรียกเก็บเงินเป็นเอาต์พุตจะเปลี่ยนจากการทำงานหนึ่งครั้งของพรอมต์เดียวกันไปเป็นครั้งต่อไปการประมาณค่าใช้จ่ายที่เกิดขึ้นจากการวิ่งครั้งเดียวสามารถปิดได้ในทิศทางใดทิศทางหนึ่งงบประมาณขนาดและ MAX_TOKENS จากช่วงที่เห็นในการวิ่งจำนวนมาก
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ไปป์ไลน์ที่คาดหวังเอาต์พุตที่ไม่แน่นอนจะตรวจสอบในลักษณะเดียวกับที่ห้องปฏิบัติการจัดการกับการวัดที่มีเสียงรบกวน:
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  - ตรวจสอบความถูกต้องของโครงสร้างและความหมาย (อ็อบเจกต์ JSON ที่สามารถแยกวิเคราะห์ได้ ป้ายกํากับที่ถูกต้อง ฟิลด์ที่จําเป็น) แทนความเท่ากันของไบต์ - เรียกใช้แต่ละกรณีการประเมินมากกว่าหนึ่งครั้ง และสังเกตว่าส่วนใดคงที่และส่วนใดเปลี่ยนไประหว่างการเรียกใช้ - จัดเก็บการตอบสนองที่คุณดําเนินการเมื่อการตัดสินใจต้องตรวจสอบได้ เนื่องจากการเรียกใช้ซ้ําเป็นตัวอย่างใหม่ ไม่ใช่การเล่นซ้ํา
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Non-determinism is a quirk of Anthropic&#x27;s own API; running Claude through a third-party cloud provider returns identical outputs for identical inputs. (ทำไมถึงผิด): Identical inputs can produce different outputs on Anthropic&#x27;s first-party inference service and on third-party cloud providers alike.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">หลุมพรางการสอบ: การไม่แน่นอนเป็นความแปลกประหลาดของ API ของ Anthropic โดยการเรียกใช้ Claude ผ่านผู้ให้บริการคลาวด์บุคคลที่สามจะส่งคืนเอาต์พุตที่เหมือนกันสําหรับอินพุตที่เหมือนกัน (ทําไมถึงผิดพลาด): อินพุตที่เหมือนกันสามารถสร้างเอาต์พุตที่แตกต่างกันได้ทั้งบนบริการการอนุมานบุคคลแรกของ Anthropic และผู้ให้บริการคลาวด์บุคคลที่สาม</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Non-determinism is a quirk of Anthropic&#x27;s own API; running Claude through a third-party cloud provider returns identical outputs for identical inputs. (ทำไมถึงผิด): Identical inputs can produce different outputs on Anthropic&#x27;s first-party inference service and on third-party cloud providers alike.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-dee43a555020"
-             data-qid="dee43a555020"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-dee43a555020" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A nightly regression test sends a fixed prompt to Claude through a third-party cloud provider and fails whenever the reply differs from a stored copy. Which change fixes the test?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-dee43a555020">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-dee43a555020-A"
-                    data-qid="dee43a555020"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('dee43a555020', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Route the test through Anthropic&#x27;s first-party API, which returns identical outputs for identical inputs</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-dee43a555020-B"
-                    data-qid="dee43a555020"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('dee43a555020', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Compare the reply&#x27;s structure and required fields instead of its exact text, since identical inputs can vary on any provider</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-dee43a555020-C"
-                    data-qid="dee43a555020"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('dee43a555020', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set temperature to 0 so every run returns the stored copy</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-dee43a555020-D"
-                    data-qid="dee43a555020"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('dee43a555020', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Pin an older model, because only Claude 5 models produce varying outputs</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-dee43a555020" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-dee43a555020" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">การไม่กำหนดระดับมีผลกับการอนุมานของบุคคลที่หนึ่งและบุคคลที่สามเหมือนกัน และอุณหภูมิ 0 จะไม่รับประกันว่าเอาต์พุตจะเหมือนกัน การทดสอบจะต้องตรวจสอบสิ่งที่ต้องเก็บ ไม่ใช่ไบต์ที่แน่นอน</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Non-determinism applies to first-party and third-party inference alike, and temperature 0 never guaranteed identical outputs. A test has to check what must hold, not the exact bytes.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-dee43a555020"
+                 data-qid="dee43a555020"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-dee43a555020" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “This applies both to Anthropic&#x27;s first-party inference service and to inference through third-party cloud providers.”
-              <br><a href="https://platform.claude.com/docs/en/about-claude/glossary" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">การทดสอบการถดถอยทุกคืนจะส่งข้อความแจ้งคงที่ไปยัง Claude ผ่านผู้ให้บริการคลาวด์บุคคลที่สาม และจะล้มเหลวเมื่อใดก็ตามที่การตอบกลับแตกต่างจากสำเนาที่เก็บไว้ การเปลี่ยนแปลงใดที่ช่วยแก้ไขการทดสอบ</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A nightly regression test sends a fixed prompt to Claude through a third-party cloud provider and fails whenever the reply differs from a stored copy. Which change fixes the test?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-dee43a555020">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-dee43a555020-A"
+                        data-qid="dee43a555020"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('dee43a555020', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">กําหนดเส้นทางการทดสอบผ่าน API ของบุคคลแรกของ Anthropic ซึ่งส่งคืนผลลัพธ์ที่เหมือนกันสําหรับอินพุตที่เหมือนกัน</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Route the test through Anthropic&#x27;s first-party API, which returns identical outputs for identical inputs</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-dee43a555020-B"
+                        data-qid="dee43a555020"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('dee43a555020', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เปรียบเทียบโครงสร้างของคําตอบและช่องที่จําเป็นแทนที่จะเป็นข้อความที่แน่นอน เนื่องจากข้อมูลป้อนเข้าที่เหมือนกันอาจแตกต่างกันไปในผู้ให้บริการแต่ละราย</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Compare the reply&#x27;s structure and required fields instead of its exact text, since identical inputs can vary on any provider</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-dee43a555020-C"
+                        data-qid="dee43a555020"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('dee43a555020', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ตั้งค่าอุณหภูมิเป็น 0 เพื่อให้การเรียกใช้แต่ละครั้งส่งคืนสําเนาที่จัดเก็บไว้</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set temperature to 0 so every run returns the stored copy</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-dee43a555020-D"
+                        data-qid="dee43a555020"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('dee43a555020', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ปักหมุดรุ่นเก่าเพราะมีเพียงรุ่น Claude 5 เท่านั้นที่สร้างเอาต์พุตที่แตกต่างกัน</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Pin an older model, because only Claude 5 models produce varying outputs</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-dee43a555020" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-dee43a555020" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การไม่กำหนดระดับมีผลกับการอนุมานของบุคคลที่หนึ่งและบุคคลที่สามเหมือนกัน และอุณหภูมิ 0 จะไม่รับประกันว่าเอาต์พุตจะเหมือนกัน การทดสอบจะต้องตรวจสอบสิ่งที่ต้องเก็บ ไม่ใช่ไบต์ที่แน่นอน</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Non-determinism applies to first-party and third-party inference alike, and temperature 0 never guaranteed identical outputs. A test has to check what must hold, not the exact bytes.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “สิ่งนี้ใช้ได้กับทั้งบริการการอนุมานของบุคคลแรกของ Anthropic และการอนุมานผ่านผู้ให้บริการคลาวด์บุคคลที่สาม”
+              <br><a href="https://platform.claude.com/docs/en/about-claude/glossary" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('dee43a555020')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('dee43a555020')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1566,6 +1950,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1586,12 +1979,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1656,7 +2312,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

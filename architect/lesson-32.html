@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -605,17 +612,45 @@
             <span>1. Tracing Messages API requests and Managed Agents sessions</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Tracing Messages API requests and Managed Agents sessions</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Creating a metadata-only destination for every workspace through the Admin API python client = anthropic.Anthropic() destination = client.beta.organization.telemetry_destinations.create(endpoint_url= "https://gateway.example.com/otlp", headers={ "authorization": "Bearer YOUR_OBSERVABILITY_API_KEY" }, traces={ "content_mode": "metadata_only" }, workspaces={ "type": "all" },) print(destination.id)
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Claude Code and the Agent SDK export OpenTelemetry metrics, log events and traces from the process that runs them. That covers one client at a time. Watching a whole organisation takes four further streams, each answering a different question: spans emitted by the Claude API itself, the usage and cost of individual Managed Agents sessions, organisation-wide usage and cost reports, and adoption and audit records. This page covers each in turn. A Managed Agents session is a run of an agent on the Claude Platform, with its own threads, tools and usage totals, which you can inspect in the Claude Console.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Client-side telemetry stops at your process boundary. The Claude API can emit its own spans, one for each model request and each tool use it runs on Messages API requests and Managed Agents sessions, without any code change. You receive them by adding a destination: an OTLP/HTTP endpoint that accepts protobuf over HTTPS on port 443, plus the headers that authenticate to it. Only organisation admins can add or change destinations. A destination covers All workspaces, Selected ones, or All except a list. Its content mode is either Metadata only or Full content. That is the same opt-in idea as in Claude Code, which redacts prompt, response and tool content by default and records it only when you switch it on.
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Creating a metadata-only destination for every workspace through the Admin API</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Creating a metadata-only destination for every workspace through the Admin API</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>client = anthropic.Anthropic()
+
+destination = client.beta.organization.telemetry_destinations.create(
+    endpoint_url=&quot;https://gateway.example.com/otlp&quot;,
+    headers={&quot;authorization&quot;: &quot;Bearer YOUR_OBSERVABILITY_API_KEY&quot;},
+    traces={&quot;content_mode&quot;: &quot;metadata_only&quot;},
+    workspaces={&quot;type&quot;: &quot;all&quot;},
+)
+
+print(destination.id)</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ปล่อยให้/ v1/ traces ออกจาก URL ปลายทางเนื่องจาก API จะแนบ หลังจากบันทึกแล้วให้เรียกใช้ทดสอบจากเมนูปลายทางและค้นหาแอนติบอดีทดสอบสเปน ช่วงจริงมาถึงภายใต้ service.name = claude-platform. หากคุณเรียกใช้ตัวเก็บรวบรวมของคุณเองโปรดทราบว่าตัวรับ OTLP/HTTP ฟังพอร์ต 4318 เป็นค่าเริ่มต้น กําหนดค่าใหม่สําหรับ HTTPS บน 443 หรือวางพร็อกซีย้อนกลับไว้ข้างหน้า
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  On their own, API spans start their own traces. To nest them under your application&#x27;s spans, call the SDK from inside one of your own spans. The SDK writes a W3C traceparent header, and your sampler controls its sampled flag. When the flag is off, the API emits no spans for that request. The same propagation continues into MCP servers connected through the MCP connector, which receive a traceparent in params._meta and can attach their own spans.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การส่งมอบเป็นอย่างน้อยหนึ่งครั้งและเป็นความพยายามที่ดีที่สุด คาดหวังช่วงที่ซ้ํากันและกําจัดการซ้ํากันบน ID การติดตามบวกกับ ID ช่วง ช่วงที่สูญหายจะไม่ทําให้เกิดความไม่พอใจ คอลัมน์การส่งมอบของ Console จะแสดงเป็น สุขภาพดี ล้มเหลว ไม่มีข้อมูล หรือปิดใช้งาน API จะปิดใช้งานปลายทางที่ตอบสนองด้วยการเปลี่ยนเส้นทาง 3xx แก้ไขเป็น IP ที่ไม่ใช่สาธารณะ หรือส่งมอบทุกครั้งล้มเหลวเป็นเวลา 24 ชั่วโมง
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -628,180 +663,220 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-5a7d0e317433"
-             data-qid="5a7d0e317433"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-5a7d0e317433" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An admin is adding a destination so the Claude API sends spans to their observability platform&#x27;s OTLP/HTTP gateway. Which endpoint URL goes in the blank?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-5a7d0e317433">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-5a7d0e317433-A"
-                    data-qid="5a7d0e317433"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('5a7d0e317433', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">https://gateway.example.com/otlp</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-5a7d0e317433-B"
-                    data-qid="5a7d0e317433"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('5a7d0e317433', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">https://gateway.example.com/otlp/v1/traces</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-5a7d0e317433-C"
-                    data-qid="5a7d0e317433"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('5a7d0e317433', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">http://gateway.example.com:4318/otlp</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-5a7d0e317433" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-5a7d0e317433" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Use the base HTTPS URL on port 443. Leave /v1/traces off because the API adds it, and don&#x27;t use the Collector&#x27;s default plain-HTTP port 4318, because the destination must accept HTTPS on 443.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Use the base HTTPS URL on port 443. Leave /v1/traces off because the API adds it, and don&#x27;t use the Collector&#x27;s default plain-HTTP port 4318, because the destination must accept HTTPS on 443.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-5a7d0e317433"
+                 data-qid="5a7d0e317433"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-5a7d0e317433" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('5a7d0e317433')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-545a8e7d3091"
-             data-qid="545a8e7d3091"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-545a8e7d3091" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An organisation has a destination covering all workspaces. Their application calls the SDK inside its own spans, and its sampler keeps only 10% of traces. What happens to the API spans for the other 90% of Messages API requests?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-545a8e7d3091">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-545a8e7d3091-A"
-                    data-qid="545a8e7d3091"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('545a8e7d3091', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The API emits them as separate root traces, because API spans start their own traces by default</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-545a8e7d3091-B"
-                    data-qid="545a8e7d3091"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('545a8e7d3091', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The API emits no request span and no spans under it, because the traceparent&#x27;s sampled flag is off</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-545a8e7d3091-C"
-                    data-qid="545a8e7d3091"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('545a8e7d3091', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The API emits them but marks them unsampled, so the destination&#x27;s Delivery column shows No data</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-545a8e7d3091-D"
-                    data-qid="545a8e7d3091"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('545a8e7d3091', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The API emits them anyway, because every request in a covered workspace produces spans</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-545a8e7d3091" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-545a8e7d3091" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ส่วนหัวการติดตามของ SDK จะนำการตัดสินใจของตัวอย่างของคุณ เมื่อปิดการตั้งค่าสถานะตัวอย่าง API จะไม่ปล่อย span ของคำขอหรือ span ชายด์ ดังนั้นพื้นที่ทำงานที่ครอบคลุมไม่ได้หมายความว่าทุกคำขอจะถูกติดตาม</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The SDK&#x27;s traceparent header carries your sampler&#x27;s decision. When the sampled flag is off, the API doesn&#x27;t emit the request&#x27;s span or any child span, so a covered workspace doesn&#x27;t mean every request is traced.</div>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ผู้ดูแลระบบกําลังเพิ่มปลายทางเพื่อให้ Claude API ส่งช่วงไปยังเกตเวย์ OTLP/HTTP ของแพลตฟอร์มความสามารถในการสังเกต URL ตําแหน่งข้อมูลใดที่ว่างเปล่า</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An admin is adding a destination so the Claude API sends spans to their observability platform&#x27;s OTLP/HTTP gateway. Which endpoint URL goes in the blank?</p>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>client = anthropic.Anthropic()
+
+destination = client.beta.organization.telemetry_destinations.create(
+    endpoint_url=&quot;____&quot;,
+    headers={&quot;authorization&quot;: &quot;Bearer YOUR_OBSERVABILITY_API_KEY&quot;},
+    traces={&quot;content_mode&quot;: &quot;metadata_only&quot;},
+    workspaces={&quot;type&quot;: &quot;all&quot;},
+)
+
+print(destination.id)</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-5a7d0e317433">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-5a7d0e317433-A"
+                        data-qid="5a7d0e317433"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('5a7d0e317433', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">https://gateway.example.com/otlp</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: https://gateway.example.com/otlp</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-5a7d0e317433-B"
+                        data-qid="5a7d0e317433"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('5a7d0e317433', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">https://gateway.example.com/otlp/v1/traces</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: https://gateway.example.com/otlp/v1/traces</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-5a7d0e317433-C"
+                        data-qid="5a7d0e317433"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('5a7d0e317433', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">http://gateway.example.com:4318/otlp</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: http://gateway.example.com:4318/otlp</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-5a7d0e317433" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-5a7d0e317433" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">Use the base HTTPS URL on port 443. Leave /v1/traces off because the API adds it, and don&#x27;t use the Collector&#x27;s default plain-HTTP port 4318, because the destination must accept HTTPS on 443.</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Use the base HTTPS URL on port 443. Leave /v1/traces off because the API adds it, and don&#x27;t use the Collector&#x27;s default plain-HTTP port 4318, because the destination must accept HTTPS on 443.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('5a7d0e317433')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
+            </div>
+            
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-545a8e7d3091"
+                 data-qid="545a8e7d3091"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-545a8e7d3091" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
+              
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">องค์กรมีจุดหมายปลายทางครอบคลุมพื้นที่ทำงานทั้งหมด แอปพลิเคชันของพวกเขาเรียก SDK ภายในช่วงของตัวเอง และผู้สุ่มตัวอย่างจะเก็บร่องรอยไว้เพียง 10% จะเกิดอะไรขึ้นกับช่วง API สำหรับคำขอ Messages API อีก 90%</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An organisation has a destination covering all workspaces. Their application calls the SDK inside its own spans, and its sampler keeps only 10% of traces. What happens to the API spans for the other 90% of Messages API requests?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-545a8e7d3091">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-545a8e7d3091-A"
+                        data-qid="545a8e7d3091"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('545a8e7d3091', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">API เผยแพร่พวกเขาเป็นรากการติดตามแยกต่างหาก เนื่องจากช่วง API เริ่มต้นการติดตามของตนเองตามค่าเริ่มต้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The API emits them as separate root traces, because API spans start their own traces by default</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-545a8e7d3091-B"
+                        data-qid="545a8e7d3091"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('545a8e7d3091', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The API emits no request span and no spans under it, because the traceparent&#x27;s sampled flag is off</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The API emits no request span and no spans under it, because the traceparent&#x27;s sampled flag is off</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-545a8e7d3091-C"
+                        data-qid="545a8e7d3091"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('545a8e7d3091', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The API emits them but marks them unsampled, so the destination&#x27;s Delivery column shows No data</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The API emits them but marks them unsampled, so the destination&#x27;s Delivery column shows No data</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-545a8e7d3091-D"
+                        data-qid="545a8e7d3091"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('545a8e7d3091', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The API emits them anyway, because every request in a covered workspace produces spans</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The API emits them anyway, because every request in a covered workspace produces spans</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-545a8e7d3091" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-545a8e7d3091" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ส่วนหัวการติดตามของ SDK จะนำการตัดสินใจของตัวอย่างของคุณ เมื่อปิดการตั้งค่าสถานะตัวอย่าง API จะไม่ปล่อย span ของคำขอหรือ span ชายด์ ดังนั้นพื้นที่ทำงานที่ครอบคลุมไม่ได้หมายความว่าทุกคำขอจะถูกติดตาม</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The SDK&#x27;s traceparent header carries your sampler&#x27;s decision. When the sampled flag is off, the API doesn&#x27;t emit the request&#x27;s span or any child span, so a covered workspace doesn&#x27;t mean every request is traced.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “If the sampled flag in the header is off, the API doesn&#x27;t emit the request&#x27;s span or the spans under it.”
-              <br><a href="https://platform.claude.com/docs/en/manage-claude/opentelemetry/api" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/opentelemetry/api" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('545a8e7d3091')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('545a8e7d3091')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -849,101 +924,124 @@
         </div>
         
           
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-9c079e4e5c50"
-             data-qid="9c079e4e5c50"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-9c079e4e5c50" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Your team runs long Managed Agents sessions and must make sure none of them goes past a fixed dollar amount at list price. Which approach should you build?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-9c079e4e5c50">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9c079e4e5c50-A"
-                    data-qid="9c079e4e5c50"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('9c079e4e5c50', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set a session budget on each session</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9c079e4e5c50-B"
-                    data-qid="9c079e4e5c50"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('9c079e4e5c50', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Subscribe to session.usage events and stop the session once list_cost passes the limit</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9c079e4e5c50-C"
-                    data-qid="9c079e4e5c50"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('9c079e4e5c50', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Poll the session object every few seconds and stop the session when list_cost reaches the limit</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9c079e4e5c50-D"
-                    data-qid="9c079e4e5c50"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('9c079e4e5c50', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Add up each thread&#x27;s list_cost from the Threads tab and stop the session when the total hits the limit</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-9c079e4e5c50" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-9c079e4e5c50" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">งบประมาณเซสชันเป็นเครื่องมือในการกำหนดการใช้จ่าย การดูการใช้งานและการหยุดเซสชันด้วยตัวเองเป็นแนวทางที่ผิด เหตุการณ์ session.usage จะมาถึงก่อนการเปลี่ยนแปลงที่ไม่ได้ใช้งานเท่านั้น ดังนั้นจึงไม่สามารถหยุดการทำงานกลางคันได้ ต้นทุนต่อเธรดจะไม่รวมต้นทุนรันไทม์ ดังนั้น เมื่อบวกเข้าด้วยกัน จะได้ตัวเลขที่ต่ำกว่าการใช้จ่ายจริงของเซสชัน</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A session budget is the tool for capping spend. Watching usage and stopping the session yourself is the wrong approach. session.usage events only arrive just before an idle transition, so they can&#x27;t stop a run partway through. Per-thread costs leave out running-time cost, so adding them up gives a figure below the session&#x27;s real spend.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  A single Managed Agents session reports its own consumption. The session object&#x27;s usage field holds cumulative token counts, cache reads and writes, server tool requests, active_seconds and list_cost. A session can run several threads, for example one per agent in a multiagent session, and the Console&#x27;s session viewer shows one timeline lane per thread, a transcript, and a Tools tab with failure counts and median duration. active_seconds is the time during which at least one thread was running, with overlapping threads counted once. The session&#x27;s running-time cost is priced on that duration. Each thread also reports its own list_cost, but per-thread costs are rounded independently and leave out the running-time cost, so the session figure is the authoritative one.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  A session.usage event carries the same cumulative snapshot on the session stream, so you don&#x27;t have to poll. It is emitted on idle transitions rather than on a timer: immediately before the session goes idle, and when a thread pauses at a session budget. During a long run you therefore see no new totals until one of those moments. That is why a spend cap built from watching usage and stopping the session yourself fails, since the stop arrives after the money is spent. A session budget is a dollar cap on list cost. The platform prices consumption continuously and pauses each thread before its next model request once the cap is reached, so enforcement doesn&#x27;t depend on your code noticing in time.
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-9c079e4e5c50"
+                 data-qid="9c079e4e5c50"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-9c079e4e5c50" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">Your team runs long Managed Agents sessions and must make sure none of them goes past a fixed dollar amount at list price. Which approach should you build?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Your team runs long Managed Agents sessions and must make sure none of them goes past a fixed dollar amount at list price. Which approach should you build?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-9c079e4e5c50">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9c079e4e5c50-A"
+                        data-qid="9c079e4e5c50"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('9c079e4e5c50', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Set a session budget on each session</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set a session budget on each session</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9c079e4e5c50-B"
+                        data-qid="9c079e4e5c50"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('9c079e4e5c50', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Subscribe to session.usage events and stop the session once list_cost passes the limit</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Subscribe to session.usage events and stop the session once list_cost passes the limit</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9c079e4e5c50-C"
+                        data-qid="9c079e4e5c50"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('9c079e4e5c50', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Poll the session object every few seconds and stop the session when list_cost reaches the limit</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Poll the session object every few seconds and stop the session when list_cost reaches the limit</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9c079e4e5c50-D"
+                        data-qid="9c079e4e5c50"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('9c079e4e5c50', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Add up each thread&#x27;s list_cost from the Threads tab and stop the session when the total hits the limit</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Add up each thread&#x27;s list_cost from the Threads tab and stop the session when the total hits the limit</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-9c079e4e5c50" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-9c079e4e5c50" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">งบประมาณเซสชันเป็นเครื่องมือในการกำหนดการใช้จ่าย การดูการใช้งานและการหยุดเซสชันด้วยตัวเองเป็นแนวทางที่ผิด เหตุการณ์ session.usage จะมาถึงก่อนการเปลี่ยนแปลงที่ไม่ได้ใช้งานเท่านั้น ดังนั้นจึงไม่สามารถหยุดการทำงานกลางคันได้ ต้นทุนต่อเธรดจะไม่รวมต้นทุนรันไทม์ ดังนั้น เมื่อบวกเข้าด้วยกัน จะได้ตัวเลขที่ต่ำกว่าการใช้จ่ายจริงของเซสชัน</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: A session budget is the tool for capping spend. Watching usage and stopping the session yourself is the wrong approach. session.usage events only arrive just before an idle transition, so they can&#x27;t stop a run partway through. Per-thread costs leave out running-time cost, so adding them up gives a figure below the session&#x27;s real spend.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “To enforce a spend limit, set a session budget rather than polling usage and stopping the session yourself.”
-              <br><a href="https://platform.claude.com/docs/en/managed-agents/session-observability" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://platform.claude.com/docs/en/managed-agents/session-observability" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('9c079e4e5c50')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('9c079e4e5c50')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -991,131 +1089,238 @@
         </div>
         
           
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Predict First: During an incident you want to spot token spikes as fast as possible using the usage endpoint. What polling rate gives the freshest picture?Every few seconds with 1m buckets, since faster polling surfaces spikes soonerOnce an hour with 1h buckets, since hourly buckets refresh every minuteAbout once a minute with 1m buckets, since data lands minutes after requests completeData typically appears within about 5 minutes, so polling more often than once a minute only repeats the same buckets. Once a minute is the supported sustained rate.“The API supports polling once per minute for sustained use.”Source: platform.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: During an incident you want to spot token spikes as fast as possible using the usage endpoint. What polling rate gives the freshest picture? Every few seconds with 1m buckets, since faster polling surfaces spikes sooner Once an hour with 1h buckets, since hourly buckets refresh every minute About once a minute with 1m buckets, since data lands minutes after requests complete Data typically appears within about 5 minutes, so polling more often than once a minute only repeats the same buckets. Once a minute is the supported sustained rate. “ The API supports polling once per minute for sustained use. ” Source: platform.claude.com
-                  </div>
-                </aside>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  API การจัดการการใช้งานและต้นทุนจะตอบคําถามทั่วทั้งองค์กร: โทเค็นตามโมเดล พื้นที่ทํางาน คีย์ API หรือระดับบริการเมื่อเวลาผ่านไป และการใช้จ่ายต่อวัน คุณเรียกใช้ด้วยคีย์ API การจัดการ การตอบสนองคือชุดบัคเก็ตเวลา และ bucket_width กําหนดความละเอียดของบัคเก็ต แต่ละความกว้างมีค่าเริ่มต้นและขีดจํากัดสูงสุดเป็นของตนเอง ซึ่งก็คือจํานวนบัคเก็ตที่ส่งคืนต่อคําขอ ตําแหน่งข้อมูลต้นทุนเสนอเฉพาะบัคเก็ตรายวันเท่านั้น
+                </p>
                 
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">bucket_width</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Default limit</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Maximum limit</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Fits</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1m</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">60 buckets</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1440 buckets</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Incident watch and minute-level spikes</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1h</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">24 buckets</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">168 buckets</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A week at hourly resolution</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1d</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">7 buckets</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">31 buckets</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Monthly trends and chargebacks</td></tr></tbody>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_6551be24"
+         data-qid="pred_6551be24"
+         data-correct="C">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_6551be24" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">During an incident you want to spot token spikes as fast as possible using the usage endpoint. What polling rate gives the freshest picture?</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: During an incident you want to spot token spikes as fast as possible using the usage endpoint. What polling rate gives the freshest picture?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_6551be24">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_6551be24-A"
+                data-qid="pred_6551be24"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_6551be24', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Every few seconds with 1m buckets, since faster polling surfaces spikes sooner</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Every few seconds with 1m buckets, since faster polling surfaces spikes sooner</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_6551be24-B"
+                data-qid="pred_6551be24"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_6551be24', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Once an hour with 1h buckets, since hourly buckets refresh every minute</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Once an hour with 1h buckets, since hourly buckets refresh every minute</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_6551be24-C"
+                data-qid="pred_6551be24"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_6551be24', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ประมาณหนึ่งครั้งต่อนาทีด้วยบัคเก็ตขนาด 1 เมตร เนื่องจากข้อมูลจะมาถึงภายในไม่กี่นาทีหลังจากที่คําขอเสร็จสิ้น</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: About once a minute with 1m buckets, since data lands minutes after requests complete</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_6551be24" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_6551be24" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">Data typically appears within about 5 minutes, so polling more often than once a minute only repeats the same buckets. Once a minute is the supported sustained rate.</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: Data typically appears within about 5 minutes, so polling more often than once a minute only repeats the same buckets. Once a minute is the supported sustained rate.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““API รองรับการสำรวจความคิดเห็นหนึ่งครั้งต่อนาทีเพื่อการใช้งานอย่างต่อเนื่อง””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “The API supports polling once per minute for sustained use.”</div>
+          <div class="mt-1.5 not-italic"><a href="https://platform.claude.com/docs/en/manage-claude/usage-cost-api" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://platform.claude.com/docs/en/manage-claude/usage-cost-api</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_6551be24')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">bucket_width</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: bucket_width</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Default limit</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Default limit</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ขีดจำกัดสูงสุด</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Maximum limit</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Fits</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Fits</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">1 ม</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1m</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">60 บัคเก็ต</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 60 buckets</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">1440 ถัง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1440 buckets</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Incident watch and minute-level spikes</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Incident watch and minute-level spikes</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">1h</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1h</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">24 buckets</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 24 buckets</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">168 buckets</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 168 buckets</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">หนึ่งสัปดาห์ด้วยความละเอียดรายชั่วโมง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: A week at hourly resolution</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">1d</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1d</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">7 buckets</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 7 buckets</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">31 บัคเก็ต</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 31 buckets</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Monthly trends and chargebacks</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Monthly trends and chargebacks</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">bucket_width options for the messages usage report</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ตัวเลือก bucket_width สำหรับรายงานการใช้ข้อความ</figcaption>
                 </div>
                 
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  bucket_width sets granularity, not refresh rate. Usage and cost data typically shows up within 5 minutes of a request completing. So for incident monitoring, use 1m buckets, raise limit past the default 60 when you need a longer window, and poll about once a minute. Short bursts of faster requests are fine for paging through results. For a dashboard that many people refresh, cache the responses instead of calling the API on every page load.
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Polling the Usage API every few seconds gives a fresher view of token spikes than polling once a minute. (ทำไมถึงผิด): Data usually lands within about 5 minutes of a request completing, and once per minute is the supported sustained polling rate. Faster polling returns the same buckets.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การโพล API การใช้งานทุกๆ สองสามวินาทีจะให้มุมมองที่สดใหม่กว่าของการเพิ่มขึ้นของโทเค็นเมื่อเทียบกับการโพลหนึ่งครั้งต่อนาที (ทําไมจึงผิดพลาด): ข้อมูลมักจะมาถึงภายในประมาณ 5 นาทีหลังจากที่คําขอเสร็จสมบูรณ์ และหนึ่งครั้งต่อนาทีเป็นอัตราการโพลต่อเนื่องที่รองรับ การโพลที่เร็วขึ้นจะส่งคืนบัคเก็ตเดียวกัน</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Polling the Usage API every few seconds gives a fresher view of token spikes than polling once a minute. (ทำไมถึงผิด): Data usually lands within about 5 minutes of a request completing, and once per minute is the supported sustained polling rate. Faster polling returns the same buckets.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-8865ca5ff348"
-             data-qid="8865ca5ff348"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-8865ca5ff348" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Finance wants a report of last month&#x27;s token use broken down by model and workspace across the whole organisation, with spend per day. Where should this data come from?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-8865ca5ff348">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8865ca5ff348-A"
-                    data-qid="8865ca5ff348"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('8865ca5ff348', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The Usage &amp; Cost Admin API, called with an Admin API key and daily buckets</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8865ca5ff348-B"
-                    data-qid="8865ca5ff348"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('8865ca5ff348', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The usage field of every Managed Agents session, added up across sessions</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8865ca5ff348-C"
-                    data-qid="8865ca5ff348"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('8865ca5ff348', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">session.usage events collected from every session stream</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8865ca5ff348-D"
-                    data-qid="8865ca5ff348"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('8865ca5ff348', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The Threads tab of each session in the Console&#x27;s session viewer</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-8865ca5ff348" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-8865ca5ff348" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ช่องการใช้งานเซสชัน เหตุการณ์ session.usage และผู้ดูเซสชันแต่ละช่องจะอธิบายหนึ่งเซสชัน ดังนั้น การเพิ่มเข้าไปไม่ได้ให้ผลรวมทั่วทั้งองค์กรตามโมเดลหรือพื้นที่ทำงาน API การใช้งานและต้นทุนผู้ดูแลระบบตอบคำถามทั่วทั้งองค์กรในบัคเก็ตเวลา และจุดสิ้นสุดต้นทุนมีบัคเก็ตรายวัน</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The session usage field, session.usage events and the session viewer each describe one session, so adding them up does not give organisation-wide totals by model or workspace. The Usage &amp; Cost Admin API answers organisation-wide questions in time buckets, and its cost endpoint offers daily buckets.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-8865ca5ff348"
+                 data-qid="8865ca5ff348"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-8865ca5ff348" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “The session object includes a usage field with the session&#x27;s cumulative usage: token counts, server tool use, active time, and the tracked list cost.”
-              <br><a href="https://platform.claude.com/docs/en/managed-agents/session-observability" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ฝ่ายการเงินต้องการรายงานการใช้โทเค็นของเดือนที่แล้วโดยแยกตามรุ่นและพื้นที่ทำงานทั่วทั้งองค์กร โดยมีค่าใช้จ่ายต่อวัน ข้อมูลนี้ควรมาจากไหน?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Finance wants a report of last month&#x27;s token use broken down by model and workspace across the whole organisation, with spend per day. Where should this data come from?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-8865ca5ff348">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8865ca5ff348-A"
+                        data-qid="8865ca5ff348"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('8865ca5ff348', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The Usage &amp; Cost Admin API, called with an Admin API key and daily buckets</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The Usage &amp; Cost Admin API, called with an Admin API key and daily buckets</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8865ca5ff348-B"
+                        data-qid="8865ca5ff348"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('8865ca5ff348', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The usage field of every Managed Agents session, added up across sessions</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The usage field of every Managed Agents session, added up across sessions</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8865ca5ff348-C"
+                        data-qid="8865ca5ff348"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('8865ca5ff348', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">session.usage events collected from every session stream</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: session.usage events collected from every session stream</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8865ca5ff348-D"
+                        data-qid="8865ca5ff348"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('8865ca5ff348', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The Threads tab of each session in the Console&#x27;s session viewer</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The Threads tab of each session in the Console&#x27;s session viewer</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-8865ca5ff348" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-8865ca5ff348" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ช่องการใช้งานเซสชัน เหตุการณ์ session.usage และผู้ดูเซสชันแต่ละช่องจะอธิบายหนึ่งเซสชัน ดังนั้น การเพิ่มเข้าไปไม่ได้ให้ผลรวมทั่วทั้งองค์กรตามโมเดลหรือพื้นที่ทำงาน API การใช้งานและต้นทุนผู้ดูแลระบบตอบคำถามทั่วทั้งองค์กรในบัคเก็ตเวลา และจุดสิ้นสุดต้นทุนมีบัคเก็ตรายวัน</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The session usage field, session.usage events and the session viewer each describe one session, so adding them up does not give organisation-wide totals by model or workspace. The Usage &amp; Cost Admin API answers organisation-wide questions in time buckets, and its cost endpoint offers daily buckets.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “อ็อบเจ็กต์เซสชันประกอบด้วยฟิลด์การใช้งานที่มีการใช้เซสชันสะสม: จํานวนโทเค็นการใช้เครื่องมือเซิร์ฟเวอร์เวลาที่ใช้งานและค่าใช้จ่ายของรายการที่ติดตาม”
+              <br><a href="https://platform.claude.com/docs/en/managed-agents/session-observability" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('8865ca5ff348')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('8865ca5ff348')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-56905"
              data-qid="56905"
@@ -1131,8 +1336,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">During an active incident, an on-call engineer needs a near real-time view of organization-wide token consumption spikes, checking for anomalies roughly once a minute. Which Usage API configuration fits this monitoring need within the documented granularity limits?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ในระหว่างเหตุการณ์ที่เกิดขึ้น วิศวกรที่รับผิดชอบจําเป็นต้องมีมุมมองแบบเกือบเรียลไทม์ของยอดการใช้โทเค็นทั่วทั้งองค์กร ตรวจสอบความผิดปกติประมาณหนึ่งครั้งต่อนาที การกําหนดค่า API การใช้งานใดที่เหมาะกับความต้องการในการตรวจสอบนี้ภายในขีดจํากัดความละเอียดที่บันทึกไว้</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: During an active incident, an on-call engineer needs a near real-time view of organization-wide token consumption spikes, checking for anomalies roughly once a minute. Which Usage API configuration fits this monitoring need within the documented granularity limits?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-56905">
@@ -1144,7 +1350,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('56905', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Request bucket_width=1m, raise the limit above the 60-bucket default up to the 1440-bucket maximum as needed, and poll about once per minute</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Request bucket_width=1m, raise the limit above the 60-bucket default up to the 1440-bucket maximum as needed, and poll about once per minute</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Request bucket_width=1m, raise the limit above the 60-bucket default up to the 1440-bucket maximum as needed, and poll about once per minute</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1155,7 +1364,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('56905', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Request bucket_width=1d with the default 7-bucket limit, since daily granularity is sufficient to detect minute-level spikes retroactively</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Request bucket_width=1d with the default 7-bucket limit, since daily granularity is sufficient to detect minute-level spikes retroactively</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Request bucket_width=1d with the default 7-bucket limit, since daily granularity is sufficient to detect minute-level spikes retroactively</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1166,7 +1378,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('56905', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Request bucket_width=1h with the 168-bucket maximum limit, since hourly buckets update automatically every 60 seconds</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Request bucket_width=1h with the 168-bucket maximum limit, since hourly buckets update automatically every 60 seconds</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Request bucket_width=1h with the 168-bucket maximum limit, since hourly buckets update automatically every 60 seconds</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1177,7 +1392,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('56905', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Request bucket_width=1m but poll every 5 seconds to catch spikes as soon as they occur, since finer polling improves data freshness</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Request bucket_width=1m but poll every 5 seconds to catch spikes as soon as they occur, since finer polling improves data freshness</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Request bucket_width=1m but poll every 5 seconds to catch spikes as soon as they occur, since finer polling improves data freshness</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1199,7 +1417,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. ที่เก็บข้อมูลระดับนาทีมีไว้สำหรับการตรวจสอบแบบเรียลไทม์ ขีดจำกัดสามารถเพิ่มได้เกินกว่าค่าเริ่มต้นเพื่อจับภาพกรอบเวลาล่าสุดที่ยาวขึ้น และการโพลประมาณหนึ่งครั้งต่อนาทีจะตรงกับคำแนะนำในการโพลแบบยั่งยืนที่บันทึกไว้</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. ที่เก็บข้อมูลระดับนาทีมีไว้สำหรับการตรวจสอบแบบเรียลไทม์ ขีดจำกัดสามารถเพิ่มได้เกินกว่าค่าเริ่มต้นเพื่อจับภาพกรอบเวลาล่าสุดที่ยาวขึ้น และการโพลประมาณหนึ่งครั้งต่อนาทีจะตรงกับคำแนะนำในการโพลแบบยั่งยืนที่บันทึกไว้</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Minute-level buckets are intended for real-time monitoring, the limit can be raised well past its default to capture a longer recent window, and roughly once-per-minute polling matches the documented sustained polling guidance.</div>
             </div>
             
@@ -1208,7 +1426,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. บัคเก็ตรายวันจะรวมทั้งวันไว้ในจุดข้อมูลเดียว ซึ่งไม่สามารถเปิดเผยการเพิ่มขึ้นอย่างรวดเร็วในระดับนาทีในระหว่างเหตุการณ์ที่เกิดขึ้น ไม่ว่าจะมีการร้องขอบัคเก็ตจำนวนเท่าใดก็ตาม</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. บัคเก็ตรายวันจะรวมทั้งวันไว้ในจุดข้อมูลเดียว ซึ่งไม่สามารถเปิดเผยการเพิ่มขึ้นอย่างรวดเร็วในระดับนาทีในระหว่างเหตุการณ์ที่เกิดขึ้น ไม่ว่าจะมีการร้องขอบัคเก็ตจำนวนเท่าใดก็ตาม</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Daily buckets aggregate an entire day into one data point, which cannot reveal minute-level spikes during an active incident regardless of how many buckets are requested.</div>
             </div>
             
@@ -1217,7 +1435,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. บัคเก็ตรายชั่วโมงจะรวมการใช้งานเต็มชั่วโมงเป็นค่าเดียว โดยจะไม่รีเฟรชในช่วงเวลา 60 วินาที และหยาบเกินกว่าจะมองเห็นการเพิ่มขึ้นอย่างรวดเร็วภายในหนึ่งชั่วโมง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. บัคเก็ตรายชั่วโมงจะรวมการใช้งานเต็มชั่วโมงเป็นค่าเดียว โดยจะไม่รีเฟรชในช่วงเวลา 60 วินาที และหยาบเกินกว่าจะมองเห็นการเพิ่มขึ้นอย่างรวดเร็วภายในหนึ่งชั่วโมง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Hourly buckets aggregate a full hour of usage into a single value; they do not refresh at 60-second intervals, and they are too coarse to spot a spike within a given hour.</div>
             </div>
             
@@ -1226,7 +1444,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การโพลบ่อยกว่าจังหวะต่อนาทีที่แนะนำมากไม่ได้สร้างข้อมูลพื้นฐานที่ใหม่กว่า เนื่องจากโดยทั่วไปแล้วตัวเลขการใช้งานจะสรุปผลภายในประมาณห้านาทีหลังจากคำขอเสร็จสิ้น และเพิ่มภาระงาน API โดยไม่จำเป็น</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การโพลบ่อยกว่าจังหวะต่อนาทีที่แนะนำมากไม่ได้สร้างข้อมูลพื้นฐานที่ใหม่กว่า เนื่องจากโดยทั่วไปแล้วตัวเลขการใช้งานจะสรุปผลภายในประมาณห้านาทีหลังจากคำขอเสร็จสิ้น และเพิ่มภาระงาน API โดยไม่จำเป็น</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Polling far more frequently than the recommended once-per-minute cadence does not produce fresher underlying data, since usage figures typically finalize within about five minutes of request completion, and it needlessly increases API load.</div>
             </div>
             
@@ -1264,108 +1482,156 @@
             <span>4. Adoption analytics, audit events and SIEM routing</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Adoption analytics, audit events and SIEM routing</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Routing Claude Code log events, with tool details, to a SIEM's OTLP logs endpoint json { "env": { "CLAUDE_CODE_ENABLE_TELEMETRY": "1", "OTEL_LOGS_EXPORTER": "otlp", "OTEL_LOG_TOOL_DETAILS": "1", "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL": "http/protobuf", "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "https://siem.example.com:4318/v1/logs", "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer your-siem-token" } }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Spend data shows what Claude Code costs. Adoption data shows whether people use it. The Claude Code analytics dashboard reports usage metrics: lines of code accepted, suggestion accept rate, and daily active users and sessions. Teams and Enterprise plans add contribution metrics from a GitHub integration, such as merged PRs that contain Claude Code lines, plus a leaderboard and CSV export. On API organisations the dashboard lives in the Claude Console and adds spend tracking and team insights.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Administrative actions are a different stream again. The compliance activities endpoint lets you query actions such as workspaces being created or archived, members being added or removed, RBAC custom roles being created or assigned, spend limits being changed, and the zero data retention override being toggled. It also logs reads: viewing the Claude Code usage report or the messages usage report is itself an activity.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Claude Code&#x27;s per-user activity reaches a retention store such as a SIEM through the logs exporter. Managed settings are the policy settings an admin deploys and enforces across all Claude Code users, so they are the right place for this configuration. When managed settings set an endpoint or credential, Claude Code removes any per-signal endpoints a developer set, so a developer can&#x27;t send logs to a different collector. Three switches matter here. CLAUDE_CODE_ENABLE_TELEMETRY=1 turns telemetry collection on, and nothing is exported without it. OTEL_LOGS_EXPORTER=otlp sends log events to an OTLP endpoint, where none would disable them. OTEL_LOG_TOOL_DETAILS=1 is an opt-in that is off by default: it makes tool events carry the Bash commands and MCP server and tool names that ran, where otherwise those arguments are not logged.
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Routing Claude Code log events, with tool details, to a SIEM&#x27;s OTLP logs endpoint json</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Routing Claude Code log events, with tool details, to a SIEM&#x27;s OTLP logs endpoint json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;env&quot;: {
+    &quot;CLAUDE_CODE_ENABLE_TELEMETRY&quot;: &quot;1&quot;,
+    &quot;OTEL_LOGS_EXPORTER&quot;: &quot;otlp&quot;,
+    &quot;OTEL_LOG_TOOL_DETAILS&quot;: &quot;1&quot;,
+    &quot;OTEL_EXPORTER_OTLP_LOGS_PROTOCOL&quot;: &quot;http/protobuf&quot;,
+    &quot;OTEL_EXPORTER_OTLP_LOGS_ENDPOINT&quot;: &quot;https://siem.example.com:4318/v1/logs&quot;,
+    &quot;OTEL_EXPORTER_OTLP_HEADERS&quot;: &quot;Authorization=Bearer your-siem-token&quot;
+  }
+}</code></pre>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-fdfae291bf89"
-             data-qid="fdfae291bf89"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-fdfae291bf89" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Security wants its SIEM to keep a per-user record of the Bash commands and MCP tools each developer&#x27;s Claude Code ran. Only log events are exported to the SIEM. Which variable belongs in the blank?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-fdfae291bf89">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fdfae291bf89-A"
-                    data-qid="fdfae291bf89"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('fdfae291bf89', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_LOG_TOOL_DETAILS</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fdfae291bf89-B"
-                    data-qid="fdfae291bf89"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('fdfae291bf89', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_LOG_TOOL_CONTENT</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fdfae291bf89-C"
-                    data-qid="fdfae291bf89"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('fdfae291bf89', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_LOG_USER_PROMPTS</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fdfae291bf89-D"
-                    data-qid="fdfae291bf89"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('fdfae291bf89', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_LOG_RAW_API_BODIES</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-fdfae291bf89" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-fdfae291bf89" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">OTEL_LOG_TOOL_DETAILS makes tool events name the Bash commands and MCP tools that ran. OTEL_LOG_TOOL_CONTENT records tool output on a span event and needs tracing, which this logs-only setup doesn&#x27;t have. OTEL_LOG_USER_PROMPTS exposes prompts, not tools. OTEL_LOG_RAW_API_BODIES dumps whole conversations, which is far more than the audit needs.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: OTEL_LOG_TOOL_DETAILS makes tool events name the Bash commands and MCP tools that ran. OTEL_LOG_TOOL_CONTENT records tool output on a span event and needs tracing, which this logs-only setup doesn&#x27;t have. OTEL_LOG_USER_PROMPTS exposes prompts, not tools. OTEL_LOG_RAW_API_BODIES dumps whole conversations, which is far more than the audit needs.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-fdfae291bf89"
+                 data-qid="fdfae291bf89"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-fdfae291bf89" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ความปลอดภัยต้องการให้ SIEM เก็บบันทึกต่อผู้ใช้ของคำสั่ง Bash และเครื่องมือ MCP ที่ Claude Code ของนักพัฒนาแต่ละรายเรียกใช้ เฉพาะเหตุการณ์บันทึกเท่านั้นที่จะส่งออกไปยัง SIEM ตัวแปรใดอยู่ในช่องว่าง?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Security wants its SIEM to keep a per-user record of the Bash commands and MCP tools each developer&#x27;s Claude Code ran. Only log events are exported to the SIEM. Which variable belongs in the blank?</p>
+              </div>
+              
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;env&quot;: {
+    &quot;CLAUDE_CODE_ENABLE_TELEMETRY&quot;: &quot;1&quot;,
+    &quot;OTEL_LOGS_EXPORTER&quot;: &quot;otlp&quot;,
+    &quot;____&quot;: &quot;1&quot;,
+    &quot;OTEL_EXPORTER_OTLP_LOGS_PROTOCOL&quot;: &quot;http/protobuf&quot;,
+    &quot;OTEL_EXPORTER_OTLP_LOGS_ENDPOINT&quot;: &quot;https://siem.example.com:4318/v1/logs&quot;,
+    &quot;OTEL_EXPORTER_OTLP_HEADERS&quot;: &quot;Authorization=Bearer your-siem-token&quot;
+  }
+}</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-fdfae291bf89">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fdfae291bf89-A"
+                        data-qid="fdfae291bf89"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('fdfae291bf89', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_LOG_TOOL_DETAILS</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_LOG_TOOL_DETAILS</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fdfae291bf89-B"
+                        data-qid="fdfae291bf89"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('fdfae291bf89', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_LOG_TOOL_CONTENT</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_LOG_TOOL_CONTENT</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fdfae291bf89-C"
+                        data-qid="fdfae291bf89"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('fdfae291bf89', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_LOG_USER_PROMPTS</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_LOG_USER_PROMPTS</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fdfae291bf89-D"
+                        data-qid="fdfae291bf89"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('fdfae291bf89', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_LOG_RAW_API_BODIES</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_LOG_RAW_API_BODIES</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-fdfae291bf89" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-fdfae291bf89" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">OTEL_LOG_TOOL_DETAILS makes tool events name the Bash commands and MCP tools that ran. OTEL_LOG_TOOL_CONTENT records tool output on a span event and needs tracing, which this logs-only setup doesn&#x27;t have. OTEL_LOG_USER_PROMPTS exposes prompts, not tools. OTEL_LOG_RAW_API_BODIES dumps whole conversations, which is far more than the audit needs.</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: OTEL_LOG_TOOL_DETAILS makes tool events name the Bash commands and MCP tools that ran. OTEL_LOG_TOOL_CONTENT records tool output on a span event and needs tracing, which this logs-only setup doesn&#x27;t have. OTEL_LOG_USER_PROMPTS exposes prompts, not tools. OTEL_LOG_RAW_API_BODIES dumps whole conversations, which is far more than the audit needs.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('fdfae291bf89')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('fdfae291bf89')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1499,6 +1765,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1519,12 +1794,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1589,7 +2127,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

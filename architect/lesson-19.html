@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -593,7 +600,7 @@
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
-            Run-level telemetry — Telemetry that records an agent turn as a tree: one parent span for the turn, with child spans for each model request, tool call and subagent. You can then see how a run unfolded and where it went wrong, which a flat list of API calls cannot show.
+            การวัดและส่งข้อมูลทางไกลระดับการเรียกใช้ — การวัดและส่งข้อมูลทางไกลที่บันทึกการหมุนของเอเจนต์เป็นต้นไม้: ช่วงหลักหนึ่งช่วงสําหรับการหมุน โดยมีช่วงย่อยสําหรับคําขอโมเดล การเรียกใช้เครื่องมือ และเอเจนต์ย่อยแต่ละรายการ จากนั้นคุณสามารถดูได้ว่าการเรียกใช้เกิดขึ้นอย่างไรและเกิดข้อผิดพลาดที่ใด ซึ่งรายการการเรียกใช้ API แบบแบนไม่สามารถแสดงได้
           </p>
         </section>
         
@@ -604,7 +611,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-why-agent-runs-resist-ordinary-debugging" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Why agent runs resist ordinary debugging</span></a></li><li><a href="#2-rolling-the-collector-config-out-through-managed-settings" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Rolling the collector config out through managed settings</span></a></li><li><a href="#3-tagging-telemetry-per-tenant-team-and-deployment" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Tagging telemetry per tenant, team and deployment</span></a></li><li><a href="#4-which-content-is-worth-collecting-at-scale" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Which content is worth collecting at scale</span></a></li>
+        <li><a href="#1-why-agent-runs-resist-ordinary-debugging" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. เหตุใดเอเจนต์จึงทํางานต่อต้านการแก้จุดบกพร่องทั่วไป</span></a></li><li><a href="#2-rolling-the-collector-config-out-through-managed-settings" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. การเลื่อนการกําหนดค่าตัวเก็บรวบรวมผ่านการตั้งค่าที่ได้รับการจัดการ</span></a></li><li><a href="#3-tagging-telemetry-per-tenant-team-and-deployment" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Tagging telemetry per tenant, team and deployment</span></a></li><li><a href="#4-which-content-is-worth-collecting-at-scale" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Which content is worth collecting at scale</span></a></li>
       </ul>
     </nav>
     
@@ -612,206 +619,267 @@
         <section id="1-why-agent-runs-resist-ordinary-debugging" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. Why agent runs resist ordinary debugging</span>
+            <span>1. เหตุใดเอเจนต์จึงทํางานต่อต้านการแก้จุดบกพร่องทั่วไป</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Why agent runs resist ordinary debugging</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  The span tree for one Claude Code or Agent SDK turn text claude_code.interaction ├── claude_code.llm_request ├── claude_code.hook (requires detailed beta tracing) └── claude_code.tool ├── claude_code.tool.blocked_on_user ├── claude_code.tool.execution └── (Agent tool) subagent claude_code.llm_request / claude_code.tool spans
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  บันทึกคําขอตอบคําถามที่ผิดสําหรับเอเจนต์ คําขอเดียวไปยังเอเจนต์สามารถกลายเป็นคําขอแบบจําลองหลายสิบรายการ การเรียกใช้เครื่องมือหลายรายการ การรอให้มนุษย์อนุมัติสิทธิ์ และเอเจนต์ย่อยที่สร้างคําขอของตนเอง แต่ละขั้นตอนขึ้นอยู่กับสิ่งที่โมเดลเลือกในขั้นตอนก่อนหน้า ดังนั้นการเรียกใช้คําขอเดียวกันสองครั้งอาจใช้เส้นทางที่แตกต่างกัน บันทึกที่มีหนึ่งแถวต่อการเรียกใช้ API แสดงให้เห็นว่าคําขอ 7 ส่งคืน max_tokens ไม่สามารถแสดงว่าคําขอเปลี่ยน 7 เป็นของใคร เอเจนต์ใดที่ส่งคําขอนั้น หรือการเรียกใช้เครื่องมือก่อนรอการอนุมัติเป็นเวลาสี่นาที
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การติดตามจะนําความสัมพันธ์เหล่านั้นกลับคืนมา การหมุนแต่ละครั้งจะกลายเป็นช่วง claude_code.interaction การเรียกใช้โมเดลและการเรียกใช้เครื่องมือจะซ้อนทับกันอยู่ด้านล่าง และช่วงเครื่องมือจะมีลูกที่แยกกันสําหรับการรอสิทธิ์และสําหรับการดําเนินการเอง เมื่อเครื่องมือเอเจนต์เริ่มต้นเอเจนต์ย่อย คําขอของเอเจนต์ย่อยเองและช่วงเครื่องมือจะซ้อนทับกันอยู่ด้านล่างการเรียกใช้เครื่องมือที่เริ่มต้นมัน
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">โครงสร้างสเปนสําหรับ Claude Code หรือ Agent SDK แปลงข้อความ</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: The span tree for one Claude Code or Agent SDK turn text</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>claude_code.interaction
+├── claude_code.llm_request
+├── claude_code.hook                    (requires detailed beta tracing)
+└── claude_code.tool
+    ├── claude_code.tool.blocked_on_user
+    ├── claude_code.tool.execution
+    └── (Agent tool) subagent claude_code.llm_request / claude_code.tool spans</code></pre>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-2ec655eac535"
-             data-qid="2ec655eac535"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-2ec655eac535" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A tool call in an agent turn sat idle for four minutes before it ran. In the span tree for one Claude Code or Agent SDK turn, which span under claude_code.tool records that wait for permission approval?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-2ec655eac535">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2ec655eac535-A"
-                    data-qid="2ec655eac535"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('2ec655eac535', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">claude_code.tool.blocked_on_user</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2ec655eac535-B"
-                    data-qid="2ec655eac535"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('2ec655eac535', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">claude_code.hook</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2ec655eac535-C"
-                    data-qid="2ec655eac535"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('2ec655eac535', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">claude_code.llm_request</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2ec655eac535-D"
-                    data-qid="2ec655eac535"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('2ec655eac535', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">claude_code.interaction</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-2ec655eac535" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-2ec655eac535" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">แต่ละ tool span มีสองรายการย่อยแยกกัน: claude_code.tool.blocked_on_user สำหรับการรอสิทธิ์ และ claude_code.tool.execution สำหรับการรันเอง การแยกดังกล่าวจะทำให้คุณเห็นว่าการเรียกใช้เครื่องมือที่ช้ากำลังรอมนุษย์อยู่ ไม่ใช่ทำงานช้า บันทึกการเรียก API แบบเรียบไม่สามารถแสดงสิ่งนี้ได้</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Each tool span has two separate children: claude_code.tool.blocked_on_user for the permission wait and claude_code.tool.execution for the run itself. That split lets you see that a slow tool call was waiting for a human, not running slowly. A flat log of API calls cannot show this.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  แอตทริบิวต์ในช่วง claude_code.llm_request จะบอกคุณว่าคําขอมาจากที่ใดในการเรียกใช้แบบหลายเอเจนต์ agent_id จะระบุเอเจนต์ย่อยหรือเพื่อนร่วมทีมที่ส่งคําขอ และ parent_agent_id จะระบุเอเจนต์ที่สร้างคําขอนั้น query_source_safe จะให้ชื่อที่มีขอบเขตสําหรับระบบย่อยที่ส่งคําขอ เช่น repl_main_thread หรือ agent.builtin.general-purpose ช่วงเดียวกันยังบันทึกความพยายาม (จํานวนครั้งที่คําขอพยายาม) stop_reason และเมื่อคําขอล้มเหลว error_class เช่น api_timeout หรือ server_overload ด้วยกัน สิ่งเหล่านี้จะแยกการเรียกใช้ที่หมดโทเค็นเอาต์พุตออกจากการเรียกใช้ที่พยายามเรียกใช้ตําแหน่งข้อมูลที่มีการโหลดมากเกินไปซ้ําๆ
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Claude Managed Agents ให้มุมมองที่คล้ายคลึงกันโดยไม่มีโค้ด หน้าต่างแสดงเซสชันในคอนโซล Claude มีไทม์ไลน์ที่มีหนึ่งเลนต่อเธรด แท็บ Tools จะแสดงรายการเครื่องมือที่กําหนดค่าไว้แต่ละรายการพร้อมจํานวนการเรียกใช้ ความล้มเหลว และระยะเวลาเฉลี่ย ดังนั้นเครื่องมือที่ล้มเหลวในการเรียกใช้ครั้งที่สามจะโดดเด่น หากคุณต้องการให้ API มีช่วงของตัวเองในแบ็คเอนด์ของคุณ ให้เพิ่มปลายทาง OpenTelemetry ในคอนโซล ในการซ้อนทับช่วงเหล่านั้นไว้ใต้ช่วงของแอปพลิเคชันของคุณ ให้เรียกใช้ SDK จากภายในช่วงใดช่วงหนึ่งของคุณ: API จะอ่านส่วนหัวหลักของ W3C trace สองกฎการส่งมอบมีผลต่อการสืบค้นของคุณ การส่งมอบเกิดขึ้นอย่างน้อยหนึ่งครั้ง ดังนั้นให้ลบสําเนาโดยใช้ ID ของ trace และ ID ของช่วง การส่งมอบยังเป็นความพยายามที่ดีที่สุด ดังนั้นช่วงที่สูญหายจะไม่ถูกส่งอีกครั้ง
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-2ec655eac535"
+                 data-qid="2ec655eac535"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-2ec655eac535" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('2ec655eac535')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-1b4c01d7f1a4"
-             data-qid="1b4c01d7f1a4"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-1b4c01d7f1a4" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A multi-agent run stalled. You need to tell whether a model request kept retrying an overloaded endpoint or just ran out of output tokens. What should you check?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-1b4c01d7f1a4">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-1b4c01d7f1a4-A"
-                    data-qid="1b4c01d7f1a4"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('1b4c01d7f1a4', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The attempt count and error_class on the claude_code.llm_request span, for example attempt above 1 with error_class server_overload</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-1b4c01d7f1a4-B"
-                    data-qid="1b4c01d7f1a4"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('1b4c01d7f1a4', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Only stop_reason on the claude_code.interaction span, because it summarizes every request in the turn</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-1b4c01d7f1a4-C"
-                    data-qid="1b4c01d7f1a4"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('1b4c01d7f1a4', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">agent_id and parent_agent_id on the claude_code.llm_request span, because they record why the request failed</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-1b4c01d7f1a4-D"
-                    data-qid="1b4c01d7f1a4"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('1b4c01d7f1a4', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The request log row for the call, because it shows the HTTP status of each request</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-1b4c01d7f1a4" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-1b4c01d7f1a4" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ความพยายามในการบันทึก claude_code.llm_request span (จำนวนความพยายามที่คำขอใช้), stop_reason (เช่น max_tokens) และ error_class เมื่อคำขอล้มเหลว เมื่ออ่านรวมกันแล้ว server_overload ซ้ำที่แยกจากกันเหล่านี้จะพยายามใหม่จากคำขอที่ถึงขีดจำกัดเอาต์พุต agent_id และ parent_agent_id จะแสดงเฉพาะตัวแทนที่ส่งคำขอเท่านั้น</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The claude_code.llm_request span records attempt (how many tries the request took), stop_reason (for example max_tokens), and error_class when the request failed. Read together, these separate repeated server_overload retries from a request that hit its output limit. agent_id and parent_agent_id only show which agent sent the request.</div>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">การเรียกเครื่องมือในเอเจนต์ทำให้ไม่ได้ใช้งานเป็นเวลาสี่นาทีก่อนที่จะรัน ในแผนผังการขยายสำหรับหนึ่งเทิร์นของ Claude Code หรือ Agent SDK ซึ่งขยายภายใต้บันทึก claude_code.tool ที่รอการอนุมัติการอนุญาต</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A tool call in an agent turn sat idle for four minutes before it ran. In the span tree for one Claude Code or Agent SDK turn, which span under claude_code.tool records that wait for permission approval?</p>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Short error class token when the request failed, such as api_timeout or server_overload”
-              <br><a href="https://code.claude.com/docs/en/monitoring-usage" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>claude_code.interaction
+├── claude_code.llm_request
+├── claude_code.hook                    (requires detailed beta tracing)
+└── claude_code.tool
+    ├── ____
+    ├── claude_code.tool.execution
+    └── (Agent tool) subagent claude_code.llm_request / claude_code.tool spans</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-2ec655eac535">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2ec655eac535-A"
+                        data-qid="2ec655eac535"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('2ec655eac535', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">claude_code.tool.blocked_on_user</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: claude_code.tool.blocked_on_user</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2ec655eac535-B"
+                        data-qid="2ec655eac535"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('2ec655eac535', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">claude_code.hook</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: claude_code.hook</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2ec655eac535-C"
+                        data-qid="2ec655eac535"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('2ec655eac535', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">claude_code.llm_request</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: claude_code.llm_request</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2ec655eac535-D"
+                        data-qid="2ec655eac535"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('2ec655eac535', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">claude_code.interaction</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: claude_code.interaction</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-2ec655eac535" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-2ec655eac535" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">แต่ละ tool span มีสองรายการย่อยแยกกัน: claude_code.tool.blocked_on_user สำหรับการรอสิทธิ์ และ claude_code.tool.execution สำหรับการรันเอง การแยกดังกล่าวจะทำให้คุณเห็นว่าการเรียกใช้เครื่องมือที่ช้ากำลังรอมนุษย์อยู่ ไม่ใช่ทำงานช้า บันทึกการเรียก API แบบเรียบไม่สามารถแสดงสิ่งนี้ได้</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Each tool span has two separate children: claude_code.tool.blocked_on_user for the permission wait and claude_code.tool.execution for the run itself. That split lets you see that a slow tool call was waiting for a human, not running slowly. A flat log of API calls cannot show this.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('2ec655eac535')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
             
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-1b4c01d7f1a4"
+                 data-qid="1b4c01d7f1a4"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-1b4c01d7f1a4" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
+              
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">การเรียกใช้หลายตัวแทนหยุดทำงาน คุณต้องบอกว่าคำขอโมเดลยังคงลองอีกครั้งที่ปลายทางที่โอเวอร์โหลดหรือโทเค็นเอาท์พุตหมด คุณควรตรวจสอบอะไรบ้าง?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A multi-agent run stalled. You need to tell whether a model request kept retrying an overloaded endpoint or just ran out of output tokens. What should you check?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-1b4c01d7f1a4">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-1b4c01d7f1a4-A"
+                        data-qid="1b4c01d7f1a4"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('1b4c01d7f1a4', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">จํานวนความพยายามและ error_class บนช่วง claude_code.llm_request ตัวอย่างเช่น ความพยายามที่มากกว่า 1 ด้วย error_class server_overload</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The attempt count and error_class on the claude_code.llm_request span, for example attempt above 1 with error_class server_overload</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-1b4c01d7f1a4-B"
+                        data-qid="1b4c01d7f1a4"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('1b4c01d7f1a4', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">หยุด_reason บนช่วง claude_code.interaction เท่านั้น เนื่องจากจะสรุปทุกคําขอในแต่ละครั้ง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only stop_reason on the claude_code.interaction span, because it summarizes every request in the turn</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-1b4c01d7f1a4-C"
+                        data-qid="1b4c01d7f1a4"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('1b4c01d7f1a4', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">agent_id และ parent_agent_id ในช่วง claude_code.llm_request เนื่องจากพวกเขาบันทึกสาเหตุที่คําขอล้มเหลว</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: agent_id and parent_agent_id on the claude_code.llm_request span, because they record why the request failed</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-1b4c01d7f1a4-D"
+                        data-qid="1b4c01d7f1a4"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('1b4c01d7f1a4', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">แถวบันทึกคําขอสําหรับการโทร เนื่องจากแสดงสถานะ HTTP ของแต่ละคําขอ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The request log row for the call, because it shows the HTTP status of each request</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-1b4c01d7f1a4" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-1b4c01d7f1a4" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ความพยายามในการบันทึก claude_code.llm_request span (จำนวนความพยายามที่คำขอใช้), stop_reason (เช่น max_tokens) และ error_class เมื่อคำขอล้มเหลว เมื่ออ่านรวมกันแล้ว server_overload ซ้ำที่แยกจากกันเหล่านี้จะพยายามใหม่จากคำขอที่ถึงขีดจำกัดเอาต์พุต agent_id และ parent_agent_id จะแสดงเฉพาะตัวแทนที่ส่งคำขอเท่านั้น</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The claude_code.llm_request span records attempt (how many tries the request took), stop_reason (for example max_tokens), and error_class when the request failed. Read together, these separate repeated server_overload retries from a request that hit its output limit. agent_id and parent_agent_id only show which agent sent the request.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “โทเค็นคลาสข้อผิดพลาดสั้นเมื่อคําขอล้มเหลว เช่น api_timeout หรือ server_overload”
+              <br><a href="https://code.claude.com/docs/en/monitoring-usage" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('1b4c01d7f1a4')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('1b4c01d7f1a4')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
+            </div>
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -831,138 +899,261 @@
         <section id="2-rolling-the-collector-config-out-through-managed-settings" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Rolling the collector config out through managed settings</span>
+            <span>2. การเลื่อนการกําหนดค่าตัวเก็บรวบรวมผ่านการตั้งค่าที่ได้รับการจัดการ</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Rolling the collector config out through managed settings</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Telemetry variables set once in managed settings json { "env": { "CLAUDE_CODE_ENABLE_TELEMETRY": "1", "OTEL_METRICS_EXPORTER": "otlp", "OTEL_LOGS_EXPORTER": "otlp", "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc", "OTEL_EXPORTER_OTLP_ENDPOINT": "http://collector.example.com:4317", "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer example-token" } }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Claude Code ส่งออกสัญญาณ เมตริก เหตุการณ์บันทึก และการติดตามสามรายการ และแต่ละรายการตอบคําถามที่แตกต่างกัน (ดู [เมตริก เหตุการณ์บันทึก และการติดตาม: สัญญาณสามรายการ คําถามสามข้อ] (บทเรียน: 4.6) ปัญหาในการปรับขนาดคือการทําให้เครื่องหลายร้อยเครื่องส่งทั้งสามรายการไปยังคอลเลกเตอร์เดียวกันในลักษณะเดียวกัน หากนักพัฒนาตั้งค่าตัวแปรในโปรไฟล์เชลล์ของตนเอง การพิมพ์ผิดหรือการส่งออกที่ถูกลืมหนึ่งรายการจะสร้างช่องว่างที่เงียบลง แทนที่จะทําเช่นนั้น ให้วางการกําหนดค่าในบล็อก env ของการตั้งค่าที่จัดการโดยผู้ดูแลระบบ json เพื่อให้สามารถเข้าถึงทุกเครื่องได้โดยไม่ต้องมีการตั้งค่าใดๆ จากนักพัฒนาแต่ละคน
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">ตัวแปร Telemetry ตั้งค่าครั้งเดียวใน json การตั้งค่าที่ได้รับการจัดการ</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Telemetry variables set once in managed settings json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;env&quot;: {
+    &quot;CLAUDE_CODE_ENABLE_TELEMETRY&quot;: &quot;1&quot;,
+    &quot;OTEL_METRICS_EXPORTER&quot;: &quot;otlp&quot;,
+    &quot;OTEL_LOGS_EXPORTER&quot;: &quot;otlp&quot;,
+    &quot;OTEL_EXPORTER_OTLP_PROTOCOL&quot;: &quot;grpc&quot;,
+    &quot;OTEL_EXPORTER_OTLP_ENDPOINT&quot;: &quot;http://collector.example.com:4317&quot;,
+    &quot;OTEL_EXPORTER_OTLP_HEADERS&quot;: &quot;Authorization=Bearer example-token&quot;
+  }
+}</code></pre>
                 </div>
                 
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">คาดการณ์ก่อน การตั้งค่าที่มีการจัดการ ปักหมุด OTEL_EXPORTER_OTLP_ENDPOINT ไปที่ตัวรวบรวมส่วนกลาง นักพัฒนาตั้งค่า OTEL_METRICS_EXPORTER=console ในการตั้งค่าของตนเอง ตัวชี้วัดของนักพัฒนานั้นไปอยู่ที่ไหน?ไปที่คอนโซลของนักพัฒนา เนื่องจากตัวเลือกผู้ส่งออกเป็นไปตามลำดับความสำคัญต่อคีย์ตามปกติไปยังตัวรวบรวมส่วนกลาง เนื่องจากการตั้งค่าที่ได้รับการจัดการจะแทนที่คีย์การวัดและส่งข้อมูลทางไกลทุกคีย์ไม่มีที่ไหนเลย เนื่องจากรหัส Claude ปฏิเสธที่จะเริ่มต้นเมื่อการตั้งค่าขัดแย้งกัน การตรึงจุดสิ้นสุดจะลบจุดสิ้นสุดต่อสัญญาณของนักพัฒนา แต่จะไม่ล็อคตัวเลือกผู้ส่งออก สิ่งเหล่านั้นเป็นไปตามลำดับความสำคัญต่อคีย์ปกติ ดังนั้นคุณต้องตั้งค่าไว้ในการตั้งค่าที่ได้รับการจัดการเช่นกัน “การตั้งค่าของนักพัฒนายังคงสามารถปิดการใช้งานสัญญาณหรือสลับไปยังผู้ส่งออกคอนโซลได้ ดังนั้นให้ตั้งค่าตัวเลือกในการตั้งค่าที่ได้รับการจัดการด้วย” ที่มา: code.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: Managed settings pin OTEL_EXPORTER_OTLP_ENDPOINT to the central collector. A developer sets OTEL_METRICS_EXPORTER=console in their own settings. Where do that developer&#x27;s metrics go? To the developer&#x27;s console, because exporter selectors follow normal per-key precedence To the central collector, because managed settings override every telemetry key Nowhere, because Claude Code refuses to start when the settings conflict Pinning the endpoint removes developers&#x27; per-signal endpoints, but it does not lock the exporter selectors. Those follow normal per-key precedence, so you have to set them in managed settings as well. “ A developer’s setting can still disable a signal or switch it to the console exporter, so set the selectors in managed settings too ” Source: code.claude.com
-                  </div>
-                </aside>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_0f4df9e5"
+         data-qid="pred_0f4df9e5"
+         data-correct="A">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_0f4df9e5" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">การตั้งค่าที่มีการจัดการปักหมุด OTEL_EXPORTER_OTLP_ENDPOINT ไปยังตัวรวบรวมส่วนกลาง นักพัฒนาตั้งค่า OTEL_METRICS_EXPORTER=console ในการตั้งค่าของตนเอง ตัววัดของนักพัฒนานั้นจะไปที่ไหน</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Managed settings pin OTEL_EXPORTER_OTLP_ENDPOINT to the central collector. A developer sets OTEL_METRICS_EXPORTER=console in their own settings. Where do that developer&#x27;s metrics go?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_0f4df9e5">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_0f4df9e5-A"
+                data-qid="pred_0f4df9e5"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_0f4df9e5', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ไปยังคอนโซลของนักพัฒนา เนื่องจากตัวเลือกผู้ส่งออกปฏิบัติตามลําดับความสําคัญตามคีย์ปกติ</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: To the developer&#x27;s console, because exporter selectors follow normal per-key precedence</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_0f4df9e5-B"
+                data-qid="pred_0f4df9e5"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_0f4df9e5', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">สําหรับคอลเลกเตอร์ส่วนกลาง เนื่องจากการตั้งค่าที่มีการจัดการจะแทนที่คีย์การวัดระยะไกลทั้งหมด</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: To the central collector, because managed settings override every telemetry key</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_0f4df9e5-C"
+                data-qid="pred_0f4df9e5"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_0f4df9e5', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ไม่มีที่ใดเลย เพราะ Claude Code ปฏิเสธที่จะเริ่มต้นเมื่อการตั้งค่าขัดแย้งกัน</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Nowhere, because Claude Code refuses to start when the settings conflict</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_0f4df9e5" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_0f4df9e5" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">การปักหมุดจุดสิ้นสุดจะลบจุดสิ้นสุดต่อสัญญาณของนักพัฒนาแต่จะไม่ล็อคตัวเลือกผู้ส่งออกสิ่งเหล่านี้เป็นไปตามลำดับความสำคัญต่อคีย์ปกติดังนั้นคุณจึงต้องตั้งค่าไว้ในการตั้งค่าที่มีการจัดการด้วยเช่นกัน</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: Pinning the endpoint removes developers&#x27; per-signal endpoints, but it does not lock the exporter selectors. Those follow normal per-key precedence, so you have to set them in managed settings as well.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““การตั้งค่าของนักพัฒนายังคงสามารถปิดใช้งานสัญญาณหรือสลับไปยังตัวส่งออกคอนโซลได้ ดังนั้นให้ตั้งค่าตัวเลือกในการตั้งค่าที่ได้รับการจัดการด้วย””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “A developer’s setting can still disable a signal or switch it to the console exporter, so set the selectors in managed settings too”</div>
+          <div class="mt-1.5 not-italic"><a href="https://code.claude.com/docs/en/monitoring-usage" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://code.claude.com/docs/en/monitoring-usage</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_0f4df9e5')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การตั้งค่าการขนส่งที่มีการจัดการมีลําดับความสําคัญสูงกว่าการตั้งค่าของนักพัฒนาที่ตรงกัน การตั้งค่า OTEL_EXPORTER_OTLP_ENDPOINT จะลบตําแหน่งข้อมูลต่อสัญญาณทั้งหมดที่นักพัฒนาได้ตั้งค่าไว้ ดังนั้นจึงไม่มีใครสามารถส่งสัญญาณหนึ่งไปยังคอลเลกเตอร์อื่นได้ การตั้งค่า OTEL_EXPORTER_OTLP-PROTOCOL ทําเช่นเดียวกันสําหรับโปรโตคอล ข้อมูลประจําตัวจะก้าวไปอีกขั้น เมื่อการตั้งค่าที่มีการจัดการให้ OTEL_EXPORTER_OTLP_HEADERS หรือคีย์หรือใบรับรองของไคลเอ็นต์ Claude Code จะลบตําแหน่งข้อมูลทั้งหมดที่นักพัฒนาได้ตั้งค่าไว้ด้วย มิฉะนั้นโทเค็นของคุณอาจถูกส่งไปยังคอลเลกเตอร์ที่คุณไม่ได้เลือก
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ตัวเลือกตัวส่งออกคือช่องว่าง OTEL_METRICS_EXPORTER, OTEL_LOGS_EXPORTER และ OTEL_TRACES_EXPORTER ปฏิบัติตามลําดับความสําคัญตามคีย์ปกติ ดังนั้นสิ่งใดก็ตามที่คุณละเว้นจากการตั้งค่าที่มีการจัดการสามารถเปลี่ยนแปลงได้บนเครื่องแต่ละเครื่อง ตัวเลือกที่ตั้งค่าไว้สําหรับคอนโซลเป็นกรณีที่ชัดเจนที่สุดของการวัดระยะไกลที่ไม่เคยมาถึง ผลลัพธ์จะปรากฏในเทอร์มินัลของนักพัฒนานั้นและที่อื่นใดไม่ได้ ดังนั้นทีมความสามารถในการสังเกตการณ์จึงไม่ได้รับมุมมองส่วนกลาง ช่วงเวลาการส่งออกเป็นส่วนหนึ่งของการตั้งค่าที่มีการจัดการเช่นกัน ย่อให้สั้นลงระหว่างการแก้จุดบกพร่อง จากนั้นรีเซ็ตเพื่อการผลิต ซึ่งค่าเริ่มต้นของเมตริกคือ 60 วินาที
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การปรับใช้ Agent SDK มีกฎการจับคู่ แนวทางที่แนะนําสําหรับการผลิตคือการตั้งค่าตัวแปรในสภาพแวดล้อมกระบวนการ: เชลล์ คอนเทนเนอร์ หรือออร์เคสตราเตอร์ การเรียกใช้ query() ทุกครั้งจะดึงข้อมูลโดยไม่ต้องเปลี่ยนแปลงโค้ด
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Pinning the OTLP endpoint in managed settings guarantees that every machine&#x27;s metrics reach the central collector. (ทำไมถึงผิด): Endpoints, protocols and credentials override developer settings, but exporter selectors follow per-key precedence. A developer can still switch a signal to console or none unless you set the selectors in managed settings too.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การปักหมุดตําแหน่งข้อมูล OTLP ในการตั้งค่าที่ได้รับการจัดการจะรับประกันว่าเมตริกของทุกเครื่องจะไปถึงตัวรวบรวมส่วนกลาง (ทําไมจึงผิดพลาด): ตําแหน่งข้อมูล โปรโตคอล และข้อมูลประจําตัวจะแทนที่การตั้งค่าของนักพัฒนา แต่ตัวเลือกผู้ส่งออกจะปฏิบัติตามลําดับความสําคัญต่อคีย์ นักพัฒนายังสามารถสลับสัญญาณเป็นคอนโซลหรือไม่มีเลย เว้นแต่คุณจะตั้งค่าตัวเลือกในการตั้งค่าที่ได้รับการจัดการด้วย</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Pinning the OTLP endpoint in managed settings guarantees that every machine&#x27;s metrics reach the central collector. (ทำไมถึงผิด): Endpoints, protocols and credentials override developer settings, but exporter selectors follow per-key precedence. A developer can still switch a signal to console or none unless you set the selectors in managed settings too.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-4b8d2b9f17df"
-             data-qid="4b8d2b9f17df"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-4b8d2b9f17df" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Suppose your managed settings supply OTEL_EXPORTER_OTLP_HEADERS with the organization&#x27;s bearer token. One developer has set OTEL_EXPORTER_OTLP_LOGS_ENDPOINT in their own settings to point at a personal collector. What does Claude Code do with that developer&#x27;s logs endpoint?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-4b8d2b9f17df">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4b8d2b9f17df-A"
-                    data-qid="4b8d2b9f17df"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('4b8d2b9f17df', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">It keeps it, because only a managed OTEL_EXPORTER_OTLP_ENDPOINT removes developer-set endpoints</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4b8d2b9f17df-B"
-                    data-qid="4b8d2b9f17df"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('4b8d2b9f17df', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">It removes it, so the organization&#x27;s token can&#x27;t be sent to a collector that managed settings didn&#x27;t choose</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4b8d2b9f17df-C"
-                    data-qid="4b8d2b9f17df"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('4b8d2b9f17df', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">It keeps it but sends the logs without the managed headers, because per-signal settings override the general ones</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4b8d2b9f17df-D"
-                    data-qid="4b8d2b9f17df"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('4b8d2b9f17df', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">It keeps it unless OTEL_LOGS_EXPORTER is also set in managed settings, because endpoints follow the exporter selector&#x27;s precedence</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-4b8d2b9f17df" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-4b8d2b9f17df" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ข้อมูลรับรองที่มีการจัดการทำหน้าที่มากกว่าจุดสิ้นสุดหรือโปรโตคอล เมื่อการตั้งค่าที่ได้รับการจัดการระบุส่วนหัวหรือคีย์ไคลเอ็นต์หรือใบรับรอง Claude Code จะลบจุดสิ้นสุดที่นักพัฒนากำหนดไว้ทั้งหมด ทั้งแบบทั่วไปและแบบต่อสัญญาณ มิฉะนั้นโทเค็นขององค์กรอาจเข้าถึงตัวรวบรวมที่ผู้ดูแลระบบไม่ได้เลือก</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Managed credentials do more than endpoints or protocols do. When managed settings supply headers or a client key or certificate, Claude Code also removes every developer-set endpoint, both generic and per-signal. Otherwise the organization&#x27;s token could reach a collector the admin did not choose.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-4b8d2b9f17df"
+                 data-qid="4b8d2b9f17df"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-4b8d2b9f17df" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “plus every developer-set endpoint variable, generic or per-signal, since those credentials would otherwise reach a collector the managed settings didn’t choose.”
-              <br><a href="https://code.claude.com/docs/en/monitoring-usage" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">สมมติว่าการตั้งค่าที่มีการจัดการของคุณจัดหา OTEL_EXPORTER_OTLP_HEADERS ด้วยโทเค็นผู้ถือขององค์กร นักพัฒนาซอฟต์แวร์รายหนึ่งได้ตั้งค่า OTEL_EXPORTER_OTLP_LOGS_ENDPOINT ในการตั้งค่าของตนเองให้ชี้ไปที่นักสะสมส่วนตัว Claude Code ทำอะไรกับจุดสิ้นสุดบันทึกของนักพัฒนารายนั้น</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Suppose your managed settings supply OTEL_EXPORTER_OTLP_HEADERS with the organization&#x27;s bearer token. One developer has set OTEL_EXPORTER_OTLP_LOGS_ENDPOINT in their own settings to point at a personal collector. What does Claude Code do with that developer&#x27;s logs endpoint?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-4b8d2b9f17df">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4b8d2b9f17df-A"
+                        data-qid="4b8d2b9f17df"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('4b8d2b9f17df', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">It keeps it, because only a managed OTEL_EXPORTER_OTLP_ENDPOINT removes developer-set endpoints</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: It keeps it, because only a managed OTEL_EXPORTER_OTLP_ENDPOINT removes developer-set endpoints</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4b8d2b9f17df-B"
+                        data-qid="4b8d2b9f17df"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('4b8d2b9f17df', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">It removes it, so the organization&#x27;s token can&#x27;t be sent to a collector that managed settings didn&#x27;t choose</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: It removes it, so the organization&#x27;s token can&#x27;t be sent to a collector that managed settings didn&#x27;t choose</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4b8d2b9f17df-C"
+                        data-qid="4b8d2b9f17df"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('4b8d2b9f17df', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">It keeps it but sends the logs without the managed headers, because per-signal settings override the general ones</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: It keeps it but sends the logs without the managed headers, because per-signal settings override the general ones</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4b8d2b9f17df-D"
+                        data-qid="4b8d2b9f17df"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('4b8d2b9f17df', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">It keeps it unless OTEL_LOGS_EXPORTER is also set in managed settings, because endpoints follow the exporter selector&#x27;s precedence</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: It keeps it unless OTEL_LOGS_EXPORTER is also set in managed settings, because endpoints follow the exporter selector&#x27;s precedence</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-4b8d2b9f17df" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-4b8d2b9f17df" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ข้อมูลรับรองที่มีการจัดการทำหน้าที่มากกว่าจุดสิ้นสุดหรือโปรโตคอล เมื่อการตั้งค่าที่ได้รับการจัดการระบุส่วนหัวหรือคีย์ไคลเอ็นต์หรือใบรับรอง Claude Code จะลบจุดสิ้นสุดที่นักพัฒนากำหนดไว้ทั้งหมด ทั้งแบบทั่วไปและแบบต่อสัญญาณ มิฉะนั้นโทเค็นขององค์กรอาจเข้าถึงตัวรวบรวมที่ผู้ดูแลระบบไม่ได้เลือก</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Managed credentials do more than endpoints or protocols do. When managed settings supply headers or a client key or certificate, Claude Code also removes every developer-set endpoint, both generic and per-signal. Otherwise the organization&#x27;s token could reach a collector the admin did not choose.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “บวกกับตัวแปรตําแหน่งข้อมูลที่นักพัฒนาตั้งค่าไว้ ไม่ว่าจะเป็นแบบทั่วไปหรือแบบต่อสัญญาณ เนื่องจากข้อมูลประจําตัวเหล่านั้นจะเข้าถึงตัวรวบรวมที่การตั้งค่าที่มีการจัดการไม่ได้เลือก”
+              <br><a href="https://code.claude.com/docs/en/monitoring-usage" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('4b8d2b9f17df')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('4b8d2b9f17df')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -985,25 +1176,52 @@
             <span>3. Tagging telemetry per tenant, team and deployment</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Tagging telemetry per tenant, team and deployment</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Tagging each agent run with the end user and tenant from the incoming request (Python) python from urllib.parse import quote options = ClaudeAgentOptions(env={ #... exporter configuration from the Enable telemetry export example... # request is the incoming request object from your web framework. "OTEL_RESOURCE_ATTRIBUTES": f "enduser.id={quote(request.user_id)},tenant.id={quote(request.tenant_id)}", },)
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Fleet telemetry is useful only if you can split it into groups. A cost spike across 400 developers means little until you know which team, which service or which customer caused it. Two standard variables add that context to every signal: OTEL_SERVICE_NAME names the agent, and OTEL_RESOURCE_ATTRIBUTES carries comma-separated key=value pairs such as service.version=1.4.0,deployment.environment=production. The keys are your own choice, so a platform team can add whatever its finance reports group by, such as department or cost center.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  In a multi-tenant service, the tags change with each request. The Agent SDK accepts the variables through per-call options, so you can tag each run with the user and tenant who triggered it. Values come from the request, so URL-encode them. In TypeScript, options.env replaces the inherited environment rather than merging with it. Spread process.env into it first, or the agent loses PATH and its API key.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ความคิดเห็นเกี่ยวกับการกำหนดค่าผู้ส่งออกในตัวอย่างด้านล่างหมายถึงตัวแปรที่เปิดการวัดและส่งข้อมูลทางไกลและบอกว่าจะไปที่ใด: CLAUDE_CODE_ENABLE_TELEMETRY ตัวเลือกผู้ส่งออกหนึ่งตัวต่อสัญญาณ (OTEL_METRICS_EXPORTER, OTEL_LOGS_EXPORTER และสำหรับการติดตาม OTEL_TRACES_EXPORTER บวก CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1) และการตั้งค่าการขนส่ง OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_ENDPOINT และ OTEL_EXPORTER_OTLP_HEADERS ใน Python env ต่อการโทรจะถูกรวมเข้ากับสภาพแวดล้อมที่สืบทอดมา ดังนั้นสิ่งเหล่านี้จึงสามารถมาจากสภาพแวดล้อมของกระบวนการได้ และ dict ต่อการโทรนั้นต้องการเพียงแท็กเท่านั้น
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Tagging each agent run with the end user and tenant from the incoming request (Python)</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Tagging each agent run with the end user and tenant from the incoming request (Python)</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>from urllib.parse import quote
+
+options = ClaudeAgentOptions(
+    env={
+        # ... exporter configuration from the Enable telemetry export example ...
+        # request is the incoming request object from your web framework.
+        &quot;OTEL_RESOURCE_ATTRIBUTES&quot;: f&quot;enduser.id={quote(request.user_id)},tenant.id={quote(request.tenant_id)}&quot;,
+    },
+)</code></pre>
                 </div>
                 
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Variable</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Adds</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Default</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Keys from OTEL_RESOURCE_ATTRIBUTES on metric datapoints</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">true</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">OTEL_METRICS_INCLUDE_SESSION_ID</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">session.id (and ccr.session.id on cloud sessions)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">true</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">OTEL_METRICS_INCLUDE_ACCOUNT_UUID</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">user.account_uuid and user.account_id</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">true</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">OTEL_METRICS_INCLUDE_VERSION</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">app.version</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">false</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">OTEL_METRICS_INCLUDE_ENTRYPOINT</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">app.entrypoint</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">false</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">OTEL_METRICS_INCLUDE_REPOSITORY</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">vcs.* repository identity</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">false</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Claude Code จะเพิ่มแอตทริบิวต์ทรัพยากรของคุณไปยังจุดข้อมูลเมตริกแต่ละจุดตามค่าเริ่มต้น ซึ่งทําให้การแบ่งเมตริกตามทีมเป็นไปได้ นอกจากนี้ยังเพิ่มแอตทริบิวต์ข้อมูลประจําตัวที่คุณอาจไม่ต้องการด้วย session.id และแอตทริบิวต์บัญชีจะเปิดใช้งานตามค่าเริ่มต้น ดังนั้นกลุ่มอินสแตนซ์ที่ส่งแอตทริบิวต์เหล่านี้จะได้รับค่าแอตทริบิวต์ใหม่บนเมตริกของแต่ละเซสชันและนักพัฒนา หากแดชบอร์ดของคุณมีการจัดกลุ่มตามทีมเท่านั้น ให้ปิดใช้งานธงที่ไม่ได้ใช้ วิธีนี้จะป้องกันไม่ให้จํานวนชุดเวลาที่แตกต่างกัน และค่าใช้จ่ายของพื้นที่เก็บข้อมูลแบ็คเอนด์เพิ่มขึ้นตามจํานวนผู้ใช้งาน
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Variable</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Variable</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Adds</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Adds</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ค่าเริ่มต้น</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Default</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Keys from OTEL_RESOURCE_ATTRIBUTES on metric datapoints</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Keys from OTEL_RESOURCE_ATTRIBUTES on metric datapoints</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">true</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: true</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">OTEL_METRICS_INCLUDE_SESSION_ID</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: OTEL_METRICS_INCLUDE_SESSION_ID</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">session.id (and ccr.session.id on cloud sessions)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: session.id (and ccr.session.id on cloud sessions)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">true</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: true</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">OTEL_METRICS_INCLUDE_ACCOUNT_UUID</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: OTEL_METRICS_INCLUDE_ACCOUNT_UUID</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">user.account_uuid and user.account_id</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: user.account_uuid and user.account_id</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">true</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: true</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">OTEL_METRICS_INCLUDE_VERSION</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: OTEL_METRICS_INCLUDE_VERSION</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">app.version</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: app.version</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เท็จ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: false</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">OTEL_METRICS_INCLUDE_ENTRYPOINT</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: OTEL_METRICS_INCLUDE_ENTRYPOINT</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">app.entrypoint</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: app.entrypoint</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เท็จ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: false</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">OTEL_METRICS_INCLUDE_REPOSITORY</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: OTEL_METRICS_INCLUDE_REPOSITORY</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">vcs.* ข้อมูลประจำตัวของพื้นที่เก็บข้อมูล</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: vcs.* repository identity</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เท็จ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: false</div></td></tr></tbody>
                   </table>
                   <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Attribute flags on Claude Code metrics and their defaults</figcaption>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ช่วงด้าน API จะถูกคั่นด้วยพื้นที่ทำงานแทนจุดหมายปลายทางของคอนโซลครอบคลุมพื้นที่ทำงานทั้งหมดพื้นที่ทำงานที่เลือกหรือทั้งหมดยกเว้นพื้นที่ที่คุณลงประกาศ API จะส่งแต่ละช่วงไปยังทุกปลายทางที่เปิดใช้งานซึ่งครอบคลุมพื้นที่ทำงานที่คำขอดำเนินการด้วยพื้นที่การผลิตและการจัดเตรียมแยกต่างหากปลายทางที่ตั้งค่าเป็น Selected สามารถส่งเฉพาะการเข้าชมการผลิตไปยังแบ็กเอนด์ที่มีราคาแพงได้
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -1016,191 +1234,233 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-4a822690d36d"
-             data-qid="4a822690d36d"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-4a822690d36d" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Your multi-tenant service runs one agent per incoming request. Each run&#x27;s telemetry must carry the end user and tenant who triggered it. Which variable name completes this per-call option?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-4a822690d36d">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4a822690d36d-A"
-                    data-qid="4a822690d36d"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('4a822690d36d', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_RESOURCE_ATTRIBUTES</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4a822690d36d-B"
-                    data-qid="4a822690d36d"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('4a822690d36d', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_SERVICE_NAME</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4a822690d36d-C"
-                    data-qid="4a822690d36d"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('4a822690d36d', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4a822690d36d-D"
-                    data-qid="4a822690d36d"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('4a822690d36d', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_EXPORTER_OTLP_HEADERS</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-4a822690d36d" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-4a822690d36d" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">OTEL_RESOURCE_ATTRIBUTES holds comma-separated key=value pairs that are added to every signal. The values come from the request, so they are URL-encoded. OTEL_SERVICE_NAME only names the agent, and OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES is a true/false flag, not the place for tags.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: OTEL_RESOURCE_ATTRIBUTES holds comma-separated key=value pairs that are added to every signal. The values come from the request, so they are URL-encoded. OTEL_SERVICE_NAME only names the agent, and OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES is a true/false flag, not the place for tags.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-4a822690d36d"
+                 data-qid="4a822690d36d"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-4a822690d36d" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('4a822690d36d')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-9d7b5ebd8934"
-             data-qid="9d7b5ebd8934"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-9d7b5ebd8934" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Your fleet&#x27;s dashboards group Claude Code metrics only by a team key set in OTEL_RESOURCE_ATTRIBUTES. Even so, the backend&#x27;s time-series count and storage bill keep growing with every new developer and session. Which change fixes this without losing the team split?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-9d7b5ebd8934">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9d7b5ebd8934-A"
-                    data-qid="9d7b5ebd8934"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('9d7b5ebd8934', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set OTEL_METRICS_INCLUDE_SESSION_ID and OTEL_METRICS_INCLUDE_ACCOUNT_UUID to false</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9d7b5ebd8934-B"
-                    data-qid="9d7b5ebd8934"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('9d7b5ebd8934', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES to false</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9d7b5ebd8934-C"
-                    data-qid="9d7b5ebd8934"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('9d7b5ebd8934', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Nothing needs to change, because session.id and account attributes are opt-in and the growth must come from your own tags</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9d7b5ebd8934-D"
-                    data-qid="9d7b5ebd8934"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('9d7b5ebd8934', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set OTEL_METRICS_INCLUDE_VERSION and OTEL_METRICS_INCLUDE_ENTRYPOINT to false</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-9d7b5ebd8934" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-9d7b5ebd8934" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">session.id และคุณลักษณะของบัญชีจะอยู่ในหน่วยเมตริกตามค่าเริ่มต้น ดังนั้นแต่ละเซสชันใหม่และนักพัฒนาจะเพิ่มค่าแอตทริบิวต์และอนุกรมเวลาใหม่ การปิดแฟล็กทั้งสองนั้นจะหยุดการเติบโตนั้น การปิดแฟล็กแอตทริบิวต์ทรัพยากรจะลบคีย์ทีมที่แดชบอร์ดใช้อยู่ และแฟล็กเวอร์ชันและจุดเข้าใช้งานจะเป็นเท็จอยู่แล้วตามค่าเริ่มต้น</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: session.id and the account attributes are on metrics by default, so each new session and developer adds attribute values and new time series. Turning off those two flags stops that growth. Turning off the resource-attributes flag would remove the team key the dashboards depend on, and the version and entrypoint flags are already false by default.</div>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">บริการที่มีผู้เช่าหลายรายของคุณใช้งานตัวแทนหนึ่งรายต่อคำขอที่เข้ามา การวัดและส่งข้อมูลทางไกลของการรันแต่ละครั้งจะต้องมีผู้ใช้ปลายทางและผู้เช่าที่ทริกเกอร์ ชื่อตัวแปรใดที่ทำให้ตัวเลือกต่อการโทรนี้สมบูรณ์</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Your multi-tenant service runs one agent per incoming request. Each run&#x27;s telemetry must carry the end user and tenant who triggered it. Which variable name completes this per-call option?</p>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “OTEL_METRICS_INCLUDE_SESSION_ID | Include session.id and, on cloud sessions, ccr.session.id attributes in metrics | true | false”
-              <br><a href="https://code.claude.com/docs/en/monitoring-usage" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>from urllib.parse import quote
+
+options = ClaudeAgentOptions(
+    env={
+        # ... exporter configuration from the Enable telemetry export example ...
+        # request is the incoming request object from your web framework.
+        &quot;____&quot;: f&quot;enduser.id={quote(request.user_id)},tenant.id={quote(request.tenant_id)}&quot;,
+    },
+)</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-4a822690d36d">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4a822690d36d-A"
+                        data-qid="4a822690d36d"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('4a822690d36d', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_RESOURCE_ATTRIBUTES</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_RESOURCE_ATTRIBUTES</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4a822690d36d-B"
+                        data-qid="4a822690d36d"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('4a822690d36d', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ชื่อบริการ OTEL_NAME</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_SERVICE_NAME</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4a822690d36d-C"
+                        data-qid="4a822690d36d"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('4a822690d36d', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4a822690d36d-D"
+                        data-qid="4a822690d36d"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('4a822690d36d', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_EXPORTER_OTLP_HEADERS</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_EXPORTER_OTLP_HEADERS</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-4a822690d36d" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-4a822690d36d" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">OTEL_RESOURCE_ATTRIBUTES holds comma-separated key=value pairs that are added to every signal. The values come from the request, so they are URL-encoded. OTEL_SERVICE_NAME only names the agent, and OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES is a true/false flag, not the place for tags.</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: OTEL_RESOURCE_ATTRIBUTES holds comma-separated key=value pairs that are added to every signal. The values come from the request, so they are URL-encoded. OTEL_SERVICE_NAME only names the agent, and OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES is a true/false flag, not the place for tags.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('4a822690d36d')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
             
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-9d7b5ebd8934"
+                 data-qid="9d7b5ebd8934"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-9d7b5ebd8934" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
+              
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">Your fleet&#x27;s dashboards group Claude Code metrics only by a team key set in OTEL_RESOURCE_ATTRIBUTES. Even so, the backend&#x27;s time-series count and storage bill keep growing with every new developer and session. Which change fixes this without losing the team split?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Your fleet&#x27;s dashboards group Claude Code metrics only by a team key set in OTEL_RESOURCE_ATTRIBUTES. Even so, the backend&#x27;s time-series count and storage bill keep growing with every new developer and session. Which change fixes this without losing the team split?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-9d7b5ebd8934">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9d7b5ebd8934-A"
+                        data-qid="9d7b5ebd8934"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('9d7b5ebd8934', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Set OTEL_METRICS_INCLUDE_SESSION_ID and OTEL_METRICS_INCLUDE_ACCOUNT_UUID to false</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set OTEL_METRICS_INCLUDE_SESSION_ID and OTEL_METRICS_INCLUDE_ACCOUNT_UUID to false</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9d7b5ebd8934-B"
+                        data-qid="9d7b5ebd8934"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('9d7b5ebd8934', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Set OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES to false</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES to false</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9d7b5ebd8934-C"
+                        data-qid="9d7b5ebd8934"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('9d7b5ebd8934', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Nothing needs to change, because session.id and account attributes are opt-in and the growth must come from your own tags</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Nothing needs to change, because session.id and account attributes are opt-in and the growth must come from your own tags</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9d7b5ebd8934-D"
+                        data-qid="9d7b5ebd8934"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('9d7b5ebd8934', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Set OTEL_METRICS_INCLUDE_VERSION and OTEL_METRICS_INCLUDE_ENTRYPOINT to false</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set OTEL_METRICS_INCLUDE_VERSION and OTEL_METRICS_INCLUDE_ENTRYPOINT to false</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-9d7b5ebd8934" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-9d7b5ebd8934" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">session.id และคุณลักษณะของบัญชีจะอยู่ในหน่วยเมตริกตามค่าเริ่มต้น ดังนั้นแต่ละเซสชันใหม่และนักพัฒนาจะเพิ่มค่าแอตทริบิวต์และอนุกรมเวลาใหม่ การปิดแฟล็กทั้งสองนั้นจะหยุดการเติบโตนั้น การปิดแฟล็กแอตทริบิวต์ทรัพยากรจะลบคีย์ทีมที่แดชบอร์ดใช้อยู่ และแฟล็กเวอร์ชันและจุดเข้าใช้งานจะเป็นเท็จอยู่แล้วตามค่าเริ่มต้น</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: session.id and the account attributes are on metrics by default, so each new session and developer adds attribute values and new time series. Turning off those two flags stops that growth. Turning off the resource-attributes flag would remove the team key the dashboards depend on, and the version and entrypoint flags are already false by default.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “เมตริก OTEL ประกอบด้วยตัวระบุเซสชัน|ประกอบด้วยตัวระบุเซสชันในเมตริกและ ccr เซสชันในเซสชันคลาวด์|จริง|เท็จ”
+              <br><a href="https://code.claude.com/docs/en/monitoring-usage" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('9d7b5ebd8934')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('9d7b5ebd8934')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
+            </div>
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-56803"
              data-qid="56803"
@@ -1216,8 +1476,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An enterprise is rolling out centrally managed OpenTelemetry export for Claude Code across 400 engineers on Kubernetes, and the observability team wants configuration that scales without per-developer setup and keeps backend storage costs predictable. Which combination of practices should they adopt? (Select all that apply)</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">องค์กรแห่งหนึ่งกำลังเปิดตัวการส่งออก OpenTelemetry ที่มีการจัดการจากส่วนกลางสำหรับ Claude Code ให้กับวิศวกร 400 คนบน Kubernetes และทีมสังเกตการณ์ต้องการการกำหนดค่าที่ปรับขนาดได้โดยไม่ต้องตั้งค่าสำหรับนักพัฒนาแต่ละคน และช่วยให้คาดการณ์ต้นทุนพื้นที่จัดเก็บข้อมูลแบ็กเอนด์ได้ พวกเขาควรใช้แนวทางปฏิบัติใดร่วมกัน (เลือกทุกข้อที่เกี่ยวข้อง)</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An enterprise is rolling out centrally managed OpenTelemetry export for Claude Code across 400 engineers on Kubernetes, and the observability team wants configuration that scales without per-developer setup and keeps backend storage costs predictable. Which combination of practices should they adopt? (Select all that apply)</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-56803">
@@ -1229,7 +1490,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('56803', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set the telemetry environment variables in the administrator-managed settings.json rather than relying on each developer&#x27;s shell profile</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Set the telemetry environment variables in the administrator-managed settings.json rather than relying on each developer&#x27;s shell profile</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set the telemetry environment variables in the administrator-managed settings.json rather than relying on each developer&#x27;s shell profile</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1240,7 +1504,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('56803', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Add custom OTEL_RESOURCE_ATTRIBUTES such as department and cost_center so spend and usage can be sliced by team in the backend</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Add custom OTEL_RESOURCE_ATTRIBUTES such as department and cost_center so spend and usage can be sliced by team in the backend</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Add custom OTEL_RESOURCE_ATTRIBUTES such as department and cost_center so spend and usage can be sliced by team in the backend</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1251,7 +1518,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('56803', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Turn off OTEL_METRICS_INCLUDE_SESSION_ID and similar cardinality flags that are not needed for the team&#x27;s dashboards to limit unique time-series growth</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ปิด OTEL_METRICS_INCLUDE_SESSION_ID และธง Cardinality ที่คล้ายกันซึ่งไม่จำเป็นสำหรับแดชบอร์ดของทีมเพื่อจำกัดการเติบโตของอนุกรมเวลาที่ไม่ซ้ำกัน</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Turn off OTEL_METRICS_INCLUDE_SESSION_ID and similar cardinality flags that are not needed for the team&#x27;s dashboards to limit unique time-series growth</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1262,7 +1532,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('56803', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set OTEL_METRICS_EXPORTER=console on every developer machine so metrics are visible locally without needing a central collector</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Set OTEL_METRICS_EXPORTER=console on every developer machine so metrics are visible locally without needing a central collector</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set OTEL_METRICS_EXPORTER=console on every developer machine so metrics are visible locally without needing a central collector</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1273,7 +1546,10 @@
                     data-opt="E"
                     onclick="handleQuizAnswer('56803', 'E')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">E</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Require every developer to manually export the same OTEL_EXPORTER_OTLP_ENDPOINT in their personal shell profile so settings stay consistent</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Require every developer to manually export the same OTEL_EXPORTER_OTLP_ENDPOINT in their personal shell profile so settings stay consistent</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Require every developer to manually export the same OTEL_EXPORTER_OTLP_ENDPOINT in their personal shell profile so settings stay consistent</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1295,7 +1571,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การรวมศูนย์ตัวแปรการวัดและส่งข้อมูลทางไกลใน settings.json ที่จัดการโดยผู้ดูแลระบบจะใช้จุดสิ้นสุดตัวรวบรวมและตัวเลือกผู้ส่งออกเดียวกันกับนักพัฒนาทุกคน โดยไม่ต้องอาศัยการกำหนดค่าเชลล์แต่ละรายการ ซึ่งเป็นรูปแบบองค์กรที่ได้รับการบันทึกไว้</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การรวมศูนย์ตัวแปรการวัดและส่งข้อมูลทางไกลใน settings.json ที่จัดการโดยผู้ดูแลระบบจะใช้จุดสิ้นสุดตัวรวบรวมและตัวเลือกผู้ส่งออกเดียวกันกับนักพัฒนาทุกคน โดยไม่ต้องอาศัยการกำหนดค่าเชลล์แต่ละรายการ ซึ่งเป็นรูปแบบองค์กรที่ได้รับการบันทึกไว้</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Centralizing telemetry variables in administrator-managed settings.json applies the same collector endpoint and exporter choices to every developer without relying on individual shell configuration, which is the documented enterprise pattern.</div>
             </div>
             
@@ -1304,7 +1580,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. คุณลักษณะของทรัพยากรที่กำหนดเอง เช่น department, team.id และ cost_center เป็นกลไกที่ได้รับการบันทึกไว้สำหรับการระบุแหล่งที่มาแบบหลายทีม โดยปล่อยให้แบ็กเอนด์แจกแจงโทเค็นและตัววัดต้นทุนต่อกลุ่ม</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. คุณลักษณะของทรัพยากรที่กำหนดเอง เช่น department, team.id และ cost_center เป็นกลไกที่ได้รับการบันทึกไว้สำหรับการระบุแหล่งที่มาแบบหลายทีม โดยปล่อยให้แบ็กเอนด์แจกแจงโทเค็นและตัววัดต้นทุนต่อกลุ่ม</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Custom resource attributes like department, team.id, and cost_center are the documented mechanism for multi-team attribution, letting the backend break down token and cost metrics per group.</div>
             </div>
             
@@ -1313,7 +1589,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. คุณลักษณะที่มีคาร์ดินาลลิตี้สูง เช่น session.id หรือ UUID ของบัญชีจะคูณจำนวนอนุกรมเวลาที่ไม่ซ้ำกันที่แบ็กเอนด์เมตริกต้องจัดเก็บ การปิดใช้งานสิ่งที่แดชบอร์ดไม่จำเป็นต้องใช้คือวิธีการบันทึกไว้ในการควบคุมต้นทุนนั้นเมื่อจำนวนพนักงานเพิ่มขึ้น</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. คุณลักษณะที่มีคาร์ดินาลลิตี้สูง เช่น session.id หรือ UUID ของบัญชีจะคูณจำนวนอนุกรมเวลาที่ไม่ซ้ำกันที่แบ็กเอนด์เมตริกต้องจัดเก็บ การปิดใช้งานสิ่งที่แดชบอร์ดไม่จำเป็นต้องใช้คือวิธีการบันทึกไว้ในการควบคุมต้นทุนนั้นเมื่อจำนวนพนักงานเพิ่มขึ้น</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. High-cardinality attributes such as session.id or account UUIDs multiply the number of unique time series a metrics backend must store; disabling the ones a dashboard does not need is the documented way to control that cost as headcount grows.</div>
             </div>
             
@@ -1322,7 +1598,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ผู้ส่งออกคอนโซลเขียนการวัดและส่งข้อมูลทางไกลไปยังช่องสัญญาณเอาต์พุตมาตรฐานเดียวกันกับที่ SDK/CLI ใช้สำหรับเอาต์พุตอื่น และได้รับการบันทึกไว้ว่าไม่เหมาะสมสำหรับสิ่งอื่นใดนอกเหนือจากการดีบักในเครื่อง ไม่ใช่เป้าหมายการส่งออกการผลิตที่ปรับขนาดได้</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ผู้ส่งออกคอนโซลเขียนการวัดและส่งข้อมูลทางไกลไปยังช่องสัญญาณเอาต์พุตมาตรฐานเดียวกันกับที่ SDK/CLI ใช้สำหรับเอาต์พุตอื่น และได้รับการบันทึกไว้ว่าไม่เหมาะสมสำหรับสิ่งอื่นใดนอกเหนือจากการดีบักในเครื่อง ไม่ใช่เป้าหมายการส่งออกการผลิตที่ปรับขนาดได้</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The console exporter writes telemetry to the same standard output channel the SDK/CLI uses for other output and is documented as unsuitable for anything beyond local debugging; it is not a scalable production export target.</div>
             </div>
             
@@ -1331,7 +1607,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก E:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Requiring per-developer manual shell exports is exactly the fragile, non-scalable setup that centrally managed settings.json is meant to replace, and it invites drift across 400 machines.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">การกําหนดให้ต้องส่งออกเชลล์ด้วยตนเองต่อนักพัฒนาเป็นการตั้งค่าที่บอบบางและไม่สามารถปรับขนาดได้ ซึ่งการตั้งค่าที่จัดการจากส่วนกลางอย่าง settings.json นั้นมีวัตถุประสงค์เพื่อแทนที่ และจะทําให้เกิดการเคลื่อนย้ายข้ามเครื่อง 400 เครื่อง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Requiring per-developer manual shell exports is exactly the fragile, non-scalable setup that centrally managed settings.json is meant to replace, and it invites drift across 400 machines.</div>
             </div>
             
@@ -1369,17 +1645,41 @@
             <span>4. Which content is worth collecting at scale</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Which content is worth collecting at scale</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  An audit pipeline: log events with tool details only, sent to a SIEM json { "env": { "CLAUDE_CODE_ENABLE_TELEMETRY": "1", "OTEL_LOGS_EXPORTER": "otlp", "OTEL_LOG_TOOL_DETAILS": "1", "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL": "http/protobuf", "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "https://siem.example.com:4318/v1/logs", "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer your-siem-token" } }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เนื้อหาจะถูกแก้ไขตามค่าเริ่มต้นและแต่ละเกตที่คุณเปิดจะเผยให้เห็นทุกเซสชั่นมากขึ้นในทุกเครื่อง (ดู [Telemetry content gates (redacted by default)] (บทเรียน: 4.6)) การตัดสินใจในระดับที่เกี่ยวข้องกับการเปิดรับแสงไม่ใช่ความสามารถนักพัฒนาซอฟต์แวร์รายหนึ่งที่เปิดใช้งานการบันทึกพร้อมท์จะส่งผลต่อเซสชั่นของบุคคลหนึ่งเกตเดียวกันในการตั้งค่าที่มีการจัดการจะส่งข้อความแจ้งเตือนของวิศวกรทุกคนไปยังแบ็กเอนด์ที่ใช้ร่วมกันซึ่งหลายคนสามารถสืบค้นได้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Some data reaches your backend even with every gate closed. Under OAuth, user.email is a telemetry attribute. It goes only to your collector, never to Anthropic, but your backend now stores it, so filter it there if your policy requires. The widest gate, OTEL_LOG_RAW_API_BODIES, emits full request and response bodies, including the entire conversation history. Turning it on counts as consenting to everything the prompt, tool-detail and tool-content gates would reveal. It is rarely the right choice for a whole fleet.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  A narrower choice usually meets the real need. A security team auditing which commands ran needs OTEL_LOG_TOOL_DETAILS, sent as log events to a SIEM, not prompt text. Even that exposes a lot: fields such as full_command are emitted untruncated, and commands can contain secrets.
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">ไปป์ไลน์การตรวจสอบ: เหตุการณ์บันทึกที่มีเฉพาะรายละเอียดเครื่องมือเท่านั้น ซึ่งส่งไปยัง JSON ของ SIEM</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: An audit pipeline: log events with tool details only, sent to a SIEM json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;env&quot;: {
+    &quot;CLAUDE_CODE_ENABLE_TELEMETRY&quot;: &quot;1&quot;,
+    &quot;OTEL_LOGS_EXPORTER&quot;: &quot;otlp&quot;,
+    &quot;OTEL_LOG_TOOL_DETAILS&quot;: &quot;1&quot;,
+    &quot;OTEL_EXPORTER_OTLP_LOGS_PROTOCOL&quot;: &quot;http/protobuf&quot;,
+    &quot;OTEL_EXPORTER_OTLP_LOGS_ENDPOINT&quot;: &quot;https://siem.example.com:4318/v1/logs&quot;,
+    &quot;OTEL_EXPORTER_OTLP_HEADERS&quot;: &quot;Authorization=Bearer your-siem-token&quot;
+  }
+}</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Gates that interact are easy to get wrong. When OTEL_LOG_ASSISTANT_RESPONSES is unset, it takes the value of OTEL_LOG_USER_PROMPTS, so opening prompts also opens responses unless you set the response gate to 0. If you collect prompts and strip them later in the collector, delete both attributes that carry the text, prompt and prompt_text. A rule that names only one leaves the prompt in storage.
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -1392,96 +1692,124 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-9ee8cb2d3fba"
-             data-qid="9ee8cb2d3fba"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-9ee8cb2d3fba" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A security team needs to audit which commands ran on every developer machine, with log events going to their SIEM, without collecting what developers typed to Claude. Which gate completes this managed-settings pipeline?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-9ee8cb2d3fba">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9ee8cb2d3fba-A"
-                    data-qid="9ee8cb2d3fba"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('9ee8cb2d3fba', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_LOG_TOOL_DETAILS</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9ee8cb2d3fba-B"
-                    data-qid="9ee8cb2d3fba"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('9ee8cb2d3fba', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_LOG_USER_PROMPTS</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9ee8cb2d3fba-C"
-                    data-qid="9ee8cb2d3fba"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('9ee8cb2d3fba', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_LOG_RAW_API_BODIES</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9ee8cb2d3fba-D"
-                    data-qid="9ee8cb2d3fba"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('9ee8cb2d3fba', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">OTEL_LOG_TOOL_CONTENT</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-9ee8cb2d3fba" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-9ee8cb2d3fba" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">OTEL_LOG_TOOL_DETAILS เพิ่มพารามิเตอร์เครื่องมือ เช่น คำสั่ง Bash ให้กับเหตุการณ์ของเครื่องมือ นั่นคือประตูแคบที่จำเป็นต้องมีการตรวจสอบคำสั่ง OTEL_LOG_USER_PROMPTS จะรวบรวมข้อความแจ้ง OTEL_LOG_RAW_API_BODIES จะส่งประวัติการสนทนาทั้งหมดและนับเป็นการยินยอมต่อช่องทางเนื้อหาอื่นๆ แม้แต่ประตูแคบๆ นี้ก็ยังต้องการการดูแล เนื่องจากฟิลด์อย่าง full_command จะไม่ถูกตัดทอนและอาจเก็บข้อมูลลับได้</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: OTEL_LOG_TOOL_DETAILS adds tool parameters such as Bash commands to tool events. That is the narrow gate a command audit needs. OTEL_LOG_USER_PROMPTS would collect prompt text. OTEL_LOG_RAW_API_BODIES would send the entire conversation history and counts as consenting to every other content gate. Even this narrow gate needs care, because fields like full_command are not truncated and can contain secrets.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-9ee8cb2d3fba"
+                 data-qid="9ee8cb2d3fba"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-9ee8cb2d3fba" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมรักษาความปลอดภัยจำเป็นต้องตรวจสอบว่าคำสั่งใดที่ทำงานบนเครื่องของนักพัฒนาทุกเครื่อง โดยบันทึกเหตุการณ์ไปที่ SIEM ของตน โดยไม่รวบรวมสิ่งที่นักพัฒนาพิมพ์ไปที่ Claude เกตใดที่ทำให้ไปป์ไลน์การตั้งค่าที่ได้รับการจัดการนี้เสร็จสมบูรณ์</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A security team needs to audit which commands ran on every developer machine, with log events going to their SIEM, without collecting what developers typed to Claude. Which gate completes this managed-settings pipeline?</p>
+              </div>
+              
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;env&quot;: {
+    &quot;CLAUDE_CODE_ENABLE_TELEMETRY&quot;: &quot;1&quot;,
+    &quot;OTEL_LOGS_EXPORTER&quot;: &quot;otlp&quot;,
+    &quot;____&quot;: &quot;1&quot;,
+    &quot;OTEL_EXPORTER_OTLP_LOGS_PROTOCOL&quot;: &quot;http/protobuf&quot;,
+    &quot;OTEL_EXPORTER_OTLP_LOGS_ENDPOINT&quot;: &quot;https://siem.example.com:4318/v1/logs&quot;,
+    &quot;OTEL_EXPORTER_OTLP_HEADERS&quot;: &quot;Authorization=Bearer your-siem-token&quot;
+  }
+}</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-9ee8cb2d3fba">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9ee8cb2d3fba-A"
+                        data-qid="9ee8cb2d3fba"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('9ee8cb2d3fba', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_LOG_TOOL_DETAILS</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_LOG_TOOL_DETAILS</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9ee8cb2d3fba-B"
+                        data-qid="9ee8cb2d3fba"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('9ee8cb2d3fba', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_LOG_USER_PROMPTS</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_LOG_USER_PROMPTS</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9ee8cb2d3fba-C"
+                        data-qid="9ee8cb2d3fba"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('9ee8cb2d3fba', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_LOG_RAW_API_BODIES</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_LOG_RAW_API_BODIES</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9ee8cb2d3fba-D"
+                        data-qid="9ee8cb2d3fba"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('9ee8cb2d3fba', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">OTEL_LOG_TOOL_CONTENT</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: OTEL_LOG_TOOL_CONTENT</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-9ee8cb2d3fba" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-9ee8cb2d3fba" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">OTEL_LOG_TOOL_DETAILS เพิ่มพารามิเตอร์เครื่องมือ เช่น คำสั่ง Bash ให้กับเหตุการณ์ของเครื่องมือ นั่นคือประตูแคบที่จำเป็นต้องมีการตรวจสอบคำสั่ง OTEL_LOG_USER_PROMPTS จะรวบรวมข้อความแจ้ง OTEL_LOG_RAW_API_BODIES จะส่งประวัติการสนทนาทั้งหมดและนับเป็นการยินยอมต่อช่องทางเนื้อหาอื่นๆ แม้แต่ประตูแคบๆ นี้ก็ยังต้องการการดูแล เนื่องจากฟิลด์อย่าง full_command จะไม่ถูกตัดทอนและอาจเก็บข้อมูลลับได้</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: OTEL_LOG_TOOL_DETAILS adds tool parameters such as Bash commands to tool events. That is the narrow gate a command audit needs. OTEL_LOG_USER_PROMPTS would collect prompt text. OTEL_LOG_RAW_API_BODIES would send the entire conversation history and counts as consenting to every other content gate. Even this narrow gate needs care, because fields like full_command are not truncated and can contain secrets.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('9ee8cb2d3fba')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('9ee8cb2d3fba')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1615,6 +1943,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1635,12 +1972,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1705,7 +2305,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

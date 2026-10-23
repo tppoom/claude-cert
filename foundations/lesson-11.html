@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -549,7 +556,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-the-messages-api-as-a-rest-endpoint-that-speaks-json" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. The Messages API as a REST endpoint that speaks JSON</span></a></li><li><a href="#2-blocking-calls-and-the-async-client" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Blocking calls and the async client</span></a></li><li><a href="#3-streaming-when-output-is-long-or-a-user-is-watching" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Streaming when output is long or a user is watching</span></a></li><li><a href="#4-submit-and-poll-for-work-nobody-is-waiting-on" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Submit-and-poll for work nobody is waiting on</span></a></li>
+        <li><a href="#1-the-messages-api-as-a-rest-endpoint-that-speaks-json" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Message API เป็นตําแหน่งข้อมูล REST ที่พูด JSON</span></a></li><li><a href="#2-blocking-calls-and-the-async-client" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Blocking calls and the async client</span></a></li><li><a href="#3-streaming-when-output-is-long-or-a-user-is-watching" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. สตรีมเมื่อเอาต์พุตยาวหรือผู้ใช้กําลังดู</span></a></li><li><a href="#4-submit-and-poll-for-work-nobody-is-waiting-on" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. การส่งและสํารวจสําหรับงานที่ไม่มีใครรอ</span></a></li>
       </ul>
     </nav>
     
@@ -557,20 +564,60 @@
         <section id="1-the-messages-api-as-a-rest-endpoint-that-speaks-json" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. The Messages API as a REST endpoint that speaks JSON</span>
+            <span>1. Message API เป็นตําแหน่งข้อมูล REST ที่พูด JSON</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>The Messages API as a REST endpoint that speaks JSON</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A Messages API response is a JSON object: content blocks, the stop reason and token usage json { "id": "msg_01XFDUDYJgAACzvnptvVoYEL", "type": "message", "role": "assistant", "content": [ { "type": "text", "text": "Hello!" } ], "model": "claude-opus-5-5", "stop_reason": "end_turn", "stop_sequence": null, "usage": { "input_tokens": 12, "output_tokens": 6 } }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Calling Claude is an ordinary REST call, so the conventions your other services already follow carry over. The API is served from https://api.anthropic.com, and a conversational request is POST /v1/messages. Every request has a JSON body with content-type: application/json, an anthropic-version header such as 2023-06-01, and credentials in Authorization: Bearer &lt;token&gt;. The older x-api-key header still works as a fallback.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  The official SDKs set the authentication, version and content-type headers for you. They also add typed requests and responses, built-in retries, streaming support and request timeouts. With a raw HTTP client, all of that is your code to write. The one header you still pass yourself is anthropic-workspace-id, and only when your key covers more than one workspace.
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">การตอบกลับ Messages API คือออบเจ็กต์ JSON ซึ่งได้แก่ บล็อกเนื้อหา เหตุผลในการหยุด และ json การใช้โทเค็น</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A Messages API response is a JSON object: content blocks, the stop reason and token usage json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;id&quot;: &quot;msg_01XFDUDYJgAACzvnptvVoYEL&quot;,
+  &quot;type&quot;: &quot;message&quot;,
+  &quot;role&quot;: &quot;assistant&quot;,
+  &quot;content&quot;: [
+    {
+      &quot;type&quot;: &quot;text&quot;,
+      &quot;text&quot;: &quot;Hello!&quot;
+    }
+  ],
+  &quot;model&quot;: &quot;claude-opus-5-5&quot;,
+  &quot;stop_reason&quot;: &quot;end_turn&quot;,
+  &quot;stop_sequence&quot;: null,
+  &quot;usage&quot;: {
+    &quot;input_tokens&quot;: 12,
+    &quot;output_tokens&quot;: 6
+  }
+}</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เนื่องจาก API ไม่มีสถานะการสนทนา บริการของคุณจึงต้องจัดเก็บไว้ ไคลเอ็นต์จะส่งประวัติทั้งหมดพร้อมกับทุกคําขอ ตามที่อธิบายไว้ใน [Stateless Messages API (ไคลเอ็นต์ถือการสนทนา)] (บทเรียน: 2.3) ในทางปฏิบัติ ให้เก็บอาร์เรย์ข้อความเป็น JSON แบบธรรมดา ซึ่งเป็นรายการของอ็อบเจกต์ {“role”, “content”} ในฐานข้อมูลของคุณเองหรือที่เก็บเซสชันที่คีย์ตามการสนทนา โหลด ผนวกทัวร์ใหม่ของผู้ใช้ ส่ง จากนั้นผนวกเนื้อหาของผู้ช่วยและบันทึกอีกครั้ง ทัวร์ก่อนหน้านี้ไม่จําเป็นต้องมาจาก Claude ดังนั้นประวัติที่จัดเก็บไว้สามารถมีข้อความของผู้ช่วยสังเคราะห์ที่คุณเขียนเองได้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  That stored history grows with every turn, and request size is capped. Messages and Token Counting requests can be at most 32 MB, and anything larger returns 413 request_too_large. A long-lived chat that saves every turn forever will eventually hit that limit, so decide how history is trimmed before it does.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  A REST call spends almost all of its time waiting on the network, and asynchronous programming is how a program uses that wait for other work instead of freezing. With the async client, await client.messages.create(...) suspends only the current coroutine; the event loop runs other coroutines until the response arrives. The request and the returned Message are identical to a blocking call, so the change is in how the waiting is scheduled, not in the JSON.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การแทรกแซงทำให้เกิดอันตรายที่โค้ดการบล็อกไม่มี Coroutines สามารถแทรกแซงได้ ดังนั้นการเรียก API บนเครื่องบินหลายครั้งที่ต่อท้ายรายการหรือ dict ที่แชร์รายการเดียวอาจทำให้รายการเสียหายได้ ซึ่งเป็นการแข่งขันสถานะที่แชร์แบบไม่แน่นอนแบบเดียวกับที่เธรดเป็นสาเหตุ ให้แต่ละโครูทีนส่งคืนผลลัพธ์ของตัวเองแล้วรวมเข้าด้วยกันในภายหลัง แทนที่จะเปลี่ยนสถานะที่แชร์จากภายในการโทร นอกจากนี้ API ยังมีการทำงานแบบอะซิงโครนัสที่ระดับตำแหน่งข้อมูลอีกด้วย โดย Message Batches API ยอมรับคำขอทันทีและประมวลผลในภายหลัง ดังนั้นการตอบสนอง HTTP จะยอมรับเฉพาะการส่งเท่านั้น
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -583,101 +630,116 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-bb88518d7449"
-             data-qid="bb88518d7449"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-bb88518d7449" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team writes a thin Go wrapper over raw HTTP instead of using an official SDK. Which header can they leave to the SDK only if they switch to one, and must otherwise send themselves on every request?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-bb88518d7449">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-bb88518d7449-A"
-                    data-qid="bb88518d7449"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('bb88518d7449', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`anthropic-version`, because the API needs it and the SDK sets it automatically</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-bb88518d7449-B"
-                    data-qid="bb88518d7449"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('bb88518d7449', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`anthropic-workspace-id`, because the API rejects any request without it</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-bb88518d7449-C"
-                    data-qid="bb88518d7449"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('bb88518d7449', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`request-id`, because the client must generate a unique ID for every call</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-bb88518d7449-D"
-                    data-qid="bb88518d7449"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('bb88518d7449', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">None of them, because the API infers the version from the model name</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-bb88518d7449" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-bb88518d7449" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">`anthropic-version` is required on every request, and the SDKs send it along with auth and content-type. `anthropic-workspace-id` is only needed with multi-workspace keys, and `request-id` is a response header.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: `anthropic-version` is required on every request, and the SDKs send it along with auth and content-type. `anthropic-workspace-id` is only needed with multi-workspace keys, and `request-id` is a response header.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-bb88518d7449"
+                 data-qid="bb88518d7449"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-bb88518d7449" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “If you are using the Client SDKs, the SDK sends the authentication, version, and content-type headers automatically”
-              <br><a href="https://platform.claude.com/docs/en/api/overview" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมงานเขียน Go wrapper แบบบางบน HTTP แบบ Raw แทนที่จะใช้ SDK อย่างเป็นทางการ ส่วนหัวใดที่พวกเขาสามารถปล่อยให้ SDK ได้ก็ต่อเมื่อเปลี่ยนไปใช้ส่วนหัวเดียว และต้องส่งตัวเองในทุกคำขอ</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team writes a thin Go wrapper over raw HTTP instead of using an official SDK. Which header can they leave to the SDK only if they switch to one, and must otherwise send themselves on every request?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-bb88518d7449">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-bb88518d7449-A"
+                        data-qid="bb88518d7449"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('bb88518d7449', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">`anthropic-version`, because the API needs it and the SDK sets it automatically</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `anthropic-version`, because the API needs it and the SDK sets it automatically</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-bb88518d7449-B"
+                        data-qid="bb88518d7449"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('bb88518d7449', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">`anthropic-workspace-id`, because the API rejects any request without it</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `anthropic-workspace-id`, because the API rejects any request without it</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-bb88518d7449-C"
+                        data-qid="bb88518d7449"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('bb88518d7449', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">`request-id` เนื่องจากไคลเอ็นต์ต้องสร้าง ID ที่ไม่ซ้ํากันสําหรับการเรียกใช้แต่ละครั้ง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `request-id`, because the client must generate a unique ID for every call</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-bb88518d7449-D"
+                        data-qid="bb88518d7449"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('bb88518d7449', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ไม่มีเลย เนื่องจาก API สรุปเวอร์ชันจากชื่อโมเดล</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: None of them, because the API infers the version from the model name</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-bb88518d7449" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-bb88518d7449" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">`anthropic-version` เป็นสิ่งจำเป็นสำหรับทุกคำขอและ SDK จะส่งไปพร้อมกับการรับรองความถูกต้องและประเภทเนื้อหา `anthropic-workspace-id&#x27; เป็นสิ่งจำเป็นเฉพาะกับคีย์หลายพื้นที่ทำงานและ `request-id&#x27; เป็นส่วนหัวของการตอบสนอง</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: `anthropic-version` is required on every request, and the SDKs send it along with auth and content-type. `anthropic-workspace-id` is only needed with multi-workspace keys, and `request-id` is a response header.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “หากคุณกําลังใช้ Client SDK SDK จะส่งส่วนหัวการตรวจสอบสิทธิ์ เวอร์ชัน และประเภทเนื้อหาโดยอัตโนมัติ”
+              <br><a href="https://platform.claude.com/docs/en/api/overview" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('bb88518d7449')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('bb88518d7449')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55418"
              data-qid="55418"
@@ -693,8 +755,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An engineer is processing a nightly batch of 50,000 support tickets through Claude to generate categorization labels. Each ticket is independent, latency is not a concern until the next morning, and the team wants to minimize cost. Which approach best fits this asynchronous workload?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">วิศวกรกำลังประมวลผลตั๋วสนับสนุนจำนวน 50,000 ใบต่อคืนผ่านทาง Claude เพื่อสร้างป้ายกำกับการจัดหมวดหมู่ ตั๋วแต่ละใบมีความเป็นอิสระ เวลาแฝงจะไม่เป็นปัญหาจนกว่าจะถึงเช้าวันรุ่งขึ้น และทีมงานต้องการลดต้นทุนให้เหลือน้อยที่สุด แนวทางใดที่เหมาะกับปริมาณงานแบบอะซิงโครนัสนี้มากที่สุด</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An engineer is processing a nightly batch of 50,000 support tickets through Claude to generate categorization labels. Each ticket is independent, latency is not a concern until the next morning, and the team wants to minimize cost. Which approach best fits this asynchronous workload?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55418">
@@ -706,7 +769,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55418', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Submit the tickets through the Batch API, which processes large volumes of independent requests asynchronously at roughly half the cost of standard synchronous calls</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ส่งตั๋วผ่าน Batch API ซึ่งจะประมวลผลคําขออิสระจํานวนมากแบบอะซิงโครนัสโดยมีค่าใช้จ่ายประมาณครึ่งหนึ่งของการเรียกใช้แบบซิงโครนัสมาตรฐาน</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Submit the tickets through the Batch API, which processes large volumes of independent requests asynchronously at roughly half the cost of standard synchronous calls</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -717,7 +783,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55418', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Open a single streaming Messages API connection and keep it alive overnight, feeding each ticket sequentially into the same conversation turn</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เปิดการเชื่อมต่อ API ข้อความสตรีมมิ่งเดียวและรักษาให้ใช้งานได้ตลอดทั้งคืน โดยป้อนตั๋วแต่ละใบตามลําดับเข้าสู่การสนทนาเดียวกัน</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Open a single streaming Messages API connection and keep it alive overnight, feeding each ticket sequentially into the same conversation turn</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -728,7 +797,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55418', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Call the standard synchronous Messages API in a tight loop with no concurrency limits, since 50,000 sequential calls will finish before morning regardless of cost</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Call the standard synchronous Messages API in a tight loop with no concurrency limits, since 50,000 sequential calls will finish before morning regardless of cost</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Call the standard synchronous Messages API in a tight loop with no concurrency limits, since 50,000 sequential calls will finish before morning regardless of cost</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -739,7 +811,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55418', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Use the Agent SDK&#x27;s session resume feature to reprocess the same session id for every ticket so that no new requests are billed</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ใช้ฟีเจอร์ต่ออายุเซสชันของ Agent SDK เพื่อประมวลผลซ้ํา ID เซสชันเดียวกันสําหรับแต่ละตั๋ว เพื่อให้ไม่มีการเรียกเก็บเงินคําขอใหม่</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Use the Agent SDK&#x27;s session resume feature to reprocess the same session id for every ticket so that no new requests are billed</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -761,7 +836,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การประมวลผลเป็นชุดได้รับการออกแบบมาโดยเฉพาะสำหรับคำขออิสระจำนวนมากที่ไม่ไวต่อความหน่วง และจะมีการเรียกเก็บค่าบริการในราคาส่วนลดเมื่อเทียบกับการโทรแบบมาตรฐาน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การประมวลผลเป็นชุดได้รับการออกแบบมาโดยเฉพาะสำหรับคำขออิสระจำนวนมากที่ไม่ไวต่อความหน่วง และจะมีการเรียกเก็บค่าบริการในราคาส่วนลดเมื่อเทียบกับการโทรแบบมาตรฐาน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Batch processing is designed exactly for large volumes of independent, non-latency-sensitive requests and is billed at a discount versus standard calls.</div>
             </div>
             
@@ -770,7 +845,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การสตรีมมีไว้เพื่อเพิ่มการตอบกลับเพียงครั้งเดียว ไม่ใช่เพื่อกระจายหมวดหมู่ตั๋วที่ไม่เกี่ยวข้องนับพันรายการในการสนทนาเดียว</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การสตรีมมีไว้เพื่อเพิ่มการตอบกลับเพียงครั้งเดียว ไม่ใช่เพื่อกระจายหมวดหมู่ตั๋วที่ไม่เกี่ยวข้องนับพันรายการในการสนทนาเดียว</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Streaming is meant for incremental delivery of a single response, not for fanning out thousands of unrelated ticket classifications in one conversation.</div>
             </div>
             
@@ -779,7 +854,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การวนซ้ำการโทรแบบซิงโครนัสโดยไม่มีการควบคุมแบทช์หรือการทำงานพร้อมกันทำให้สิ้นเปลืองต้นทุน และไม่สนใจส่วนลดและสิทธิประโยชน์การรับส่งข้อมูลที่ Batch API นำเสนอ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การวนซ้ำการโทรแบบซิงโครนัสโดยไม่มีการควบคุมแบทช์หรือการทำงานพร้อมกันทำให้สิ้นเปลืองต้นทุน และไม่สนใจส่วนลดและสิทธิประโยชน์การรับส่งข้อมูลที่ Batch API นำเสนอ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Looping synchronous calls with no batching or concurrency control wastes cost and ignores the discount and throughput benefits the Batch API offers.</div>
             </div>
             
@@ -788,7 +863,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. Resuming a session replays conversation context for a single continued exchange; it does not deduplicate billing across unrelated tickets.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Incorrect. Resuming a session replays conversation context for a single continued exchange; it does not deduplicate billing across unrelated tickets.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Resuming a session replays conversation context for a single continued exchange; it does not deduplicate billing across unrelated tickets.</div>
             </div>
             
@@ -826,108 +901,162 @@
             <span>2. Blocking calls and the async client</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Blocking calls and the async client</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  The async client: the same create call, awaited inside a coroutine python async def main() -> None: message = await client.messages.create(max_tokens= 1024, messages=[ { "role": "user", "content": "Hello, Claude", } ], model= "claude-opus-5-5",) print(message.content) asyncio.run(main())
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  รูปแบบที่ง่ายที่สุดคือการบล็อกการเรียก client.messages.create(...) บนไคลเอ็นต์ Anthropic แบบซิงโครนัส รอจนกว่า Claude จะเสร็จสิ้น จากนั้นส่งคืน Message เต็มรูปแบบ ซึ่งเหมาะสําหรับสคริปต์ เครื่องมือ CLI และกระบวนการปฏิบัติงานที่จัดการคําขอครั้งละหนึ่งรายการ ซึ่งไม่มีอะไรอื่นที่ต้องการเธรดในขณะที่คําขออยู่ในระหว่างการดําเนินการ
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  บริการที่สร้างขึ้นบนลูปเหตุการณ์จําเป็นต้องมีอย่างอื่น เนื่องจากการเรียกบล็อกที่นั่นจะหยุดการทํางานของโครูทีนอื่นๆ ทั้งหมดในขณะที่คําขอหนึ่งรออยู่บนเครือข่าย ไคลเอ็นต์ AsyncAnthropic ของ Python SDK มีวิธีการ message.create เดียวกัน และคุณรอภายในฟังก์ชันแบบอะซิงโครนัส เนื้อหาคําขอและ Message ที่ส่งคืนจะไม่เปลี่ยนแปลง ความแตกต่างเพียงอย่างเดียวคือโค้ดของคุณจะทํางานได้ในขณะที่รอ ไคลเอ็นต์แบบอะซิงโครนัสยังสามารถใช้แบ็คเอนด์ HTTP aiohttp แทนแบ็คเอนด์เริ่มต้นเมื่อคุณต้องการอัตราการโอนถ่ายข้อมูลแบบอะซิงโครนัสที่ดีกว่า
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">The async client: the same create call, awaited inside a coroutine</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: The async client: the same create call, awaited inside a coroutine</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>async def main() -&gt; None:
+    message = await client.messages.create(
+        max_tokens=1024,
+        messages=[
+            {
+                &quot;role&quot;: &quot;user&quot;,
+                &quot;content&quot;: &quot;Hello, Claude&quot;,
+            }
+        ],
+        model=&quot;claude-opus-5-5&quot;,
+    )
+    print(message.content)
+
+
+asyncio.run(main())</code></pre>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-22a0a5bebb09"
-             data-qid="22a0a5bebb09"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-22a0a5bebb09" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Which keyword completes this AsyncAnthropic call so the coroutine waits for the response without blocking the event loop?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-22a0a5bebb09">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-22a0a5bebb09-A"
-                    data-qid="22a0a5bebb09"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('22a0a5bebb09', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">await</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-22a0a5bebb09-B"
-                    data-qid="22a0a5bebb09"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('22a0a5bebb09', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">async</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-22a0a5bebb09-C"
-                    data-qid="22a0a5bebb09"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('22a0a5bebb09', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">yield</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-22a0a5bebb09-D"
-                    data-qid="22a0a5bebb09"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('22a0a5bebb09', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">asyncio.run</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-22a0a5bebb09" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-22a0a5bebb09" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ใน `AsyncAnthropic` นั้น `messages.create` จะส่งกลับค่าที่รอคอย ดังนั้น Coroutine จะต้อง &#x27;รอ&#x27; เพื่อรับ &#x27;ข้อความ&#x27; `asyncio.run` เริ่มลูปเหตุการณ์หนึ่งครั้งที่ระดับบนสุด</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: On `AsyncAnthropic`, `messages.create` returns an awaitable, so the coroutine must `await` it to get the `Message`. `asyncio.run` starts the event loop once, at the top level.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-22a0a5bebb09"
+                 data-qid="22a0a5bebb09"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-22a0a5bebb09" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">คำหลักใดที่ทำให้การเรียก AsyncAnthropic นี้เสร็จสิ้น ดังนั้น Coroutine รอการตอบสนองโดยไม่ปิดกั้นเหตุการณ์วนซ้ำ</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Which keyword completes this AsyncAnthropic call so the coroutine waits for the response without blocking the event loop?</p>
+              </div>
+              
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>async def main() -&gt; None:
+    message = ____ client.messages.create(
+        max_tokens=1024,
+        messages=[
+            {
+                &quot;role&quot;: &quot;user&quot;,
+                &quot;content&quot;: &quot;Hello, Claude&quot;,
+            }
+        ],
+        model=&quot;claude-opus-5-5&quot;,
+    )
+    print(message.content)
+
+
+asyncio.run(main())</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-22a0a5bebb09">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-22a0a5bebb09-A"
+                        data-qid="22a0a5bebb09"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('22a0a5bebb09', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">รอ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: await</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-22a0a5bebb09-B"
+                        data-qid="22a0a5bebb09"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('22a0a5bebb09', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">แบบอะซิงโครนัส</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: async</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-22a0a5bebb09-C"
+                        data-qid="22a0a5bebb09"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('22a0a5bebb09', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ผลผลิต</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: yield</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-22a0a5bebb09-D"
+                        data-qid="22a0a5bebb09"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('22a0a5bebb09', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">asyncio.run</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: asyncio.run</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-22a0a5bebb09" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-22a0a5bebb09" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ใน `AsyncAnthropic` นั้น `messages.create` จะส่งกลับค่าที่รอคอย ดังนั้น Coroutine จะต้อง &#x27;รอ&#x27; เพื่อรับ &#x27;ข้อความ&#x27; `asyncio.run` เริ่มลูปเหตุการณ์หนึ่งครั้งที่ระดับบนสุด</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: On `AsyncAnthropic`, `messages.create` returns an awaitable, so the coroutine must `await` it to get the `Message`. `asyncio.run` starts the event loop once, at the top level.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('22a0a5bebb09')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('22a0a5bebb09')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -947,138 +1076,251 @@
         <section id="3-streaming-when-output-is-long-or-a-user-is-watching" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. Streaming when output is long or a user is watching</span>
+            <span>3. สตรีมเมื่อเอาต์พุตยาวหรือผู้ใช้กําลังดู</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Streaming when output is long or a user is watching</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">ทำนายก่อนงานกลางคืนขอรายงานด้วย max_tokens=128000 ไม่มีใครคอยดูงาน และงานต้องการแค่ข้อความที่เสร็จแล้วเท่านั้น ควรใช้การเรียกใด แยกรายงานออกเป็นการเรียก max_tokens ขนาดเล็กจำนวนมากและต่อกัน themessages.stream(...) ตามด้วย get_final_message() ข้อความบล็อกธรรมดาสร้าง เนื่องจากไม่มีการแสดงแบบเพิ่มทีละน้อย เมื่อมี max_tokens ที่มีขนาดใหญ่มาก SDK จึงต้องมีการสตรีมเพื่อหลีกเลี่ยงการหมดเวลาของ HTTP get_final_message() ยังคงส่งคืนออบเจ็กต์ Message ที่สมบูรณ์ “สิ่งนี้มีประโยชน์อย่างยิ่งสำหรับคำขอที่มีค่า max_tokens ขนาดใหญ่ โดยที่ SDK ต้องการการสตรีมเพื่อหลีกเลี่ยงการหมดเวลาของ HTTP” ที่มา: platform.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: A nightly job asks for a report with max_tokens=128000. Nobody watches it run, and the job only needs the finished text. Which call should it use? Split the report into many small max_tokens calls and concatenate them messages.stream(...) followed by get_final_message() A plain blocking messages.create, since nothing is shown incrementally With very large max_tokens the SDK requires streaming to avoid HTTP timeouts. get_final_message() still hands back the complete Message object. “ This is especially useful for requests with large max_tokens values, where the SDK requires streaming to avoid HTTP timeouts. ” Source: platform.claude.com
-                  </div>
-                </aside>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_8c1cfaf9"
+         data-qid="pred_8c1cfaf9"
+         data-correct="A">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_8c1cfaf9" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">งานในเวลากลางคืนจะขอรายงานที่มี max_tokens=128000 ไม่มีใครดูมันทํางาน และงานต้องการเพียงข้อความที่เสร็จสมบูรณ์เท่านั้น ควรใช้การโทรแบบใด</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A nightly job asks for a report with max_tokens=128000. Nobody watches it run, and the job only needs the finished text. Which call should it use?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_8c1cfaf9">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_8c1cfaf9-A"
+                data-qid="pred_8c1cfaf9"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_8c1cfaf9', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">แบ่งรายงานออกเป็นการเรียก max_tokens ขนาดเล็กหลายครั้งและเชื่อมโยงเข้าด้วยกัน</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Split the report into many small max_tokens calls and concatenate them</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_8c1cfaf9-B"
+                data-qid="pred_8c1cfaf9"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_8c1cfaf9', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">messages.stream(...) ตามด้วย get_final_message()</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: messages.stream(...) followed by get_final_message()</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_8c1cfaf9-C"
+                data-qid="pred_8c1cfaf9"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_8c1cfaf9', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ข้อความบล็อกแบบธรรมดา สร้าง เนื่องจากไม่มีอะไรแสดงเพิ่มขึ้น</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: A plain blocking messages.create, since nothing is shown incrementally</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_8c1cfaf9" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_8c1cfaf9" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">ด้วย max_tokens ขนาดใหญ่มาก SDK จําเป็นต้องสตรีมเพื่อหลีกเลี่ยงการหมดเวลา HTTP get_final_message() ยังคงส่งคืนอ็อบเจกต์ Message ที่สมบูรณ์</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: With very large max_tokens the SDK requires streaming to avoid HTTP timeouts. get_final_message() still hands back the complete Message object.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““สิ่งนี้มีประโยชน์อย่างยิ่งสําหรับคําขอที่มีค่า max_tokens ขนาดใหญ่ ซึ่ง SDK ต้องการการสตรีมเพื่อหลีกเลี่ยงการหมดเวลา HTTP””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “This is especially useful for requests with large max_tokens values, where the SDK requires streaming to avoid HTTP timeouts.”</div>
+          <div class="mt-1.5 not-italic"><a href="https://platform.claude.com/docs/en/build-with-claude/streaming" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://platform.claude.com/docs/en/build-with-claude/streaming</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_8c1cfaf9')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การสตรีมจะอยู่ระหว่างการบล็อกการโทรและงานเบื้องหลัง การตอบสนองจะมาถึงเป็นส่วนๆ ผ่านการเชื่อมต่อ HTTP แบบเปิดเดียว ตามที่อธิบายไว้ใน [การสตรีมผ่านเหตุการณ์ที่ส่งโดยเซิร์ฟเวอร์] (บทเรียน: 5.2) มันมีผลสําเร็จในสองสถานการณ์ ในกรณีแรก มีคนกําลังรออยู่ ดังนั้นการพิมพ์ข้อความขณะที่ข้อความมาถึงจะทําให้การตอบสนองรู้สึกรวดเร็ว ในกรณีที่สอง การตอบสนองมีความยาวเพียงพอสําหรับการเชื่อมต่อที่เงียบเพียงครั้งเดียวจะทําให้ HTTP หมดเวลา สําหรับกรณีที่สองนี้ SDK จําเป็นต้องใช้การสตรีม แม้ว่าคุณจะไม่ต้องการข้อความบางส่วนก็ตาม
+                </p>
                 
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Streaming internally, then collecting the complete Message python client = anthropic.Anthropic() with client.messages.stream(max_tokens= 128000, messages=[{ "role": "user", "content": "Write a detailed analysis..." }], model= "claude-opus-5-5",) as stream: message = stream.get_final_message()
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Streaming internally, then collecting the complete Message</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Streaming internally, then collecting the complete Message</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>client = anthropic.Anthropic()
+
+with client.messages.stream(
+    max_tokens=128000,
+    messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Write a detailed analysis...&quot;}],
+    model=&quot;claude-opus-5-5&quot;,
+) as stream:
+    message = stream.get_final_message()</code></pre>
                 </div>
                 
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การสตรีมยังเปลี่ยนวิธีที่ความล้มเหลวมาถึงคุณ ปัญหาที่การบล็อกการโทรแจ้งว่าเป็นสถานะ HTTP อาจมาถึงกลางสตรีมเป็นเหตุการณ์ข้อผิดพลาด กรณีที่พบบ่อยคือ Overload: เหตุการณ์ overloaded_error ที่การโทรที่ไม่ได้สตรีมจะได้รับ HTTP 529 การจัดการข้อผิดพลาดที่เขียนเฉพาะรอบการตอบสนอง HTTP เริ่มต้นจะพลาดไป Python SDK มีทั้งสตรีมซิงโครนัสและอะซิงโครนัส ดังนั้นการสตรีมจึงทํางานได้กับไคลเอ็นต์ทั้งสองจากส่วนก่อนหน้า
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Streaming is only for UIs. A backend job that wants the whole answer should always use a plain blocking call. (ทำไมถึงผิด): With large max_tokens values, the SDK requires streaming to avoid HTTP timeouts. Calling get_final_message() on the stream still returns the complete Message.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การสตรีมมีไว้สําหรับ UI เท่านั้น งานแบ็คเอนด์ที่ต้องการคําตอบทั้งหมดควรใช้การเรียกบล็อกธรรมดาเสมอ (ทําไมจึงผิดพลาด): ด้วยค่า max_tokens ขนาดใหญ่ SDK จําเป็นต้องใช้การสตรีมเพื่อหลีกเลี่ยงการหมดเวลา HTTP การเรียก get_final_message() บนสตรีมจะยังคงส่งคืนข้อความที่สมบูรณ์</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Streaming is only for UIs. A backend job that wants the whole answer should always use a plain blocking call. (ทำไมถึงผิด): With large max_tokens values, the SDK requires streaming to avoid HTTP timeouts. Calling get_final_message() on the stream still returns the complete Message.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-9d332cbf69da"
-             data-qid="9d332cbf69da"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-9d332cbf69da" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A streaming integration retries on HTTP 529 but users still see half-finished answers during peak load. What is the most likely gap?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-9d332cbf69da">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9d332cbf69da-A"
-                    data-qid="9d332cbf69da"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('9d332cbf69da', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Overload can arrive as an `error` event inside a stream that has already started, which the 529 check never sees</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9d332cbf69da-B"
-                    data-qid="9d332cbf69da"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('9d332cbf69da', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Streaming responses are never subject to overload, so the problem is elsewhere</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9d332cbf69da-C"
-                    data-qid="9d332cbf69da"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('9d332cbf69da', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The SDK silently converts every overload into a `message_stop` event</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-9d332cbf69da-D"
-                    data-qid="9d332cbf69da"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('9d332cbf69da', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Overload only happens on the async client</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-9d332cbf69da" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-9d332cbf69da" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">เมื่อสตรีมเริ่มต้นแล้ว โอเวอร์โหลดสามารถส่งเป็นเหตุการณ์ `overloaded_error` แทนที่จะเป็นสถานะ HTTP ดังนั้นการจัดการสตรีมจำเป็นต้องมีเส้นทางข้อผิดพลาดของตัวเอง</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Once a stream has started, an overload can be delivered as an `overloaded_error` event rather than an HTTP status, so stream handling needs its own error path.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-9d332cbf69da"
+                 data-qid="9d332cbf69da"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-9d332cbf69da" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “you may receive an overloaded_error, which would normally correspond to an HTTP 529 in a non-streaming context”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/streaming" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">การรวมสตรีมมิ่งลองอีกครั้งบน HTTP 529 แต่ผู้ใช้ยังคงเห็นคำตอบที่เสร็จสิ้นเพียงครึ่งเดียวในระหว่างที่มีการใช้งานสูงสุด Gap ที่เป็นไปได้มากที่สุดคืออะไร?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A streaming integration retries on HTTP 529 but users still see half-finished answers during peak load. What is the most likely gap?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-9d332cbf69da">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9d332cbf69da-A"
+                        data-qid="9d332cbf69da"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('9d332cbf69da', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การโอเวอร์โหลดอาจเกิดขึ้นเป็นเหตุการณ์ `error` ภายในสตรีมที่เริ่มต้นแล้ว ซึ่งการตรวจสอบ 529 ไม่เคยเห็น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Overload can arrive as an `error` event inside a stream that has already started, which the 529 check never sees</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9d332cbf69da-B"
+                        data-qid="9d332cbf69da"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('9d332cbf69da', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การตอบสนองสตรีมมิ่งไม่เคยได้รับผลกระทบจากการโอเวอร์โหลด ดังนั้นปัญหาจึงอยู่ที่อื่น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Streaming responses are never subject to overload, so the problem is elsewhere</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9d332cbf69da-C"
+                        data-qid="9d332cbf69da"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('9d332cbf69da', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">SDK แปลงทุกโอเวอร์โหลดเป็นเหตุการณ์ `message_stop` อย่างเงียบๆ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The SDK silently converts every overload into a `message_stop` event</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-9d332cbf69da-D"
+                        data-qid="9d332cbf69da"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('9d332cbf69da', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การโอเวอร์โหลดเกิดขึ้นเฉพาะบนไคลเอนต์แบบอะซิงโครนัสเท่านั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Overload only happens on the async client</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-9d332cbf69da" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-9d332cbf69da" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">เมื่อสตรีมเริ่มต้นแล้ว โอเวอร์โหลดสามารถส่งเป็นเหตุการณ์ `overloaded_error` แทนที่จะเป็นสถานะ HTTP ดังนั้นการจัดการสตรีมจำเป็นต้องมีเส้นทางข้อผิดพลาดของตัวเอง</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Once a stream has started, an overload can be delivered as an `overloaded_error` event rather than an HTTP status, so stream handling needs its own error path.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “คุณอาจได้รับ overloaded_error ซึ่งปกติจะสอดคล้องกับ HTTP 529 ในบริบทที่ไม่ใช่การสตรีม”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/streaming" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('9d332cbf69da')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('9d332cbf69da')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1098,80 +1340,262 @@
         <section id="4-submit-and-poll-for-work-nobody-is-waiting-on" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>4. Submit-and-poll for work nobody is waiting on</span>
+            <span>4. การส่งและสํารวจสําหรับงานที่ไม่มีใครรอ</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Submit-and-poll for work nobody is waiting on</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A polling loop that waits for a batch to end python message_batch = None while True: message_batch = client.messages.batches.retrieve(MESSAGE_BATCH_ID) if message_batch.processing_status == "ended": break print(f "Batch {MESSAGE_BATCH_ID} is still processing...") time.sleep(60) print(message_batch)
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ส่งและโพลแยกส่งงานจากการเก็บผล คุณส่งงาน รับบัตรประจำตัวกลับ และตรวจสอบสถานะในภายหลัง Message Batches API ซึ่งจัดการคำขอจำนวนมากแบบอะซิงโครนัสด้วยต้นทุนที่ต่ำกว่า คือตัวอย่างมาตรฐาน ราคาและขีดจำกัดครอบคลุมอยู่ใน [Message Batches API และเรียลไทม์เทียบกับแบตช์](บทเรียน: 2.3) สำหรับโค้ดที่คุณเขียน สิ่งที่สำคัญคือรูปร่าง: แบทช์เริ่มต้นด้วยการประมวลผล สถานะ ตั้งค่าเป็น in_progress และย้ายไปที่สิ้นสุดเมื่อทุกคำขอเสร็จสิ้นและผลลัพธ์พร้อมแล้ว
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">A polling loop that waits for a batch to end</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A polling loop that waits for a batch to end</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>message_batch = None
+while True:
+    message_batch = client.messages.batches.retrieve(MESSAGE_BATCH_ID)
+    if message_batch.processing_status == &quot;ended&quot;:
+        break
+
+    print(f&quot;Batch {MESSAGE_BATCH_ID} is still processing...&quot;)
+    time.sleep(60)
+print(message_batch)</code></pre>
                 </div>
                 
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Pattern</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">How your code waits</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Wins when</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Blocking messages.create</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Thread waits for the full Message</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Scripts and one-request-at-a-time workers</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">AsyncAnthropic + await</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Coroutine yields while the request is in flight</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Services already running on an event loop</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">messages.stream</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Consumes events over one open connection</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A user watches output, or large max_tokens would time out</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Message Batches (submit-and-poll)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Stores an ID, checks processing_status later</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Large volumes where nobody waits on a single result</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การโพลมีค่าใช้จ่าย: ID งานต้องมีอายุการใช้งานนานกว่ากระบวนการที่ส่งมัน จัดเก็บ ID ชุดรวมพร้อมกับสิ่งใดก็ตามที่คุณจําเป็นต้องจับคู่ผลลัพธ์กลับไปยังบันทึกของคุณ จากนั้นโพลสามารถทํางานเป็นงานที่กําหนดเวลาไว้แยกต่างหาก และการรีสตาร์ทจะไม่สูญเสียงาน เลือกรูปแบบนี้เมื่ออัตราการโอนถ่ายข้อมูลและค่าใช้จ่ายสําคัญกว่าเวลาแฝง เช่น การดําเนินการจัดหมวดหมู่หรือประเมินในเวลากลางคืน อย่าเลือกเมื่อผู้ใช้กําลังรอคําตอบ
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">รูปแบบ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Pattern</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">วิธีที่โค้ดของคุณรอ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: How your code waits</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ชนะเมื่อ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Wins when</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การบล็อกข้อความสร้าง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Blocking messages.create</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">หัวเรื่องรอข้อความเต็ม</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Thread waits for the full Message</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สคริปต์และผู้ปฏิบัติงานที่ส่งคําขอครั้งละหนึ่งรายการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Scripts and one-request-at-a-time workers</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">AsyncAnthropic + รอ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: AsyncAnthropic + await</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โครูตินให้ผลลัพธ์ในขณะที่คําขออยู่ในระหว่างการดําเนินการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Coroutine yields while the request is in flight</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บริการที่ทํางานอยู่บนลูปเหตุการณ์อยู่แล้ว</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Services already running on an event loop</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">messages.stream</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: messages.stream</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ใช้เหตุการณ์ผ่านการเชื่อมต่อแบบเปิดเดียว</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Consumes events over one open connection</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ผู้ใช้เฝ้าดูเอาต์พุต หรือ max_tokens ขนาดใหญ่จะหมดเวลา</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: A user watches output, or large max_tokens would time out</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">แบตช์ข้อความ (ส่งและสํารวจ)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Message Batches (submit-and-poll)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เก็บ ID และตรวจสอบ processing_status ในภายหลัง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Stores an ID, checks processing_status later</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ปริมาณมากโดยที่ไม่มีใครรอผลลัพธ์เดียว</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Large volumes where nobody waits on a single result</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Choosing a call pattern by workload shape</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">การเลือกรูปแบบการโทรตามรูปร่างเวิร์กโหลด</figcaption>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-810d2d63f459"
-             data-qid="810d2d63f459"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-810d2d63f459" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Match each workload to the call pattern that fits it</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-810d2d63f459">
-            
-          </div>
-          
-          <div id="feedback-810d2d63f459" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-810d2d63f459" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Bulk offline work suits submit-and-poll, a watching user suits streaming, an event-loop service suits the async client, and a simple script suits a blocking call.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Bulk offline work suits submit-and-poll, a watching user suits streaming, an event-loop service suits the async client, and a simple script suits a blocking call.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-810d2d63f459"
+                 data-qid="810d2d63f459"
+                 data-correct="MATCH"
+                 data-total-pairs="4">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔄</span>
+                  <span>แบบฝึกหัดจับคู่ความสัมพันธ์ (Matching Challenge)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-810d2d63f459" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตรวจสอบแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Match (4 คู่)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Message Batches API: Process large volumes of Messages requests asynchronously with 50% cost reduction (POST /v1/messages/batches)”
-              <br><a href="https://platform.claude.com/docs/en/api/overview" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">จับคู่ปริมาณงานแต่ละรายการกับรูปแบบการโทรที่เหมาะสม</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Match each workload to the call pattern that fits it</p>
+              </div>
+
+              <!-- Interactive Matching Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
+                  <span id="match-counter-810d2d63f459" class="text-slate-400 font-mono">จับคู่ได้ 0/4</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <!-- Terms (Left) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">1. รายการคำศัพท์ / หัวข้อ:</div>
+                    
+                <button type="button"
+                        id="match-term-810d2d63f459-0"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('810d2d63f459', 0)">
+                  <span id="match-badge-term-810d2d63f459-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">UI แชทที่ผู้ใช้เห็นการตอบกลับปรากฏ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Chat UI where users watch the reply appear</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-810d2d63f459-1"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('810d2d63f459', 1)">
+                  <span id="match-badge-term-810d2d63f459-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">การทําคะแนนใหม่ ตั๋วที่เก็บถาวร 50,000 ใบในหนึ่งคืน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Re-scoring 50,000 archived tickets overnight</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-810d2d63f459-2"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('810d2d63f459', 2)">
+                  <span id="match-badge-term-810d2d63f459-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">บริการ FastAPI ที่จัดการคําขอพร้อมกันหลายรายการแบบอะซิงโครนัส</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: A FastAPI service handling many concurrent requests on asyncio</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-810d2d63f459-3"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('810d2d63f459', 3)">
+                  <span id="match-badge-term-810d2d63f459-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">สคริปต์ CLI แบบครั้งเดียวที่สรุปไฟล์</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: A one-off CLI script that summarises a file</span>
+                  </div>
+                </button>
+                
+                  </div>
+                  <!-- Definitions (Right) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">2. คำอธิบาย / ความหมาย (สลับตำแหน่ง):</div>
+                    
+                <button type="button"
+                        id="match-def-810d2d63f459-0"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('810d2d63f459', 0, 4)">
+                  <span id="match-badge-def-810d2d63f459-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">การสตรีม</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Streaming</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-810d2d63f459-2"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('810d2d63f459', 2, 4)">
+                  <span id="match-badge-def-810d2d63f459-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">AsyncAnthropic พร้อม await</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: AsyncAnthropic with await</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-810d2d63f459-1"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('810d2d63f459', 1, 4)">
+                  <span id="match-badge-def-810d2d63f459-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">แบตช์ข้อความที่มีลูปโพล</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Message Batches with a polling loop</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-810d2d63f459-3"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('810d2d63f459', 3, 4)">
+                  <span id="match-badge-def-810d2d63f459-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">การบล็อกข้อความสร้าง</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Blocking messages.create</span>
+                  </div>
+                </button>
+                
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-810d2d63f459" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetMatchGame('810d2d63f459')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>เริ่มจับคู่ใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('810d2d63f459')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยคู่ความสัมพันธ์
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">จับคู่ให้ครบทุกข้อเพื่อบันทึกผลสำเร็จอัตโนมัติ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-810d2d63f459" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ เฉลยคู่ความสัมพันธ์ที่ถูกต้อง (Verified Pairs):</strong>
+                <div class="space-y-2.5">
+                  
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">1</span>
+                    <span class="font-semibold text-slate-100">UI แชทที่ผู้ใช้เห็นการตอบกลับปรากฏ</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Chat UI where users watch the reply appear)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ การสตรีม</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Streaming</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">2</span>
+                    <span class="font-semibold text-slate-100">การทําคะแนนใหม่ ตั๋วที่เก็บถาวร 50,000 ใบในหนึ่งคืน</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Re-scoring 50,000 archived tickets overnight)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ แบตช์ข้อความที่มีลูปโพล</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Message Batches with a polling loop</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">3</span>
+                    <span class="font-semibold text-slate-100">บริการ FastAPI ที่จัดการคําขอพร้อมกันหลายรายการแบบอะซิงโครนัส</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(A FastAPI service handling many concurrent requests on asyncio)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ AsyncAnthropic พร้อม await</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: AsyncAnthropic with await</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">4</span>
+                    <span class="font-semibold text-slate-100">สคริปต์ CLI แบบครั้งเดียวที่สรุปไฟล์</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(A one-off CLI script that summarises a file)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ การบล็อกข้อความสร้าง</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Blocking messages.create</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
+                  <p class="leading-relaxed">งานออฟไลน์จํานวนมากเหมาะกับการส่งและโพล ผู้ใช้ที่ดูเหมาะกับการสตรีม บริการลูปเหตุการณ์เหมาะกับไคลเอ็นต์แบบอะซิงโครนัส และสคริปต์ง่ายๆ เหมาะกับการบล็อกการโทร</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Bulk offline work suits submit-and-poll, a watching user suits streaming, an event-loop service suits the async client, and a simple script suits a blocking call.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “Message Batch API: ประมวลผลคําขอข้อความจํานวนมากแบบอะซิงโครนัสพร้อมลดต้นทุนลง 50% (POST /v1/messages/batches)”
+              <br><a href="https://platform.claude.com/docs/en/api/overview" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('810d2d63f459')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1305,6 +1729,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1325,12 +1758,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1395,7 +2091,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

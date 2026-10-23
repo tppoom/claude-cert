@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -539,7 +546,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-compaction-summarizing-older-turns-on-the-server" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Compaction: summarizing older turns on the server</span></a></li><li><a href="#2-what-survives-compaction-in-claude-code-and-the-agent-sdk" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. What survives compaction in Claude Code and the Agent SDK</span></a></li><li><a href="#3-context-isolation-with-subagents" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Context isolation with subagents</span></a></li>
+        <li><a href="#1-compaction-summarizing-older-turns-on-the-server" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. การบีบอัด: สรุปการหมุนก่อนหน้าบนเซิร์ฟเวอร์</span></a></li><li><a href="#2-what-survives-compaction-in-claude-code-and-the-agent-sdk" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. สิ่งที่รอดจากการบีบอัดใน Claude Code และ Agent SDK</span></a></li><li><a href="#3-context-isolation-with-subagents" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. การแยกบริบทด้วยซับเอเจนต์</span></a></li>
       </ul>
     </nav>
     
@@ -547,120 +554,136 @@
         <section id="1-compaction-summarizing-older-turns-on-the-server" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. Compaction: summarizing older turns on the server</span>
+            <span>1. การบีบอัด: สรุปการหมุนก่อนหน้าบนเซิร์ฟเวอร์</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Compaction: summarizing older turns on the server</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Aspect</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Compaction on demand</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Compaction at a token threshold</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Your own summarizer</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Who decides when</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You, by sending a request</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The API, when input tokens reach your trigger</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">What you send back</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The returned block first in messages, replacing what it summarizes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The response, appended as usual; the API drops what came before the block</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Your summary, as your own message</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Runs in the background</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Yes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No, it runs inside the request that reaches the threshold</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Yes, in your code</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Setup</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">compact-2026-09-04 beta and the top-level compaction parameter, plus a compaction loop</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">One parameter on ordinary requests</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The summarization call, its prompt, and the history rewrite</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การตัดแต่งกิ่งทำงานได้ดีกับเนื้อหาที่คุณสามารถทิ้งได้ เช่น ผลลัพธ์ของเครื่องมือเก่าหรือความคิดเก่าๆ การสนทนาที่ยาวนานยังสร้างเนื้อหาที่ยังคงมีความสำคัญแต่ไม่จำเป็นต้องถูกเก็บไว้เป็นคำอีกต่อไป การบดอัดจัดการสิ่งนั้น มันแทนที่เทิร์นเก่าด้วยบทสรุปที่ Claude เขียนบนเซิร์ฟเวอร์ ดังนั้นคุณจึงไม่ต้องเขียนโค้ดสรุป คู่มือหน้าต่างบริบทเรียกการบีบอัดฝั่งเซิร์ฟเวอร์เป็นกลยุทธ์หลักสำหรับการสนทนาที่ใช้เวลานานและเวิร์กโฟลว์ตัวแทน ช่วยให้งานอยู่ในขอบเขตและทำให้บริบทที่แอ็คทีฟมีขนาดเล็ก เนื่องจากคุณภาพจะลดลงเมื่อการสนทนาเติบโตขึ้น การบดอัดอยู่ในรุ่นเบต้าสำหรับ Claude 4.6 และรุ่นที่ใหม่กว่าและ Claude Mythos Preview
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ลักษณะ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Aspect</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">การบีบอัดตามความต้องการ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Compaction on demand</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">การบีบอัดที่เกณฑ์โทเค็น</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Compaction at a token threshold</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ผู้สรุปของคุณเอง</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Your own summarizer</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ใครเป็นผู้ตัดสินใจเมื่อใด</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Who decides when</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คุณ โดยการส่งคําขอ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: You, by sending a request</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">API เมื่อโทเค็นอินพุตถึงทริกเกอร์ของคุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: The API, when input tokens reach your trigger</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: You</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สิ่งที่คุณส่งคืน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: What you send back</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บล็อกที่ส่งคืนก่อนในข้อความ แทนที่สิ่งที่สรุปไว้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: The returned block first in messages, replacing what it summarizes</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การตอบสนองที่เพิ่มเข้ามาตามปกติ; API ลดสิ่งที่อยู่ก่อนหน้าบล็อก</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: The response, appended as usual; the API drops what came before the block</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บทสรุปของคุณ เป็นข้อความของคุณเอง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Your summary, as your own message</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ทํางานอยู่เบื้องหลัง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Runs in the background</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ใช่</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Yes</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไม่ มันจะทํางานภายในคําขอที่ถึงเกณฑ์</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: No, it runs inside the request that reaches the threshold</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ใช่ ในโค้ดของคุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Yes, in your code</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การตั้งค่า</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Setup</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">compact-2026-09-04 beta และพารามิเตอร์การบีบอัดระดับสูงสุด รวมถึงลูปการบีบอัด</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: compact-2026-09-04 beta and the top-level compaction parameter, plus a compaction loop</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">พารามิเตอร์หนึ่งตัวบนคําขอทั่วไป</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: One parameter on ordinary requests</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การเรียกสรุป คําขอ และประวัติการเขียนใหม่</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: The summarization call, its prompt, and the history rewrite</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Three ways to compact a conversation</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">สามวิธีในการทําให้การสนทนาเรียบง่าย</figcaption>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-bbf53dcdbdec"
-             data-qid="bbf53dcdbdec"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-bbf53dcdbdec" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A voice agent can&#x27;t freeze the conversation while a summary is generated, and the last few turns must reach Claude word for word. Which compaction option fits?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-bbf53dcdbdec">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-bbf53dcdbdec-A"
-                    data-qid="bbf53dcdbdec"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('bbf53dcdbdec', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Compaction at a token threshold, because the API handles it inside ordinary requests</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-bbf53dcdbdec-B"
-                    data-qid="bbf53dcdbdec"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('bbf53dcdbdec', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Compaction on demand, which can run in the background and can keep recent turns</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-bbf53dcdbdec-C"
-                    data-qid="bbf53dcdbdec"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('bbf53dcdbdec', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Tool result clearing with a low trigger</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-bbf53dcdbdec-D"
-                    data-qid="bbf53dcdbdec"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('bbf53dcdbdec', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Client-side compaction that replaces the whole history with a summary</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-bbf53dcdbdec" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-bbf53dcdbdec" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Threshold compaction runs inside the request that reaches the threshold, so the conversation pauses. On-demand compaction supports both background runs and keeping recent turns.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Threshold compaction runs inside the request that reaches the threshold, so the conversation pauses. On-demand compaction supports both background runs and keeping recent turns.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เอกสารให้ค่าเริ่มต้นที่ชัดเจน: ใช้การบีบอัดตามความต้องการทุกที่ที่มี การบีบอัดแบบ Threshold เหมาะเมื่อคุณต้องการให้ API จัดการบริบทภายในคําขอทั่วไป การบีบอัดตามความต้องการมีตัวแปรทางเลือก คุณสามารถเก็บการหมุนเวียนไม่กี่ครั้งสุดท้ายไว้ทีละคําและสรุปเฉพาะการหมุนเวียนที่เก่ากว่า เรียกใช้การสรุปในเบื้องหลังในขณะที่การทํางานดําเนินต่อไป ให้พร้อมท์การสรุปของคุณเองเมื่อการสรุปเริ่มต้นลดบางสิ่งที่การหมุนเวียนในภายหลังต้องการ และบีบอัดอีกครั้งเมื่อการสนทนาที่บีบอัดแล้วยาวขึ้น TypeScript และ Ruby SDK ยังเสนอการบีบอัดฝั่งไคลเอ็นต์ผ่าน tool_runner แต่โดยทั่วไปการบีบอัดฝั่งเซิร์ฟเวอร์เป็นที่ต้องการ
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-bbf53dcdbdec"
+                 data-qid="bbf53dcdbdec"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-bbf53dcdbdec" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Your application needs to control when compaction happens, can&#x27;t pause while a summary is written, or must keep recent turns and their thinking”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/compaction" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">เจ้าหน้าที่เสียงไม่สามารถหยุดการสนทนาในขณะที่สร้างบทสรุปได้ และรอบสองสามรอบสุดท้ายจะต้องถึง Claude คำต่อคำ ตัวเลือกการบดอัดใดที่เหมาะกับ?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A voice agent can&#x27;t freeze the conversation while a summary is generated, and the last few turns must reach Claude word for word. Which compaction option fits?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-bbf53dcdbdec">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-bbf53dcdbdec-A"
+                        data-qid="bbf53dcdbdec"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('bbf53dcdbdec', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การบีบอัดที่เกณฑ์โทเค็น เนื่องจาก API จัดการภายในคําขอทั่วไป</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Compaction at a token threshold, because the API handles it inside ordinary requests</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-bbf53dcdbdec-B"
+                        data-qid="bbf53dcdbdec"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('bbf53dcdbdec', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การบีบอัดตามความต้องการ ซึ่งสามารถทํางานในพื้นหลังและสามารถรักษาการหมุนล่าสุดได้</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Compaction on demand, which can run in the background and can keep recent turns</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-bbf53dcdbdec-C"
+                        data-qid="bbf53dcdbdec"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('bbf53dcdbdec', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การล้างผลลัพธ์ของเครื่องมือด้วยทริกเกอร์ต่ํา</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Tool result clearing with a low trigger</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-bbf53dcdbdec-D"
+                        data-qid="bbf53dcdbdec"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('bbf53dcdbdec', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การบีบอัดฝั่งไคลเอ็นต์ที่แทนที่ประวัติทั้งหมดด้วยข้อมูลสรุป</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Client-side compaction that replaces the whole history with a summary</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-bbf53dcdbdec" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-bbf53dcdbdec" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การบีบอัดเกณฑ์จะทํางานภายในคําขอที่ถึงเกณฑ์ ดังนั้นการสนทนาจะหยุดชั่วคราว การบีบอัดตามความต้องการรองรับทั้งการทํางานในพื้นหลังและการรักษาการเปลี่ยนล่าสุด</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Threshold compaction runs inside the request that reaches the threshold, so the conversation pauses. On-demand compaction supports both background runs and keeping recent turns.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “แอปพลิเคชันของคุณจําเป็นต้องควบคุมเมื่อการบีบอัดเกิดขึ้น ไม่สามารถหยุดชั่วคราวในขณะที่เขียนสรุป หรือต้องเก็บการหมุนล่าสุดและการคิด”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/compaction" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('bbf53dcdbdec')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('bbf53dcdbdec')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -680,7 +703,7 @@
         <section id="2-what-survives-compaction-in-claude-code-and-the-agent-sdk" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. What survives compaction in Claude Code and the Agent SDK</span>
+            <span>2. สิ่งที่รอดจากการบีบอัดใน Claude Code และ Agent SDK</span>
           </h2>
           
         <div class="space-y-4">
@@ -699,12 +722,16 @@
         </div>
         
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Mechanism</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">After compaction</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">System prompt and output style</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Both still apply</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Project-root CLAUDE.md, unscoped rules, auto memory</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Re-injected from disk</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Files Claude read or edited</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Up to five re-read, most recently modified first</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Invoked skill bodies</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Re-injected, capped at 5,000 tokens per skill and 25,000 total</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Context that hooks added earlier</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Summarized with the rest of the conversation</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">SessionStart hooks matching the compact source</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Run again; output added to the compacted context</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ใน Claude Code, /compact แทนที่การสนทนาด้วยสรุปที่มีโครงสร้าง เนื้อหาเริ่มต้นระบบส่วนใหญ่จะโหลดใหม่โดยอัตโนมัติ ความแตกต่างนั้นมีความสําคัญ: ทุกสิ่งที่จัดเก็บไว้ในดิสก์จะกลับมาทีละคํา ในขณะที่ทุกสิ่งที่มีอยู่เฉพาะในการสนทนาจะถูกลดลงเป็นสิ่งที่สรุปเก็บไว้
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">กลไก</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Mechanism</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">หลังจากการบีบอัด</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: After compaction</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">รูปแบบการแจ้งและเอาต์พุตของระบบ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: System prompt and output style</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ทั้งสองยังคงใช้ได้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Both still apply</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">รากโปรเจกต์ Claude.md, กฎที่ไม่ได้กําหนดขอบเขต, หน่วยความจําอัตโนมัติ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Project-root CLAUDE.md, unscoped rules, auto memory</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">แทรกใหม่จากดิสก์</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Re-injected from disk</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไฟล์ที่ Claude อ่านหรือแก้ไข</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Files Claude read or edited</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">อ่านซ้ําได้สูงสุดห้าครั้ง โดยแก้ไขล่าสุดก่อน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Up to five re-read, most recently modified first</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ร่างทักษะที่เรียกใช้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Invoked skill bodies</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ถ่ายใหม่ สูงสุด 5,000 โทเค็นต่อทักษะและรวม 25,000 โทเค็น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Re-injected, capped at 5,000 tokens per skill and 25,000 total</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บริบทที่เพิ่มตะขอก่อนหน้านี้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Context that hooks added earlier</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สรุปด้วยบทสนทนาที่เหลือ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Summarized with the rest of the conversation</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">SessionStart hooks ที่ตรงกับแหล่งที่มาที่มีขนาดกะทัดรัด</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: SessionStart hooks matching the compact source</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เรียกใช้อีกครั้ง; เพิ่มเอาต์พุตไปยังบริบทที่อัดแน่นแล้ว</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Run again; output added to the compacted context</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">What happens to each mechanism after compaction in Claude Code</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">เกิดอะไรขึ้นกับแต่ละกลไกหลังจากการบีบอัดใน Claude Code</figcaption>
                 </div>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
@@ -712,109 +739,140 @@
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: An instruction given once in an early user prompt stays in force after compaction, because compaction only removes tool output. (ทำไมถึงผิด): Compaction replaces the conversation with a summary. Content on disk, such as CLAUDE.md, is re-injected word for word, but a conversation-only instruction survives only if the summary happened to keep it.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: คําสั่งที่ให้ไว้ครั้งเดียวในพร้อมท์ผู้ใช้ช่วงต้นจะยังคงมีผลอยู่หลังจากการบีบอัด เนื่องจากการบีบอัดจะลบข้อมูลออกของเครื่องมือเท่านั้น (ทําไมจึงผิดพลาด): การบีบอัดจะแทนที่การสนทนาด้วยข้อมูลสรุป เนื้อหาบนดิสก์ เช่น Claude.md จะถูกแทรกใหม่ทีละคํา แต่คําสั่งแบบสนทนาเท่านั้นจะยังคงอยู่หากข้อมูลสรุปบังเอิญเก็บไว้</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: An instruction given once in an early user prompt stays in force after compaction, because compaction only removes tool output. (ทำไมถึงผิด): Compaction replaces the conversation with a summary. Content on disk, such as CLAUDE.md, is re-injected word for word, but a conversation-only instruction survives only if the summary happened to keep it.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-175cf418b31d"
-             data-qid="175cf418b31d"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-175cf418b31d" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">During a session Claude has read or edited a dozen files. What happens to those files when compaction runs?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-175cf418b31d">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-175cf418b31d-A"
-                    data-qid="175cf418b31d"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('175cf418b31d', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">All twelve are re-read so nothing is lost</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-175cf418b31d-B"
-                    data-qid="175cf418b31d"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('175cf418b31d', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">None are re-read; Claude only has the summary</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-175cf418b31d-C"
-                    data-qid="175cf418b31d"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('175cf418b31d', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Up to five are re-read, most recently modified first</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-175cf418b31d-D"
-                    data-qid="175cf418b31d"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('175cf418b31d', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Only files listed in CLAUDE.md are re-read</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-175cf418b31d" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-175cf418b31d" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Claude Code re-reads a limited number of recent files after compaction. The rest are only in the summary.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Claude Code re-reads a limited number of recent files after compaction. The rest are only in the summary.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-175cf418b31d"
+                 data-qid="175cf418b31d"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-175cf418b31d" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Claude Code re-reads up to five, most recently modified first”
-              <br><a href="https://code.claude.com/docs/en/context-window" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ในระหว่างเซสชันหนึ่ง Claude ได้อ่านหรือแก้ไขไฟล์สิบสองไฟล์ เกิดอะไรขึ้นกับไฟล์เหล่านั้นเมื่อการบีบอัดทํางาน?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: During a session Claude has read or edited a dozen files. What happens to those files when compaction runs?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-175cf418b31d">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-175cf418b31d-A"
+                        data-qid="175cf418b31d"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('175cf418b31d', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ทั้งสิบสองถูกอ่านซ้ําเพื่อไม่ให้สูญเสียอะไร</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: All twelve are re-read so nothing is lost</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-175cf418b31d-B"
+                        data-qid="175cf418b31d"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('175cf418b31d', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ไม่มีการอ่านซ้ํา; คล็อดมีเพียงบทสรุปเท่านั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: None are re-read; Claude only has the summary</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-175cf418b31d-C"
+                        data-qid="175cf418b31d"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('175cf418b31d', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">สูงสุด 5 รายการจะถูกอ่านซ้ํา โดยรายการที่ดัดแปลงล่าสุดจะเป็นรายการแรก</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Up to five are re-read, most recently modified first</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-175cf418b31d-D"
+                        data-qid="175cf418b31d"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('175cf418b31d', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เฉพาะไฟล์ที่ระบุใน CLOUDE.md เท่านั้นที่จะถูกอ่านซ้ํา</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only files listed in CLAUDE.md are re-read</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-175cf418b31d" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-175cf418b31d" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">Claude Code จะอ่านไฟล์ล่าสุดจำนวนจำกัดอีกครั้งหลังจากการบดอัดส่วนที่เหลือจะอยู่ในบทสรุปเท่านั้น</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Claude Code re-reads a limited number of recent files after compaction. The rest are only in the summary.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “โคลด์ โค้ดอ่านซ้ําได้สูงสุดห้าครั้ง โดยที่แก้ไขล่าสุดเป็นอันดับแรก”
+              <br><a href="https://code.claude.com/docs/en/context-window" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('175cf418b31d')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('175cf418b31d')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Summarization instructions in CLAUDE.md, which the compactor reads on every pass markdown # Summary instructions When summarizing this conversation, always preserve: - The current task objective and acceptance criteria - File paths that have been read or modified - Test results and error messages - Decisions made and the reasoning behind them
+            
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  คุณสามารถกําหนดทิศทางของสรุปได้หลายวิธี /compact มุ่งเน้นไปที่การแก้ไขข้อบกพร่องการรับรองความถูกต้อง ทําให้สรุปเก็บสิ่งที่คุณเลือกแทนสิ่งที่การผ่านอัตโนมัติคาดว่าสําคัญ /autocompact 500k ตั้งค่าว่าหน้าต่างจะเต็มขนาดเท่าใดก่อนการบีบอัดอัตโนมัติจะทํางาน /clear เป็นเครื่องมือที่แตกต่างกัน: ใช้เมื่อสลับไปยังงานที่ไม่เกี่ยวข้อง ดังนั้นการสนทนาเก่าจะไม่ทําให้ไฟล์ที่คุณต้องใช้ต่อไปเบียดเสียด Agent SDK ทํางานในลักษณะเดียวกัน ตัวบีบอัดจะอ่าน CLOUDE.md เหมือนกับบริบทอื่น ๆ ดังนั้นส่วนหนึ่งที่นั่นสามารถบอกได้ว่าสรุปแต่ละรายการต้องเก็บไว้อย่างไร PreCompact hook สามารถเรียกใช้ตรรกะแบบกําหนดเองก่อน เช่น การเก็บถาวรการถอดเสียงทั้งหมด และการส่ง /compact เป็นสตริงพร้อมท์ที่กระตุ้นการบีบอัดตามความต้องการ
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">คําแนะนําการสรุปใน CLOUDE.md ซึ่งตัวบีบอัดจะอ่านในแต่ละการทําเครื่องหมายดาวน์ผ่าน</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Summarization instructions in CLAUDE.md, which the compactor reads on every pass markdown</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code># Summary instructions
+
+When summarizing this conversation, always preserve:
+- The current task objective and acceptance criteria
+- File paths that have been read or modified
+- Test results and error messages
+- Decisions made and the reasoning behind them</code></pre>
                 </div>
                 
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
@@ -832,8 +890,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An engineer is building a research agent that needs to read dozens of files across a large repository to answer one question, without letting all that file content pile up in the main conversation&#x27;s context. Which design best achieves this?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">วิศวกรกำลังสร้างตัวแทนการวิจัยที่ต้องการอ่านไฟล์หลายสิบไฟล์ในพื้นที่เก็บข้อมูลขนาดใหญ่เพื่อตอบคำถามเดียว โดยไม่ปล่อยให้เนื้อหาไฟล์ทั้งหมดกองพะเนินอยู่ในบริบทของการสนทนาหลัก การออกแบบใดที่บรรลุเป้าหมายนี้ได้ดีที่สุด?</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An engineer is building a research agent that needs to read dozens of files across a large repository to answer one question, without letting all that file content pile up in the main conversation&#x27;s context. Which design best achieves this?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55601">
@@ -845,7 +904,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55601', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Delegate the file exploration to a subagent, whose fresh context absorbs all the intermediate reads while only its final summary message returns to the parent</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">แบ่งปันการสํารวจไฟล์ไปยังตัวแทนย่อย ซึ่งบริบทใหม่จะดูดซับการอ่านขั้นกลางทั้งหมด ในขณะที่เฉพาะข้อความสรุปสุดท้ายเท่านั้นที่จะกลับไปยังตัวหลัก</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Delegate the file exploration to a subagent, whose fresh context absorbs all the intermediate reads while only its final summary message returns to the parent</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -856,7 +918,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55601', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Read every file directly in the main agent loop, then issue a manual /compact command immediately afterward to shrink the accumulated history</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">อ่านทุกไฟล์โดยตรงในลูปตัวแทนหลัก จากนั้นออกคําสั่ง manual /compact ทันทีหลังจากนั้นเพื่อย่อประวัติที่สะสมไว้</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Read every file directly in the main agent loop, then issue a manual /compact command immediately afterward to shrink the accumulated history</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -867,7 +932,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55601', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Read every file directly in the main agent loop, but set effort to low so the extra file content consumes fewer tokens per turn</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">อ่านทุกไฟล์โดยตรงในลูปเอเจนต์หลัก แต่ตั้งค่าความพยายามไว้ต่ํา เพื่อให้เนื้อหาไฟล์เพิ่มเติมใช้โทเค็นน้อยลงต่อครั้ง</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Read every file directly in the main agent loop, but set effort to low so the extra file content consumes fewer tokens per turn</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -878,7 +946,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55601', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Store all file contents in a custom MCP resource and have the main agent fetch a single combined resource URI instead of individual files</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">จัดเก็บเนื้อหาไฟล์ทั้งหมดในทรัพยากร MCP แบบกําหนดเอง และให้เอเจนต์หลักดึงข้อมูล URI ของทรัพยากรแบบรวมเพียงรายการเดียวแทนที่จะเป็นไฟล์แต่ละไฟล์</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Store all file contents in a custom MCP resource and have the main agent fetch a single combined resource URI instead of individual files</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -900,7 +971,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Correct. A subagent runs in its own fresh conversation; intermediate tool calls and results stay inside the subagent, and only its final message returns to the parent, so the main context grows by a summary rather than every file read.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง ซับเอเจนต์จะทํางานในการสนทนาสดของตัวเอง การเรียกใช้เครื่องมือและผลลัพธ์ขั้นกลางจะยังคงอยู่ภายในซับเอเจนต์ และมีเพียงข้อความสุดท้ายเท่านั้นที่จะส่งกลับไปยังตัวหลัก ดังนั้นบริบทหลักจะเติบโตขึ้นจากการสรุปแทนที่จะเป็นการอ่านไฟล์ทุกไฟล์</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. A subagent runs in its own fresh conversation; intermediate tool calls and results stay inside the subagent, and only its final message returns to the parent, so the main context grows by a summary rather than every file read.</div>
             </div>
             
@@ -909,7 +980,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. Reading everything in the main loop still pays the full context cost of every file during exploration; manual compaction afterward summarizes history but doesn&#x27;t prevent that cost from accumulating first, and it also risks losing detail the task still needs.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง การอ่านทุกอย่างในลูปหลักยังคงมีค่าใช้จ่ายบริบทเต็มของแต่ละไฟล์ในระหว่างการสํารวจ การบีบอัดด้วยตนเองหลังจากนั้นจะสรุปประวัติ แต่ไม่ได้ป้องกันไม่ให้ค่าใช้จ่ายนั้นสะสมก่อน และยังมีความเสี่ยงที่จะสูญเสียรายละเอียดที่งานยังคงต้องการ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Reading everything in the main loop still pays the full context cost of every file during exploration; manual compaction afterward summarizes history but doesn&#x27;t prevent that cost from accumulating first, and it also risks losing detail the task still needs.</div>
             </div>
             
@@ -918,7 +989,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. The effort setting controls how much reasoning Claude applies per turn; it reduces token usage from reasoning, not the token cost of the file contents themselves being read into context.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง การตั้งค่าความพยายามควบคุมปริมาณการให้เหตุผลที่คล็อดใช้ต่อครั้ง มันลดการใช้โทเค็นจากการให้เหตุผล ไม่ใช่ค่าใช้จ่ายของโทเค็นของเนื้อหาไฟล์ที่ถูกอ่านลงในบริบท</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. The effort setting controls how much reasoning Claude applies per turn; it reduces token usage from reasoning, not the token cost of the file contents themselves being read into context.</div>
             </div>
             
@@ -927,7 +998,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การรวมเนื้อหาไฟล์เป็นทรัพยากร MCP เดียวยังคงส่งเนื้อหาทั้งหมดเดียวกันนั้นในบริบทของตัวแทนหลักเมื่อดึงข้อมูล มันไม่ได้แยกการสนทนาแบบแยกกันของตัวแทนย่อย</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การรวมเนื้อหาไฟล์เป็นทรัพยากร MCP เดียวยังคงส่งเนื้อหาทั้งหมดเดียวกันนั้นในบริบทของตัวแทนหลักเมื่อดึงข้อมูล มันไม่ได้แยกการสนทนาแบบแยกกันของตัวแทนย่อย</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Combining file contents into one MCP resource still delivers that same total content into the main agent&#x27;s context when fetched; it does not isolate it the way a subagent&#x27;s separate conversation does.</div>
             </div>
             
@@ -962,16 +1033,9 @@
         <section id="3-context-isolation-with-subagents" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. Context isolation with subagents</span>
+            <span>3. การแยกบริบทด้วยซับเอเจนต์</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Context isolation with subagents</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -984,12 +1048,16 @@
                   </div>
                 </aside>
                 
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Field</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Effect on context</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">prompt (required)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The subagent's own system prompt</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">tools / disallowedTools</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Limits the tool set; if tools is omitted, it inherits every tool available to subagents</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">skills</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Preloads the listed skills at startup; unlisted skills remain invocable through the Skill tool</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">omitClaudeMd</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Runs without user, project and local CLAUDE.md as a subagent (TypeScript SDK only)</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">maxTurns</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Caps agentic turns; output is returned marked as partial and can be resumed</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">model</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Model override such as 'sonnet', 'haiku', or 'inherit'</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การบีบอัดจะทําให้ประวัติย่อลงหลังจากที่สร้างขึ้นแล้ว การแยกตัวจะหยุดการสร้างประวัติโดยสิ้นเชิง ซับเอเจนต์แต่ละตัวจะทํางานในบทสนทนาของตนเอง ซึ่งจะเริ่มต้นใหม่เว้นแต่จะเป็นการแยกตัว การเรียกใช้เครื่องมือและผลลัพธ์ขั้นกลางจะยังคงอยู่ภายในซับเอเจนต์ และมีเพียงข้อความสุดท้ายเท่านั้นที่จะกลับไปยังตัวหลักเป็นผลลัพธ์ของเครื่องมือบริบทของเอเจนต์หลักจะเติบโตขึ้นจากการสรุปนั้น ไม่ใช่จากการถอดเสียงทั้งหมด นั่นคือเหตุผลที่ Claude Code แนะนําให้ส่งการอ่านขนาดใหญ่ไปยังซับเอเจนต์: เนื้อหาของไฟล์จะยังคงอยู่ในหน้าต่างของซับเอเจนต์แทนที่จะเป็นของคุณ การแยกตัวมีประโยชน์อื่น ๆ ด้วย ซับเอเจนต์อิสระสามารถทํางานแบบขนานได้ แต่ละตัวสามารถมีพร้อมท์ระบบเฉพาะทางซึ่งจะเป็นเพียงเสียงรบกวนในคําแนะนําของเอเจนต์หลัก แต่ละรายการสามารถจํากัดไว้ที่เครื่องมือที่ต้องการได้ และการจํากัดนั้นช่วยประหยัดบริบท เนื่องจากคําจํากัดความของเครื่องมือแต่ละรายการใช้พื้นที่
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ฟิลด์</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Field</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ผลกระทบต่อบริบท</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Effect on context</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คําสั่ง (จําเป็น)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: prompt (required)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คําขอระบบของตัวแทนย่อยเอง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: The subagent&#x27;s own system prompt</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เครื่องมือ / ไม่อนุญาตเครื่องมือ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: tools / disallowedTools</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">จํากัดชุดเครื่องมือ ถ้าเครื่องมือถูกเว้นว่าง จะสืบทอดเครื่องมือทั้งหมดที่มีให้สําหรับซับเอเจนต์</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Limits the tool set; if tools is omitted, it inherits every tool available to subagents</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ทักษะ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: skills</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โหลดทักษะที่ระบุไว้ล่วงหน้าเมื่อเริ่มต้นระบบ ทักษะที่ไม่ได้ระบุไว้จะยังคงสามารถเรียกใช้งานได้ผ่านเครื่องมือทักษะ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Preloads the listed skills at startup; unlisted skills remain invocable through the Skill tool</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">omitClaudeMd</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: omitClaudeMd</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เรียกใช้โดยไม่มีผู้ใช้ โปรเจกต์ และ CLOUDE.md ในเครื่องในฐานะ Subagent (TypeScript SDK เท่านั้น)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Runs without user, project and local CLAUDE.md as a subagent (TypeScript SDK only)</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">maxTurns</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: maxTurns</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ตัวพิมพ์ใหญ่แบบเอเจนต์เปลี่ยน; เอาต์พุตจะถูกส่งคืนโดยทําเครื่องหมายเป็นบางส่วนและสามารถดําเนินการต่อได้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Caps agentic turns; output is returned marked as partial and can be resumed</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">แบบอย่าง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: model</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การแทนที่โมเดล เช่น ‘sonnet’, ‘haiku’ หรือ ‘inherit’</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Model override such as &#x27;sonnet&#x27;, &#x27;haiku&#x27;, or &#x27;inherit&#x27;</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">AgentDefinition fields that shape a subagent's context</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ฟิลด์ AgentDefinition ที่กําหนดบริบทของซับเอเจนต์</figcaption>
                 </div>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
@@ -997,107 +1065,122 @@
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: A subagent&#x27;s file reads and tool results are merged into the parent&#x27;s history once it finishes, so delegating doesn&#x27;t save parent context. (ทำไมถึงผิด): The subagent&#x27;s turns stay in its own conversation. The parent&#x27;s context grows only by the subagent&#x27;s final response.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">หลุมพรางการสอบ: การอ่านไฟล์ของ Subagent และผลลัพธ์ของเครื่องมือจะรวมเข้ากับประวัติของตัวหลักเมื่อเสร็จสิ้น ดังนั้นการมอบหมายจะไม่บันทึกบริบทของตัวหลัก (ทําไมถึงผิดพลาด): บทสนทนาของ Subagent ยังคงอยู่ในบทสนทนาของตัวเอง บริบทของตัวหลักจะเพิ่มขึ้นเฉพาะจากการตอบสนองสุดท้ายของ Subagent เท่านั้น</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: A subagent&#x27;s file reads and tool results are merged into the parent&#x27;s history once it finishes, so delegating doesn&#x27;t save parent context. (ทำไมถึงผิด): The subagent&#x27;s turns stay in its own conversation. The parent&#x27;s context grows only by the subagent&#x27;s final response.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-b26b92c9b729"
-             data-qid="b26b92c9b729"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-b26b92c9b729" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A parent agent hands a codebase investigation to a code-reviewer subagent, which makes dozens of Read and Grep calls. What is added to the parent&#x27;s context?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-b26b92c9b729">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b26b92c9b729-A"
-                    data-qid="b26b92c9b729"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('b26b92c9b729', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Every tool call and result, so the parent can check the subagent&#x27;s work</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b26b92c9b729-B"
-                    data-qid="b26b92c9b729"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('b26b92c9b729', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The subagent&#x27;s final message only</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b26b92c9b729-C"
-                    data-qid="b26b92c9b729"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('b26b92c9b729', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The subagent&#x27;s full transcript, compacted into a summary block</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b26b92c9b729-D"
-                    data-qid="b26b92c9b729"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('b26b92c9b729', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Nothing until the parent asks for the subagent&#x27;s transcript</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-b26b92c9b729" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-b26b92c9b729" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Intermediate tool calls and results stay in the subagent&#x27;s own conversation. The parent receives only the final message, as a tool result.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Intermediate tool calls and results stay in the subagent&#x27;s own conversation. The parent receives only the final message, as a tool result.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-b26b92c9b729"
+                 data-qid="b26b92c9b729"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-b26b92c9b729" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “intermediate tool calls and results stay inside the subagent; only its final message returns to the parent.”
-              <br><a href="https://code.claude.com/docs/en/agent-sdk/subagents" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ตัวแทนหลักส่งการตรวจสอบโค้ดเบสให้กับตัวแทนย่อยของผู้ตรวจสอบโค้ด ซึ่งทำการเรียก Read และ Grep หลายครั้ง มีอะไรเพิ่มเติมในบริบทของผู้ปกครอง?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A parent agent hands a codebase investigation to a code-reviewer subagent, which makes dozens of Read and Grep calls. What is added to the parent&#x27;s context?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-b26b92c9b729">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b26b92c9b729-A"
+                        data-qid="b26b92c9b729"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('b26b92c9b729', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การเรียกและผลลัพธ์ของเครื่องมือทุกครั้ง เพื่อให้ตัวหลักสามารถตรวจสอบการทํางานของตัวแทนย่อยได้</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Every tool call and result, so the parent can check the subagent&#x27;s work</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b26b92c9b729-B"
+                        data-qid="b26b92c9b729"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('b26b92c9b729', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เฉพาะข้อความสุดท้ายของซับเอเจนต์เท่านั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The subagent&#x27;s final message only</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b26b92c9b729-C"
+                        data-qid="b26b92c9b729"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('b26b92c9b729', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การถอดเสียงทั้งหมดของ Subagent ที่บีบอัดลงในบล็อกสรุป</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The subagent&#x27;s full transcript, compacted into a summary block</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b26b92c9b729-D"
+                        data-qid="b26b92c9b729"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('b26b92c9b729', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ไม่มีอะไรจนกว่าผู้ปกครองจะขอสําเนาข้อความของตัวแทนรอง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Nothing until the parent asks for the subagent&#x27;s transcript</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-b26b92c9b729" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-b26b92c9b729" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การเรียกใช้เครื่องมือและผลลัพธ์ขั้นกลางจะยังคงอยู่ในการสนทนาของตัวแทนย่อยเอง พาเรนต์จะได้รับเพียงข้อความสุดท้ายเป็นผลลัพธ์ของเครื่องมือเท่านั้น</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Intermediate tool calls and results stay in the subagent&#x27;s own conversation. The parent receives only the final message, as a tool result.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “การเรียกใช้เครื่องมือระดับกลางและผลลัพธ์จะยังคงอยู่ในตัวแทนย่อย มีเพียงข้อความสุดท้ายเท่านั้นที่จะถูกส่งกลับไปยังตัวหลัก”
+              <br><a href="https://code.claude.com/docs/en/agent-sdk/subagents" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('b26b92c9b729')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('b26b92c9b729')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55603"
              data-qid="55603"
@@ -1113,8 +1196,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A code review workflow runs a style-checker subagent, a security-scanner subagent, and a test-coverage subagent for the same pull request. The team wants the review to finish as fast as possible while still keeping each subagent&#x27;s exploration out of the main conversation. What should they do?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">เวิร์กโฟลว์การตรวจสอบโค้ดจะเรียกใช้ตัวแทนย่อยของตัวตรวจสอบสไตล์ ตัวแทนย่อยของเครื่องสแกนความปลอดภัย และตัวแทนย่อยการทดสอบความครอบคลุมสำหรับคำขอดึงเดียวกัน ทีมงานต้องการให้การตรวจสอบเสร็จสิ้นโดยเร็วที่สุดในขณะที่ยังคงไม่ให้การสำรวจของตัวแทนย่อยแต่ละรายอยู่นอกการสนทนาหลัก พวกเขาควรทำอย่างไร?</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A code review workflow runs a style-checker subagent, a security-scanner subagent, and a test-coverage subagent for the same pull request. The team wants the review to finish as fast as possible while still keeping each subagent&#x27;s exploration out of the main conversation. What should they do?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55603">
@@ -1126,7 +1210,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55603', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Invoke the three subagents so they run concurrently, since independent subtasks then finish in the time of the slowest one rather than the sum of all three</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เรียกใช้เอเจนต์ย่อยทั้งสามเพื่อให้ทํางานพร้อมกัน เนื่องจากงานย่อยอิสระจะเสร็จสิ้นในเวลาของงานที่ช้าที่สุดแทนที่จะเป็นผลรวมของทั้งสาม</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Invoke the three subagents so they run concurrently, since independent subtasks then finish in the time of the slowest one rather than the sum of all three</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1137,7 +1224,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55603', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Invoke the three subagents sequentially in a fixed order, since subagents are only supported one at a time within a single main-agent turn</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เรียกใช้เอเจนต์ย่อยสามตัวตามลําดับในลําดับที่กําหนด เนื่องจากมีการรองรับเอเจนต์ย่อยครั้งละหนึ่งตัวภายในรอบเอเจนต์หลักเดียวเท่านั้น</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Invoke the three subagents sequentially in a fixed order, since subagents are only supported one at a time within a single main-agent turn</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1148,7 +1238,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55603', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Merge all three review responsibilities into one subagent&#x27;s system prompt so a single subagent invocation covers everything in one pass</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">รวมความรับผิดชอบในการตรวจสอบทั้งสามไว้ในพร้อมท์ระบบของเอเจนต์ย่อยเดียว เพื่อให้การเรียกใช้เอเจนต์ย่อยเดียวครอบคลุมทุกอย่างในขั้นตอนเดียว</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Merge all three review responsibilities into one subagent&#x27;s system prompt so a single subagent invocation covers everything in one pass</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1159,7 +1252,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55603', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Run the three checks directly in the main agent&#x27;s own tool calls instead of subagents, since only the main agent can run tools concurrently</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เรียกใช้การตรวจสอบทั้งสามโดยตรงในการเรียกใช้เครื่องมือของตัวแทนหลักแทนตัวแทนย่อยเนื่องจากมีเพียงตัวแทนหลักเท่านั้นที่สามารถเรียกใช้เครื่องมือพร้อมกันได้</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Run the three checks directly in the main agent&#x27;s own tool calls instead of subagents, since only the main agent can run tools concurrently</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1181,7 +1277,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. ตัวแทนย่อยหลายรายการสามารถทำงานพร้อมกันได้ ดังนั้นงานย่อยอิสระ เช่น การตรวจสอบสไตล์ ความปลอดภัย และความครอบคลุมจะเสร็จสิ้นในเวลาที่ช้าที่สุดแทนที่จะทำงานตามลำดับ ในขณะที่การสำรวจของตัวแทนย่อยแต่ละรายยังคงแยกออกจากการสนทนาหลัก</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. ตัวแทนย่อยหลายรายการสามารถทำงานพร้อมกันได้ ดังนั้นงานย่อยอิสระ เช่น การตรวจสอบสไตล์ ความปลอดภัย และความครอบคลุมจะเสร็จสิ้นในเวลาที่ช้าที่สุดแทนที่จะทำงานตามลำดับ ในขณะที่การสำรวจของตัวแทนย่อยแต่ละรายยังคงแยกออกจากการสนทนาหลัก</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Multiple subagents can run concurrently, so independent subtasks like style, security, and coverage checks finish in the time of the slowest one rather than sequentially, while each subagent&#x27;s exploration still stays isolated from the main conversation.</div>
             </div>
             
@@ -1190,7 +1286,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ตัวแทนย่อยไม่ได้จำกัดอยู่เพียงครั้งละหนึ่งราย การเรียกใช้งานพร้อมกันถือเป็นประโยชน์ที่ได้รับการบันทึกไว้สำหรับงานย่อยที่เป็นอิสระ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ตัวแทนย่อยไม่ได้จำกัดอยู่เพียงครั้งละหนึ่งราย การเรียกใช้งานพร้อมกันถือเป็นประโยชน์ที่ได้รับการบันทึกไว้สำหรับงานย่อยที่เป็นอิสระ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Subagents are not limited to one at a time; running them concurrently is a documented benefit for independent subtasks.</div>
             </div>
             
@@ -1199,7 +1295,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การรวมความรับผิดชอบเข้าไว้ในตัวแทนย่อยเดียวจะขจัดข้อดีของการทำงานแบบขนานและผสมผสานคำสั่งพิเศษที่มีไว้เพื่อแยกจากกันและมุ่งเน้น</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การรวมความรับผิดชอบเข้าไว้ในตัวแทนย่อยเดียวจะขจัดข้อดีของการทำงานแบบขนานและผสมผสานคำสั่งพิเศษที่มีไว้เพื่อแยกจากกันและมุ่งเน้น</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Merging responsibilities into a single subagent removes the parallelization benefit and mixes specialized instructions that were meant to stay separate and focused.</div>
             </div>
             
@@ -1208,7 +1304,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. The main agent&#x27;s own tool calls that modify state run sequentially, and running checks directly in the main loop would also pull all that exploration content into the main conversation&#x27;s context, which is what subagents are meant to avoid.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง การเรียกใช้เครื่องมือของตัวแทนหลักที่แก้ไขสถานะจะทํางานตามลําดับ และการเรียกใช้การตรวจสอบโดยตรงในลูปหลักจะดึงเนื้อหาการสํารวจทั้งหมดนั้นเข้าสู่บริบทของการสนทนาหลัก ซึ่งเป็นสิ่งที่ตัวแทนย่อยควรหลีกเลี่ยง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. The main agent&#x27;s own tool calls that modify state run sequentially, and running checks directly in the main loop would also pull all that exploration content into the main conversation&#x27;s context, which is what subagents are meant to avoid.</div>
             </div>
             
@@ -1357,6 +1453,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1377,12 +1482,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1447,7 +1815,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

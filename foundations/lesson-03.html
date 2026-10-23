@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -539,7 +546,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-how-query-runs-the-agent-turn-by-turn" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. How query() runs the agent turn by turn</span></a></li><li><a href="#2-options-for-tools-limits-and-context" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Options for tools, limits and context</span></a></li><li><a href="#3-hooks-as-callbacks-for-logging-context-and-lifecycle" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Hooks as callbacks for logging, context and lifecycle</span></a></li><li><a href="#4-declaring-subagents-with-the-agents-option" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Declaring subagents with the agents option</span></a></li>
+        <li><a href="#1-how-query-runs-the-agent-turn-by-turn" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. วิธีที่ query() เรียกใช้เอเจนต์ทีละครั้ง</span></a></li><li><a href="#2-options-for-tools-limits-and-context" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. ตัวเลือกสําหรับเครื่องมือ ข้อจํากัด และบริบท</span></a></li><li><a href="#3-hooks-as-callbacks-for-logging-context-and-lifecycle" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. ฮุคเป็น Callback สําหรับการบันทึกข้อมูลบริบทและวงจรชีวิต</span></a></li><li><a href="#4-declaring-subagents-with-the-agents-option" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. การประกาศตัวแทนย่อยด้วยตัวเลือกตัวแทน</span></a></li>
       </ul>
     </nav>
     
@@ -547,79 +554,209 @@
         <section id="1-how-query-runs-the-agent-turn-by-turn" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. How query() runs the agent turn by turn</span>
+            <span>1. วิธีที่ query() เรียกใช้เอเจนต์ทีละครั้ง</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>How query() runs the agent turn by turn</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Claude Agent SDK คือไลบรารี Python และ TypeScript ที่ฝังเอเจนต์ลูปที่สร้างไว้ล่วงหน้าของ Claude Code พร้อมด้วยเครื่องมือ สิทธิ์ เซสชัน และ hooks ในตัวภายในแอปพลิเคชันที่คุณดำเนินการ คุณได้รับตัวแทนที่ทำงานโดยไม่ต้องเขียนลูปด้วยตัวเอง และส่วนที่เหลือของหน้านี้จะแสดงวิธีการควบคุม
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ใน Claude Agent SDK query() คือลูปเอเจนต์ คุณส่งผ่านพร้อมท์และตัวเลือก และคุณจะได้รับสตรีมข้อความแบบอะซิงโครนัสกลับมา ในขณะที่ SDK เรียกใช้วงจรการใช้เครื่องมือจาก [The tool-use (agentic) loop] (บทเรียน: 8.1) ให้กับคุณ ตัววงจรนั้นคงที่ คุณยังคงควบคุมได้ว่าเครื่องมือใดที่ทํางาน วงจรสามารถไปได้ไกลแค่ไหน บริบทใดที่มันเริ่มต้น และโค้ดของคุณตอบสนองต่อแต่ละข้อความอย่างไร
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  นี่คือลำดับ:
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  1. SDK ส่งออก SystemMessage ที่มี init ประเภทย่อยที่ถือเมตาดาต้าเซสชัน 2. Claude ประเมินสถานะและตอบสนองด้วยข้อความ การเรียกเครื่องมือ หรือทั้งสองอย่าง บล็อกเนื้อหาแต่ละบล็อกมาถึงในฐานะ AssistantMessage ของตัวเอง 3. SDK เรียกใช้เครื่องมือที่ร้องขอแต่ละตัวและส่งออก UserMessage พร้อมผลลัพธ์ 4. ขั้นตอนที่ 2 และ 3 ทําซ้ํา และแต่ละรอบเต็มนับเป็นหนึ่งรอบ ซึ่งจะดําเนินต่อไปจนกว่า Claude จะตอบสนองโดยไม่มีการเรียกเครื่องมือ 5. AssistantMessage สุดท้ายจะถือข้อความตอบกลับ ตามด้วย ResultMessage พร้อมผลลัพธ์ การใช้โทเค็น ค่าใช้จ่าย และ ID เซสชัน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ข้อความที่คุณจัดการจะขึ้นอยู่กับสิ่งที่คุณกําลังสร้าง งานแบบแบตช์ต้องการเพียง ResultMessage เท่านั้น จอแสดงผลความคืบหน้าจะอ่านแต่ละ AssistantMessage เพื่อแสดงเครื่องมือที่ Claude เรียกใช้ UI แบบสดจะเปิดข้อความบางส่วน (รวมถึง PartialMessages ใน TypeScript) เพื่อรับเดลต้าข้อความ StreamEvent ใน TypeScript ข้อความตัวช่วยและผู้ใช้จะห่อข้อความ API ดิบ ดังนั้นบล็อกเนื้อหาจะอยู่ที่ message.message.content อย่าหยุดอ่านที่ ResultMessage: เหตุการณ์ระบบบางเหตุการณ์ เช่น prompt_suggestion อาจมาถึงหลังจากนั้น
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: The stream is finished once the ResultMessage arrives, so you can break out of the loop there. (ทำไมถึงผิด): A few trailing system events can arrive after the ResultMessage, so keep reading until the stream ends.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: สตรีมจะสิ้นสุดเมื่อ ResultMessage มาถึง เพื่อให้คุณสามารถหลุดออกจากลูปได้ที่นั่น (ทําไมถึงผิดพลาด): อาจมีเหตุการณ์ระบบที่ตามมาสองสามเหตุการณ์หลังจาก ResultMessage ดังนั้นให้อ่านต่อไปจนกว่าสตรีมจะสิ้นสุด</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: The stream is finished once the ResultMessage arrives, so you can break out of the loop there. (ทำไมถึงผิด): A few trailing system events can arrive after the ResultMessage, so keep reading until the stream ends.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-20fe89b2a8a0"
-             data-qid="20fe89b2a8a0"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-20fe89b2a8a0" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Put the messages of one query() run in the order the SDK yields them</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-20fe89b2a8a0">
-            
-          </div>
-          
-          <div id="feedback-20fe89b2a8a0" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-20fe89b2a8a0" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Init มาก่อน การเรียกเครื่องมือและผลลัพธ์จะสลับกันตามจำนวนรอบที่ต้องการ การตอบกลับแบบข้อความเท่านั้นจะสิ้นสุดการวนซ้ำและตามด้วย ResultMessage</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Init comes first. Tool calls and their results then alternate for as many turns as needed. A text-only response ends the loop and is followed by the ResultMessage.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-20fe89b2a8a0"
+                 data-qid="20fe89b2a8a0"
+                 data-correct="ORDER"
+                 data-total-steps="5">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔢</span>
+                  <span>แบบฝึกหัดเรียงลำดับขั้นตอน (Step Sequencing)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-20fe89b2a8a0" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Order (5 ขั้นตอน)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “The SDK yields a final AssistantMessage with the text response (no tool calls), followed by a ResultMessage”
-              <br><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ใส่ข้อความของการสืบค้นหนึ่งรายการ () ตามลำดับที่ SDK ให้ผลลัพธ์</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Put the messages of one query() run in the order the SDK yields them</p>
+              </div>
+
+              <!-- Interactive Step Ordering Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกขั้นตอนตามลำดับที่ถูกต้องตั้งแต่ขั้นตอนที่ 1 ถึง 5</span></span>
+                  <span id="order-counter-20fe89b2a8a0" class="text-slate-400 font-mono">เรียงแล้ว 0/5</span>
+                </div>
+                <div class="space-y-2.5 pt-1" id="order-cards-20fe89b2a8a0">
+                  
+                <button type="button"
+                        id="order-step-20fe89b2a8a0-3"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('20fe89b2a8a0', 3, 5)">
+                  <span id="order-badge-20fe89b2a8a0-3" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">AssistantMessage แบบข้อความอย่างเดียวสุดท้าย</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Final text-only AssistantMessage</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-20fe89b2a8a0-2"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('20fe89b2a8a0', 2, 5)">
+                  <span id="order-badge-20fe89b2a8a0-2" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">UserMessage พร้อมผลลัพธ์ของเครื่องมือ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: UserMessage with the tool result</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-20fe89b2a8a0-4"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('20fe89b2a8a0', 4, 5)">
+                  <span id="order-badge-20fe89b2a8a0-4" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">ResultMessage พร้อมผลลัพธ์ การใช้งาน ค่าใช้จ่าย และ ID เซสชัน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: ResultMessage with result, usage, cost and session ID</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-20fe89b2a8a0-0"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('20fe89b2a8a0', 0, 5)">
+                  <span id="order-badge-20fe89b2a8a0-0" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">SystemMessage ที่มีประเภทย่อย init</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: SystemMessage with subtype init</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-20fe89b2a8a0-1"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('20fe89b2a8a0', 1, 5)">
+                  <span id="order-badge-20fe89b2a8a0-1" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">AssistantMessage ดําเนินการเรียกเครื่องมือ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: AssistantMessage carrying a tool call</span>
+                  </div>
+                </button>
+                
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-20fe89b2a8a0" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetOrderGame('20fe89b2a8a0')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>รีเซ็ตลำดับเพื่อลองใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('20fe89b2a8a0')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยลำดับที่ถูกต้อง
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">คลิกจัดลำดับจนครบเพื่อตรวจสอบคำตอบ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-20fe89b2a8a0" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ ลำดับขั้นตอนที่ถูกต้อง (Correct Sequence 1 ➔ 5):</strong>
+                <div class="space-y-2">
+                  
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">SystemMessage ที่มีประเภทย่อย init</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: SystemMessage with subtype init</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">AssistantMessage ดําเนินการเรียกเครื่องมือ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: AssistantMessage carrying a tool call</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">UserMessage พร้อมผลลัพธ์ของเครื่องมือ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: UserMessage with the tool result</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">AssistantMessage แบบข้อความอย่างเดียวสุดท้าย</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Final text-only AssistantMessage</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">5</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">ResultMessage พร้อมผลลัพธ์ การใช้งาน ค่าใช้จ่าย และ ID เซสชัน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: ResultMessage with result, usage, cost and session ID</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 เหตุผลเบื้องหลังลำดับขั้น (Reasoning):</strong>
+                  <p class="leading-relaxed">Init มาก่อน การเรียกเครื่องมือและผลลัพธ์จะสลับกันตามจำนวนรอบที่ต้องการ การตอบกลับแบบข้อความเท่านั้นจะสิ้นสุดการวนซ้ำและตามด้วย ResultMessage</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Init comes first. Tool calls and their results then alternate for as many turns as needed. A text-only response ends the loop and is followed by the ResultMessage.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “SDK ส่งออก AssistantMessage สุดท้ายพร้อมการตอบกลับข้อความ (ไม่มีการเรียกเครื่องมือ) ตามด้วย ResultMessage”
+              <br><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('20fe89b2a8a0')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -639,35 +776,62 @@
         <section id="2-options-for-tools-limits-and-context" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Options for tools, limits and context</span>
+            <span>2. ตัวเลือกสําหรับเครื่องมือ ข้อจํากัด และบริบท</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Options for tools, limits and context</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A debugging agent with auto-approved tools, project settings and a turn limit typescript for await (const message of query({ prompt: "Find and fix the bug causing test failures in the auth module", options: { allowedTools: [ "Read", "Edit", "Bash", "Glob", "Grep" ], // Listing tools here auto-approves them (no prompting) settingSources: [ "project" ], // Load CLAUDE.md, skills, hooks from current directory maxTurns: 30, // Prevent runaway sessions effort: "high" // Thorough reasoning for complex debugging } })) {
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การเข้าถึงเครื่องมือได้รับการตั้งค่าด้วยสามตัวเลือก ซึ่งใช้กับกฎที่สอนใน SDK ใน [กฎการอนุญาต (อนุญาต / ถาม / ปฏิเสธ)](บทเรียน: 7.1):
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  - allowedTools อนุมัติเครื่องมือที่อยู่ในรายการโดยอัตโนมัติ เครื่องมือที่ไม่ได้อยู่ในรายการยังคงใช้งานได้ การเรียกไปยังเครื่องมือเหล่านั้นที่ต้องการการอนุมัติจะเข้าสู่โหมดการอนุญาตและการเรียกกลับ canUseTool - disallowedTools บล็อกเครื่องมือที่อยู่ในรายการ ไม่ว่าการตั้งค่าอื่นๆ จะระบุอย่างไร - permissionMode ตั้งระดับการกํากับดูแลของมนุษย์โดยใช้โหมดจาก [โหมดการอนุญาตและโหมดอัตโนมัติ] (บทเรียน: 3.1) SDK จะตรวจสอบสิ่งนี้ร่วมกับกฎอนุญาตและปฏิเสธของคุณตามลําดับที่กําหนดไว้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  canUseTool คือการเรียกกลับที่คุณจัดหาซึ่งถูกขอให้อนุมัติหรือปฏิเสธการเรียกใช้เครื่องมือที่ต้องการการอนุมัติและยังไม่ได้ครอบคลุมโดยกฎการอนุญาตของคุณ ในโหมดเริ่มต้น การเรียกใช้ที่ต้องการการอนุมัติโดยไม่มีการเรียกกลับที่ลงทะเบียนไว้จะถูกปฏิเสธ
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">เอเจนต์การแก้จุดบกพร่องที่มีเครื่องมือที่ได้รับการอนุมัติโดยอัตโนมัติ การตั้งค่าโครงการ และสคริปต์การพิมพ์ขีดจํากัดการหมุน</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A debugging agent with auto-approved tools, project settings and a turn limit typescript</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>for await (const message of query({
+    prompt: &quot;Find and fix the bug causing test failures in the auth module&quot;,
+    options: {
+      allowedTools: [&quot;Read&quot;, &quot;Edit&quot;, &quot;Bash&quot;, &quot;Glob&quot;, &quot;Grep&quot;], // Listing tools here auto-approves them (no prompting)
+      settingSources: [&quot;project&quot;], // Load CLAUDE.md, skills, hooks from current directory
+      maxTurns: 30, // Prevent runaway sessions
+      effort: &quot;high&quot; // Thorough reasoning for complex debugging
+    }
+  })) {</code></pre>
                 </div>
                 
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Result subtype</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">What happened</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">result field available?</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">success</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude finished the task normally</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Yes</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">error_max_turns</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Hit the maxTurns limit before finishing</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">error_max_budget_usd</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Hit the maxBudgetUsd limit before finishing</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">error_during_execution</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">An error interrupted the loop (for example, a cancelled request)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">error_max_structured_output_retries</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No valid structured output was produced within the configured retry limit</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  settingSources: [“project”] เป็นตัวช่วยบริบทหลัก มันโหลด CLOUDE.md, ทักษะ และตะขอระบบไฟล์จากไดเรกทอรีที่ทํางาน ดังนั้นเอเจนต์จึงเริ่มต้นตามข้อตกลงของโปรเจกต์ของคุณ effort เป็นตัวช่วยต้นทุน การตั้งค่าเป็น “ต่ํา” สําหรับเอเจนต์ที่อ่านเฉพาะไฟล์หรือไดเรกทอรีรายการจะลดการใช้โทเค็น มีสองตัวเลือกในการหยุดการรันที่นานเกินไป: maxTurns ขยายจํานวนรอบและ maxBudgetUsd ขยายค่าใช้จ่าย คําขอแบบเปิดที่ไม่มีการตั้งค่าใดการตั้งค่าหนึ่งจะไม่สามารถรันและใช้จ่ายต่อไปได้จนกว่างานจะเสร็จสิ้น
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ประเภทย่อยผลลัพธ์</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Result subtype</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">เกิดอะไรขึ้น</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: What happened</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">มีช่องผลลัพธ์หรือไม่?</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: result field available?</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ความสําเร็จ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: success</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คล็อดทํางานให้เสร็จตามปกติ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude finished the task normally</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ใช่</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Yes</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">error_max_turns</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: error_max_turns</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สัมผัสขีดจํากัด maxTurns ก่อนเสร็จสิ้น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Hit the maxTurns limit before finishing</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไม่</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: No</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">error_max_budget_usd</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: error_max_budget_usd</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">พบกับขีดจํากัด maxBudgetUsd ก่อนเสร็จสิ้น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Hit the maxBudgetUsd limit before finishing</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไม่</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: No</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">error_during_execution</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: error_during_execution</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ข้อผิดพลาดขัดจังหวะลูป (เช่น คําขอที่ถูกยกเลิก)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: An error interrupted the loop (for example, a cancelled request)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไม่</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: No</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">error_max_structured_output_retries</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: error_max_structured_output_retries</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไม่มีการสร้างเอาต์พุตที่มีโครงสร้างที่ถูกต้องภายในขีดจํากัดการลองใหม่ที่กําหนดค่าไว้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: No valid structured output was produced within the configured retry limit</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไม่</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: No</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ResultMessage subtypes and what each one tells you</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ประเภทย่อยของ ResultMessage และสิ่งที่แต่ละประเภทบอกคุณ</figcaption>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ช่อง subtype จะบอกคุณว่าขีดจํากัดใดถูกแตะ เฉพาะความสําเร็จเท่านั้นที่จะมีข้อความผลลัพธ์ การสืบค้นแบบหนึ่งครั้ง () จะให้ผลลัพธ์ข้อผิดพลาดและจากนั้นจะเกิดข้อผิดพลาด เช่น “ถึงจํานวนรอบสูงสุดแล้ว” ดังนั้นให้วางลูปไว้ในบล็อก try สาขา subtype ของคุณจะยังคงทํางานก่อนที่จะเกิดข้อยกเว้น หากต้องการดําเนินการต่อหลังจาก error_max_turns ให้บันทึก ID ของเซสชันและดําเนินการต่อในเซสชันนั้นด้วยขีดจํากัดที่สูงขึ้น
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Listing tools in allowedTools restricts the agent to only those tools. (ทำไมถึงผิด): allowedTools only auto-approves. Unlisted tools are still available and go through the permission mode and canUseTool. disallowedTools is the option that blocks.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การแสดงรายการเครื่องมือใน allowedTools จํากัดเอเจนต์ให้มีเฉพาะเครื่องมือเหล่านั้นเท่านั้น (ทําไมถึงผิดพลาด): allowedTools อนุมัติโดยอัตโนมัติเท่านั้น เครื่องมือที่ไม่ได้แสดงรายการจะยังคงใช้งานได้และจะผ่านโหมดสิทธิ์อนุญาต และ canUseTool.disallowedTools เป็นตัวเลือกที่บล็อก</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Listing tools in allowedTools restricts the agent to only those tools. (ทำไมถึงผิด): allowedTools only auto-approves. Unlisted tools are still available and go through the permission mode and canUseTool. disallowedTools is the option that blocks.
                   </div>
@@ -688,8 +852,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A startup wants to offer an AI teammate feature that runs long, asynchronous multi-hour sessions for its customers, but the small engineering team does not want to build or operate any sandboxing, container orchestration, or session-storage infrastructure themselves. Which deployment model best fits their constraints?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">สตาร์ทอัพต้องการเสนอฟีเจอร์เพื่อนร่วมทีม AI ที่ทำงานเซสชันอะซิงโครนัสนานหลายชั่วโมงให้กับลูกค้า แต่ทีมวิศวกรขนาดเล็กไม่ต้องการสร้างหรือดำเนินการแซนด์บ็อกซ์ การจัดคอนเทนเนอร์หรือโครงสร้างพื้นฐานการจัดเก็บข้อมูลเซสชันด้วยตนเอง โมเดลการใช้งานใดที่เหมาะกับข้อจำกัดของตนมากที่สุด</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A startup wants to offer an AI teammate feature that runs long, asynchronous multi-hour sessions for its customers, but the small engineering team does not want to build or operate any sandboxing, container orchestration, or session-storage infrastructure themselves. Which deployment model best fits their constraints?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55318">
@@ -701,7 +866,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55318', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Run the Claude Agent SDK inside AWS Lambda functions and rely on Lambda&#x27;s execution environment and per-invocation isolation to separate customer sessions automatically.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เรียกใช้ Claude Agent SDK ภายในฟังก์ชัน AWS Lambda และอาศัยสภาพแวดล้อมการดําเนินการของ Lambda และการแยกตามการเรียกใช้เพื่อแยกเซสชันของลูกค้าโดยอัตโนมัติ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Run the Claude Agent SDK inside AWS Lambda functions and rely on Lambda&#x27;s execution environment and per-invocation isolation to separate customer sessions automatically.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -712,7 +880,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55318', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Adopt Managed Agents, Anthropic&#x27;s hosted REST API, so Anthropic runs the agent and a per-session sandbox while the team&#x27;s application sends events and streams results.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">นําเอเจนต์ที่มีการจัดการซึ่งเป็น REST API ที่โฮสต์ของ Anthropic มาใช้ ดังนั้น Anthropic จึงเรียกใช้เอเจนต์และแซนด์บ็อกซ์ต่อเซสชัน ในขณะที่แอปพลิเคชันของทีมส่งเหตุการณ์และสตรีมผลลัพธ์</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Adopt Managed Agents, Anthropic&#x27;s hosted REST API, so Anthropic runs the agent and a per-session sandbox while the team&#x27;s application sends events and streams results.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -723,7 +894,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55318', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Run the Claude Agent SDK on a single long-lived EC2 instance and build a custom queue to track which customer session is currently active.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เรียกใช้ Claude Agent SDK บนอินสแตนซ์ EC2 เดียวที่มีอายุการใช้งานยาวนาน และสร้างคิวแบบกําหนดเองเพื่อติดตามเซสชันของลูกค้าที่ใช้งานอยู่ในปัจจุบัน</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Run the Claude Agent SDK on a single long-lived EC2 instance and build a custom queue to track which customer session is currently active.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -734,7 +908,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55318', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Use the Claude Agent SDK with permission_mode set to bypassPermissions so sessions never pause for approval and can run unattended for hours.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ใช้ Claude Agent SDK กับ permission_mode ที่ตั้งค่าไว้เพื่อบายพาส Permissions เพื่อให้เซสชันไม่หยุดชั่วคราวเพื่อการอนุมัติและสามารถทํางานได้โดยไม่มีผู้ดูแลเป็นเวลาหลายชั่วโมง</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Use the Claude Agent SDK with permission_mode set to bypassPermissions so sessions never pause for approval and can run unattended for hours.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -756,7 +933,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Lambda กำหนดเวลาดำเนินการและไม่มีแนวคิดในตัวของแซนด์บ็อกซ์ของตัวแทนหรือบันทึกเซสชัน ทีมงานจะยังคงรับผิดชอบในการสร้างและดำเนินการการจัดการตาม SDK ที่พวกเขาต้องการหลีกเลี่ยง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Lambda กำหนดเวลาดำเนินการและไม่มีแนวคิดในตัวของแซนด์บ็อกซ์ของตัวแทนหรือบันทึกเซสชัน ทีมงานจะยังคงรับผิดชอบในการสร้างและดำเนินการการจัดการตาม SDK ที่พวกเขาต้องการหลีกเลี่ยง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Lambda imposes execution-time limits and has no built-in notion of an agent sandbox or session log; the team would still be responsible for building and operating the SDK-based orchestration they wanted to avoid.</div>
             </div>
             
@@ -765,7 +942,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. Managed Agents ได้รับการอธิบายว่าเป็น REST API ที่โฮสต์ โดยที่ Anthropic รันเอเจนต์และแซนด์บ็อกซ์ที่ได้รับการจัดการต่อเซสชัน และโฮสต์บันทึกเหตุการณ์ ซึ่งอยู่ในตำแหน่งเฉพาะสำหรับเอเจนต์ที่ใช้งานจริงโดยไม่ต้องดำเนินการแซนด์บ็อกซ์หรือโครงสร้างพื้นฐานของเซสชัน รวมถึงเซสชันอะซิงโครนัสที่ทำงานเป็นเวลานาน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. Managed Agents ได้รับการอธิบายว่าเป็น REST API ที่โฮสต์ โดยที่ Anthropic รันเอเจนต์และแซนด์บ็อกซ์ที่ได้รับการจัดการต่อเซสชัน และโฮสต์บันทึกเหตุการณ์ ซึ่งอยู่ในตำแหน่งเฉพาะสำหรับเอเจนต์ที่ใช้งานจริงโดยไม่ต้องดำเนินการแซนด์บ็อกซ์หรือโครงสร้างพื้นฐานของเซสชัน รวมถึงเซสชันอะซิงโครนัสที่ทำงานเป็นเวลานาน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Managed Agents is described as a hosted REST API where Anthropic runs the agent and a managed sandbox per session and hosts the event log, which is specifically positioned for production agents without operating sandbox or session infrastructure, including long-running asynchronous sessions.</div>
             </div>
             
@@ -774,7 +951,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">EC2 instance ที่จัดการด้วยตนเองพร้อมคิวแบบกำหนดเองนั้นเป็นโครงสร้างพื้นฐานแบบแซนด์บ็อกซ์และการติดตามเซสชันที่ทีมต้องการหลีกเลี่ยงการสร้างอย่างชัดเจน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">EC2 instance ที่จัดการด้วยตนเองพร้อมคิวแบบกำหนดเองนั้นเป็นโครงสร้างพื้นฐานแบบแซนด์บ็อกซ์และการติดตามเซสชันที่ทีมต้องการหลีกเลี่ยงการสร้างอย่างชัดเจน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A self-managed EC2 instance with a custom queue is exactly the kind of sandboxing and session-tracking infrastructure the team explicitly wants to avoid building.</div>
             </div>
             
@@ -783,7 +960,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">bypassPermissions คือการตั้งค่าการอนุมัติเครื่องมือที่ควบคุมว่าข้อความแจ้งจะปรากฏขึ้นก่อนการเรียกใช้เครื่องมือหรือไม่ มันไม่มีผลต่อใครเป็นผู้ดำเนินการแซนด์บ็อกซ์พื้นฐานหรือโครงสร้างพื้นฐานพื้นที่จัดเก็บเซสชัน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">bypassPermissions คือการตั้งค่าการอนุมัติเครื่องมือที่ควบคุมว่าข้อความแจ้งจะปรากฏขึ้นก่อนการเรียกใช้เครื่องมือหรือไม่ มันไม่มีผลต่อใครเป็นผู้ดำเนินการแซนด์บ็อกซ์พื้นฐานหรือโครงสร้างพื้นฐานพื้นที่จัดเก็บเซสชัน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: bypassPermissions is a tool-approval setting that controls whether prompts appear before tool calls; it has no bearing on who operates the underlying sandbox or session-storage infrastructure.</div>
             </div>
             
@@ -799,101 +976,116 @@
           </div>
         </div>
         
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-8c13d5a61a73"
-             data-qid="8c13d5a61a73"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-8c13d5a61a73" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A read-only agent sets allowedTools to [&quot;Read&quot;, &quot;Glob&quot;, &quot;Grep&quot;] and nothing else. Claude asks to run Bash. What happens?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-8c13d5a61a73">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8c13d5a61a73-A"
-                    data-qid="8c13d5a61a73"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('8c13d5a61a73', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The call fails because Bash is not in the allowed list</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8c13d5a61a73-B"
-                    data-qid="8c13d5a61a73"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('8c13d5a61a73', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Bash is still available, and the call falls through to the permission mode and canUseTool</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8c13d5a61a73-C"
-                    data-qid="8c13d5a61a73"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('8c13d5a61a73', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Bash runs without prompting because allowedTools only affects file tools</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8c13d5a61a73-D"
-                    data-qid="8c13d5a61a73"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('8c13d5a61a73', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The session ends with error_during_execution</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-8c13d5a61a73" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-8c13d5a61a73" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">allowedTools auto-approves the listed tools and restricts nothing. To block Bash outright, put it in disallowedTools.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: allowedTools auto-approves the listed tools and restricts nothing. To block Bash outright, put it in disallowedTools.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-8c13d5a61a73"
+                 data-qid="8c13d5a61a73"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-8c13d5a61a73" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Tools not listed are still available, and calls to them that need approval fall through to the permission mode and canUseTool.”
-              <br><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">เอเจนต์แบบอ่านอย่างเดียวตั้งค่า AllowTools เป็น [&quot;Read&quot;, &quot;Glob&quot;, &quot;Grep&quot;] และไม่มีอะไรอื่นอีก Claude ขอให้วิ่ง Bash เกิดอะไรขึ้น?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A read-only agent sets allowedTools to [&quot;Read&quot;, &quot;Glob&quot;, &quot;Grep&quot;] and nothing else. Claude asks to run Bash. What happens?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-8c13d5a61a73">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8c13d5a61a73-A"
+                        data-qid="8c13d5a61a73"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('8c13d5a61a73', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การเรียกใช้ล้มเหลวเนื่องจาก Bash ไม่ได้อยู่ในรายการที่อนุญาต</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The call fails because Bash is not in the allowed list</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8c13d5a61a73-B"
+                        data-qid="8c13d5a61a73"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('8c13d5a61a73', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Bash ยังคงใช้งานได้ และการเรียกจะเข้าสู่โหมดสิทธิ์อนุญาตและ canUseTool</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Bash is still available, and the call falls through to the permission mode and canUseTool</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8c13d5a61a73-C"
+                        data-qid="8c13d5a61a73"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('8c13d5a61a73', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Bash ทํางานโดยไม่มีการแจ้งเนื่องจาก allowedTools ส่งผลต่อเครื่องมือไฟล์เท่านั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Bash runs without prompting because allowedTools only affects file tools</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8c13d5a61a73-D"
+                        data-qid="8c13d5a61a73"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('8c13d5a61a73', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เซสชันสิ้นสุดด้วย error_during_execution</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The session ends with error_during_execution</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-8c13d5a61a73" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-8c13d5a61a73" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">allowedTools อนุมัติเครื่องมือที่อยู่ในรายการโดยอัตโนมัติและไม่จํากัดอะไร ในการบล็อก Bash โดยตรง ให้ใส่ไว้ใน disallowedTools</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: allowedTools auto-approves the listed tools and restricts nothing. To block Bash outright, put it in disallowedTools.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “เครื่องมือที่ไม่ได้ลงรายการไว้ยังคงใช้งานได้ และการเรียกไปยังเครื่องมือเหล่านั้นที่ต้องการการอนุมัติจะเข้าสู่โหมดสิทธิ์การใช้งานและสามารถใช้เครื่องมือได้”
+              <br><a href="https://code.claude.com/docs/en/agent-sdk/agent-loop" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('8c13d5a61a73')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('8c13d5a61a73')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -913,27 +1105,44 @@
         <section id="3-hooks-as-callbacks-for-logging-context-and-lifecycle" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. Hooks as callbacks for logging, context and lifecycle</span>
+            <span>3. ฮุคเป็น Callback สําหรับการบันทึกข้อมูลบริบทและวงจรชีวิต</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Hooks as callbacks for logging, context and lifecycle</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Registering a callback: event name as key, a list of matchers as value python options = ClaudeAgentOptions(hooks={ "PreToolUse": [HookMatcher(matcher= "Bash", hooks=[my_callback])]})
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Hook คือโค้ดของคุณเองที่ทํางานที่จุดตายในลูป ไม่ว่าโมเดลจะตัดสินใจอย่างไร รายการเหตุการณ์และเวลาที่เหตุการณ์แต่ละเหตุการณ์เกิดขึ้นจะครอบคลุมใน [เหตุการณ์ Hook และเวลาที่เหตุการณ์เกิดขึ้น] (บทเรียน: 7.3) การบล็อกคําสั่งที่เป็นอันตรายเป็นการใช้งานที่รู้จักกันดีที่สุด แต่ในแอปพลิเคชัน SDK Hook ยังทําหน้าที่ประจําที่ซึ่งไม่ควรขึ้นอยู่กับโมเดลในการจดจํา
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การใช้งานทั่วไปที่ไม่ใช่รั้วกั้นประกอบด้วย:
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  - การบันทึกการตรวจสอบ: การเรียกกลับ PostToolUse เขียนการเปลี่ยนแปลงไฟล์ทุกครั้งลงในเส้นทางการตรวจสอบ ID การใช้งานเครื่องมือเชื่อมโยงกับเหตุการณ์ PreToolUse ที่ตรงกัน - การแทรกบริบท: UserPromptSubmit เพิ่มบริบทเพิ่มเติมให้กับแต่ละพรอมต์ก่อนที่ Claude จะเห็น - การเก็บถาวรการถอดเสียง: PreCompact บันทึกการสนทนาทั้งหมดก่อนที่ SDK จะสรุปประวัติเก่า จากนั้นสตรีมจะแสดงข้อความระบบ compact_boundary เมื่อการบีบอัดเสร็จสิ้น - งานรอบการใช้งาน: Stop บันทึกสถานะเซสชัน และ SubagentStop เก็บรวบรวมผลลัพธ์จาก Subagents คู่ขนาน
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Registering a callback: event name as key, a list of matchers as value</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Registering a callback: event name as key, a list of matchers as value</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>options = ClaudeAgentOptions(
+    hooks={&quot;PreToolUse&quot;: [HookMatcher(matcher=&quot;Bash&quot;, hooks=[my_callback])]}
+)</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การเรียกกลับแต่ละครั้งจะได้รับข้อมูลอินพุต ID การใช้งานเครื่องมือ และอ็อบเจกต์บริบท อินพุตทั้งหมดประกอบด้วย session_id, cwd และ hook_event_name และ agent_id จะถูกกรอกเมื่อ hook ถูกเรียกใช้ภายในซับเอเจนต์ การเรียกกลับจะส่งคืนการตัดสินใจ การส่งคืน {} ช่วยให้การดําเนินการดําเนินต่อไป ฟิลด์ systemMessage ระดับบนสุดจะแสดงข้อความให้ผู้ใช้เห็น และดําเนินการต่อ (continue_ ใน Python) จะตัดสินใจว่าเอเจนต์จะดําเนินการต่อหรือไม่ SDK สองตัวไม่รองรับเหตุการณ์เดียวกัน SessionStart, SessionEnd และ PostCompact มีอยู่ใน TypeScript เท่านั้น ดังนั้นแอป Python จึงต้องตั้งค่าการวัดระยะไกลที่อื่น
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Every hook event is available in both the Python and TypeScript Agent SDKs. (ทำไมถึงผิด): Some events, including SessionStart, SessionEnd and PostCompact, are TypeScript-only, so a Python app cannot register them.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: กิจกรรมฮ็อกทุกกิจกรรมมีอยู่ในทั้ง Python และ TypeScript Agent SDK (ทําไมถึงผิดพลาด): กิจกรรมบางอย่าง รวมถึง SessionStart, SessionEnd และ PostCompact เป็น TypeScript เท่านั้น ดังนั้นแอป Python จึงไม่สามารถลงทะเบียนได้</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Every hook event is available in both the Python and TypeScript Agent SDKs. (ทำไมถึงผิด): Some events, including SessionStart, SessionEnd and PostCompact, are TypeScript-only, so a Python app cannot register them.
                   </div>
@@ -954,8 +1163,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An SRE wants an autonomous Claude Code agent to never modify secrets files. Regardless of what the system prompt tells the model, any attempt to write to a file named.env anywhere in the working tree must be rejected before it executes, and the block must hold even if a teammate later runs the same session in bypassPermissions mode. Which implementation satisfies this?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">SRE ต้องการให้เอเจนต์ Claude Code แบบอิสระไม่แก้ไขไฟล์ลับ ไม่ว่าข้อความแจ้งของระบบจะบอกอะไรกับโมเดล ความพยายามใด ๆ ในการเขียนไปยังไฟล์ที่ชื่อ.env ที่ใดก็ได้ในต้นไม้การทํางานจะต้องถูกปฏิเสธก่อนที่จะดําเนินการ และบล็อกจะต้องคงอยู่แม้ว่าเพื่อนร่วมทีมจะเรียกใช้เซสชันเดียวกันในภายหลังในโหมด bypassPermissions การใช้งานใดที่ตรงกับข้อกําหนดนี้</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An SRE wants an autonomous Claude Code agent to never modify secrets files. Regardless of what the system prompt tells the model, any attempt to write to a file named .env anywhere in the working tree must be rejected before it executes, and the block must hold even if a teammate later runs the same session in bypassPermissions mode. Which implementation satisfies this?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55319">
@@ -967,7 +1177,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55319', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Add an instruction to the system prompt telling Claude never to write to files named.env, relying on the model to follow that written policy during every session.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เพิ่มคําสั่งไปยังพร้อมท์ระบบที่บอกให้ Claude ไม่เขียนลงในไฟล์ที่ชื่อ.env โดยพึ่งพาโมเดลในการปฏิบัติตามนโยบายที่เขียนไว้นั้นในทุกเซสชัน</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Add an instruction to the system prompt telling Claude never to write to files named.env, relying on the model to follow that written policy during every session.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -978,7 +1191,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55319', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Register a PreToolUse hook matched to Write|Edit that inspects tool_input.file_path and returns permissionDecision &quot;deny&quot; whenever the file name is.env.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ลงทะเบียน PreTool ใช้เบ็ดที่ตรงกับเขียน | แก้ไขที่ตรวจสอบ tool_input.file_path และส่งคืนสิทธิ์ตัดสินใจ &quot;ปฏิเสธ&quot; เมื่อใดก็ตามที่ชื่อไฟล์.env</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Register a PreToolUse hook matched to Write|Edit that inspects tool_input.file_path and returns permissionDecision &quot;deny&quot; whenever the file name is.env.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -989,7 +1205,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55319', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Add &quot;Bash(rm.env)&quot; to disallowed_tools so the agent cannot delete or overwrite the file through that specific shell command invocation.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เพิ่ม “Bash(rm.env)” ไปยัง disallowed_tools เพื่อให้เอเจนต์ไม่สามารถลบหรือเขียนทับไฟล์ผ่านการเรียกใช้คําสั่งเชลล์เฉพาะนั้นได้</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Add &quot;Bash(rm.env)&quot; to disallowed_tools so the agent cannot delete or overwrite the file through that specific shell command invocation.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1000,7 +1219,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55319', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set permission_mode to &quot;plan&quot; so Claude explores the codebase and proposes edits to.env without ever applying any change automatically.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ตั้งค่า permission_mode เป็น “plan” เพื่อให้ Claude สํารวจโค้ดเบสและเสนอการแก้ไขไปยัง.env โดยไม่เปลี่ยนแปลงใดๆ โดยอัตโนมัติ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set permission_mode to &quot;plan&quot; so Claude explores the codebase and proposes edits to.env without ever applying any change automatically.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1022,7 +1244,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">คำสั่งพร้อมท์ระบบเป็นแนวทางที่แบบจำลองสามารถเบี่ยงเบนไปจากภายใต้แรงกดดันหรือพร้อมต์ที่สร้างขึ้น ไม่ได้บังคับใช้โดยรันไทม์และไม่รับประกันว่าบล็อกจะคงอยู่ในทุกโหมด</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">คำสั่งพร้อมท์ระบบเป็นแนวทางที่แบบจำลองสามารถเบี่ยงเบนไปจากภายใต้แรงกดดันหรือพร้อมต์ที่สร้างขึ้น ไม่ได้บังคับใช้โดยรันไทม์และไม่รับประกันว่าบล็อกจะคงอยู่ในทุกโหมด</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A system-prompt instruction is a guideline the model can deviate from under pressure or a crafted prompt; it is not enforced by the runtime and does not guarantee the block holds in every mode.</div>
             </div>
             
@@ -1031,7 +1253,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. Hooks ทำงานก่อนการประเมินโหมดสิทธิ์และการตัดสินใจปฏิเสธของ hook จะถูกบังคับใช้โดยไม่คำนึงถึงโหมดสิทธิ์ที่ใช้งานอยู่ รวมถึง bypassPermissions ดังนั้น PreToolUse ปฏิเสธชื่อไฟล์.env จะบล็อกการเขียนตามที่กำหนด</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. Hooks ทำงานก่อนการประเมินโหมดสิทธิ์และการตัดสินใจปฏิเสธของ hook จะถูกบังคับใช้โดยไม่คำนึงถึงโหมดสิทธิ์ที่ใช้งานอยู่ รวมถึง bypassPermissions ดังนั้น PreToolUse ปฏิเสธชื่อไฟล์.env จะบล็อกการเขียนตามที่กำหนด</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Hooks run before permission-mode evaluation and a hook&#x27;s deny decision is enforced regardless of the active permission mode, including bypassPermissions, so a PreToolUse deny on the .env file name blocks the write deterministically.</div>
             </div>
             
@@ -1040,7 +1262,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">This scoped rule only denies the specific Bash invocation &quot;rm.env&quot;; it does nothing to stop the same file from being overwritten through the Write or Edit tools.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">กฎที่กําหนดขอบเขตนี้ปฏิเสธเฉพาะการเรียกใช้ Bash ที่เฉพาะเจาะจง “rm.env” เท่านั้น มันไม่ได้ป้องกันไม่ให้ไฟล์เดียวกันถูกเขียนทับผ่านเครื่องมือเขียนหรือแก้ไข</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: This scoped rule only denies the specific Bash invocation &quot;rm .env&quot;; it does nothing to stop the same file from being overwritten through the Write or Edit tools.</div>
             </div>
             
@@ -1049,7 +1271,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">โหมดแผนยังคงกำหนดเส้นทางความพยายามในการแก้ไขไฟล์ไปยังการเรียกกลับของ canUseTool สำหรับการตัดสินใจของมนุษย์ แทนที่จะรับประกันว่าจะมีการบล็อกทันที และข้อจำกัดจะหายไปเมื่อเซสชันออกจากโหมดแผน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">โหมดแผนยังคงกำหนดเส้นทางความพยายามในการแก้ไขไฟล์ไปยังการเรียกกลับของ canUseTool สำหรับการตัดสินใจของมนุษย์ แทนที่จะรับประกันว่าจะมีการบล็อกทันที และข้อจำกัดจะหายไปเมื่อเซสชันออกจากโหมดแผน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Plan mode still routes file-edit attempts to the canUseTool callback for a human decision rather than guaranteeing an outright block, and the restriction disappears once the session leaves plan mode.</div>
             </div>
             
@@ -1065,96 +1287,124 @@
           </div>
         </div>
         
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-0ec1d662a037"
-             data-qid="0ec1d662a037"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-0ec1d662a037" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">This callback must run before every Bash command executes. Which event name completes the registration?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-0ec1d662a037">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-0ec1d662a037-A"
-                    data-qid="0ec1d662a037"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('0ec1d662a037', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">PreToolUse</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-0ec1d662a037-B"
-                    data-qid="0ec1d662a037"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('0ec1d662a037', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">PostToolUse</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-0ec1d662a037-C"
-                    data-qid="0ec1d662a037"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('0ec1d662a037', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">UserPromptSubmit</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-0ec1d662a037-D"
-                    data-qid="0ec1d662a037"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('0ec1d662a037', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">PermissionRequest</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-0ec1d662a037" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-0ec1d662a037" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">PreToolUse fires when a tool call is requested and before it runs, and the matcher narrows it to Bash. PostToolUse fires only after the tool returns.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: PreToolUse fires when a tool call is requested and before it runs, and the matcher narrows it to Bash. PostToolUse fires only after the tool returns.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-0ec1d662a037"
+                 data-qid="0ec1d662a037"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-0ec1d662a037" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">การโทรกลับนี้จะต้องทำงานก่อนที่คำสั่ง Bash ทุกคำสั่งจะดำเนินการ ชื่องานใดที่ทำให้การลงทะเบียนเสร็จสมบูรณ์?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: This callback must run before every Bash command executes. Which event name completes the registration?</p>
+              </div>
+              
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>for await (const message of query({
+  prompt: &quot;Your prompt&quot;,
+  options: {
+    hooks: {
+      ____: [{ matcher: &quot;Bash&quot;, hooks: [myCallback] }]
+    }
+  }
+})) {
+  console.log(message);
+}</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-0ec1d662a037">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-0ec1d662a037-A"
+                        data-qid="0ec1d662a037"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('0ec1d662a037', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">PreToolUse</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: PreToolUse</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-0ec1d662a037-B"
+                        data-qid="0ec1d662a037"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('0ec1d662a037', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">PostToolUse</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: PostToolUse</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-0ec1d662a037-C"
+                        data-qid="0ec1d662a037"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('0ec1d662a037', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">UserPromptSubmit</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: UserPromptSubmit</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-0ec1d662a037-D"
+                        data-qid="0ec1d662a037"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('0ec1d662a037', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">คําขออนุญาต</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: PermissionRequest</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-0ec1d662a037" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-0ec1d662a037" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">PreToolUse จะถูกเรียกใช้เมื่อมีการร้องขอการเรียกใช้เครื่องมือและก่อนที่จะเรียกใช้ และตัวจับคู่จะจํากัดให้เป็น Bash PostToolUse จะถูกเรียกใช้เฉพาะหลังจากที่เครื่องมือส่งคืน</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: PreToolUse fires when a tool call is requested and before it runs, and the matcher narrows it to Bash. PostToolUse fires only after the tool returns.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('0ec1d662a037')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('0ec1d662a037')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1174,20 +1424,43 @@
         <section id="4-declaring-subagents-with-the-agents-option" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>4. Declaring subagents with the agents option</span>
+            <span>4. การประกาศตัวแทนย่อยด้วยตัวเลือกตัวแทน</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Declaring subagents with the agents option</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A read-only code reviewer declared as a subagent typescript for await (const message of query({ prompt: "Use the code-reviewer agent to review this codebase", options: { allowedTools: [ "Read", "Glob", "Grep", "Agent" ], agents: { "code-reviewer": { description: "Expert code reviewer.", prompt: "Analyze code quality and suggest improvements.", tools: [ "Read", "Glob", "Grep" ] } } } })) {
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ผู้จัดประสานงานมอบหมายงานย่อยที่มุ่งเน้นให้กับเอเจนต์ย่อยเฉพาะทาง เหตุผลของการออกแบบดังกล่าวครอบคลุมอยู่ใน [ลําดับชั้น Orchestrator-subagent] (บทเรียน: 1.1) ใน Agent SDK คุณประกาศเอเจนต์ย่อยแต่ละตัวในตัวเลือกเอเจนต์ โดยระบุตามชื่อ คําอธิบายของมันบอก Claude ว่าควรใช้เมื่อใด พรอมต์ตั้งค่าพฤติกรรมของมัน เครื่องมือจํากัดสิ่งที่มันสามารถทําได้ และโมเดลสามารถแทนที่โมเดลเริ่มต้นได้
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">ตัวตรวจสอบโค้ดแบบอ่านอย่างเดียวที่ประกาศเป็นไทป์สคริปต์ซับเอเจนต์</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A read-only code reviewer declared as a subagent typescript</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>for await (const message of query({
+  prompt: &quot;Use the code-reviewer agent to review this codebase&quot;,
+  options: {
+    allowedTools: [&quot;Read&quot;, &quot;Glob&quot;, &quot;Grep&quot;, &quot;Agent&quot;],
+    agents: {
+      &quot;code-reviewer&quot;: {
+        description: &quot;Expert code reviewer.&quot;,
+        prompt: &quot;Analyze code quality and suggest improvements.&quot;,
+        tools: [&quot;Read&quot;, &quot;Glob&quot;, &quot;Grep&quot;]
+      }
+    }
+  }
+})) {</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Orchestrator เริ่มต้นตัวแทนย่อยโดยการเรียกเครื่องมือตัวแทน นั่นคือสาเหตุที่ Agent ปรากฏในเครื่องมือที่ได้รับอนุญาตด้านบน SDK เวอร์ชันเก่าเรียกว่างานของเครื่องมือนี้ ดังนั้นโค้ดที่เฝ้าดูสตรีมควรตรงกับทั้งสองชื่อ ในสตรีม การโทรจะแสดงเป็นบล็อก tool_use ซึ่งมีอินพุตชื่อ subagent_type ข้อความที่สร้างขึ้นภายในรายการย่อยจะมี parent_tool_use_id
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เอเจนต์ย่อยยังช่วยจัดการบริบทอีกด้วย งานที่แยกออกจากกันของเด็กจะอยู่ภายนอกการสนทนาหลัก ซึ่งทําให้บริบทของผู้จัดประสานงานมีขนาดเล็กในงานที่ยาวนาน ในการอ่านการถอดเสียงของเด็กในภายหลัง ให้ดําเนินการต่อในเซสชันเดียวกัน เนื่องจากทุกการเรียกใช้ query() จะเริ่มต้นเซสชันใหม่ตามค่าเริ่มต้น
+                </p>
                 
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55320"
@@ -1204,8 +1477,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team wants every Write tool call the agent makes to be transparently redirected into a /sandbox subdirectory, without the model being told about the redirection or being asked to approve each individual write. Which hook return value accomplishes this?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมต้องการให้เครื่องมือ Write ทุกครั้งที่เอเจนต์ทำถูกเปลี่ยนเส้นทางไปยังไดเร็กทอรีย่อย /sandbox อย่างโปร่งใส โดยไม่มีการแจ้งโมเดลเกี่ยวกับการเปลี่ยนเส้นทางหรือขอให้อนุมัติการเขียนแต่ละรายการ ค่าส่งคืนของ hook ใดที่ทำให้สิ่งนี้สำเร็จ</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team wants every Write tool call the agent makes to be transparently redirected into a /sandbox subdirectory, without the model being told about the redirection or being asked to approve each individual write. Which hook return value accomplishes this?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55320">
@@ -1217,7 +1491,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55320', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">hookSpecificOutput with permissionDecision &quot;ask&quot; and updatedInput containing the rewritten file_path, so a human reviews the redirected path before it is applied.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">hookSpecificOutput ที่มีสิทธิ์ Decision “ask” และ updatedInput ที่มี file_path ที่เขียนใหม่ ดังนั้นมนุษย์จะตรวจสอบเส้นทางที่เปลี่ยนเส้นทางก่อนที่จะนําไปใช้</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: hookSpecificOutput with permissionDecision &quot;ask&quot; and updatedInput containing the rewritten file_path, so a human reviews the redirected path before it is applied.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1228,7 +1505,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55320', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">hookSpecificOutput with permissionDecision &quot;allow&quot; and updatedInput containing the file_path rewritten to prepend /sandbox, so the modified input is auto-approved.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">hookSpecificOutput ที่มีสิทธิ์ Decision “อนุญาต” และ updatedInput ที่มี file_path ที่เขียนทับเพื่อนําหน้า /sandbox ดังนั้นข้อมูลเข้าที่แก้ไขจะถูกอนุมัติโดยอัตโนมัติ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: hookSpecificOutput with permissionDecision &quot;allow&quot; and updatedInput containing the file_path rewritten to prepend /sandbox, so the modified input is auto-approved.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1239,7 +1519,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55320', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">A top-level systemMessage describing the sandbox policy, with hookSpecificOutput left empty so the default permission flow decides whether to apply the rewritten path.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">systemMessage ระดับบนสุดที่อธิบายนโยบาย Sandbox โดยปล่อย hookSpecificOutput ว่างไว้ เพื่อให้โฟลว์สิทธิ์ตามค่าเริ่มต้นตัดสินใจว่าจะใช้เส้นทางที่เขียนใหม่หรือไม่</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: A top-level systemMessage describing the sandbox policy, with hookSpecificOutput left empty so the default permission flow decides whether to apply the rewritten path.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1250,7 +1533,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55320', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">hookSpecificOutput with permissionDecision &quot;defer&quot; and updatedInput containing the rewritten path, so the query pauses until the session is resumed with the new path.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">hookSpecificOutput ที่มีสิทธิ์ Decision “เลื่อน” และ updatedInput ที่มีเส้นทางที่เขียนใหม่ ดังนั้นการสืบค้นจะหยุดชั่วคราวจนกว่าเซสชันจะกลับมาทํางานต่อด้วยเส้นทางใหม่</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: hookSpecificOutput with permissionDecision &quot;defer&quot; and updatedInput containing the rewritten path, so the query pauses until the session is resumed with the new path.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1272,7 +1558,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">&quot;ask&quot; ยังคงกำหนดเส้นทางการโทรผ่าน canUseTool เพื่อขออนุมัติจากมนุษย์ ซึ่งขัดแย้งกับข้อกำหนดที่ไม่มีการขออนุมัติต่อการเขียน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">&quot;ask&quot; ยังคงกำหนดเส้นทางการโทรผ่าน canUseTool เพื่อขออนุมัติจากมนุษย์ ซึ่งขัดแย้งกับข้อกำหนดที่ไม่มีการขออนุมัติต่อการเขียน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: &quot;ask&quot; still routes the call through canUseTool for human approval, which contradicts the requirement that no per-write approval be requested.</div>
             </div>
             
@@ -1281,7 +1567,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Correct. updatedInput must be paired with permissionDecision &quot;allow&quot; to auto-approve the modified arguments; this rewrites file_path to the sandboxed path and executes it without prompting or informing the model of the substitution.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Correct.updatedInput ต้องจับคู่กับ permissionDecision “allow” เพื่ออนุมัติอาร์กิวเมนต์ที่แก้ไขโดยอัตโนมัติ ซึ่งจะเขียน file_path กลับไปยังเส้นทางใน Sandbox และเรียกใช้โดยไม่ต้องแจ้งหรือแจ้งให้โมเดลทราบถึงการแทนที่</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. updatedInput must be paired with permissionDecision &quot;allow&quot; to auto-approve the modified arguments; this rewrites file_path to the sandboxed path and executes it without prompting or informing the model of the substitution.</div>
             </div>
             
@@ -1290,7 +1576,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">การปล่อยให้ hookSpecificOutput ว่างไว้หมายความว่า hook ไม่มีความคิดเห็นเกี่ยวกับการโทร file_path ดั้งเดิมที่ยังไม่ได้แก้ไขคือสิ่งที่ดำเนินการกับโฟลว์การอนุญาตที่เหลือ ไม่ใช่ไฟล์ที่เขียนใหม่</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">การปล่อยให้ hookSpecificOutput ว่างไว้หมายความว่า hook ไม่มีความคิดเห็นเกี่ยวกับการโทร file_path ดั้งเดิมที่ยังไม่ได้แก้ไขคือสิ่งที่ดำเนินการกับโฟลว์การอนุญาตที่เหลือ ไม่ใช่ไฟล์ที่เขียนใหม่</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Leaving hookSpecificOutput empty means the hook has no opinion on the call; the original, unmodified file_path is what proceeds to the rest of the permission flow, not the rewritten one.</div>
             </div>
             
@@ -1299,7 +1585,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">&quot;defer&quot; สิ้นสุดการสืบค้นเพื่อให้สามารถดำเนินการต่อได้ในภายหลัง ตามพฤติกรรมที่จัดทำเอกสารไว้ addeddInput จะถูกละเว้นเมื่อการตัดสินใจ &quot;เลื่อน&quot; ดังนั้นการเขียนใหม่จะไม่ถูกนำไปใช้จริง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">&quot;defer&quot; สิ้นสุดการสืบค้นเพื่อให้สามารถดำเนินการต่อได้ในภายหลัง ตามพฤติกรรมที่จัดทำเอกสารไว้ addeddInput จะถูกละเว้นเมื่อการตัดสินใจ &quot;เลื่อน&quot; ดังนั้นการเขียนใหม่จะไม่ถูกนำไปใช้จริง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: &quot;defer&quot; ends the query so it can be resumed later; per the documented behavior, updatedInput is ignored when the decision is &quot;defer&quot;, so the rewrite would never actually be applied.</div>
             </div>
             
@@ -1315,101 +1601,116 @@
           </div>
         </div>
         
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-7d38ce4c5a56"
-             data-qid="7d38ce4c5a56"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-7d38ce4c5a56" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">In the code-reviewer example, what decides when the orchestrator hands work to the code-reviewer subagent?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-7d38ce4c5a56">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-7d38ce4c5a56-A"
-                    data-qid="7d38ce4c5a56"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('7d38ce4c5a56', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The prompt field, which Claude matches against the user&#x27;s request</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-7d38ce4c5a56-B"
-                    data-qid="7d38ce4c5a56"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('7d38ce4c5a56', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The description field, which tells Claude when to use the subagent</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-7d38ce4c5a56-C"
-                    data-qid="7d38ce4c5a56"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('7d38ce4c5a56', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The tools list, because Claude routes read-only tasks to read-only agents</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-7d38ce4c5a56-D"
-                    data-qid="7d38ce4c5a56"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('7d38ce4c5a56', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The order of entries in the agents object</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-7d38ce4c5a56" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-7d38ce4c5a56" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">description tells the orchestrator when to delegate. prompt defines how the subagent behaves once it is running, and tools limits what it can do.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: description tells the orchestrator when to delegate. prompt defines how the subagent behaves once it is running, and tools limits what it can do.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-7d38ce4c5a56"
+                 data-qid="7d38ce4c5a56"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-7d38ce4c5a56" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “description tells Claude when to use this subagent”
-              <br><a href="https://code.claude.com/docs/en/agent-sdk/subagents" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ในตัวอย่างของผู้ตรวจสอบโค้ด อะไรเป็นตัวตัดสินว่าเมื่อใดที่มือของ orchestrator ทำงานกับตัวแทนย่อยของผู้ตรวจสอบโค้ด</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: In the code-reviewer example, what decides when the orchestrator hands work to the code-reviewer subagent?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-7d38ce4c5a56">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-7d38ce4c5a56-A"
+                        data-qid="7d38ce4c5a56"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('7d38ce4c5a56', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ฟิลด์พร้อมท์ที่ Claude จับคู่กับคําขอของผู้ใช้</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The prompt field, which Claude matches against the user&#x27;s request</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-7d38ce4c5a56-B"
+                        data-qid="7d38ce4c5a56"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('7d38ce4c5a56', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ฟิลด์คําอธิบาย ซึ่งบอกคล็อดว่าเมื่อใดควรใช้เอเจนต์ย่อย</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The description field, which tells Claude when to use the subagent</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-7d38ce4c5a56-C"
+                        data-qid="7d38ce4c5a56"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('7d38ce4c5a56', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">รายการเครื่องมือ เนื่องจาก Claude กําหนดเส้นทางงานแบบอ่านอย่างเดียวไปยังเอเจนต์แบบอ่านอย่างเดียว</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The tools list, because Claude routes read-only tasks to read-only agents</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-7d38ce4c5a56-D"
+                        data-qid="7d38ce4c5a56"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('7d38ce4c5a56', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ลําดับของรายการในวัตถุเอเจนต์</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The order of entries in the agents object</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-7d38ce4c5a56" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-7d38ce4c5a56" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">คําอธิบายบอกผู้จัดประสานงานว่าเมื่อใดควรมอบหมายคําสั่ง prompt กําหนดลักษณะการทํางานของซับเอเจนต์เมื่อทํางาน และเครื่องมือจํากัดสิ่งที่สามารถทําได้</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: description tells the orchestrator when to delegate. prompt defines how the subagent behaves once it is running, and tools limits what it can do.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “คําอธิบายบอกคล็อดว่าควรใช้เอเจนต์ย่อยนี้เมื่อใด”
+              <br><a href="https://code.claude.com/docs/en/agent-sdk/subagents" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('7d38ce4c5a56')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('7d38ce4c5a56')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1543,6 +1844,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1563,12 +1873,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1633,7 +2206,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

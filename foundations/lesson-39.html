@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -538,7 +545,7 @@
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
-            Identity-backed API key — A personal or service account key acts as a user or service account your organization already manages, so its access follows that identity. When the identity is removed, the key stops working and can't outlive its owner.
+            คีย์ API ที่รองรับข้อมูลประจําตัว – คีย์บัญชีส่วนบุคคลหรือบัญชีบริการทําหน้าที่เป็นบัญชีผู้ใช้หรือบัญชีบริการที่องค์กรของคุณจัดการอยู่แล้ว ดังนั้นการเข้าถึงจึงเป็นไปตามข้อมูลประจําตัวนั้น เมื่อลบข้อมูลประจําตัวออก คีย์จะหยุดทํางานและไม่สามารถอยู่รอดได้นานกว่าเจ้าของ
           </p>
         </section>
         
@@ -549,7 +556,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-key-types-and-whose-identity-a-key-carries" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Key types and whose identity a key carries</span></a></li><li><a href="#2-how-the-api-verifies-which-workspace-a-key-can-act-in" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. How the API verifies which workspace a key can act in</span></a></li><li><a href="#3-storing-expiring-and-rotating-keys" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Storing, expiring and rotating keys</span></a></li><li><a href="#4-detecting-a-leak-shutting-it-down-and-watching-usage" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Detecting a leak, shutting it down and watching usage</span></a></li>
+        <li><a href="#1-key-types-and-whose-identity-a-key-carries" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. ประเภทของคีย์และตัวตนที่คีย์ถือไว้</span></a></li><li><a href="#2-how-the-api-verifies-which-workspace-a-key-can-act-in" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. วิธีที่ API ตรวจสอบว่าคีย์สามารถทํางานได้ในเวิร์กสเปซใด</span></a></li><li><a href="#3-storing-expiring-and-rotating-keys" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. การจัดเก็บ การหมดอายุ และการหมุนคีย์</span></a></li><li><a href="#4-detecting-a-leak-shutting-it-down-and-watching-usage" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. การตรวจจับการรั่วไหล ปิดเครื่อง และตรวจสอบการใช้งาน</span></a></li>
       </ul>
     </nav>
     
@@ -557,131 +564,163 @@
         <section id="1-key-types-and-whose-identity-a-key-carries" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. Key types and whose identity a key carries</span>
+            <span>1. ประเภทของคีย์และตัวตนที่คีย์ถือไว้</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Key types and whose identity a key carries</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Key type</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Acts as</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Stops working when</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Personal key</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You, with your roles and permissions</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You lose access to the organization (or to the workspace, for a single-workspace key); archived keys are not restored if you are re-invited</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Service account key</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A service account</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The service account is archived or, for a single-workspace key, removed from that workspace</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Workspace key (legacy)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No one: it belongs to the workspace</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">It expires, is disabled or deleted, or its workspace is archived, whatever happens to its creator</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  คําขอ Claude API แต่ละครั้งจะทําหน้าที่เป็นใครบางคน และประเภทของคีย์จะกําหนดว่าใครเป็นใคร คีย์ API แบบคงที่คือความลับ sk-ant-api... ที่ส่งเป็น Authorization: Bearer &lt;key&gt; ในแต่ละคําขอ เมื่อคุณสร้างคีย์ใน Claude Console ภายใต้ Settings → API keys ช่อง Linked account จะตั้งค่าประเภทของคีย์ เชื่อมโยงกับตัวคุณเองสําหรับคีย์ส่วนตัว หรือเชื่อมโยงกับบัญชีบริการสําหรับคีย์ที่หลายคนหรือเวิร์กโหลดแชร์ ประเภทจะกําหนดว่าคีย์สามารถเข้าถึงอะไรและเมื่อใดที่คีย์หยุดทํางาน
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ประเภทคีย์</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Key type</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">การกระทําดังนี้</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Acts as</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">หยุดทำงานเมื่อ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Stops working when</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คีย์ส่วนตัว</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Personal key</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คุณที่มีบทบาทและสิทธิ์อนุญาตของคุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: You, with your roles and permissions</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คุณจะสูญเสียการเข้าถึงองค์กร (หรือพื้นที่ทํางาน สําหรับคีย์พื้นที่ทํางานเดียว) คีย์ที่เก็บถาวรจะไม่ถูกกู้คืนหากคุณได้รับเชิญอีกครั้ง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: You lose access to the organization (or to the workspace, for a single-workspace key); archived keys are not restored if you are re-invited</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คีย์บัญชีบริการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Service account key</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บัญชีบริการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: A service account</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บัญชีบริการถูกเก็บถาวรหรือสําหรับคีย์พื้นที่ทํางานเดียว ถูกลบออกจากพื้นที่ทํางานนั้น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: The service account is archived or, for a single-workspace key, removed from that workspace</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">กุญแจพื้นที่ทํางาน (รุ่นเก่า)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Workspace key (legacy)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไม่มีใคร: มันเป็นของพื้นที่ทํางาน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: No one: it belongs to the workspace</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">มันหมดอายุ ถูกปิดใช้งานหรือถูกลบ หรือพื้นที่ทํางานของมันถูกเก็บถาวร ไม่ว่าจะเกิดอะไรขึ้นกับผู้สร้าง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: It expires, is disabled or deleted, or its workspace is archived, whatever happens to its creator</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">API key types compared</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">การเปรียบเทียบประเภทของคีย์ API</figcaption>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  คีย์บัญชีส่วนบุคคลและบริการได้รับการสนับสนุนข้อมูลประจำตัว ทุกคำขอทำงานโดยมีสิทธิ์ของผู้ใช้หรือบัญชีบริการที่องค์กรจัดการอยู่แล้ว ดังนั้นการนำข้อมูลระบุตัวตนออกจะเป็นการตัดคีย์ด้วย คีย์พื้นที่ทำงานเดิมเป็นข้อยกเว้น มันไม่มีเจ้าของ ดังนั้นมันจึงทำงานต่อไปหลังจากที่วิศวกรผู้สร้างมันออกไป นั่นคือสาเหตุที่คีย์พื้นที่ทำงานของเพื่อนร่วมงานที่ลาออกยังคงสามารถขับเคลื่อนไปป์ไลน์ได้หลายเดือนให้หลัง และนั่นคือสาเหตุที่การผสานการทำงานใหม่ควรเลือกใช้คีย์ที่ได้รับการสนับสนุนจากข้อมูลระบุตัวตน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การเลือกระหว่างสองประเภทที่รองรับข้อมูลประจําตัวขึ้นอยู่กับว่าใครเป็นคนเรียกใช้โค้ด สคริปต์และการพัฒนาของคุณเองจะใช้คีย์ส่วนตัว คีย์ส่วนตัวที่แชร์กับทีมจะทําหน้าที่เป็นบุคคลเดียวและจะหยุดทํางานเมื่อบุคคลนั้นออกจากทีม งาน CI และบริการการผลิตต้องการบัญชีบริการของตนเอง ซึ่งผู้ดูแลระบบขององค์กรจะสร้างขึ้นเพื่อให้เวิร์กโหลดมีข้อมูลประจําตัวของตัวเอง
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  คีย์ Admin API เป็นข้อมูลรับรองประเภทแยกต่างหาก ซึ่งใช้เพื่อจัดการองค์กรแทนที่จะเป็นโมเดลการโทร ในคอนโซล Claude เฉพาะสมาชิกองค์กรที่มีบทบาทผู้ดูแลระบบเท่านั้นที่สามารถสร้างได้ ภายใต้การตั้งค่า → คีย์ผู้ดูแลระบบ และจะมีคำนำหน้า sk-ant-admin01-.... คีย์ Admin API หนึ่งคีย์จะรับรองความถูกต้องของ Admin API, API การใช้งานและต้นทุน, API การจำกัดอัตรา และ API ส่วนผู้ดูแลระบบอื่นๆ คีย์ที่สร้างในองค์กรหนึ่งไม่สามารถจัดการอีกองค์กรหนึ่งได้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การรับรองความถูกต้องคือ API ที่กําหนดว่าใครคือผู้โทร และคีย์คือหลักฐาน คีย์เดินทางเป็นโทเค็นผู้ถือในส่วนหัวการอนุญาต ส่วนหัวคีย์ x-api ที่เก่ากว่ายังคงได้รับการยอมรับแทน และการเรียก Admin API มักจะถูกส่งด้วยวิธีนั้น คีย์ที่ไม่รู้จัก ถูกเก็บถาวร หรือหมดอายุจะล้มเหลวในขั้นตอนนี้ด้วย 401 authentication_error คีย์ที่หมดอายุจะไม่กลับมา ดังนั้นการแก้ไขคือคีย์ใหม่ ข้อมูลประจําตัวเวิร์กโหลดแบบรวมศูนย์เป็นเส้นทางอื่นไปยังโทเค็น Claude ซึ่งครอบคลุมในหน้าการรวมศูนย์ของบทเรียนนี้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การตรวจสอบระดับเป็นการตรวจสอบแยกต่างหากว่าผู้โทรที่ได้รับการตรวจสอบสิทธิ์ได้รับอนุญาตให้ทําสิ่งนี้โดยเฉพาะ และความล้มเหลวจะดูแตกต่างกัน: 403 ห้าม สําหรับคีย์ส่วนตัว ระดับคือบทบาทขององค์กรของเจ้าของ นักพัฒนาสามารถจัดการคีย์ API ได้ ในขณะที่การจัดการผู้ใช้จะเกี่ยวข้องกับผู้ดูแลระบบ คีย์ Claude Enterprise มีขอบเขตที่ชัดเจน เช่น read:members หรือ read:analytics ซึ่งจะถูกกําหนดเมื่อสร้างคีย์ การเรียกใช้ภายนอกจะส่งคืน 403 ที่ตั้งชื่อขอบเขตที่คีย์มีและขอบเขตที่ตําแหน่งข้อมูลต้องการ การขยายคีย์หมายถึงการสร้างคีย์ใหม่ คีย์ Console Admin API ไม่มีขอบเขตที่สามารถเลือกได้และสามารถเข้าถึงตําแหน่งข้อมูลทุกจุดที่ยอมรับได้ทั้งหมด และตําแหน่งข้อมูลบัญชีบริการและระบบเชื่อมโยงยอมรับเฉพาะโทเค็น org:admin OAuth เท่านั้น ดังนั้นคีย์ Admin API จะถูกปฏิเสธไม่ว่าผู้สร้างจะมีสิทธิ์เท่าใดก็ตาม อ่านโค้ดสถานะก่อน: 401 หมายถึง แก้ไขข้อมูลประจําตัว 403 หมายถึง แก้ไขระดับ
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Removing an engineer from the organization revokes every API key they created. (ทำไมถึงผิด): Removal archives their personal keys, but a legacy workspace key belongs to the workspace and keeps working until it expires, is disabled or deleted, or the workspace is archived. A 403 from the Admin or Compliance APIs means the key is invalid and should be replaced with a fresh one of the same kind. (ทำไมถึงผิด): A 403 means the key authenticated but lacks the level the endpoint needs. Scopes are fixed at creation, so the fix is a new key carrying the missing scopes, not a re-issue of the same one.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การลบวิศวกรออกจากองค์กรจะเพิกถอนคีย์ API ทั้งหมดที่พวกเขาสร้างขึ้น (ทําไมจึงผิดพลาด): การลบจะเก็บถาวรคีย์ส่วนตัวของพวกเขา แต่คีย์เวิร์กสเปซเดิมเป็นของเวิร์กสเปซและทํางานต่อไปจนกว่าจะหมดอายุ ถูกปิดใช้งาน หรือถูกลบ หรือเวิร์กสเปซถูกเก็บถาวร 403 จาก Admin หรือ Compliance API หมายความว่าคีย์ไม่ถูกต้องและควรแทนที่ด้วยคีย์ใหม่ประเภทเดียวกัน (ทําไมจึงผิดพลาด): 403 หมายความว่าคีย์ได้รับการตรวจสอบสิทธิ์แล้ว แต่ขาดระดับที่ตําแหน่งข้อมูลต้องการ ขอบเขตจะถูกแก้ไขเมื่อสร้าง ดังนั้นการแก้ไขคือคีย์ใหม่ที่มีขอบเขตที่ขาดหายไป ไม่ใช่การเผยแพร่ซ้ําของขอบเขตเดียวกัน</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Removing an engineer from the organization revokes every API key they created. (ทำไมถึงผิด): Removal archives their personal keys, but a legacy workspace key belongs to the workspace and keeps working until it expires, is disabled or deleted, or the workspace is archived. A 403 from the Admin or Compliance APIs means the key is invalid and should be replaced with a fresh one of the same kind. (ทำไมถึงผิด): A 403 means the key authenticated but lacks the level the endpoint needs. Scopes are fixed at creation, so the fix is a new key carrying the missing scopes, not a re-issue of the same one.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-31f03bdee02e"
-             data-qid="31f03bdee02e"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-31f03bdee02e" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An engineer leaves the company and is removed from the organization. Which of their keys still authenticate requests the next day?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-31f03bdee02e">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-31f03bdee02e-A"
-                    data-qid="31f03bdee02e"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('31f03bdee02e', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Only the legacy workspace keys they created</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-31f03bdee02e-B"
-                    data-qid="31f03bdee02e"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('31f03bdee02e', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Only their personal keys scoped to a single workspace</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-31f03bdee02e-C"
-                    data-qid="31f03bdee02e"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('31f03bdee02e', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">All of their keys, until each one reaches its expiration date</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-31f03bdee02e-D"
-                    data-qid="31f03bdee02e"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('31f03bdee02e', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">None of them, because every key type is tied to its creator</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-31f03bdee02e" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-31f03bdee02e" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">กุญแจส่วนบุคคลจะถูกเก็บถาวรเมื่อเจ้าของถูกลบออก คีย์ของพื้นที่ทำงานเป็นของพื้นที่ทำงาน ไม่ใช่ของบุคคล ดังนั้นคีย์ของพื้นที่ทำงานจึงยังคงอยู่ต่อไปจากการจากไปของผู้สร้าง</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Personal keys are archived when their owner is removed. A workspace key belongs to its workspace, not to a person, so it survives its creator&#x27;s departure.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-31f03bdee02e"
+                 data-qid="31f03bdee02e"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-31f03bdee02e" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “It expires, is disabled or deleted, or its workspace is archived, regardless of whether its creator leaves the organization”
-              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">วิศวกรออกจากบริษัทและถูกลบออกจากองค์กร คีย์ใดของพวกเขาจะยังคงตรวจสอบสิทธิ์คําขอในวันถัดไป?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An engineer leaves the company and is removed from the organization. Which of their keys still authenticate requests the next day?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-31f03bdee02e">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-31f03bdee02e-A"
+                        data-qid="31f03bdee02e"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('31f03bdee02e', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เฉพาะคีย์พื้นที่ทํางานดั้งเดิมที่พวกเขาสร้างขึ้นเท่านั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only the legacy workspace keys they created</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-31f03bdee02e-B"
+                        data-qid="31f03bdee02e"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('31f03bdee02e', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เฉพาะกุญแจส่วนตัวของพวกเขาที่ครอบคลุมพื้นที่ทํางานเดียว</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only their personal keys scoped to a single workspace</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-31f03bdee02e-C"
+                        data-qid="31f03bdee02e"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('31f03bdee02e', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">กุญแจทั้งหมดของพวกเขา จนกว่าแต่ละกุญแจจะถึงวันหมดอายุ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: All of their keys, until each one reaches its expiration date</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-31f03bdee02e-D"
+                        data-qid="31f03bdee02e"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('31f03bdee02e', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ไม่มีเลย เพราะคีย์ทุกประเภทเชื่อมโยงกับผู้สร้าง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: None of them, because every key type is tied to its creator</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-31f03bdee02e" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-31f03bdee02e" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">กุญแจส่วนบุคคลจะถูกเก็บถาวรเมื่อเจ้าของถูกลบออก คีย์ของพื้นที่ทำงานเป็นของพื้นที่ทำงาน ไม่ใช่ของบุคคล ดังนั้นคีย์ของพื้นที่ทำงานจึงยังคงอยู่ต่อไปจากการจากไปของผู้สร้าง</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Personal keys are archived when their owner is removed. A workspace key belongs to its workspace, not to a person, so it survives its creator&#x27;s departure.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “หมดอายุ ถูกปิดใช้งานหรือถูกลบ หรือพื้นที่ทํางานถูกเก็บถาวร ไม่ว่าผู้สร้างจะออกจากองค์กรหรือไม่”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('31f03bdee02e')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('31f03bdee02e')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55746"
              data-qid="55746"
@@ -697,8 +736,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team configures their Claude Agent SDK session with `permission_mode: &quot;bypassPermissions&quot;` and `allowed_tools: [&quot;Read&quot;]`, believing this restricts the agent to read-only file access for safety during an autonomous refactor. During the run, the agent successfully executes a `Bash` command that deletes a directory. What is the correct explanation for this outcome?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมกำหนดค่าเซสชัน Claude Agent SDK ด้วย `permission_mode: &quot;bypassPermissions&quot;` และ `allowed_tools: [&quot;Read&quot;]` โดยเชื่อว่าการดำเนินการนี้จะจำกัดให้ตัวแทนเข้าถึงไฟล์แบบอ่านอย่างเดียวเพื่อความปลอดภัยในระหว่างการรีแฟคเตอร์แบบอัตโนมัติ ในระหว่างการรัน เอเจนต์ดำเนินการคำสั่ง `Bash` ซึ่งจะลบไดเร็กทอรีได้สำเร็จ คำอธิบายที่ถูกต้องสำหรับผลลัพธ์นี้คืออะไร?</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team configures their Claude Agent SDK session with `permission_mode: &quot;bypassPermissions&quot;` and `allowed_tools: [&quot;Read&quot;]`, believing this restricts the agent to read-only file access for safety during an autonomous refactor. During the run, the agent successfully executes a `Bash` command that deletes a directory. What is the correct explanation for this outcome?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55746">
@@ -710,7 +750,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55746', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`allowed_tools` only pre-approves the tools listed; unlisted tools like `Bash` are not matched by any allow rule and fall through to the permission mode, where `bypassPermissions` approves them anyway.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">`allowed_tools` อนุมัติเครื่องมือที่ลงรายการไว้ล่วงหน้าเท่านั้น เครื่องมือที่ไม่ได้ลงรายการไว้ เช่น `Bash` จะไม่ตรงกับกฎอนุญาตใดๆ และจะเข้าสู่โหมดอนุญาต ซึ่ง `bypassPermissions` จะอนุมัติพวกเขาต่อไป</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `allowed_tools` only pre-approves the tools listed; unlisted tools like `Bash` are not matched by any allow rule and fall through to the permission mode, where `bypassPermissions` approves them anyway.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -721,7 +764,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55746', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The team&#x27;s configuration contains a syntax error, since `allowed_tools` cannot be combined with `bypassPermissions` in the same session and the SDK should have rejected it at startup.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">การกําหนดค่าของทีมมีข้อผิดพลาดทางไวยากรณ์ เนื่องจาก `allowed_tools` ไม่สามารถรวมกับ `bypassPermissions` ในเซสชันเดียวกันได้ และ SDK ควรจะปฏิเสธเมื่อเริ่มต้นระบบ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The team&#x27;s configuration contains a syntax error, since `allowed_tools` cannot be combined with `bypassPermissions` in the same session and the SDK should have rejected it at startup.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -732,7 +778,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55746', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`bypassPermissions` only applies to tools explicitly named in `allowed_tools`, so `Bash` should have been blocked; this indicates a bug in the SDK&#x27;s permission evaluator.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">`bypassPermissions`ใช้ได้เฉพาะกับเครื่องมือที่มีชื่ออย่างชัดเจนใน`allowed_tools` ดังนั้น`Bash`จึงควรถูกบล็อก สิ่งนี้บ่งชี้ถึงข้อบกพร่องในตัวประเมินสิทธิ์ของ SDK</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `bypassPermissions` only applies to tools explicitly named in `allowed_tools`, so `Bash` should have been blocked; this indicates a bug in the SDK&#x27;s permission evaluator.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -743,7 +792,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55746', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The deletion happened because a `PreToolUse` hook was missing, and hooks are the only mechanism capable of blocking destructive Bash commands in bypass mode.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">การลบเกิดขึ้นเนื่องจาก `PreToolUse` hook หายไป และ hook เป็นกลไกเดียวที่สามารถบล็อกคําสั่ง Bash ที่ทําลายล้างในโหมดบายพาสได้</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The deletion happened because a `PreToolUse` hook was missing, and hooks are the only mechanism capable of blocking destructive Bash commands in bypass mode.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -765,7 +817,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Correct. allowed_tools does not constrain bypassPermissions: it only pre-approves listed tools, and any tool not covered by an allow or deny rule still falls through to the permission mode step, where bypass mode approves everything.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง allowed_tools ไม่จํากัด bypassPermissions: อนุญาตเครื่องมือที่ระบุไว้ล่วงหน้าเท่านั้น และเครื่องมือใดๆ ที่ไม่ได้ครอบคลุมด้วยกฎอนุญาตหรือปฏิเสธจะยังคงผ่านขั้นตอนโหมดอนุญาต ซึ่งโหมดบายพาสจะอนุมัติทุกอย่าง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. allowed_tools does not constrain bypassPermissions: it only pre-approves listed tools, and any tool not covered by an allow or deny rule still falls through to the permission mode step, where bypass mode approves everything.</div>
             </div>
             
@@ -774,7 +826,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การรวมกันนี้เป็นไวยากรณ์ที่ถูกต้องและการกำหนดค่าที่บันทึกไว้ (หากเป็นอันตราย) SDK ไม่ปฏิเสธ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การรวมกันนี้เป็นไวยากรณ์ที่ถูกต้องและการกำหนดค่าที่บันทึกไว้ (หากเป็นอันตราย) SDK ไม่ปฏิเสธ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. This combination is valid syntax and a documented (if dangerous) configuration; the SDK does not reject it.</div>
             </div>
             
@@ -783,7 +835,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. This is the inverse of the actual behavior: bypassPermissions approves tools regardless of allowed_tools, not only the ones listed in it, so nothing here indicates a bug.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง นี่คือสิ่งที่ตรงกันข้ามกับพฤติกรรมจริง: bypassPermissions อนุมัติเครื่องมือโดยไม่คํานึงถึง allowed_tools ไม่ใช่เฉพาะเครื่องมือที่อยู่ในรายการเท่านั้น ดังนั้นที่นี่จึงไม่มีอะไรบ่งชี้ถึงข้อผิดพลาด</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. This is the inverse of the actual behavior: bypassPermissions approves tools regardless of allowed_tools, not only the ones listed in it, so nothing here indicates a bug.</div>
             </div>
             
@@ -792,7 +844,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ในขณะที่ตะขอ PreToolUse สามารถบล็อกสิ่งนี้ได้ แต่ตะขอไม่ใช่กลไกเดียวเท่านั้น การใช้ disallowed_tools เพื่อลบ Bash ทั้งหมดหรือหลีกเลี่ยงการเลี่ยงการอนุญาตก็จะป้องกันได้เช่นกัน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ในขณะที่ตะขอ PreToolUse สามารถบล็อกสิ่งนี้ได้ แต่ตะขอไม่ใช่กลไกเดียวเท่านั้น การใช้ disallowed_tools เพื่อลบ Bash ทั้งหมดหรือหลีกเลี่ยงการเลี่ยงการอนุญาตก็จะป้องกันได้เช่นกัน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. While a PreToolUse hook could have blocked this, hooks are not the only mechanism; using disallowed_tools to remove Bash entirely, or avoiding bypassPermissions, would also have prevented it.</div>
             </div>
             
@@ -808,57 +860,178 @@
           </div>
         </div>
         
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-f3046691fd33"
-             data-qid="f3046691fd33"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-f3046691fd33" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Put the steps for replacing a legacy workspace key in order.</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-f3046691fd33">
-            
-          </div>
-          
-          <div id="feedback-f3046691fd33" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-f3046691fd33" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ต้องมีข้อมูลประจำตัวและคีย์ใหม่และให้บริการการรับส่งข้อมูลก่อนที่คีย์เก่าจะถูกลบ มิฉะนั้นการบูรณาการจะสูญเสียการเข้าถึงในระหว่างนั้น</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The new identity and key must exist and be serving traffic before the old key is deleted. Otherwise the integration loses access in between.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การย้ายการผสานรวมออกจากคีย์พื้นที่ทํางานจะเป็นไปตามลําดับที่กําหนดไว้ คีย์เก่าจะเป็นคีย์สุดท้าย ดังนั้นการรับส่งข้อมูลจะไม่ทํางานโดยไม่มีข้อมูลประจําตัวที่ใช้งานได้
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-f3046691fd33"
+                 data-qid="f3046691fd33"
+                 data-correct="ORDER"
+                 data-total-steps="5">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔢</span>
+                  <span>แบบฝึกหัดเรียงลำดับขั้นตอน (Step Sequencing)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-f3046691fd33" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Order (5 ขั้นตอน)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Confirm that requests succeed, then delete the workspace key on the API keys page.”
-              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">วางขั้นตอนในการแทนที่คีย์พื้นที่ทำงานเดิมตามลำดับ</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Put the steps for replacing a legacy workspace key in order.</p>
+              </div>
+
+              <!-- Interactive Step Ordering Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกขั้นตอนตามลำดับที่ถูกต้องตั้งแต่ขั้นตอนที่ 1 ถึง 5</span></span>
+                  <span id="order-counter-f3046691fd33" class="text-slate-400 font-mono">เรียงแล้ว 0/5</span>
+                </div>
+                <div class="space-y-2.5 pt-1" id="order-cards-f3046691fd33">
+                  
+                <button type="button"
+                        id="order-step-f3046691fd33-2"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('f3046691fd33', 2, 5)">
+                  <span id="order-badge-f3046691fd33-2" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">สร้างคีย์ใหม่สําหรับพื้นที่ทํางานของการผสานรวม</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Create the new key for the integration&#x27;s workspace</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-f3046691fd33-3"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('f3046691fd33', 3, 5)">
+                  <span id="order-badge-f3046691fd33-3" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">ปรับใช้คีย์ใหม่ทุกที่ที่อินทิเกรตอ่านได้เช่น ANTHROPIC_API_KEY หรือรายการตัวจัดการความลับ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Deploy the new key wherever the integration reads it, such as ANTHROPIC_API_KEY or a secrets manager entry</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-f3046691fd33-0"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('f3046691fd33', 0, 5)">
+                  <span id="order-badge-f3046691fd33-0" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">ตัดสินใจประเภทหลัก: ส่วนบุคคลสําหรับเครื่องมือของคุณเอง บัญชีบริการสําหรับเวิร์กโหลดที่แชร์หรือที่ไม่มีผู้ดูแล</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Decide the key type: personal for your own tooling, service account for shared or unattended workloads</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-f3046691fd33-4"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('f3046691fd33', 4, 5)">
+                  <span id="order-badge-f3046691fd33-4" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">ยืนยันว่าคําขอสําเร็จ แล้วลบคีย์พื้นที่ทํางานเก่า</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Confirm requests succeed, then delete the old workspace key</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-f3046691fd33-1"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('f3046691fd33', 1, 5)">
+                  <span id="order-badge-f3046691fd33-1" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">ให้ผู้ดูแลระบบขององค์กรสร้างบัญชีบริการและเพิ่มลงในพื้นที่ทํางาน หากจําเป็น</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Have an organization admin create a service account and add it to the workspace, if needed</span>
+                  </div>
+                </button>
+                
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-f3046691fd33" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetOrderGame('f3046691fd33')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>รีเซ็ตลำดับเพื่อลองใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('f3046691fd33')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยลำดับที่ถูกต้อง
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">คลิกจัดลำดับจนครบเพื่อตรวจสอบคำตอบ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-f3046691fd33" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ ลำดับขั้นตอนที่ถูกต้อง (Correct Sequence 1 ➔ 5):</strong>
+                <div class="space-y-2">
+                  
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">ตัดสินใจประเภทหลัก: ส่วนบุคคลสําหรับเครื่องมือของคุณเอง บัญชีบริการสําหรับเวิร์กโหลดที่แชร์หรือที่ไม่มีผู้ดูแล</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Decide the key type: personal for your own tooling, service account for shared or unattended workloads</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">ให้ผู้ดูแลระบบขององค์กรสร้างบัญชีบริการและเพิ่มลงในพื้นที่ทํางาน หากจําเป็น</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Have an organization admin create a service account and add it to the workspace, if needed</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">สร้างคีย์ใหม่สําหรับพื้นที่ทํางานของการผสานรวม</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Create the new key for the integration&#x27;s workspace</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">ปรับใช้คีย์ใหม่ทุกที่ที่อินทิเกรตอ่านได้เช่น ANTHROPIC_API_KEY หรือรายการตัวจัดการความลับ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Deploy the new key wherever the integration reads it, such as ANTHROPIC_API_KEY or a secrets manager entry</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">5</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">ยืนยันว่าคําขอสําเร็จ แล้วลบคีย์พื้นที่ทํางานเก่า</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Confirm requests succeed, then delete the old workspace key</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 เหตุผลเบื้องหลังลำดับขั้น (Reasoning):</strong>
+                  <p class="leading-relaxed">ต้องมีข้อมูลประจำตัวและคีย์ใหม่และให้บริการการรับส่งข้อมูลก่อนที่คีย์เก่าจะถูกลบ มิฉะนั้นการบูรณาการจะสูญเสียการเข้าถึงในระหว่างนั้น</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The new identity and key must exist and be serving traffic before the old key is deleted. Otherwise the integration loses access in between.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ยืนยันว่าคําขอสําเร็จ แล้วลบคีย์เวิร์กสเปซบนหน้าคีย์ API”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('f3046691fd33')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -878,202 +1051,246 @@
         <section id="2-how-the-api-verifies-which-workspace-a-key-can-act-in" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. How the API verifies which workspace a key can act in</span>
+            <span>2. วิธีที่ API ตรวจสอบว่าคีย์สามารถทํางานได้ในเวิร์กสเปซใด</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>How the API verifies which workspace a key can act in</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-7daca847d855"
-             data-qid="7daca847d855"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-7daca847d855" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">This request uses a multi-workspace key. Which header name completes it?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-7daca847d855">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-7daca847d855-A"
-                    data-qid="7daca847d855"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('7daca847d855', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">anthropic-workspace-id</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-7daca847d855-B"
-                    data-qid="7daca847d855"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('7daca847d855', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">x-api-key</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-7daca847d855-C"
-                    data-qid="7daca847d855"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('7daca847d855', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">anthropic-version</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-7daca847d855-D"
-                    data-qid="7daca847d855"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('7daca847d855', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">anthropic-organization-id</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-7daca847d855" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-7daca847d855" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">คีย์ที่ไม่ได้กำหนดขอบเขตไว้ที่พื้นที่ทำงานจะต้องส่ง `anthropic-workspace-id` ในทุกคำขอ คุณยังสามารถตั้งค่าได้ครั้งเดียวด้วย `default_headers` บนไคลเอนต์</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A key that isn&#x27;t scoped to a workspace has to send `anthropic-workspace-id` on every request. You can also set it once with `default_headers` on the client.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ขอบเขตเวิร์กสเปซของคีย์จะกําหนดว่าแต่ละคําขอต้องบอก API เท่าใด หากคีย์ถูกสร้างขึ้นสําหรับเวิร์กสเปซเดียว คีย์จะทํางานได้เฉพาะที่นั่น และคําขอของคีย์สามารถละเว้น ID ของเวิร์กสเปซได้ คีย์ที่ไม่ได้กําหนดขอบเขตไปยังเวิร์กสเปซต้องตั้งชื่อหนึ่งสําหรับทุกคําขอในส่วนหัว anthropic-workspace-id หากส่วนหัวหายไป API จะคืนค่า 400 invalid_request_error
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-7daca847d855"
+                 data-qid="7daca847d855"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-7daca847d855" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('7daca847d855')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-4f82760d56c1"
-             data-qid="4f82760d56c1"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-4f82760d56c1" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A service account key with access to all workspaces sends a valid-format workspace ID for a workspace the service account was never added to. What comes back?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-4f82760d56c1">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4f82760d56c1-A"
-                    data-qid="4f82760d56c1"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('4f82760d56c1', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">400 invalid_request_error, because the header is required</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4f82760d56c1-B"
-                    data-qid="4f82760d56c1"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('4f82760d56c1', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">404 not_found_error, as if the workspace did not exist</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4f82760d56c1-C"
-                    data-qid="4f82760d56c1"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('4f82760d56c1', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">401 authentication_error, because the key is rejected</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-4f82760d56c1-D"
-                    data-qid="4f82760d56c1"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('4f82760d56c1', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">200, with the request redirected to the Default Workspace</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-4f82760d56c1" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-4f82760d56c1" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">รหัสที่ถูกต้องซึ่งข้อมูลประจำตัวของคีย์ไม่สามารถเข้าถึงได้จะได้รับ 404 เหมือนกับพื้นที่ทำงานที่ไม่รู้จัก 400 ใช้สำหรับส่วนหัวที่ขาดหายไปหรือผิดรูปแบบเท่านั้น</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A valid ID that the key&#x27;s identity can&#x27;t reach gets the same 404 as an unknown workspace. A 400 is only for a missing or malformed header.</div>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">คำขอนี้ใช้คีย์หลายพื้นที่ทำงาน ชื่อส่วนหัวใดที่ทำให้สมบูรณ์?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: This request uses a multi-workspace key. Which header name completes it?</p>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “the key&#x27;s user or service account doesn&#x27;t have access to it, the API returns a 404 not_found_error”
-              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>message = client.messages.create(
+    model=&quot;claude-opus-5-5&quot;,
+    max_tokens=1024,
+    messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello, Claude&quot;}],
+    extra_headers={&quot;____&quot;: &quot;wrkspc_01JwQvzr7rXLA5AGx3HKfFUJ&quot;},
+)</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-7daca847d855">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-7daca847d855-A"
+                        data-qid="7daca847d855"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('7daca847d855', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">มานุษยวิทยา-พื้นที่ทำงาน-id</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: anthropic-workspace-id</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-7daca847d855-B"
+                        data-qid="7daca847d855"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('7daca847d855', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">คีย์ x-api</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: x-api-key</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-7daca847d855-C"
+                        data-qid="7daca847d855"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('7daca847d855', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">มานุษยวิทยารุ่น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: anthropic-version</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-7daca847d855-D"
+                        data-qid="7daca847d855"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('7daca847d855', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">anthropic-organization-id</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: anthropic-organization-id</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-7daca847d855" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-7daca847d855" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">คีย์ที่ไม่ได้กำหนดขอบเขตไว้ที่พื้นที่ทำงานจะต้องส่ง `anthropic-workspace-id` ในทุกคำขอ คุณยังสามารถตั้งค่าได้ครั้งเดียวด้วย `default_headers` บนไคลเอนต์</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: A key that isn&#x27;t scoped to a workspace has to send `anthropic-workspace-id` on every request. You can also set it once with `default_headers` on the client.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('7daca847d855')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
             
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ส่วนหัวจะตั้งชื่อเวิร์กสเปซ และยังคงต้องอนุญาตตัวตนของคีย์ในนั้น รหัสที่มีรูปแบบไม่ถูกต้องจะได้รับ 400 รหัสที่มีรูปแบบถูกต้องสําหรับเวิร์กสเปซที่ผู้ใช้หรือบัญชีบริการของคีย์ไม่สามารถเข้าถึงได้จะได้รับ 404 not_found_error ซึ่งเป็นการตอบสนองเดียวกันกับเวิร์กสเปซที่ไม่มีอยู่จริง เนื่องจากทั้งสองกรณีมีลักษณะเหมือนกัน 404 ในกรณีนี้มักจะชี้ไปยังสมาชิกที่ขาดหายไป ไม่ใช่การพิมพ์ผิด บัญชีบริการเป็นสมาชิกโดยนัยของเวิร์กสเปซเริ่มต้น และต้องเพิ่มเวิร์กสเปซอื่นๆ ทั้งหมดให้กับพวกเขาอย่างชัดเจน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Admin API จะตรวจสอบขอบเขตในทางกลับกัน โดยจะยอมรับคีย์บัญชีส่วนบุคคลหรือบัญชีบริการเฉพาะเมื่อคีย์นั้นไม่ได้กําหนดขอบเขตไปยังพื้นที่ทํางานเฉพาะเท่านั้น ดังนั้นคีย์ส่วนบุคคลสําหรับพื้นที่ทํางานเดียวจากแล็ปท็อปของผู้ดูแลระบบจะไม่สามารถใช้งานได้กับตําแหน่งข้อมูลการจัดการขององค์กร แม้ว่าบทบาทของผู้ดูแลระบบจะอนุญาตการดําเนินการนี้ก็ตาม
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-4f82760d56c1"
+                 data-qid="4f82760d56c1"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-4f82760d56c1" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
+              
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">คีย์บัญชีบริการที่มีสิทธิ์เข้าถึงพื้นที่ทำงานทั้งหมดจะส่งรหัสพื้นที่ทำงานที่มีรูปแบบที่ถูกต้องสำหรับพื้นที่ทำงานที่ไม่เคยเพิ่มบัญชีบริการเข้าไป อะไรกลับมา?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A service account key with access to all workspaces sends a valid-format workspace ID for a workspace the service account was never added to. What comes back?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-4f82760d56c1">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4f82760d56c1-A"
+                        data-qid="4f82760d56c1"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('4f82760d56c1', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">400 invalid_request_error เนื่องจากจําเป็นต้องใช้ส่วนหัว</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: 400 invalid_request_error, because the header is required</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4f82760d56c1-B"
+                        data-qid="4f82760d56c1"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('4f82760d56c1', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">404 not_found_error ราวกับว่าพื้นที่ทํางานนั้นไม่มีอยู่จริง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: 404 not_found_error, as if the workspace did not exist</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4f82760d56c1-C"
+                        data-qid="4f82760d56c1"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('4f82760d56c1', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">401 authentication_error เนื่องจากกุญแจถูกปฏิเสธ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: 401 authentication_error, because the key is rejected</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-4f82760d56c1-D"
+                        data-qid="4f82760d56c1"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('4f82760d56c1', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">200 โดยมีการเปลี่ยนเส้นทางคําขอไปยังพื้นที่ทํางานเริ่มต้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: 200, with the request redirected to the Default Workspace</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-4f82760d56c1" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-4f82760d56c1" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">รหัสที่ถูกต้องซึ่งข้อมูลประจำตัวของคีย์ไม่สามารถเข้าถึงได้จะได้รับ 404 เหมือนกับพื้นที่ทำงานที่ไม่รู้จัก 400 ใช้สำหรับส่วนหัวที่ขาดหายไปหรือผิดรูปแบบเท่านั้น</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: A valid ID that the key&#x27;s identity can&#x27;t reach gets the same 404 as an unknown workspace. A 400 is only for a missing or malformed header.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ผู้ใช้หรือบัญชีบริการของคีย์ไม่มีสิทธิ์เข้าถึง API จะส่งคืน 404 not_found_error”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('4f82760d56c1')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('4f82760d56c1')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
+            </div>
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1093,123 +1310,147 @@
         <section id="3-storing-expiring-and-rotating-keys" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. Storing, expiring and rotating keys</span>
+            <span>3. การจัดเก็บ การหมดอายุ และการหมุนคีย์</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Storing, expiring and rotating keys</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การรั่วไหลมักเกิดขึ้นในสองวิธี: คีย์ข้อความธรรมดาที่ส่งไปยังพื้นที่เก็บข้อมูลสาธารณะ หรือคีย์ที่วางลงในเครื่องมือของบุคคลที่สาม ทุกสิ่งที่คุณให้กุญแจเพื่อใช้จ่ายจากบัญชีของคุณ การอัปโหลดคีย์ไปยังเว็บ IDE, ผู้ให้บริการคลาวด์ หรือแพลตฟอร์ม CI/CD ช่วยให้นักพัฒนาของเครื่องมือนั้นสามารถเข้าถึงบัญชี Claude Console ของคุณได้ ดังนั้นให้เพิ่มคีย์นั้นเป็นความลับที่เข้ารหัสเท่านั้น และห้ามใส่ในโค้ดหรือไฟล์กำหนดค่าเด็ดขาด แต่ละคนที่ต้องการการเข้าถึง API ควรได้รับรหัสของตนเองแทนที่จะยืมรหัสของคุณ
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ตำแหน่งที่คุณเก็บกุญแจขึ้นอยู่กับตำแหน่งที่รหัสทำงานบนแล็ปท็อปสามารถโหลดไฟล์.env ที่มี python-dotenv ได้หากมีไฟล์อยู่ในรายการ in.gitignore ในคลาวด์ให้ใช้ที่เก็บข้อมูลลับที่เข้ารหัสแทนไฟล์ dotenv: ตัวจัดการข้อมูลลับของแพลตฟอร์มจะฉีดคีย์เป็น ANTHROPIC_API_KEY ซึ่ง SDK จะอ่านโดยอัตโนมัติเมื่อจำนวนคีย์เพิ่มขึ้นระบบการจัดการคีย์จะให้ร้านค้าที่มีการเข้ารหัสหนึ่งแห่งที่มีการควบคุมการเข้าถึงที่ละเอียดเส้นทางการตรวจสอบและการหมุนเวียนที่ง่ายขึ้น
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การหมดอายุจะตั้งค่าหนึ่งครั้งเมื่อสร้างคีย์ คอนโซลมีการตั้งค่าล่วงหน้า 3 ชั่วโมง 1 วัน 7 วัน หรือ 30 วัน ระยะเวลาแบบกําหนดเอง หรือ ไม่เลย สําหรับคีย์ที่คุณเก็บไว้ในตัวจัดการข้อมูลลับและหมุนเวียนด้วยตัวคุณเอง องค์กรสามารถตั้งนโยบายการหมดอายุสูงสุด ซึ่งจะแทนที่ตัวเลือกและลบ ไม่เลย เมื่อสร้างแล้ว จะไม่สามารถเปลี่ยนการหมดอายุของคีย์ได้ Anthropic จะส่งอีเมลถึงผู้สร้างก่อนการหมดอายุ: 7 วันล่วงหน้าสําหรับคีย์ที่มีอายุการใช้งานอย่างน้อย 14 วัน และ 1 วันล่วงหน้าสําหรับคีย์ที่มีอายุการใช้งานอย่างน้อย 7 วัน หลังจากหมดอายุ คําขอจะส่งคืน 401 authentication_error และการแก้ไขเพียงอย่างเดียวคือคีย์ใหม่
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การหมุนเวียนหมายถึงการสร้างคีย์ใหม่ก่อนที่จะระงับคีย์เก่าในตารางเวลาปกติ เช่น ทุก 90 วัน การหมดอายุจะจํากัดระยะเวลาที่คีย์ที่รั่วไหลยังคงใช้งานได้ มันไม่ได้เป็นทางเลือกแทนความสะอาดของความลับที่ดี
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: An expired key can be reactivated, or have its expiration extended, from the Console. (ทำไมถึงผิด): Expiration is fixed when the key is created. An expired key returns 401 and can&#x27;t be reactivated, so you have to create a new key.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: คีย์ที่หมดอายุแล้วสามารถเปิดใช้งานอีกครั้ง หรือขยายวันหมดอายุได้จาก Console (ทําไมจึงผิดพลาด): วันหมดอายุได้รับการกําหนดเมื่อสร้างคีย์ คีย์ที่หมดอายุจะส่งคืน 401 และไม่สามารถเปิดใช้งานอีกครั้งได้ ดังนั้นคุณต้องสร้างคีย์ใหม่</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: An expired key can be reactivated, or have its expiration extended, from the Console. (ทำไมถึงผิด): Expiration is fixed when the key is created. An expired key returns 401 and can&#x27;t be reactivated, so you have to create a new key.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-fc2a2450a801"
-             data-qid="fc2a2450a801"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-fc2a2450a801" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team created a key with a 30-day expiration and now wants it to last 90 days. What should they do?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-fc2a2450a801">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fc2a2450a801-A"
-                    data-qid="fc2a2450a801"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('fc2a2450a801', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Edit the key&#x27;s expiration on the API keys page</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fc2a2450a801-B"
-                    data-qid="fc2a2450a801"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('fc2a2450a801', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Call the Admin API to update the key&#x27;s expires_at</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fc2a2450a801-C"
-                    data-qid="fc2a2450a801"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('fc2a2450a801', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Create a new key with the longer expiration and rotate to it</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fc2a2450a801-D"
-                    data-qid="fc2a2450a801"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('fc2a2450a801', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Disable and re-enable the key to reset its lifetime</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-fc2a2450a801" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-fc2a2450a801" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">การหมดอายุได้รับการแก้ไขเมื่อสร้าง การมีอายุใช้งานที่แตกต่างหมายถึงการสร้างคีย์ใหม่และหมุนเวียนไป</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Expiration is fixed at creation. Getting a different lifetime means creating a new key and rotating to it.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-fc2a2450a801"
+                 data-qid="fc2a2450a801"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-fc2a2450a801" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “expiration is set at creation time and cannot be changed afterward”
-              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมสร้างคีย์โดยมีเวลาหมดอายุ 30 วัน และตอนนี้ต้องการให้คีย์มีอายุ 90 วัน พวกเขาควรทำอย่างไร?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team created a key with a 30-day expiration and now wants it to last 90 days. What should they do?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-fc2a2450a801">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fc2a2450a801-A"
+                        data-qid="fc2a2450a801"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('fc2a2450a801', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">แก้ไขการหมดอายุของคีย์ในหน้าคีย์ API</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Edit the key&#x27;s expiration on the API keys page</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fc2a2450a801-B"
+                        data-qid="fc2a2450a801"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('fc2a2450a801', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เรียก Admin API เพื่ออัปเดต expires_at ของคีย์</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Call the Admin API to update the key&#x27;s expires_at</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fc2a2450a801-C"
+                        data-qid="fc2a2450a801"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('fc2a2450a801', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">สร้างปุ่มใหม่ที่มีการหมดอายุที่ยาวขึ้นและหมุนไปยังปุ่มนั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Create a new key with the longer expiration and rotate to it</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fc2a2450a801-D"
+                        data-qid="fc2a2450a801"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('fc2a2450a801', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ปิดใช้งานและเปิดใช้งานคีย์อีกครั้งเพื่อรีเซ็ตอายุการใช้งาน</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Disable and re-enable the key to reset its lifetime</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-fc2a2450a801" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-fc2a2450a801" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การหมดอายุได้รับการแก้ไขเมื่อสร้าง การมีอายุใช้งานที่แตกต่างหมายถึงการสร้างคีย์ใหม่และหมุนเวียนไป</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Expiration is fixed at creation. Getting a different lifetime means creating a new key and rotating to it.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “การหมดอายุถูกตั้งค่าในเวลาการสร้างและไม่สามารถเปลี่ยนแปลงได้หลังจากนั้น”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('fc2a2450a801')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('fc2a2450a801')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1229,79 +1470,255 @@
         <section id="4-detecting-a-leak-shutting-it-down-and-watching-usage" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>4. Detecting a leak, shutting it down and watching usage</span>
+            <span>4. การตรวจจับการรั่วไหล ปิดเครื่อง และตรวจสอบการใช้งาน</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Detecting a leak, shutting it down and watching usage</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การสแกนความลับจะจับกุญแจก่อนหรือหลังการรั่วไหล คุณสามารถเปิดการสแกนในผู้ให้บริการควบคุมแหล่งที่มาของคุณ เรียกใช้เครื่องมือ SAST เช่น Gitleaks บนพื้นที่เก็บข้อมูลของคุณ และเพิ่มการสแกนลงใน CI/CD เพื่อให้ดักจับความลับก่อนที่จะไปถึงสาขาหลัก Public GitHub มีเครือข่ายความปลอดภัยเพิ่มเติม ผ่านโปรแกรมพันธมิตรการสแกนความลับของ GitHub คีย์ Claude API ที่พบในพื้นที่เก็บข้อมูลสาธารณะจะถูกรายงานไปยัง Anthropic ซึ่งจะปิดใช้งานโดยอัตโนมัติและส่งอีเมลถึงผู้ใช้ที่ได้รับผลกระทบ
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  หากคุณสงสัยว่าคีย์ถูกละเมิด ให้เพิกถอนคีย์ทันที จากนั้นสร้างคีย์ทดแทนและจัดเก็บไว้ในตัวจัดการข้อมูลลับ คอนโซลมีสองการดําเนินการ ซึ่งแตกต่างกันในเรื่องที่คุณสามารถเพิกถอนได้หรือไม่ การปิดใช้งานสามารถเพิกถอนได้: คีย์จะรายงานว่าไม่ได้ใช้งาน และการเปิดใช้งานใหม่จะทําให้ใช้งานได้อีกครั้ง ซึ่งเหมาะกับคีย์ที่คุณยังไม่แน่ใจ การลบคือการลบถาวร: คีย์จะถูกเก็บถาวรและยังคงแสดงอยู่ในรายการคีย์ API ด้วยสถานะ: “เก็บถาวร” คีย์ที่หมดอายุแล้วสามารถลบได้เท่านั้น
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Deleting a suspect key is reversible, the same as disabling it. (ทำไมถึงผิด): Disable can be undone with Re-enable. Delete is permanent: the key is archived and only kept on record.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การลบคีย์ที่น่าสงสัยสามารถย้อนกลับได้ เช่นเดียวกับการปิดใช้งาน (ทําไมถึงผิดพลาด): การปิดใช้งานสามารถยกเลิกได้ด้วย Re-enable การลบเป็นแบบถาวร: คีย์จะถูกเก็บถาวรและเก็บไว้ในบันทึกเท่านั้น</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Deleting a suspect key is reversible, the same as disabling it. (ทำไมถึงผิด): Disable can be undone with Re-enable. Delete is permanent: the key is archived and only kept on record.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-2f3ad896045c"
-             data-qid="2f3ad896045c"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-2f3ad896045c" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Match each key state or action to its consequence.</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-2f3ad896045c">
-            
-          </div>
-          
-          <div id="feedback-2f3ad896045c" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-2f3ad896045c" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Only Disable can be undone. Deleted and expired keys can&#x27;t be brought back, and a key exposed on public GitHub is deactivated without any action from you.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Only Disable can be undone. Deleted and expired keys can&#x27;t be brought back, and a key exposed on public GitHub is deactivated without any action from you.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-2f3ad896045c"
+                 data-qid="2f3ad896045c"
+                 data-correct="MATCH"
+                 data-total-pairs="4">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔄</span>
+                  <span>แบบฝึกหัดจับคู่ความสัมพันธ์ (Matching Challenge)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-2f3ad896045c" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตรวจสอบแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Match (4 คู่)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Disable is reversible (the Admin API reports the key&#x27;s status as &quot;inactive&quot;, and Re-enable returns it to &quot;active&quot;)”
-              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">จับคู่สถานะหรือการทํางานหลักแต่ละรายการกับผลที่ตามมา</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Match each key state or action to its consequence.</p>
+              </div>
+
+              <!-- Interactive Matching Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
+                  <span id="match-counter-2f3ad896045c" class="text-slate-400 font-mono">จับคู่ได้ 0/4</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <!-- Terms (Left) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">1. รายการคำศัพท์ / หัวข้อ:</div>
+                    
+                <button type="button"
+                        id="match-term-2f3ad896045c-0"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('2f3ad896045c', 0)">
+                  <span id="match-badge-term-2f3ad896045c-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">ปิดใช้งาน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Disable</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-2f3ad896045c-1"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('2f3ad896045c', 1)">
+                  <span id="match-badge-term-2f3ad896045c-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">ลบ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Delete</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-2f3ad896045c-2"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('2f3ad896045c', 2)">
+                  <span id="match-badge-term-2f3ad896045c-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">คีย์ที่หมดอายุแล้ว</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Expired key</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-2f3ad896045c-3"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('2f3ad896045c', 3)">
+                  <span id="match-badge-term-2f3ad896045c-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">คีย์ที่พบในที่เก็บ GitHub สาธารณะ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Key found in a public GitHub repo</span>
+                  </div>
+                </button>
+                
+                  </div>
+                  <!-- Definitions (Right) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">2. คำอธิบาย / ความหมาย (สลับตำแหน่ง):</div>
+                    
+                <button type="button"
+                        id="match-def-2f3ad896045c-3"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('2f3ad896045c', 3, 4)">
+                  <span id="match-badge-def-2f3ad896045c-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">แอนโทรปิกจะปิดใช้งานโดยอัตโนมัติ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Anthropic deactivates it automatically</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-2f3ad896045c-1"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('2f3ad896045c', 1, 4)">
+                  <span id="match-badge-def-2f3ad896045c-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">ถาวร; คีย์ถูกเก็บถาวรและยังคงอยู่ในรายการ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Permanent; the key is archived and still listed</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-2f3ad896045c-0"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('2f3ad896045c', 0, 4)">
+                  <span id="match-badge-def-2f3ad896045c-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">สถานะจะไม่มีการใช้งาน; การเปิดใช้งานใหม่จะกู้คืนสถานะ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Status becomes inactive; Re-enable restores it</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-2f3ad896045c-2"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('2f3ad896045c', 2, 4)">
+                  <span id="match-badge-def-2f3ad896045c-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">ส่งค่ากลับมาเป็น 401 และสามารถลบได้เท่านั้น</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Returns 401 and can only be deleted</span>
+                  </div>
+                </button>
+                
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-2f3ad896045c" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetMatchGame('2f3ad896045c')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>เริ่มจับคู่ใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('2f3ad896045c')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยคู่ความสัมพันธ์
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">จับคู่ให้ครบทุกข้อเพื่อบันทึกผลสำเร็จอัตโนมัติ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-2f3ad896045c" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ เฉลยคู่ความสัมพันธ์ที่ถูกต้อง (Verified Pairs):</strong>
+                <div class="space-y-2.5">
+                  
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">1</span>
+                    <span class="font-semibold text-slate-100">ปิดใช้งาน</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Disable)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ สถานะจะไม่มีการใช้งาน; การเปิดใช้งานใหม่จะกู้คืนสถานะ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Status becomes inactive; Re-enable restores it</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">2</span>
+                    <span class="font-semibold text-slate-100">ลบ</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Delete)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ ถาวร; คีย์ถูกเก็บถาวรและยังคงอยู่ในรายการ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Permanent; the key is archived and still listed</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">3</span>
+                    <span class="font-semibold text-slate-100">คีย์ที่หมดอายุแล้ว</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Expired key)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ ส่งค่ากลับมาเป็น 401 และสามารถลบได้เท่านั้น</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Returns 401 and can only be deleted</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">4</span>
+                    <span class="font-semibold text-slate-100">คีย์ที่พบในที่เก็บ GitHub สาธารณะ</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Key found in a public GitHub repo)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ แอนโทรปิกจะปิดใช้งานโดยอัตโนมัติ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Anthropic deactivates it automatically</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
+                  <p class="leading-relaxed">เฉพาะการปิดใช้งานเท่านั้นที่สามารถยกเลิกการทํางานได้ คีย์ที่ถูกลบและหมดอายุไม่สามารถเรียกคืนได้ และคีย์ที่เปิดเผยบน GitHub สาธารณะจะถูกปิดใช้งานโดยไม่ต้องดําเนินการใดๆ จากคุณ</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Only Disable can be undone. Deleted and expired keys can&#x27;t be brought back, and a key exposed on public GitHub is deactivated without any action from you.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “การปิดใช้งานสามารถย้อนกลับได้ (Admin API รายงานสถานะของคีย์ว่า “ไม่ได้ใช้งาน” และ Re-enable คืนค่าเป็น “ใช้งานอยู่”)”
+              <br><a href="https://platform.claude.com/docs/en/manage-claude/authentication" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('2f3ad896045c')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การควบคุมการใช้จ่ายจํากัดค่าใช้จ่ายของคีย์ที่รั่วไหลก่อนที่ใครจะสังเกตเห็น โมเดลการจํากัดที่กว้างกว่านี้ครอบคลุมอยู่ใน [Rate limits, spend limits and service tiers] (บทเรียน: 2.1) สําหรับคีย์ที่รั่วไหล การตั้งค่าที่เกี่ยวข้องมีดังนี้: องค์กรจํากัดอัตราแบบกําหนดเองควรตั้งค่าขีดจํากัดการใช้งานและการใช้จ่าย และองค์กรจํากัดอัตราแบบมาตรฐานควรตั้งค่าเกณฑ์การโหลดอัตโนมัติอย่างระมัดระวัง เนื่องจากการโหลดใหม่แต่ละครั้งจะเพิ่มเครดิตที่ผู้โจมตีสามารถใช้ได้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การตรวจสอบเป็นวิธีที่คุณแยกการใช้งานที่ได้รับอนุญาตออกจากการใช้งานที่ไม่ได้รับอนุญาต ตรวจสอบบันทึกและรูปแบบการใช้งานสําหรับแต่ละคีย์ใน Console ใช้คีย์แยกต่างหากสําหรับการพัฒนา การทดสอบ และการผลิต ดังนั้นการใช้งานจะสอดคล้องกับวัตถุประสงค์เดียว และการประนีประนอมหมายถึงการปิดใช้งานวัตถุประสงค์นั้นเท่านั้น API ผู้ดูแลระบบจะส่งคืน expires_at ของแต่ละคีย์จาก List API Keys และ Retrieve API Key เพื่อให้คุณสามารถตรวจสอบคีย์และหมุนเวียนก่อนที่คีย์จะหมดอายุได้ คีย์ที่รองรับข้อมูลประจําตัวยังทําให้ชัดเจนว่าผู้ใช้หรือบัญชีบริการใดที่ทําการเรียกใช้แต่ละครั้ง
+                </p>
+                
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55740"
              data-qid="55740"
@@ -1317,8 +1734,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A compliance auditor asks an engineering team to produce evidence of which Claude API keys are nearing expiration across all workspaces, so stale credentials can be rotated proactively before they lapse. Which action retrieves this information programmatically?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ผู้ตรวจสอบการปฏิบัติตามกฎระเบียบขอให้ทีมวิศวกรแสดงหลักฐานว่าคีย์ Claude API ใดที่ใกล้จะหมดอายุในทุกพื้นที่ทำงาน ดังนั้นข้อมูลประจำตัวเก่าจึงสามารถหมุนเวียนในเชิงรุกก่อนที่จะหมดอายุ การดำเนินการใดดึงข้อมูลนี้โดยทางโปรแกรม</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A compliance auditor asks an engineering team to produce evidence of which Claude API keys are nearing expiration across all workspaces, so stale credentials can be rotated proactively before they lapse. Which action retrieves this information programmatically?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55740">
@@ -1330,7 +1748,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55740', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Call the Admin API&#x27;s List API Keys endpoint with an Admin API key and inspect each returned key&#x27;s `expires_at` timestamp, treating a `null` value as a key with no expiration.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เรียกใช้ตําแหน่งข้อมูล List API Keys ของ Admin API ด้วยคีย์ Admin API และตรวจสอบตราประทับเวลา `expires_at` ของแต่ละคีย์ที่ส่งคืน โดยถือว่าค่า `null` เป็นคีย์ที่ไม่มีการหมดอายุ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Call the Admin API&#x27;s List API Keys endpoint with an Admin API key and inspect each returned key&#x27;s `expires_at` timestamp, treating a `null` value as a key with no expiration.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1341,7 +1762,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55740', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Query the Compliance API&#x27;s Activity Feed for `key.created` events and compute expiration by adding 30 days to each event&#x27;s timestamp.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">สืบค้นฟีดกิจกรรมของ API การปฏิบัติตามข้อกําหนดสําหรับเหตุการณ์ `key.created` และวันหมดอายุการประมวลผลโดยเพิ่ม 30 วันไปยังตราประทับเวลาของแต่ละเหตุการณ์</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Query the Compliance API&#x27;s Activity Feed for `key.created` events and compute expiration by adding 30 days to each event&#x27;s timestamp.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1352,7 +1776,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55740', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Call the Usage and Cost API for each workspace and filter the returned line items for entries whose `cost` field is exactly zero.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เรียกใช้ API การใช้งานและค่าใช้จ่ายสําหรับแต่ละพื้นที่ทํางานและกรองรายการบรรทัดที่ส่งคืนสําหรับรายการที่มีช่อง `cost` เป็นศูนย์อย่างแน่นอน</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Call the Usage and Cost API for each workspace and filter the returned line items for entries whose `cost` field is exactly zero.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1363,7 +1790,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55740', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Use the Rate Limits API to list per-workspace rate limit configurations, since keys that are near expiration are automatically assigned a reduced rate limit.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ใช้ API ขีดจํากัดอัตราเพื่อแสดงรายการการกําหนดค่าขีดจํากัดอัตราต่อพื้นที่ทํางาน เนื่องจากคีย์ที่ใกล้หมดอายุจะถูกกําหนดขีดจํากัดอัตราที่ลดลงโดยอัตโนมัติ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Use the Rate Limits API to list per-workspace rate limit configurations, since keys that are near expiration are automatically assigned a reduced rate limit.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1385,7 +1815,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. ตำแหน่งข้อมูลคีย์ API ของ Admin API จะส่งคืนการประทับเวลา expies_at ของแต่ละคีย์โดยตรง (ค่าว่างสำหรับคีย์ที่ไม่มีวันหมดอายุ) ซึ่งเป็นสัญญาณการตรวจสอบที่จำเป็นอย่างแน่นอน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. ตำแหน่งข้อมูลคีย์ API ของ Admin API จะส่งคืนการประทับเวลา expies_at ของแต่ละคีย์โดยตรง (ค่าว่างสำหรับคีย์ที่ไม่มีวันหมดอายุ) ซึ่งเป็นสัญญาณการตรวจสอบที่จำเป็นอย่างแน่นอน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. The Admin API&#x27;s List API Keys endpoint returns each key&#x27;s expires_at timestamp directly (null for keys without an expiration), which is exactly the audit signal needed.</div>
             </div>
             
@@ -1394,7 +1824,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ฟีดกิจกรรมของ Compliance API จะบันทึกเหตุการณ์แต่ไม่ได้รายงานการประทับเวลาการหมดอายุ และ 30 วันไม่ใช่การหมดอายุเริ่มต้นที่ตายตัวหรือเชื่อถือได้</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ฟีดกิจกรรมของ Compliance API จะบันทึกเหตุการณ์แต่ไม่ได้รายงานการประทับเวลาการหมดอายุ และ 30 วันไม่ใช่การหมดอายุเริ่มต้นที่ตายตัวหรือเชื่อถือได้</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. The Compliance API&#x27;s Activity Feed logs events but does not report expiration timestamps, and 30 days is not a fixed or reliable default expiration to assume.</div>
             </div>
             
@@ -1403,7 +1833,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. Usage and cost data reflects consumption, not credential lifecycle; a zero-cost line item has no relationship to key expiration.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง ข้อมูลการใช้งานและค่าใช้จ่ายสะท้อนถึงการบริโภค ไม่ใช่วงจรชีวิตของข้อมูลประจําตัว รายการเส้นที่มีค่าใช้จ่ายเป็นศูนย์ไม่มีความสัมพันธ์กับวันหมดอายุของคีย์</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Usage and cost data reflects consumption, not credential lifecycle; a zero-cost line item has no relationship to key expiration.</div>
             </div>
             
@@ -1412,7 +1842,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ขีดจำกัดอัตราจะไม่เชื่อมโยงกับสถานะการหมดอายุของคีย์โดยอัตโนมัติ API การจำกัดอัตราไม่มีพฤติกรรมดังกล่าว</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ขีดจำกัดอัตราจะไม่เชื่อมโยงกับสถานะการหมดอายุของคีย์โดยอัตโนมัติ API การจำกัดอัตราไม่มีพฤติกรรมดังกล่าว</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Rate limits are not automatically tied to a key&#x27;s expiration status; the Rate Limits API has no such behavior.</div>
             </div>
             
@@ -1561,6 +1991,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1581,12 +2020,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1651,7 +2353,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

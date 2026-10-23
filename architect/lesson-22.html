@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -605,32 +612,125 @@
             <span>1. Retrieve broadly, fuse, rerank and pass the top-k</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Retrieve broadly, fuse, rerank and pass the top-k</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Pipeline</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Failure rate</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Reduction vs. baseline</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Standard embeddings</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">5.7%</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">—</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Contextual embeddings</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">3.7%</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">35%</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Contextual embeddings + contextual BM25</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">2.9%</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">49%</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Reranked contextual embeddings + contextual BM25</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1.9%</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">67%</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ในเวลาที่สืบค้น ไปป์ไลน์จะเปลี่ยนคำถามของผู้ใช้ให้เป็นรายการสั้นๆ ที่เรียงลำดับอย่างดี การนำเข้าได้สร้างดัชนี BM25 และดัชนีเวกเตอร์ไว้แล้วบนส่วนที่แต่ละส่วนมีบริบทที่สร้างขึ้นสั้นๆ สำหรับสาเหตุที่จำเป็นต้องมีดัชนีทั้งสอง โปรดดู [การฝังความหมายเทียบกับ BM25 และการค้นหาแบบไฮบริด] (บทเรียน: 3.6) แต่ละดัชนีจะส่งกลับอันดับของตัวเอง BM25 จัดอันดับชิ้นส่วนตามการจับคู่คำที่ตรงทั้งหมด และดัชนีเวกเตอร์จัดอันดับตามความคล้ายคลึงทางความหมายกับคำถาม ซึ่งฝังอยู่กับ input_type=&quot;query&quot; จากนั้น Rank Fusion จะรวมทั้งสองรายการเข้าด้วยกันและลบรายการที่ซ้ำกันออก โดยเหลือเพียงชุดเดียว
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ดึงข้อมูลในวงกว้างแล้วจัดอันดับใหม่ให้แคบลง ในฐานความรู้ขนาดใหญ่ การดึงข้อมูลครั้งแรกสามารถส่งคืนความเกี่ยวข้องแบบผสมหลายร้อยชิ้น โมเดลการจัดอันดับใหม่จะใช้การสืบค้นและรายชื่อผู้สมัคร ให้คะแนนแต่ละส่วนตามความเกี่ยวข้อง และคุณจะเก็บเฉพาะ k อันดับแรกเท่านั้น การทดสอบของ Anthropic ได้ส่งผู้สมัคร 150 คนและคงไว้ 20 คน โดยใช้ Cohere reranker Voyage เสนอ rerank-3 เพื่อความแม่นยำสูงสุด และ rerank-3-lite เมื่อเวลาแฝงและต้นทุนมีความสำคัญมากกว่า ทั้งสองเรียกด้วย rerank()
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ไปป์ไลน์</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Pipeline</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Failure rate</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Failure rate</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Reduction vs. baseline</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Reduction vs. baseline</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การฝังมาตรฐาน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Standard embeddings</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">5.7%</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 5.7%</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">`*`</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: —</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การฝังตามบริบท</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Contextual embeddings</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">3.7%</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 3.7%</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">35%</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 35%</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Contextual embeddings + contextual BM25</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Contextual embeddings + contextual BM25</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">2.9%</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 2.9%</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">49%</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 49%</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Reranked contextual embeddings + contextual BM25</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Reranked contextual embeddings + contextual BM25</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">1.9%</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1.9%</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">67%</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 67%</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Top-20 retrieval failure rate as each technique is added (average across knowledge domains)</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">อัตราความล้มเหลวในการเรียกคืน 20 อันดับแรกเมื่อเพิ่มแต่ละเทคนิค (เฉลี่ยในทุกสาขาความรู้)</figcaption>
                 </div>
                 
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">ทายผลก่อนหลังจัดอันดับใหม่ ทีมพยายามแซง โคล้ด 5, 10 หรือ 20 ชิ้น ข้อใดทำงานได้ดีที่สุด?10 โดยเป็นความสมดุลระหว่างการเรียกคืนและความว้าวุ่นใจ 20 ซึ่งใหญ่ที่สุดในสาม 5 รายการ เนื่องจากชิ้นส่วนที่เกินมารบกวนโมเดล วัสดุพิเศษสามารถดึงความสนใจของโมเดลได้ แต่ในบรรดา 5, 10 และ 20 ชิ้น มี 20 ชิ้นที่ทำงานได้ดีที่สุด ถือเป็นจุดเริ่มต้นและทดสอบในกรณีการใช้งานของคุณเอง “เราพยายามส่งชิ้นส่วน 5, 10 และ 20 ชิ้น และพบว่าการใช้ 20 ชิ้นนั้นมีประสิทธิภาพมากที่สุดจากตัวเลือกเหล่านี้” ที่มา: www.anthropic.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: After reranking, the team tried passing Claude 5, 10 or 20 chunks. Which performed best? 10, as a balance between recall and distraction 20, the largest of the three 5, because extra chunks distract the model Extra material can distract the model, but among 5, 10 and 20 chunks, 20 performed best. Treat it as a starting point and test it on your own use case. “ We tried delivering 5, 10, and 20 chunks, and found using 20 to be the most performant of these options ” Source: www.anthropic.com
-                  </div>
-                </aside>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การจัดอันดับใหม่มีค่าใช้จ่ายในตัวเอง Claude ได้รับชิ้นส่วนน้อยลง ดังนั้นการสร้างจึงมีราคาถูกและเร็วกว่า แต่ผู้จัดอันดับใหม่จะเพิ่มขั้นตอนให้กับทุกคำขอ โดยให้คะแนนเป็นชิ้นๆ พร้อมกัน แต่การให้คะแนนผู้สมัครมากขึ้นยังคงเพิ่มเวลาแฝงและค่าใช้จ่าย เลือกจำนวนผู้สมัครโดยเทียบกับงบประมาณเวลาในการตอบสนองของคุณ: ผู้สมัครจำนวนมากจะให้ผลลัพธ์ที่ดีกว่า เวลาในการตอบสนองและต้นทุนน้อยลง
+                </p>
+                
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_6c2552f3"
+         data-qid="pred_6c2552f3"
+         data-correct="C">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_6c2552f3" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">After reranking, the team tried passing Claude 5, 10 or 20 chunks. Which performed best?</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: After reranking, the team tried passing Claude 5, 10 or 20 chunks. Which performed best?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_6c2552f3">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_6c2552f3-A"
+                data-qid="pred_6c2552f3"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_6c2552f3', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">10, as a balance between recall and distraction</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: 10, as a balance between recall and distraction</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_6c2552f3-B"
+                data-qid="pred_6c2552f3"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_6c2552f3', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">20, the largest of the three</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: 20, the largest of the three</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_6c2552f3-C"
+                data-qid="pred_6c2552f3"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_6c2552f3', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">5. เพราะชิ้นส่วนเพิ่มเติมทําให้โมเดลเสียสมาธิ</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: 5, because extra chunks distract the model</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_6c2552f3" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_6c2552f3" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">Extra material can distract the model, but among 5, 10 and 20 chunks, 20 performed best. Treat it as a starting point and test it on your own use case.</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: Extra material can distract the model, but among 5, 10 and 20 chunks, 20 performed best. Treat it as a starting point and test it on your own use case.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““We tried delivering 5, 10, and 20 chunks, and found using 20 to be the most performant of these options””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “We tried delivering 5, 10, and 20 chunks, and found using 20 to be the most performant of these options”</div>
+          <div class="mt-1.5 not-italic"><a href="https://www.anthropic.com/engineering/contextual-retrieval" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://www.anthropic.com/engineering/contextual-retrieval</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_6c2552f3')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Choosing k trades recall against distraction. More chunks make it more likely the answer is in the prompt, and more text also gives the model more to be distracted by. Twenty beat five and ten in Anthropic&#x27;s tests, but that doesn&#x27;t make 20 a constant. Measure it with Pass@k: for each test query, check whether its known relevant chunk appears in the first k results. On one codebase dataset, plain embeddings scored 81% at Pass@5 and 90% at Pass@20.
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -643,57 +743,174 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-b5cabd185a68"
-             data-qid="b5cabd185a68"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-b5cabd185a68" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A user&#x27;s question arrives at a RAG pipeline that has a contextual BM25 index, a contextual vector index and a reranker. Put the query-time steps in order.</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-b5cabd185a68">
-            
-          </div>
-          
-          <div id="feedback-b5cabd185a68" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-b5cabd185a68" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">The pipeline retrieves broadly first, then narrows. Both indexes return candidates, and rank fusion merges them. The reranker can only score chunks that have already been retrieved, and Claude sees only the top-k chunks left after reranking.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The pipeline retrieves broadly first, then narrows. Both indexes return candidates, and rank fusion merges them. The reranker can only score chunks that have already been retrieved, and Claude sees only the top-k chunks left after reranking.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-b5cabd185a68"
+                 data-qid="b5cabd185a68"
+                 data-correct="ORDER"
+                 data-total-steps="5">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔢</span>
+                  <span>แบบฝึกหัดเรียงลำดับขั้นตอน (Step Sequencing)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-b5cabd185a68" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Order (5 ขั้นตอน)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">A user&#x27;s question arrives at a RAG pipeline that has a contextual BM25 index, a contextual vector index and a reranker. Put the query-time steps in order.</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A user&#x27;s question arrives at a RAG pipeline that has a contextual BM25 index, a contextual vector index and a reranker. Put the query-time steps in order.</p>
+              </div>
+
+              <!-- Interactive Step Ordering Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกขั้นตอนตามลำดับที่ถูกต้องตั้งแต่ขั้นตอนที่ 1 ถึง 5</span></span>
+                  <span id="order-counter-b5cabd185a68" class="text-slate-400 font-mono">เรียงแล้ว 0/5</span>
+                </div>
+                <div class="space-y-2.5 pt-1" id="order-cards-b5cabd185a68">
+                  
+                <button type="button"
+                        id="order-step-b5cabd185a68-4"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('b5cabd185a68', 4, 5)">
+                  <span id="order-badge-b5cabd185a68-4" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Add those top-k chunks to the prompt Claude uses to generate the answer</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Add those top-k chunks to the prompt Claude uses to generate the answer</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-b5cabd185a68-0"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('b5cabd185a68', 0, 5)">
+                  <span id="order-badge-b5cabd185a68-0" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Search both indexes: BM25 matches exact terms, and the vector index searches with the question embedded using input_type=&quot;query&quot;</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Search both indexes: BM25 matches exact terms, and the vector index searches with the question embedded using input_type=&quot;query&quot;</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-b5cabd185a68-3"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('b5cabd185a68', 3, 5)">
+                  <span id="order-badge-b5cabd185a68-3" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Keep only the top-k highest-scoring chunks</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Keep only the top-k highest-scoring chunks</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-b5cabd185a68-1"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('b5cabd185a68', 1, 5)">
+                  <span id="order-badge-b5cabd185a68-1" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Merge the two rankings with rank fusion and remove duplicates to get one broad candidate set</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Merge the two rankings with rank fusion and remove duplicates to get one broad candidate set</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-b5cabd185a68-2"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('b5cabd185a68', 2, 5)">
+                  <span id="order-badge-b5cabd185a68-2" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Send the candidate chunks and the user&#x27;s query to a reranking model, which scores each chunk for relevance</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Send the candidate chunks and the user&#x27;s query to a reranking model, which scores each chunk for relevance</span>
+                  </div>
+                </button>
+                
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-b5cabd185a68" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetOrderGame('b5cabd185a68')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>รีเซ็ตลำดับเพื่อลองใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('b5cabd185a68')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยลำดับที่ถูกต้อง
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">คลิกจัดลำดับจนครบเพื่อตรวจสอบคำตอบ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-b5cabd185a68" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ ลำดับขั้นตอนที่ถูกต้อง (Correct Sequence 1 ➔ 5):</strong>
+                <div class="space-y-2">
+                  
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Search both indexes: BM25 matches exact terms, and the vector index searches with the question embedded using input_type=&quot;query&quot;</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Search both indexes: BM25 matches exact terms, and the vector index searches with the question embedded using input_type=&quot;query&quot;</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Merge the two rankings with rank fusion and remove duplicates to get one broad candidate set</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Merge the two rankings with rank fusion and remove duplicates to get one broad candidate set</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Send the candidate chunks and the user&#x27;s query to a reranking model, which scores each chunk for relevance</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Send the candidate chunks and the user&#x27;s query to a reranking model, which scores each chunk for relevance</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Keep only the top-k highest-scoring chunks</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Keep only the top-k highest-scoring chunks</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">5</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Add those top-k chunks to the prompt Claude uses to generate the answer</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Add those top-k chunks to the prompt Claude uses to generate the answer</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 เหตุผลเบื้องหลังลำดับขั้น (Reasoning):</strong>
+                  <p class="leading-relaxed">The pipeline retrieves broadly first, then narrows. Both indexes return candidates, and rank fusion merges them. The reranker can only score chunks that have already been retrieved, and Claude sees only the top-k chunks left after reranking.</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The pipeline retrieves broadly first, then narrows. Both indexes return candidates, and rank fusion merges them. The reranker can only score chunks that have already been retrieved, and Claude sees only the top-k chunks left after reranking.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “give each chunk a score based on its relevance and importance to the prompt, then select the top-K chunks”
-              <br><a href="https://www.anthropic.com/engineering/contextual-retrieval" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://www.anthropic.com/engineering/contextual-retrieval" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('b5cabd185a68')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-56798"
              data-qid="56798"
@@ -709,8 +926,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A platform team is redesigning their RAG pipeline after an audit found a high rate of retrieval failures, where relevant chunks exist in the knowledge base but are not returned for matching queries. They can implement several changes before the next release. Which of the following changes are documented to measurably reduce retrieval failure rates? (Select all that apply.)</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมแพลตฟอร์มกำลังออกแบบไปป์ไลน์ RAG ใหม่หลังจากการตรวจสอบพบว่ามีอัตราความล้มเหลวในการเรียกข้อมูลสูง โดยที่ส่วนข้อมูลที่เกี่ยวข้องมีอยู่ในฐานความรู้ แต่จะไม่ส่งคืนสำหรับการสืบค้นที่ตรงกัน พวกเขาสามารถใช้การเปลี่ยนแปลงหลายอย่างก่อนการเปิดตัวครั้งถัดไป การเปลี่ยนแปลงใดต่อไปนี้ได้รับการบันทึกไว้เพื่อลดอัตราความล้มเหลวในการดึงข้อมูลที่สามารถวัดผลได้ (เลือกทุกข้อที่เกี่ยวข้อง)</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A platform team is redesigning their RAG pipeline after an audit found a high rate of retrieval failures, where relevant chunks exist in the knowledge base but are not returned for matching queries. They can implement several changes before the next release. Which of the following changes are documented to measurably reduce retrieval failure rates? (Select all that apply.)</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-56798">
@@ -722,7 +940,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('56798', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Prepend chunk-specific contextual summaries to chunks before generating their embeddings.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Prepend chunk-specific contextual summaries to chunks before generating their embeddings.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Prepend chunk-specific contextual summaries to chunks before generating their embeddings.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -733,7 +954,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('56798', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Index the same contextualized chunk text lexically with BM25 alongside the embeddings.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Index the same contextualized chunk text lexically with BM25 alongside the embeddings.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Index the same contextualized chunk text lexically with BM25 alongside the embeddings.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -744,7 +968,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('56798', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Add a reranking stage that rescores initial retrieval candidates before generation.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เพิ่มขั้นตอนการเรียงลําดับใหม่ที่กู้ผู้สมัครการเรียกข้อมูลครั้งแรกก่อนการสร้าง</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Add a reranking stage that rescores initial retrieval candidates before generation.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -755,7 +982,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('56798', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Increase the generative model&#x27;s sampling temperature during the final answer step.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Increase the generative model&#x27;s sampling temperature during the final answer step.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Increase the generative model&#x27;s sampling temperature during the final answer step.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -766,7 +996,10 @@
                     data-opt="E"
                     onclick="handleQuizAnswer('56798', 'E')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">E</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Store all embeddings using binary quantization to reduce vector index size.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Store all embeddings using binary quantization to reduce vector index size.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Store all embeddings using binary quantization to reduce vector index size.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -777,7 +1010,10 @@
                     data-opt="5"
                     onclick="handleQuizAnswer('56798', '5')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">5</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Disable overlap between adjacent chunks to speed up index building.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Disable overlap between adjacent chunks to speed up index building.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Disable overlap between adjacent chunks to speed up index building.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -799,7 +1035,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การฝังตามบริบทซึ่งเพิ่มบริบทอธิบายก่อนการเข้ารหัส ได้รับการบันทึกไว้เพื่อลดความล้มเหลวในการเรียกข้อมูลด้วยตนเอง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การฝังตามบริบทซึ่งเพิ่มบริบทอธิบายก่อนการเข้ารหัส ได้รับการบันทึกไว้เพื่อลดความล้มเหลวในการเรียกข้อมูลด้วยตนเอง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Contextual embeddings, which prepend explanatory context before encoding, are documented to reduce retrieval failures on their own.</div>
             </div>
             
@@ -808,7 +1044,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การรวมการฝังตามบริบทเข้ากับการจัดทำดัชนีคำศัพท์ตามบริบทของ BM25 ช่วยลดความล้มเหลวในการดึงข้อมูลนอกเหนือจากการฝังเพียงอย่างเดียว</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การรวมการฝังตามบริบทเข้ากับการจัดทำดัชนีคำศัพท์ตามบริบทของ BM25 ช่วยลดความล้มเหลวในการดึงข้อมูลนอกเหนือจากการฝังเพียงอย่างเดียว</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Combining contextual embeddings with contextual BM25 lexical indexing further reduces retrieval failures beyond embeddings alone.</div>
             </div>
             
@@ -817,7 +1053,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Correct. Adding a reranking stage on top of contextual embeddings and BM25 produces the largest documented reduction in retrieval failures of the three combined techniques.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Correct. Adding a reranking stage on top of contextual embeddings and BM25 produces the largest documented reduction in retrieval failures of the three combined techniques.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Adding a reranking stage on top of contextual embeddings and BM25 produces the largest documented reduction in retrieval failures of the three combined techniques.</div>
             </div>
             
@@ -826,7 +1062,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. อุณหภูมิสุ่มตัวอย่างส่งผลต่อการใช้ถ้อยคำและความแปรปรวนของข้อความคำตอบที่สร้างขึ้น มันไม่มีผลกระทบต่อชิ้นใดที่ถูกดึงข้อมูลหรือความล้มเหลวในการเรียกข้อมูลเกิดขึ้นอย่างไร</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. อุณหภูมิสุ่มตัวอย่างส่งผลต่อการใช้ถ้อยคำและความแปรปรวนของข้อความคำตอบที่สร้างขึ้น มันไม่มีผลกระทบต่อชิ้นใดที่ถูกดึงข้อมูลหรือความล้มเหลวในการเรียกข้อมูลเกิดขึ้นอย่างไร</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Sampling temperature affects the wording and variability of the generated answer text; it has no effect on which chunks are retrieved or how retrieval failures occur.</div>
             </div>
             
@@ -835,7 +1071,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก E:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การหาปริมาณแบบไบนารีคือการเพิ่มประสิทธิภาพการจัดเก็บและต้นทุนที่ลดความแม่นยำในการฝัง ไม่ใช่เทคนิคที่ได้รับการบันทึกไว้ในการลดอัตราความล้มเหลวในการดึงข้อมูล และสามารถแลกกับความแม่นยำในการดึงข้อมูลสำหรับพื้นที่ได้</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การหาปริมาณแบบไบนารีคือการเพิ่มประสิทธิภาพการจัดเก็บและต้นทุนที่ลดความแม่นยำในการฝัง ไม่ใช่เทคนิคที่ได้รับการบันทึกไว้ในการลดอัตราความล้มเหลวในการดึงข้อมูล และสามารถแลกกับความแม่นยำในการดึงข้อมูลสำหรับพื้นที่ได้</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Binary quantization is a storage and cost optimization that reduces embedding precision; it is not a documented technique for reducing retrieval failure rates and can trade off retrieval accuracy for space.</div>
             </div>
             
@@ -844,7 +1080,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก F:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. Disabling overlap speeds up index building but removes a safeguard against split-boundary content, which tends to increase rather than decrease retrieval failures.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Incorrect. Disabling overlap speeds up index building but removes a safeguard against split-boundary content, which tends to increase rather than decrease retrieval failures.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Disabling overlap speeds up index building but removes a safeguard against split-boundary content, which tends to increase rather than decrease retrieval failures.</div>
             </div>
             
@@ -882,17 +1118,47 @@
             <span>2. Passing chunks to Claude as citable search results</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Passing chunks to Claude as citable search results</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  The search_result block: source, title and content are required; citations is optional json { "type": "search_result", "source": "https://example.com/article", // Required: Source URL or identifier "title": "Article Title", // Required: Title of the result "content": [ // Required: Array of text blocks { "type": "text", "text": "The actual content of the search result..." } ], "citations": { // Optional: Citation configuration "enabled": true // Enable/disable citations for this result } }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Chunks pasted into the prompt as plain text lose the link to where they came from. Search result content blocks keep that link. Each retrieved chunk goes in as a search_result block with a source and a title. With citations enabled, Claude attributes its answer to those sources the same way it cites web search results. No special prompting is needed: the citations appear on the text blocks that draw on your content.
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">The search_result block: source, title and content are required; citations is optional json</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: The search_result block: source, title and content are required; citations is optional json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;type&quot;: &quot;search_result&quot;,
+  &quot;source&quot;: &quot;https://example.com/article&quot;, // Required: Source URL or identifier
+  &quot;title&quot;: &quot;Article Title&quot;, // Required: Title of the result
+  &quot;content&quot;: [
+    // Required: Array of text blocks
+    {
+      &quot;type&quot;: &quot;text&quot;,
+      &quot;text&quot;: &quot;The actual content of the search result...&quot;
+    }
+  ],
+  &quot;citations&quot;: {
+    // Optional: Citation configuration
+    &quot;enabled&quot;: true // Enable/disable citations for this result
+  }
+}</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  source ยอมรับสตริงที่เสถียรใดๆ เช่น URL หรือตัวระบุภายใน เช่น kb://article-1234 ดังนั้นให้ชี้ไปที่เอกสารของกลุ่มในร้านค้าของคุณ content เป็นอาร์เรย์ของบล็อคข้อความเท่านั้น ไม่รองรับรูปภาพและสื่ออื่นๆ การอ้างอิงจะปิดอยู่ตามค่าเริ่มต้น ดังนั้นให้ตั้งค่า citations.enabled เป็น true ทุกผลการค้นหาในคำขอต้องใช้การตั้งค่าการอ้างอิงเดียวกัน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  There are two ways to deliver search results. In the first, a custom retrieval tool such as search_knowledge_base returns search_result blocks inside its tool_result. If retrieval must run on every request, force the call with tool_choice. In the second, you fetch the chunks yourself and put the search results directly in the user message. All active models support search results with citations except Claude Haiku 3.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  You also choose what text goes into each block. Responses may improve when Claude gets the contextualized chunk with the generated context clearly separated from the original chunk text. Run evals before settling on a format.
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -905,101 +1171,116 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-b83fd66e0972"
-             data-qid="b83fd66e0972"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-b83fd66e0972" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Your retrieval tool returns each chunk as a search_result block with a source of the form kb://article-1234 and a title. You leave out the optional citations field. Claude answers correctly, but no citations appear. What is the most likely cause?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-b83fd66e0972">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b83fd66e0972-A"
-                    data-qid="b83fd66e0972"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('b83fd66e0972', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Citations are off by default, and none of the search results set citations.enabled to true</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b83fd66e0972-B"
-                    data-qid="b83fd66e0972"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('b83fd66e0972', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The system prompt never tells Claude to cite its sources</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b83fd66e0972-C"
-                    data-qid="b83fd66e0972"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('b83fd66e0972', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Internal identifiers like kb://article-1234 can&#x27;t be cited because source has to be a public URL</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b83fd66e0972-D"
-                    data-qid="b83fd66e0972"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('b83fd66e0972', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Search results produce citations only when you put them in the user message, not when a tool returns them</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-b83fd66e0972" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-b83fd66e0972" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">การส่งชิ้นส่วนเป็นการบล็อก search_result จะไม่เปิดการอ้างอิง เนื่องจากจะปิดไว้ตามค่าเริ่มต้น ตั้งค่า citations.enabled เป็นจริง โดยมีการตั้งค่าเดียวกันในทุกผลลัพธ์ในคำขอ ไม่จำเป็นต้องมีการกระตุ้นเตือนเป็นพิเศษ สตริงที่เสถียรใดๆ จะทำงานเป็นแหล่งที่มา ผลลัพธ์ที่ส่งคืนโดยเครื่องมือและผลลัพธ์ที่อยู่ในข้อความผู้ใช้รองรับทั้งการอ้างอิง</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Sending chunks as search_result blocks doesn&#x27;t turn citations on, because they are off by default. Set citations.enabled to true, with the same setting on every result in the request. No special prompting is needed. Any stable string works as the source. Results returned by a tool and results placed in the user message both support citations.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-b83fd66e0972"
+                 data-qid="b83fd66e0972"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-b83fd66e0972" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">เครื่องมือดึงข้อมูลของคุณจะส่งคืนแต่ละส่วนเป็นบล็อก search_result โดยมีแหล่งที่มาของแบบฟอร์ม kb://article-1234 และหัวเรื่อง คุณละเว้นฟิลด์การอ้างอิงเพิ่มเติม โคลด์ตอบถูก แต่ไม่มีการอ้างอิงปรากฏ สาเหตุที่เป็นไปได้มากที่สุดคืออะไร?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Your retrieval tool returns each chunk as a search_result block with a source of the form kb://article-1234 and a title. You leave out the optional citations field. Claude answers correctly, but no citations appear. What is the most likely cause?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-b83fd66e0972">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b83fd66e0972-A"
+                        data-qid="b83fd66e0972"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('b83fd66e0972', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Citations are off by default, and none of the search results set citations.enabled to true</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Citations are off by default, and none of the search results set citations.enabled to true</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b83fd66e0972-B"
+                        data-qid="b83fd66e0972"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('b83fd66e0972', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The system prompt never tells Claude to cite its sources</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The system prompt never tells Claude to cite its sources</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b83fd66e0972-C"
+                        data-qid="b83fd66e0972"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('b83fd66e0972', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Internal identifiers like kb://article-1234 can&#x27;t be cited because source has to be a public URL</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Internal identifiers like kb://article-1234 can&#x27;t be cited because source has to be a public URL</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b83fd66e0972-D"
+                        data-qid="b83fd66e0972"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('b83fd66e0972', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Search results produce citations only when you put them in the user message, not when a tool returns them</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Search results produce citations only when you put them in the user message, not when a tool returns them</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-b83fd66e0972" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-b83fd66e0972" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การส่งชิ้นส่วนเป็นการบล็อก search_result จะไม่เปิดการอ้างอิง เนื่องจากจะปิดไว้ตามค่าเริ่มต้น ตั้งค่า citations.enabled เป็นจริง โดยมีการตั้งค่าเดียวกันในทุกผลลัพธ์ในคำขอ ไม่จำเป็นต้องมีการกระตุ้นเตือนเป็นพิเศษ สตริงที่เสถียรใดๆ จะทำงานเป็นแหล่งที่มา ผลลัพธ์ที่ส่งคืนโดยเครื่องมือและผลลัพธ์ที่อยู่ในข้อความผู้ใช้รองรับทั้งการอ้างอิง</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Sending chunks as search_result blocks doesn&#x27;t turn citations on, because they are off by default. Set citations.enabled to true, with the same setting on every result in the request. No special prompting is needed. Any stable string works as the source. Results returned by a tool and results placed in the user message both support citations.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “Citations are disabled by default; every example on this page sets &quot;enabled&quot;: true explicitly.”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/search-results" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/search-results" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('b83fd66e0972')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('b83fd66e0972')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1039,112 +1320,139 @@
         </div>
         
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Some pipelines send the same retrieved content on every request. A support bot, for example, might add the same product documentation to the system prompt and then append each user&#x27;s question. Prompt caching ([Prompt reuse and caching](lesson:2.5)) lets that repeated prefix be read from the cache instead of processed again, but only if the request is ordered and marked correctly.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Put the static content first and mark where it ends. Cache prefixes are built in a fixed order: tools, then system, then messages. The documentation therefore comes before the question, and the cache_control breakpoint goes on the last block of the documentation. The question that follows changes every time and stays outside the cached prefix. A breakpoint on the question would cache a prefix that no other request shares. A breakpoint on the first sentence of the system prompt would leave the documentation uncached.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Requests don&#x27;t need an identical final message to benefit. A single breakpoint at the end of the static content is enough, because the system finds the longest prefix that an earlier request already wrote to the cache. search_result blocks also accept cache_control, so results passed in the messages can carry the breakpoint themselves.
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Caching can&#x27;t help when every user asks a different question, because the final message is never the same. (ทำไมถึงผิด): A breakpoint at the end of the static content caches everything before the question. The system matches the longest prefix already in the cache, so the varying question after it doesn&#x27;t stop cache reads.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การแคชไม่สามารถช่วยได้เมื่อผู้ใช้แต่ละคนถามคําถามที่แตกต่างกัน เนื่องจากข้อความสุดท้ายจะไม่เหมือนกันเลย (ทําไมถึงผิดพลาด): จุดหยุดพักที่จุดสิ้นสุดของเนื้อหาแบบคงที่จะแคชทุกอย่างที่อยู่ก่อนคําถาม ระบบจะจับคู่กับคํานําหน้าที่ยาวที่สุดที่อยู่ในแคชแล้ว ดังนั้นคําถามที่แตกต่างกันหลังจากนั้นจะไม่หยุดการอ่านแคช</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Caching can&#x27;t help when every user asks a different question, because the final message is never the same. (ทำไมถึงผิด): A breakpoint at the end of the static content caches everything before the question. The system matches the longest prefix already in the cache, so the varying question after it doesn&#x27;t stop cache reads.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-c3c71b727017"
-             data-qid="c3c71b727017"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-c3c71b727017" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A support bot sends the same five search_result blocks of product documentation in the user message on every request, followed by a text block with that user&#x27;s question. The team wants those repeated blocks read from the cache. Where should the cache_control breakpoint go?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-c3c71b727017">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-c3c71b727017-A"
-                    data-qid="c3c71b727017"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('c3c71b727017', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">On the last search_result block, so the prefix ends with the static documentation and the question follows it</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-c3c71b727017-B"
-                    data-qid="c3c71b727017"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('c3c71b727017', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">On the question&#x27;s text block, because the breakpoint has to be on the final block of the request</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-c3c71b727017-C"
-                    data-qid="c3c71b727017"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('c3c71b727017', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">On the first sentence of the system prompt, so everything after it is cached</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-c3c71b727017-D"
-                    data-qid="c3c71b727017"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('c3c71b727017', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Nowhere: each user asks a different question, so the request never matches a cached prefix</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-c3c71b727017" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-c3c71b727017" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">วางเบรกพอยต์ที่ส่วนท้ายของเนื้อหาคงที่ ที่นี่คือบล็อก search_result สุดท้าย ซึ่งยอมรับ cache_control ระบบจะจับคู่คำนำหน้าที่ยาวที่สุดในแคช ดังนั้นคำถามที่เปลี่ยนแปลงในทุกคำขอจะไม่หยุดการอ่านแคช เบรกพอยต์ของคำถามแคชคำนำหน้าโดยไม่มีการแชร์คำขออื่น เบรกพอยต์ในประโยคแรกของพรอมต์ระบบจะทำให้เอกสารไม่แคช</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Put the breakpoint at the end of the static content, here the last search_result block, which accepts cache_control. The system matches the longest prefix already in the cache, so the question that changes on every request doesn&#x27;t stop cache reads. A breakpoint on the question caches a prefix no other request shares. A breakpoint on the first sentence of the system prompt leaves the documentation uncached.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-c3c71b727017"
+                 data-qid="c3c71b727017"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-c3c71b727017" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “cache_control | object | Cache control settings (for example, {&quot;type&quot;: &quot;ephemeral&quot;})”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/search-results" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">บอทสนับสนุนจะส่งเอกสารประกอบผลิตภัณฑ์ search_result จำนวนห้าบล็อกเดียวกันในข้อความผู้ใช้ในทุกคำขอ ตามด้วยบล็อกข้อความที่มีคำถามของผู้ใช้นั้น ทีมงานต้องการให้บล็อกที่ซ้ำกันเหล่านั้นอ่านจากแคช เบรกพอยต์ cache_control ควรอยู่ที่ไหน</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A support bot sends the same five search_result blocks of product documentation in the user message on every request, followed by a text block with that user&#x27;s question. The team wants those repeated blocks read from the cache. Where should the cache_control breakpoint go?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-c3c71b727017">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-c3c71b727017-A"
+                        data-qid="c3c71b727017"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('c3c71b727017', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ในบล็อก search_result บล็อกสุดท้าย ดังนั้นคํานําหน้าจะจบลงด้วยเอกสารแบบคงที่และคําถามจะตามมา</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: On the last search_result block, so the prefix ends with the static documentation and the question follows it</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-c3c71b727017-B"
+                        data-qid="c3c71b727017"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('c3c71b727017', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">On the question&#x27;s text block, because the breakpoint has to be on the final block of the request</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: On the question&#x27;s text block, because the breakpoint has to be on the final block of the request</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-c3c71b727017-C"
+                        data-qid="c3c71b727017"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('c3c71b727017', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">On the first sentence of the system prompt, so everything after it is cached</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: On the first sentence of the system prompt, so everything after it is cached</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-c3c71b727017-D"
+                        data-qid="c3c71b727017"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('c3c71b727017', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Nowhere: each user asks a different question, so the request never matches a cached prefix</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Nowhere: each user asks a different question, so the request never matches a cached prefix</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-c3c71b727017" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-c3c71b727017" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">วางเบรกพอยต์ที่ส่วนท้ายของเนื้อหาคงที่ ที่นี่คือบล็อก search_result สุดท้าย ซึ่งยอมรับ cache_control ระบบจะจับคู่คำนำหน้าที่ยาวที่สุดในแคช ดังนั้นคำถามที่เปลี่ยนแปลงในทุกคำขอจะไม่หยุดการอ่านแคช เบรกพอยต์ของคำถามแคชคำนำหน้าโดยไม่มีการแชร์คำขออื่น เบรกพอยต์ในประโยคแรกของพรอมต์ระบบจะทำให้เอกสารไม่แคช</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Put the breakpoint at the end of the static content, here the last search_result block, which accepts cache_control. The system matches the longest prefix already in the cache, so the question that changes on every request doesn&#x27;t stop cache reads. A breakpoint on the question caches a prefix no other request shares. A breakpoint on the first sentence of the system prompt leaves the documentation uncached.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “cache_control | object | การตั้งค่าการควบคุมแคช (ตัวอย่างเช่น {“type”: “ephemeral”})”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/search-results" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('c3c71b727017')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('c3c71b727017')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-56794"
              data-qid="56794"
@@ -1160,8 +1468,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A support-bot pipeline retrieves the same set of product documentation chunks for every user session and appends them to the system prompt, followed by whatever question the current user asks. The team wants to use prompt caching to cut latency and cost across the many queries that reuse this documentation. Where should they place the cache breakpoint?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">A support-bot pipeline retrieves the same set of product documentation chunks for every user session and appends them to the system prompt, followed by whatever question the current user asks. The team wants to use prompt caching to cut latency and cost across the many queries that reuse this documentation. Where should they place the cache breakpoint?</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A support-bot pipeline retrieves the same set of product documentation chunks for every user session and appends them to the system prompt, followed by whatever question the current user asks. The team wants to use prompt caching to cut latency and cost across the many queries that reuse this documentation. Where should they place the cache breakpoint?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-56794">
@@ -1173,7 +1482,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('56794', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">On the last content block of the retrieved documentation, immediately before the user&#x27;s question is added to the request.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">On the last content block of the retrieved documentation, immediately before the user&#x27;s question is added to the request.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: On the last content block of the retrieved documentation, immediately before the user&#x27;s question is added to the request.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1184,7 +1496,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('56794', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">On the user&#x27;s question itself, since that is the part of the request being sent most frequently.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">On the user&#x27;s question itself, since that is the part of the request being sent most frequently.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: On the user&#x27;s question itself, since that is the part of the request being sent most frequently.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1195,7 +1510,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('56794', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">On the very first sentence of the system prompt only, leaving the retrieved documentation uncached.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">On the very first sentence of the system prompt only, leaving the retrieved documentation uncached.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: On the very first sentence of the system prompt only, leaving the retrieved documentation uncached.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1206,7 +1524,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('56794', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Nowhere, since caching only benefits requests that share an identical final message, and the questions here vary.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Nowhere, since caching only benefits requests that share an identical final message, and the questions here vary.</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Nowhere, since caching only benefits requests that share an identical final message, and the questions here vary.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1228,7 +1549,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. เบรกพอยต์แคชควรอยู่บนบล็อกสุดท้ายที่เหมือนกันในคำขอต่างๆ ในไปป์ไลน์นี้ นั่นคือจุดสิ้นสุดของเอกสารที่ดึงมา ก่อนคำถามของผู้ใช้ตัวแปร ดังนั้นทุกการสืบค้นจะได้รับประโยชน์จากการเข้าถึงแคชในเนื้อหาที่เสถียร</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. เบรกพอยต์แคชควรอยู่บนบล็อกสุดท้ายที่เหมือนกันในคำขอต่างๆ ในไปป์ไลน์นี้ นั่นคือจุดสิ้นสุดของเอกสารที่ดึงมา ก่อนคำถามของผู้ใช้ตัวแปร ดังนั้นทุกการสืบค้นจะได้รับประโยชน์จากการเข้าถึงแคชในเนื้อหาที่เสถียร</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. The cache breakpoint should sit on the last block that stays identical across requests. In this pipeline, that is the end of the retrieved documentation, right before the variable user question, so every query benefits from a cache hit on the stable content.</div>
             </div>
             
@@ -1237,7 +1558,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. คำถามของผู้ใช้จะเปลี่ยนไปในทุกคำขอ ดังนั้นการวางเบรกพอยต์ที่นั่นหมายความว่าคำนำหน้าแคชจะไม่ตรงกันระหว่างคำขอต่างๆ และไม่มีการเข้าถึงแคชเกิดขึ้น</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. คำถามของผู้ใช้จะเปลี่ยนไปในทุกคำขอ ดังนั้นการวางเบรกพอยต์ที่นั่นหมายความว่าคำนำหน้าแคชจะไม่ตรงกันระหว่างคำขอต่างๆ และไม่มีการเข้าถึงแคชเกิดขึ้น</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. The user&#x27;s question changes on every request, so placing the breakpoint there means the cached prefix never matches between requests and no cache hits occur.</div>
             </div>
             
@@ -1246,7 +1567,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การแคชเฉพาะประโยคแรกของพรอมต์ระบบจะทำให้เอกสารที่ดึงมามีความเสถียรและมีขนาดใหญ่กว่ามากไม่แคช ส่งผลให้เงินออมที่มีอยู่เกือบทั้งหมดหายไป</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การแคชเฉพาะประโยคแรกของพรอมต์ระบบจะทำให้เอกสารที่ดึงมามีความเสถียรและมีขนาดใหญ่กว่ามากไม่แคช ส่งผลให้เงินออมที่มีอยู่เกือบทั้งหมดหายไป</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Caching only the first sentence of the system prompt leaves the much larger, genuinely stable retrieved documentation uncached, missing almost all of the available savings.</div>
             </div>
             
@@ -1255,7 +1576,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. Caching does not require the entire request to be identical; only the cached prefix (here, the retrieved documentation) needs to match, so this pipeline is a strong caching candidate.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Incorrect. Caching does not require the entire request to be identical; only the cached prefix (here, the retrieved documentation) needs to match, so this pipeline is a strong caching candidate.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Caching does not require the entire request to be identical; only the cached prefix (here, the retrieved documentation) needs to match, so this pipeline is a strong caching candidate.</div>
             </div>
             
@@ -1404,6 +1725,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1424,12 +1754,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1494,7 +2087,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

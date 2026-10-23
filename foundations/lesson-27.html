@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -539,7 +546,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-how-a-prompt-prefix-becomes-a-cache-hit" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. How a prompt prefix becomes a cache hit</span></a></li><li><a href="#2-where-to-put-cache-control-breakpoints" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Where to put cache_control breakpoints</span></a></li><li><a href="#3-choosing-the-5-minute-or-1-hour-ttl" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Choosing the 5-minute or 1-hour TTL</span></a></li><li><a href="#4-measuring-cache-hit-rate" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Measuring cache hit rate</span></a></li><li><a href="#practise-it-for-real" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>Practise it for real</span></a></li>
+        <li><a href="#1-how-a-prompt-prefix-becomes-a-cache-hit" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. วิธีที่คํานําหน้าพร้อมท์กลายเป็นแคชที่พบ</span></a></li><li><a href="#2-where-to-put-cache-control-breakpoints" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. จะใส่จุดพักของ cache_control ได้ที่ไหน</span></a></li><li><a href="#3-choosing-the-5-minute-or-1-hour-ttl" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Choosing the 5-minute or 1-hour TTL</span></a></li><li><a href="#4-measuring-cache-hit-rate" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Measuring cache hit rate</span></a></li><li><a href="#practise-it-for-real" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>ฝึกฝนอย่างจริงจัง</span></a></li>
       </ul>
     </nav>
     
@@ -547,116 +554,156 @@
         <section id="1-how-a-prompt-prefix-becomes-a-cache-hit" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. How a prompt prefix becomes a cache hit</span>
+            <span>1. วิธีที่คํานําหน้าพร้อมท์กลายเป็นแคชที่พบ</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>How a prompt prefix becomes a cache hit</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Automatic caching: one top-level cache_control field python client = anthropic.Anthropic() response = client.messages.create(model= "claude-opus-5-5", max_tokens= 1024, cache_control={ "type": "ephemeral" }, system= "You are an AI assistant tasked with analyzing literary works. Your goal is to provide insightful commentary on themes, characters, and writing style.", messages=[ { "role": "user", "content": "Analyze the major themes in 'Pride and Prejudice'.", } ],) print(response.usage.model_dump_json())
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การแคชพร้อมท์ช่วยให้คําขอสามารถใช้คํานําหน้าที่ประมวลผลแล้วของพร้อมท์เดิมที่เหมือนกันได้อีกครั้ง ดังนั้นคุณจึงต้องจ่ายเศษส่วนของราคาอินพุตสําหรับคํานําหน้านั้น เมื่อเปิดใช้งานการแคช API จะตรวจสอบว่าพร้อมท์จนถึงจุดหยุดพักของแคชถูกแคชโดยคําขอล่าสุดหรือไม่ หากเป็นเช่นนั้น เวอร์ชันที่แคชไว้จะถูกใช้ หากไม่ใช่ ระบบจะประมวลผลพร้อมท์ทั้งหมดและแคชคํานําหน้าเมื่อการตอบสนองเริ่มขึ้น คีย์แคชเป็นแฮชการเข้ารหัสของพร้อมท์จนถึงจุดหยุดพัก ดังนั้นเฉพาะคํานําหน้าที่เหมือนกันเท่านั้นที่สามารถเข้าถึงได้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  วิธีที่ง่ายที่สุดในการเปิดใช้งานคือการแคชอัตโนมัติ: ฟิลด์ cache_control ระดับบนสุดเพียงฟิลด์เดียว ระบบจะวางจุดหยุดบนบล็อกสุดท้ายที่แคชได้และย้ายไปข้างหน้าเมื่อการสนทนาเพิ่มขึ้น จากนั้นแต่ละรอบจะอ่านทุกอย่างก่อนรอบใหม่จากแคชและเขียนเฉพาะเนื้อหาใหม่เท่านั้น
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Automatic caching: one top-level cache_control field</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Automatic caching: one top-level cache_control field</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model=&quot;claude-opus-5-5&quot;,
+    max_tokens=1024,
+    cache_control={&quot;type&quot;: &quot;ephemeral&quot;},
+    system=&quot;You are an AI assistant tasked with analyzing literary works. Your goal is to provide insightful commentary on themes, characters, and writing style.&quot;,
+    messages=[
+        {
+            &quot;role&quot;: &quot;user&quot;,
+            &quot;content&quot;: &quot;Analyze the major themes in &#x27;Pride and Prejudice&#x27;.&quot;,
+        }
+    ],
+)
+print(response.usage.model_dump_json())</code></pre>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-8f42d2884e13"
-             data-qid="8f42d2884e13"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-8f42d2884e13" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An agent&#x27;s tools, system prompt and conversation are all cached. Which single change forces every layer to be written again?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-8f42d2884e13">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8f42d2884e13-A"
-                    data-qid="8f42d2884e13"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('8f42d2884e13', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Changing tool_choice</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8f42d2884e13-B"
-                    data-qid="8f42d2884e13"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('8f42d2884e13', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Adding an image to the latest user message</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8f42d2884e13-C"
-                    data-qid="8f42d2884e13"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('8f42d2884e13', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Editing one tool&#x27;s description</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8f42d2884e13-D"
-                    data-qid="8f42d2884e13"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('8f42d2884e13', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Appending a new user turn</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-8f42d2884e13" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-8f42d2884e13" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">คำจำกัดความของเครื่องมืออยู่ที่จุดเริ่มต้นของคำนำหน้า ดังนั้นการเปลี่ยนแปลงจะทำให้เครื่องมือ ระบบ และแคชข้อความใช้ไม่ได้ tool_choice และรูปภาพมีผลกับเลเยอร์ข้อความเท่านั้น</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Tool definitions are at the start of the prefix, so changing them invalidates the tools, system and messages caches. tool_choice and images only affect the message layer.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เนื่องจากฮิตจําเป็นต้องมีคํานําหน้าที่แน่นอน การเปลี่ยนแปลงบางอย่างนอกข้อความก็จะทําลายมันด้วย แคชมีหลายชั้น: เครื่องมือ ระบบ และข้อความ การแก้ไขคําจํากัดความของเครื่องมือจะทําให้ทั้งสามชั้นไม่ถูกต้อง การเปิดหรือปิดการค้นหาเว็บหรือการอ้างอิงจะเปลี่ยนชั้นระบบและทุกสิ่งหลังจากนั้น การเปลี่ยน tool_choice การเพิ่มหรือลบภาพ หรือการเปลี่ยนพารามิเตอร์การคิดหรือการตั้งค่าความพยายามจะทําให้ชั้นข้อความไม่ถูกต้องอย่างน้อยที่สุด การแคชพร้อมท์ไม่จําเป็นต้องมีคํานําหน้าแบบเบต้ามาสักพักแล้ว โค้ดที่เรียก client.beta.prompt_caching นั้นล้าสมัยแล้วและควรใช้ client.messages.create
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-8f42d2884e13"
+                 data-qid="8f42d2884e13"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-8f42d2884e13" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Modifying tool definitions (names, descriptions, parameters) invalidates the entire cache”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">เครื่องมือของตัวแทน ข้อความแจ้งของระบบ และการสนทนาทั้งหมดถูกแคชไว้ การเปลี่ยนแปลงใดที่บังคับให้ทุกเลเยอร์ต้องเขียนอีกครั้ง</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An agent&#x27;s tools, system prompt and conversation are all cached. Which single change forces every layer to be written again?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-8f42d2884e13">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8f42d2884e13-A"
+                        data-qid="8f42d2884e13"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('8f42d2884e13', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การเปลี่ยน tool_choice</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Changing tool_choice</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8f42d2884e13-B"
+                        data-qid="8f42d2884e13"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('8f42d2884e13', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การเพิ่มภาพไปยังข้อความผู้ใช้ล่าสุด</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Adding an image to the latest user message</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8f42d2884e13-C"
+                        data-qid="8f42d2884e13"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('8f42d2884e13', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">แก้ไขคําอธิบายของเครื่องมือเดียว</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Editing one tool&#x27;s description</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8f42d2884e13-D"
+                        data-qid="8f42d2884e13"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('8f42d2884e13', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การเพิ่มการเปลี่ยนผู้ใช้ใหม่</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Appending a new user turn</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-8f42d2884e13" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-8f42d2884e13" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">คำจำกัดความของเครื่องมืออยู่ที่จุดเริ่มต้นของคำนำหน้า ดังนั้นการเปลี่ยนแปลงจะทำให้เครื่องมือ ระบบ และแคชข้อความใช้ไม่ได้ tool_choice และรูปภาพมีผลกับเลเยอร์ข้อความเท่านั้น</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Tool definitions are at the start of the prefix, so changing them invalidates the tools, system and messages caches. tool_choice and images only affect the message layer.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “การแก้ไขคําจํากัดความของเครื่องมือ (ชื่อ คําอธิบาย พารามิเตอร์) จะทําให้ทั้งแคชไม่ถูกต้อง”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('8f42d2884e13')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('8f42d2884e13')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -676,28 +723,51 @@
         <section id="2-where-to-put-cache-control-breakpoints" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Where to put cache_control breakpoints</span>
+            <span>2. จะใส่จุดพักของ cache_control ได้ที่ไหน</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Where to put cache_control breakpoints</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Breakpoint</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Caches</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">If this changes, still reused</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">All tool definitions</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Nothing</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">2</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Static system instructions</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Tools</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">3</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">RAG knowledge-base documents</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Tools and instructions</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">4</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Conversation so far</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Tools, instructions and documents</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  วางจุดหยุดบนบล็อกสุดท้ายที่ยังคงเหมือนเดิมจากคําขอหนึ่งไปยังคําขอถัดไป การเขียนแคชจะเกิดขึ้นเฉพาะที่บล็อกที่คุณทําเครื่องหมายเท่านั้น และคําขอในภายหลังทุกคําขอที่มีคํานําหน้าเดียวกันจะอ่านรายการนั้น หากคุณวางจุดหยุดบนสิ่งที่เปลี่ยนแปลงทุกครั้ง เช่น ตราประทับเวลาหรือข้อความล่าสุดของผู้ใช้ ทุกคําขอจะเขียนรายการใหม่และไม่เคยตรง สําหรับการแจ้งส่วนใหญ่ จุดหยุดหนึ่งจุดที่จุดสิ้นสุดของเนื้อหาคงที่ก็เพียงพอแล้ว
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ใช้จุดหยุดมากกว่าหนึ่งจุด สูงสุดสี่จุด เมื่อส่วนต่างๆ ของพร้อมท์มีการเปลี่ยนแปลงในอัตราที่แตกต่างกัน เอเจนต์สี่จุดหยุดโดยทั่วไปจะแคชคําจํากัดความของเครื่องมือ คําแนะนําแบบคงที่ เอกสาร RAG และการสนทนาแยกต่างหาก การเปลี่ยนแปลงที่จุดหยุดหนึ่งจุดจะทําให้เซ็กเมนต์นั้นและเซ็กเมนต์ต่อจากนั้นไม่ถูกต้อง แต่เซ็กเมนต์ก่อนหน้าจะยังคงถูกต้องอยู่ เหตุผลที่สองสําหรับจุดหยุดเพิ่มเติมคือการสนทนาที่ยาวนานซึ่งมีการย้าย 20 บล็อกขึ้นไปหลังจากการเขียนแคชครั้งล่าสุด ภายนอกหน้าต่างย้อนกลับ ตัวจุดหยุดเองไม่มีค่าใช้จ่าย คุณจ่ายเฉพาะโทเค็นที่เขียนและอ่านเท่านั้น
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">จุดหยุด</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Breakpoint</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Caches</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Caches</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">หากสิ่งนี้เปลี่ยนแปลง ยังคงใช้ซ้ํา</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: If this changes, still reused</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">1</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">All tool definitions</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: All tool definitions</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Nothing</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Nothing</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">2</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 2</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Static system instructions</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Static system instructions</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เครื่องมือ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Tools</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">3</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 3</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">RAG knowledge-base documents</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: RAG knowledge-base documents</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เครื่องมือและคําแนะนํา</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Tools and instructions</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">4</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 4</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Conversation so far</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Conversation so far</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Tools, instructions and documents</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Tools, instructions and documents</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Four-breakpoint layout and what each change invalidates</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">เค้าโครงแบบสี่จุดแบ่งและสิ่งที่การเปลี่ยนแปลงแต่ละครั้งทําให้ไม่ถูกต้อง</figcaption>
                 </div>
                 
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Explicit breakpoint on the system prompt combined with automatic caching for the conversation json { "model": "claude-opus-5-5", "max_tokens": 1024, "cache_control": { "type": "ephemeral" }, "system": [ { "type": "text", "text": "You are a helpful assistant.", "cache_control": { "type": "ephemeral" } } ], "messages": [{ "role": "user", "content": "What are the key terms?" }] }
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Explicit breakpoint on the system prompt combined with automatic caching for the conversation json</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Explicit breakpoint on the system prompt combined with automatic caching for the conversation json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;model&quot;: &quot;claude-opus-5-5&quot;,
+  &quot;max_tokens&quot;: 1024,
+  &quot;cache_control&quot;: { &quot;type&quot;: &quot;ephemeral&quot; },
+  &quot;system&quot;: [
+    {
+      &quot;type&quot;: &quot;text&quot;,
+      &quot;text&quot;: &quot;You are a helpful assistant.&quot;,
+      &quot;cache_control&quot;: { &quot;type&quot;: &quot;ephemeral&quot; }
+    }
+  ],
+  &quot;messages&quot;: [{ &quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;What are the key terms?&quot; }]
+}</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  A breakpoint also does nothing if the prefix before it is too short. Each model has a minimum cacheable length: 512 tokens for Fable 5.1, Mythos 5.1, Opus 5.5, Opus 5 and Sonnet 5.5; 1,024 for Opus 4.8 and Sonnet 5; 4,096 for Haiku 4.5. A shorter prefix is processed normally with no cache write and no error. The only sign is cache_creation_input_tokens staying at zero. The automatic-caching sample above has a system prompt of a few dozen tokens, well under any minimum.
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -725,8 +795,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A finance team wants a monthly cost model for an internal Claude-powered summarization service. They know the average input tokens per call, average output tokens per call, and call volume, but the engineering team also plans to introduce prompt caching for a shared instruction block. Which combination of usage fields should the cost model consume from the API responses to produce an accurate blended cost once caching is live?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมการเงินต้องการแบบจำลองต้นทุนรายเดือนสำหรับบริการสรุปภายในที่ขับเคลื่อนโดย Claude พวกเขารู้โทเค็นอินพุตเฉลี่ยต่อการโทร โทเค็นเอาต์พุตเฉลี่ยต่อการโทร และปริมาณการโทร แต่ทีมวิศวกรยังวางแผนที่จะแนะนำการแคชพร้อมท์สำหรับบล็อกคำสั่งที่ใช้ร่วมกัน การรวมกันของฟิลด์การใช้งานใดที่โมเดลต้นทุนควรใช้จากการตอบสนองของ API เพื่อสร้างต้นทุนแบบผสมที่แม่นยำเมื่อแคชใช้งานจริง</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A finance team wants a monthly cost model for an internal Claude-powered summarization service. They know the average input tokens per call, average output tokens per call, and call volume, but the engineering team also plans to introduce prompt caching for a shared instruction block. Which combination of usage fields should the cost model consume from the API responses to produce an accurate blended cost once caching is live?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55624">
@@ -738,7 +809,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55624', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">input_tokens, cache_creation_input_tokens, cache_read_input_tokens, and output_tokens, applying each field&#x27;s own per-token rate since they are billed at different prices</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">input_tokens, cache_creation_input_tokens, cache_read_input_tokens, and output_tokens, applying each field&#x27;s own per-token rate since they are billed at different prices</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: input_tokens, cache_creation_input_tokens, cache_read_input_tokens, and output_tokens, applying each field&#x27;s own per-token rate since they are billed at different prices</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -749,7 +823,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55624', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Only the total of input_tokens plus output_tokens, since caching does not change how usage fields are reported once a request completes</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Only the total of input_tokens plus output_tokens, since caching does not change how usage fields are reported once a request completes</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only the total of input_tokens plus output_tokens, since caching does not change how usage fields are reported once a request completes</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -760,7 +837,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55624', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Only output_tokens, since cached input segments are provided to the customer at no charge and therefore need not appear in a cost model</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Only output_tokens, since cached input segments are provided to the customer at no charge and therefore need not appear in a cost model</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only output_tokens, since cached input segments are provided to the customer at no charge and therefore need not appear in a cost model</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -771,7 +851,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55624', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">input_tokens and output_tokens averaged across the month, ignoring cache_creation_input_tokens and cache_read_input_tokens since these are internal diagnostic fields not tied to billing</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">input_tokens and output_tokens averaged across the month, ignoring cache_creation_input_tokens and cache_read_input_tokens since these are internal diagnostic fields not tied to billing</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: input_tokens and output_tokens averaged across the month, ignoring cache_creation_input_tokens and cache_read_input_tokens since these are internal diagnostic fields not tied to billing</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -793,7 +876,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. เมื่อเปิดใช้งานการแคช อ็อบเจ็กต์การใช้งานจะรายงาน input_tokens (ไม่แคช หลังเบรกพอยต์), cache_creation_input_tokens (เรียกเก็บเงินที่ตัวคูณการเขียน) และ cache_read_input_tokens (เรียกเก็บเงินประมาณ 0.1 เท่าของราคาฐาน) แยกกัน โดยแต่ละรายการมีราคาที่แตกต่างกัน แบบจำลองต้นทุนต้องใช้อัตราของแต่ละฟิลด์แยกกัน บวกกับ output_tokens ที่อัตราเอาท์พุตเพื่อให้แม่นยำ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. เมื่อเปิดใช้งานการแคช อ็อบเจ็กต์การใช้งานจะรายงาน input_tokens (ไม่แคช หลังเบรกพอยต์), cache_creation_input_tokens (เรียกเก็บเงินที่ตัวคูณการเขียน) และ cache_read_input_tokens (เรียกเก็บเงินประมาณ 0.1 เท่าของราคาฐาน) แยกกัน โดยแต่ละรายการมีราคาที่แตกต่างกัน แบบจำลองต้นทุนต้องใช้อัตราของแต่ละฟิลด์แยกกัน บวกกับ output_tokens ที่อัตราเอาท์พุตเพื่อให้แม่นยำ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. With caching enabled, the usage object separately reports input_tokens (uncached, post-breakpoint), cache_creation_input_tokens (billed at the write multiplier), and cache_read_input_tokens (billed at roughly 0.1x base price), each with distinct pricing; a cost model must apply each field&#x27;s rate separately, plus output_tokens at the output rate, to be accurate.</div>
             </div>
             
@@ -802,7 +885,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">เมื่อแคชทำงานแล้ว input_tokens เพียงอย่างเดียวจะไม่รวมช่อง cache_creation และ cache_read ซึ่งมีราคาแตกต่างจากโทเค็นอินพุตมาตรฐาน การรวมเฉพาะ input_tokens และ output_tokens จะทำให้ต้นทุนผสมที่แท้จริงไม่ถูกต้อง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">เมื่อแคชทำงานแล้ว input_tokens เพียงอย่างเดียวจะไม่รวมช่อง cache_creation และ cache_read ซึ่งมีราคาแตกต่างจากโทเค็นอินพุตมาตรฐาน การรวมเฉพาะ input_tokens และ output_tokens จะทำให้ต้นทุนผสมที่แท้จริงไม่ถูกต้อง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Once caching is active, input_tokens alone excludes the cache_creation and cache_read fields, which carry different prices than standard input tokens; summing only input_tokens and output_tokens would misstate the true blended cost.</div>
             </div>
             
@@ -811,7 +894,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">การอ่านแคชมีส่วนลด ไม่ใช่ฟรี cache_read_input_tokens ยังคงถูกเรียกเก็บเงินในอัตราที่ลดลง (ประมาณ 10% ของราคาอินพุตพื้นฐาน) ดังนั้นการละเว้นจะต่ำกว่าต้นทุน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">การอ่านแคชมีส่วนลด ไม่ใช่ฟรี cache_read_input_tokens ยังคงถูกเรียกเก็บเงินในอัตราที่ลดลง (ประมาณ 10% ของราคาอินพุตพื้นฐาน) ดังนั้นการละเว้นจะต่ำกว่าต้นทุน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Cached reads are discounted, not free; cache_read_input_tokens is still billed, just at a reduced rate (roughly 10% of base input price), so omitting it understates cost.</div>
             </div>
             
@@ -820,7 +903,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">cache_creation_input_tokens และ cache_read_input_tokens เป็นฟิลด์การใช้งานที่เกี่ยวข้องกับการเรียกเก็บเงินซึ่งมีราคาของตัวเอง ไม่ใช่แค่การวินิจฉัยเท่านั้น การแยกออกจะสร้างแบบจำลองต้นทุนที่ไม่ถูกต้องเมื่อมีการเผยแพร่แคช</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">cache_creation_input_tokens และ cache_read_input_tokens เป็นฟิลด์การใช้งานที่เกี่ยวข้องกับการเรียกเก็บเงินซึ่งมีราคาของตัวเอง ไม่ใช่แค่การวินิจฉัยเท่านั้น การแยกออกจะสร้างแบบจำลองต้นทุนที่ไม่ถูกต้องเมื่อมีการเผยแพร่แคช</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: cache_creation_input_tokens and cache_read_input_tokens are billing-relevant usage fields with their own prices, not merely diagnostic; excluding them produces an inaccurate cost model once caching is live.</div>
             </div>
             
@@ -836,101 +919,116 @@
           </div>
         </div>
         
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-615847b7ecf4"
-             data-qid="615847b7ecf4"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-615847b7ecf4" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A Sonnet 5.5 service marks a 400-token system prompt with cache_control. The rest of the prompt varies per request. Every response shows cache_creation_input_tokens: 0. What is going on?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-615847b7ecf4">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-615847b7ecf4-A"
-                    data-qid="615847b7ecf4"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('615847b7ecf4', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The breakpoint is in the wrong place; it must go on the user message</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-615847b7ecf4-B"
-                    data-qid="615847b7ecf4"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('615847b7ecf4', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The 400-token prefix is under Sonnet 5.5&#x27;s 512-token minimum, so it is never cached</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-615847b7ecf4-C"
-                    data-qid="615847b7ecf4"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('615847b7ecf4', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Sonnet 5.5 only supports automatic caching, not explicit breakpoints</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-615847b7ecf4-D"
-                    data-qid="615847b7ecf4"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('615847b7ecf4', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The cache was written but the field reports zero for system prompts</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-615847b7ecf4" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-615847b7ecf4" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">คำนำหน้าภายใต้ค่าต่ำสุดของโมเดลจะได้รับการประมวลผลโดยไม่มีการแคช แม้ว่าจะทำเครื่องหมายไว้ก็ตาม การย้ายเบรกพอยต์ไปยังเนื้อหาที่แตกต่างกันจะทำให้สิ่งต่างๆ แย่ลง</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A prefix under the model&#x27;s minimum is processed without caching, even when it is marked. Moving the breakpoint onto varying content would make things worse.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-615847b7ecf4"
+                 data-qid="615847b7ecf4"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-615847b7ecf4" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">บริการ Sonnet 5.5 ทําเครื่องหมายพรอมต์ระบบ 400 โทเค็นด้วย cache_control ส่วนที่เหลือของพรอมต์จะแตกต่างกันไปตามคําขอ การตอบสนองแต่ละครั้งจะแสดง cache_creation_input_tokens: 0 เกิดอะไรขึ้น</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A Sonnet 5.5 service marks a 400-token system prompt with cache_control. The rest of the prompt varies per request. Every response shows cache_creation_input_tokens: 0. What is going on?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-615847b7ecf4">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-615847b7ecf4-A"
+                        data-qid="615847b7ecf4"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('615847b7ecf4', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">จุดหยุดอยู่ที่ผิดที่ มันต้องอยู่บนข้อความของผู้ใช้</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The breakpoint is in the wrong place; it must go on the user message</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-615847b7ecf4-B"
+                        data-qid="615847b7ecf4"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('615847b7ecf4', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The 400-token prefix is under Sonnet 5.5&#x27;s 512-token minimum, so it is never cached</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The 400-token prefix is under Sonnet 5.5&#x27;s 512-token minimum, so it is never cached</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-615847b7ecf4-C"
+                        data-qid="615847b7ecf4"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('615847b7ecf4', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Sonnet 5.5 only supports automatic caching, not explicit breakpoints</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Sonnet 5.5 only supports automatic caching, not explicit breakpoints</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-615847b7ecf4-D"
+                        data-qid="615847b7ecf4"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('615847b7ecf4', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The cache was written but the field reports zero for system prompts</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The cache was written but the field reports zero for system prompts</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-615847b7ecf4" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-615847b7ecf4" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">คำนำหน้าภายใต้ค่าต่ำสุดของโมเดลจะได้รับการประมวลผลโดยไม่มีการแคช แม้ว่าจะทำเครื่องหมายไว้ก็ตาม การย้ายเบรกพอยต์ไปยังเนื้อหาที่แตกต่างกันจะทำให้สิ่งต่างๆ แย่ลง</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: A prefix under the model&#x27;s minimum is processed without caching, even when it is marked. Moving the breakpoint onto varying content would make things worse.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “Shorter prompts cannot be cached, even if marked with cache_control.”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('615847b7ecf4')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('615847b7ecf4')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -953,32 +1051,129 @@
             <span>3. Choosing the 5-minute or 1-hour TTL</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Choosing the 5-minute or 1-hour TTL</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Model</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Base input</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">5m write</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">1h write</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Hit</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Opus 5.5</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$4</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$5</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$8</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$0.20</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Sonnet 5.5</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$2</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$2.50</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$4</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$0.20</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Haiku 4.5</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$1</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$1.25</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$2</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$0.10</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การเขียนแคชมีค่าใช้จ่ายมากกว่าการป้อนข้อมูลธรรมดาและจำนวนมากขึ้นอยู่กับระยะเวลาที่รายการมีชีวิตอยู่รายการ 5 นาทีมีค่าใช้จ่าย 1.25 x ราคาอินพุตพื้นฐานที่จะเขียนค่าเข้า 1 ชั่วโมงมีค่าใช้จ่าย 2 เท่าการอ่านมีราคา 0.1x ในรุ่นส่วนใหญ่ 0.05 x ใน Opus 5.5 และ 0.025x ใน Fable 5.1 ทุกครั้งที่มีการใช้รายการอายุการใช้งานจะได้รับการรีเฟรชโดยไม่มีค่าใช้จ่ายเพิ่มเติมดังนั้นการเข้าพัก 5 นาทีจะอบอุ่นตราบใดที่คำขอยังคงมาถึงภายใน 5 นาทีจากกัน
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">แบบอย่าง</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Model</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Base input</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Base input</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">5m write</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: 5m write</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">1h write</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: 1h write</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Hit</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Hit</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Claude Opus 5.5</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Opus 5.5</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">4</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $4</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">5</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $5</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$8</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $8</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$0.20</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $0.20</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คลอด-โคลง-5-5</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Sonnet 5.5</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">2</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $2</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$2.50</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $2.50</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">4</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $4</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$0.20</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $0.20</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คล็อด ไฮคุ 4.5</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Haiku 4.5</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$1</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $1</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$1.25</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $1.25</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">2</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $2</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$0.10</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $0.10</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Cache prices per million tokens on current models</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ราคาแคชต่อหนึ่งล้านโทเค็นในรุ่นปัจจุบัน</figcaption>
                 </div>
                 
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">คาดการณ์ก่อน ด้วย TTL เริ่มต้น 5 นาที การตอบกลับจะใช้เวลา 4 นาทีในการสตรีม คำขอติดตามผลจะยังคงเข้าถึงแคชได้นานแค่ไหนหลังจากดำเนินการเสร็จสิ้น สูงสุด 5 นาทีสูงสุด 9 นาทีประมาณ 1 นาทีอายุการใช้งานเริ่มต้นเมื่อคำขอเริ่มต้น ดังนั้นเวลาในการสร้างจึงใช้เวลาบางส่วน “คำขอติดตามผลที่ใช้คำนำหน้าแคชเดียวกันซ้ำจะต้องเริ่มภายในประมาณ 1 นาทีหลังจากการตอบสนองเสร็จสิ้น” ที่มา: platform.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: With the default 5-minute TTL, a response takes 4 minutes to stream. How long after it finishes can a follow-up request still hit the cache? Up to 5 minutes Up to 9 minutes About 1 minute The lifetime starts when the request begins, so generation time uses up part of it. “ a follow-up request that reuses the same cached prefix must start within about 1 minute of that response completing ” Source: platform.claude.com
-                  </div>
-                </aside>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_1fd5f6d0"
+         data-qid="pred_1fd5f6d0"
+         data-correct="C">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_1fd5f6d0" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">With the default 5-minute TTL, a response takes 4 minutes to stream. How long after it finishes can a follow-up request still hit the cache?</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: With the default 5-minute TTL, a response takes 4 minutes to stream. How long after it finishes can a follow-up request still hit the cache?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_1fd5f6d0">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_1fd5f6d0-A"
+                data-qid="pred_1fd5f6d0"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_1fd5f6d0', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Up to 5 minutes</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Up to 5 minutes</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_1fd5f6d0-B"
+                data-qid="pred_1fd5f6d0"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_1fd5f6d0', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Up to 9 minutes</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Up to 9 minutes</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_1fd5f6d0-C"
+                data-qid="pred_1fd5f6d0"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_1fd5f6d0', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">About 1 minute</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: About 1 minute</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_1fd5f6d0" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_1fd5f6d0" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">The lifetime starts when the request begins, so generation time uses up part of it.</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: The lifetime starts when the request begins, so generation time uses up part of it.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““คําขอติดตามที่ใช้คํานําหน้าแคชเดิมซ้ําต้องเริ่มต้นภายในเวลาประมาณ 1 นาทีหลังจากการตอบสนองนั้นเสร็จสิ้น””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “a follow-up request that reuses the same cached prefix must start within about 1 minute of that response completing”</div>
+          <div class="mt-1.5 not-italic"><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://platform.claude.com/docs/en/build-with-claude/prompt-caching</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_1fd5f6d0')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  The lifetime starts when the request begins, not when its response ends, so long generations shorten the window for reuse. The TTL choice then comes down to the gaps between requests, because a miss on either duration bills the whole prefix at the write price again.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  จุดคุ้มทุนตามมาจากตาราง ใช้คำนำหน้าโทเค็น 1M บน Sonnet 5.5 โดยที่คำขอที่ไม่มีแคชจะจ่าย 2 ดอลลาร์สำหรับคำนำหน้า เมื่อใช้ TTL 5 นาที การเขียนและการอ่านหนึ่งครั้งจะมีราคา 2.50 USD + 0.20 USD = 2.70 USD เทียบกับ 4.00 USD สำหรับคำขอที่ไม่ได้แคช 2 รายการ ดังนั้น การอ่าน 1 รายการจึงชำระค่าเขียนแล้ว ด้วย TTL 1 ชั่วโมง การเขียนและการอ่านหนึ่งครั้งจะมีราคา 4.00 ดอลลาร์ + 0.20 ดอลลาร์ = 4.20 ดอลลาร์ ยังคงสูงกว่า 4.00 ดอลลาร์ การอ่านครั้งที่สองจะทำให้ราคาอยู่ที่ 4.40 ดอลลาร์ เทียบกับ 6.00 ดอลลาร์ที่ไม่ได้แคช การอ่านสองครั้งถือเป็นจุดคุ้มทุนสำหรับการเข้า 1 ชั่วโมง การนับเหล่านี้จะถือว่าราคาอ่านมาตรฐาน 0.1x; Opus 5.5 และ Fable 5.1 อ่านได้น้อยกว่า จึงให้ผลตอบแทนเร็วกว่า
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  When turns arrive seconds apart, the 5-minute entry never expires, so the 1-hour entry&#x27;s extra write cost (2x instead of 1.25x) buys nothing. In Anthropic&#x27;s measurements of agent runs with no pauses, the 5-minute setting cost 15% less than the 1-hour one on Sonnet 5 and about 15% to 18% less on Opus 5.5. That figure is a whole-task cost, so it is smaller than the gap on the prefix alone. The 1-hour entry wins once pauses start to cause misses: a gap between 5 minutes and an hour expires the 5-minute entry and rebills the prefix at 1.25x, where the 1-hour entry would have read it at 0.1x. Anthropic&#x27;s rule of thumb is to switch to the 1-hour TTL when more than about 1 gap in 20 falls in that range, and it is a measured threshold rather than a derived one. Gaps longer than an hour expire either kind of entry.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  แบตช์ต้องการความระมัดระวังเพิ่มเติมเมื่อมีการแคช คําขอแบตช์ทํางานพร้อมกันและไม่มีลําดับที่แน่นอน ดังนั้นการพบแคชจึงเป็นความพยายามที่ดีที่สุด และหลายแบตช์ใช้เวลา 5 นาทีถึง 1 ชั่วโมงในการเสร็จสิ้น ในการทําให้แคชอุ่นขึ้นอย่างจงใจ ให้ใช้ TTL 1 ชั่วโมงในลําดับนี้:
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -991,57 +1186,155 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-1fb5d0dc37c7"
-             data-qid="1fb5d0dc37c7"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-1fb5d0dc37c7" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Put the steps for warming a 1-hour cache for a batch in order</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-1fb5d0dc37c7">
-            
-          </div>
-          
-          <div id="feedback-1fb5d0dc37c7" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-1fb5d0dc37c7" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">The first single-request batch writes the shared prefix to the 1-hour cache, so the remaining requests can read it rather than race to write it.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The first single-request batch writes the shared prefix to the 1-hour cache, so the remaining requests can read it rather than race to write it.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-1fb5d0dc37c7"
+                 data-qid="1fb5d0dc37c7"
+                 data-correct="ORDER"
+                 data-total-steps="4">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔢</span>
+                  <span>แบบฝึกหัดเรียงลำดับขั้นตอน (Step Sequencing)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-1fb5d0dc37c7" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Order (4 ขั้นตอน)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Send a batch request with a single request that has this shared prefix and a 1-hour cache block.”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">Put the steps for warming a 1-hour cache for a batch in order</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Put the steps for warming a 1-hour cache for a batch in order</p>
+              </div>
+
+              <!-- Interactive Step Ordering Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกขั้นตอนตามลำดับที่ถูกต้องตั้งแต่ขั้นตอนที่ 1 ถึง 4</span></span>
+                  <span id="order-counter-1fb5d0dc37c7" class="text-slate-400 font-mono">เรียงแล้ว 0/4</span>
+                </div>
+                <div class="space-y-2.5 pt-1" id="order-cards-1fb5d0dc37c7">
+                  
+                <button type="button"
+                        id="order-step-1fb5d0dc37c7-3"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('1fb5d0dc37c7', 3, 4)">
+                  <span id="order-badge-1fb5d0dc37c7-3" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Submit the rest of the requests</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Submit the rest of the requests</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-1fb5d0dc37c7-2"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('1fb5d0dc37c7', 2, 4)">
+                  <span id="order-badge-1fb5d0dc37c7-2" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Monitor the job until that request completes</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Monitor the job until that request completes</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-1fb5d0dc37c7-0"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('1fb5d0dc37c7', 0, 4)">
+                  <span id="order-badge-1fb5d0dc37c7-0" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Gather the message requests that share a prefix</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Gather the message requests that share a prefix</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-1fb5d0dc37c7-1"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('1fb5d0dc37c7', 1, 4)">
+                  <span id="order-badge-1fb5d0dc37c7-1" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Send a batch containing a single request with that prefix and a 1-hour cache block</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Send a batch containing a single request with that prefix and a 1-hour cache block</span>
+                  </div>
+                </button>
+                
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-1fb5d0dc37c7" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetOrderGame('1fb5d0dc37c7')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>รีเซ็ตลำดับเพื่อลองใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('1fb5d0dc37c7')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยลำดับที่ถูกต้อง
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">คลิกจัดลำดับจนครบเพื่อตรวจสอบคำตอบ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-1fb5d0dc37c7" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ ลำดับขั้นตอนที่ถูกต้อง (Correct Sequence 1 ➔ 4):</strong>
+                <div class="space-y-2">
+                  
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Gather the message requests that share a prefix</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Gather the message requests that share a prefix</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Send a batch containing a single request with that prefix and a 1-hour cache block</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Send a batch containing a single request with that prefix and a 1-hour cache block</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Monitor the job until that request completes</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Monitor the job until that request completes</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Submit the rest of the requests</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Submit the rest of the requests</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 เหตุผลเบื้องหลังลำดับขั้น (Reasoning):</strong>
+                  <p class="leading-relaxed">The first single-request batch writes the shared prefix to the 1-hour cache, so the remaining requests can read it rather than race to write it.</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The first single-request batch writes the shared prefix to the 1-hour cache, so the remaining requests can read it rather than race to write it.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ส่งคําขอแบบแบตช์พร้อมคําขอเดียวที่มีคํานําหน้าที่ใช้ร่วมกันนี้และบล็อกแคช 1 ชั่วโมง”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('1fb5d0dc37c7')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55625"
              data-qid="55625"
@@ -1057,8 +1350,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A latency-sensitive voice assistant relies on a large cached system prompt to keep response times low. Product wants to guarantee the cache is always warm the instant a user starts speaking, even after periods with no traffic, without waiting for an actual user request to trigger the cache write. Which technique addresses this directly?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ผู้ช่วยเสียงที่ไวต่อความหน่วงอาศัยการแจ้งเตือนของระบบแคชขนาดใหญ่เพื่อรักษาเวลาตอบสนองให้ต่ำ ผลิตภัณฑ์ต้องการรับประกันว่าแคชจะอุ่นอยู่เสมอทันทีที่ผู้ใช้เริ่มพูด แม้หลังจากช่วงที่ไม่มีการรับส่งข้อมูล โดยไม่ต้องรอให้ผู้ใช้ร้องขอจริงเพื่อทริกเกอร์การเขียนแคช เทคนิคใดที่กล่าวถึงเรื่องนี้โดยตรง</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A latency-sensitive voice assistant relies on a large cached system prompt to keep response times low. Product wants to guarantee the cache is always warm the instant a user starts speaking, even after periods with no traffic, without waiting for an actual user request to trigger the cache write. Which technique addresses this directly?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55625">
@@ -1070,7 +1364,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55625', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Issue a periodic request with max_tokens: 0 that includes the cached prefix and its cache_control breakpoint, refreshing the cache before it expires so it is warm when real traffic arrives</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ออกคําขอเป็นระยะด้วย max_tokens: 0 ซึ่งรวมถึงคํานําหน้าแคชและจุดหยุดพัก cache_control ของคํานําหน้า แคชจะรีเฟรชก่อนหมดอายุเพื่อให้แคชยังทํางานอยู่เมื่อการรับส่งข้อมูลจริงมาถึง</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Issue a periodic request with max_tokens: 0 that includes the cached prefix and its cache_control breakpoint, refreshing the cache before it expires so it is warm when real traffic arrives</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1081,7 +1378,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55625', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Increase the model&#x27;s temperature parameter so cached content is retained in memory for a longer duration between requests</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Increase the model&#x27;s temperature parameter so cached content is retained in memory for a longer duration between requests</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Increase the model&#x27;s temperature parameter so cached content is retained in memory for a longer duration between requests</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1092,7 +1392,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55625', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Enable extended thinking on every request so Claude proactively pre-loads the system prompt into a persistent cache that never expires</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Enable extended thinking on every request so Claude proactively pre-loads the system prompt into a persistent cache that never expires</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Enable extended thinking on every request so Claude proactively pre-loads the system prompt into a persistent cache that never expires</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1103,7 +1406,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55625', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set stream to true on all requests, since streaming responses automatically extend the TTL of any cache entries touched during the request</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Set stream to true on all requests, since streaming responses automatically extend the TTL of any cache entries touched during the request</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set stream to true on all requests, since streaming responses automatically extend the TTL of any cache entries touched during the request</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1125,7 +1431,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การอุ่นเครื่องล่วงหน้าด้วยคำขอ max_tokens: 0 ที่มีคำนำหน้าแคชและเบรกพอยต์จะเขียนหรือรีเฟรชรายการแคชก่อนการรับส่งข้อมูลจริง ซึ่งเป็นเทคนิคที่ได้รับการบันทึกไว้สำหรับการรักษาพร้อมท์ที่ไวต่อความล่าช้าและแคชขนาดใหญ่ให้พร้อมโดยไม่ต้องรอคำขอของผู้ใช้จริง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การอุ่นเครื่องล่วงหน้าด้วยคำขอ max_tokens: 0 ที่มีคำนำหน้าแคชและเบรกพอยต์จะเขียนหรือรีเฟรชรายการแคชก่อนการรับส่งข้อมูลจริง ซึ่งเป็นเทคนิคที่ได้รับการบันทึกไว้สำหรับการรักษาพร้อมท์ที่ไวต่อความล่าช้าและแคชขนาดใหญ่ให้พร้อมโดยไม่ต้องรอคำขอของผู้ใช้จริง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Pre-warming with a max_tokens: 0 request that includes the cached prefix and its breakpoint writes or refreshes the cache entry ahead of real traffic, which is the documented technique for keeping latency-sensitive, large cached prompts ready without waiting on an actual user request.</div>
             </div>
             
@@ -1134,7 +1440,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">อุณหภูมิจะควบคุมการสุ่ม/การสุ่มตัวอย่างเอาต์พุต และไม่มีความสัมพันธ์กับระยะเวลาการเก็บรักษาแคช</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">อุณหภูมิจะควบคุมการสุ่ม/การสุ่มตัวอย่างเอาต์พุต และไม่มีความสัมพันธ์กับระยะเวลาการเก็บรักษาแคช</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: temperature controls output randomness/sampling and has no relationship to cache retention duration.</div>
             </div>
             
@@ -1143,7 +1449,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">การคิดแบบขยายส่งผลต่อพฤติกรรมการใช้เหตุผลและการบัญชีโทเค็นสำหรับบล็อคการคิด มันไม่ได้สร้างแคชถาวรและไม่หมดอายุ และบล็อกการคิดไม่สามารถทำเครื่องหมายด้วย cache_control</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">การคิดแบบขยายส่งผลต่อพฤติกรรมการใช้เหตุผลและการบัญชีโทเค็นสำหรับบล็อคการคิด มันไม่ได้สร้างแคชถาวรและไม่หมดอายุ และบล็อกการคิดไม่สามารถทำเครื่องหมายด้วย cache_control</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Extended thinking affects reasoning behavior and token accounting for thinking blocks; it does not create a persistent, non-expiring cache, and thinking blocks themselves cannot be marked with cache_control.</div>
             </div>
             
@@ -1152,7 +1458,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Streaming affects how response content is delivered incrementally; it does not extend or otherwise modify cache TTL behavior.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Streaming affects how response content is delivered incrementally; it does not extend or otherwise modify cache TTL behavior.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Streaming affects how response content is delivered incrementally; it does not extend or otherwise modify cache TTL behavior.</div>
             </div>
             
@@ -1190,109 +1496,125 @@
             <span>4. Measuring cache hit rate</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Measuring cache hit rate</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-fad0c52c4db1"
-             data-qid="fad0c52c4db1"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-fad0c52c4db1" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An agent loop with turns a few seconds apart reads only 35% of its input from cache. The system prompt starts with the current time. What is the most likely fix?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-fad0c52c4db1">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fad0c52c4db1-A"
-                    data-qid="fad0c52c4db1"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('fad0c52c4db1', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Switch to the 1-hour TTL</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fad0c52c4db1-B"
-                    data-qid="fad0c52c4db1"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('fad0c52c4db1', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Add more breakpoints so more blocks are cached</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fad0c52c4db1-C"
-                    data-qid="fad0c52c4db1"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('fad0c52c4db1', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Move the timestamp after the last stable block so the prefix stays identical</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-fad0c52c4db1-D"
-                    data-qid="fad0c52c4db1"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('fad0c52c4db1', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Lower max_tokens so responses finish sooner</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-fad0c52c4db1" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-fad0c52c4db1" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">การประทับเวลาที่เปลี่ยนแปลงทุกคำขอ ซึ่งวางไว้หน้าเบรกพอยต์ จะเปลี่ยนแฮชคำนำหน้า ดังนั้นทุกเทิร์นจะเขียนรายการใหม่ TTL ที่ยาวกว่าหรือเบรกพอยต์เพิ่มเติมไม่สามารถแก้ไขคำนำหน้าที่ไม่เคยซ้ำกัน</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A timestamp that changes every request, placed before the breakpoint, changes the prefix hash, so every turn writes a new entry. A longer TTL or extra breakpoints don&#x27;t fix a prefix that never repeats.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  อัตราการพบของคุณคือส่วนของโทเค็นอินพุตที่ให้บริการจากแคช: cache_read_input_tokens หารด้วยอินพุตทั้งหมด ในคําขอแรกของเอเจนต์ที่แคชไว้ อินพุตเกือบทั้งหมดจะปรากฏใน cache_creation_input_tokens และการอ่านจะเป็นศูนย์ ในรอบต่อมา การอ่านจะครอบคลุมทุกอย่างที่แคชไว้แล้ว และการสร้างจะครอบคลุมเฉพาะรอบล่าสุดเท่านั้น ทั่วทั้งองค์กร API การใช้งานจะรายงานการแบ่งแบบเดียวกัน และ Console จะแสดงอัตราการแคชเป็นรายชั่วโมง
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Caching makes the biggest difference in agent loops. Every turn resends the system prompt, the tools and all previous turns, so cost grows roughly with the square of the number of turns. In Anthropic&#x27;s measurements, caching cut agent-loop cost by a factor of 2.7 to 5.3. Over a day of real traffic, agent loops read a median 84% of their input from cache, and the top tenth read 94% or more. A rate below about 80% usually means something is breaking the cache. Common causes are a timestamp ahead of the breakpoint, tool definitions that change between turns, or gaps longer than the TTL.
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-fad0c52c4db1"
+                 data-qid="fad0c52c4db1"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-fad0c52c4db1" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">เอเจนต์ลูปที่แยกกันไม่กี่วินาทีจะอ่านอินพุตจากแคชเพียง 35% พรอมต์ของระบบเริ่มต้นด้วยเวลาปัจจุบัน การแก้ไขที่เป็นไปได้มากที่สุดคืออะไร?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An agent loop with turns a few seconds apart reads only 35% of its input from cache. The system prompt starts with the current time. What is the most likely fix?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-fad0c52c4db1">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fad0c52c4db1-A"
+                        data-qid="fad0c52c4db1"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('fad0c52c4db1', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Switch to the 1-hour TTL</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Switch to the 1-hour TTL</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fad0c52c4db1-B"
+                        data-qid="fad0c52c4db1"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('fad0c52c4db1', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Add more breakpoints so more blocks are cached</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Add more breakpoints so more blocks are cached</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fad0c52c4db1-C"
+                        data-qid="fad0c52c4db1"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('fad0c52c4db1', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Move the timestamp after the last stable block so the prefix stays identical</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Move the timestamp after the last stable block so the prefix stays identical</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-fad0c52c4db1-D"
+                        data-qid="fad0c52c4db1"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('fad0c52c4db1', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Lower max_tokens so responses finish sooner</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Lower max_tokens so responses finish sooner</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-fad0c52c4db1" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-fad0c52c4db1" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การประทับเวลาที่เปลี่ยนแปลงทุกคำขอ ซึ่งวางไว้หน้าเบรกพอยต์ จะเปลี่ยนแฮชคำนำหน้า ดังนั้นทุกเทิร์นจะเขียนรายการใหม่ TTL ที่ยาวกว่าหรือเบรกพอยต์เพิ่มเติมไม่สามารถแก้ไขคำนำหน้าที่ไม่เคยซ้ำกัน</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: A timestamp that changes every request, placed before the breakpoint, changes the prefix hash, so every turn writes a new entry. A longer TTL or extra breakpoints don&#x27;t fix a prefix that never repeats.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “writes a fresh entry each time and never hits”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('fad0c52c4db1')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('fad0c52c4db1')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1312,17 +1634,14 @@
         <section id="practise-it-for-real" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>Practise it for real</span>
+            <span>ฝึกฝนอย่างจริงจัง</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Practise it for real</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
-          <ol class="list-decimal ml-5 my-3 space-y-1"><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">1. Take the automatic-caching sample (top-level cache_control with type ephemeral) and lengthen its system prompt to well over 512 tokens, then send it to claude-opus-5-5 Why: Opus 5.5 won't cache a prefix under 512 tokens, and the sample's short system prompt is under that You should see: usage shows cache_creation_input_tokens above zero and cache_read_input_tokens of 0</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">2. Send the identical request again within five minutes Why: An identical prefix within the TTL should be read from cache instead of written You should see: cache_read_input_tokens now covers the prefix, and input_tokens is small</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">3. Change one word near the start of the system prompt and send it again Why: The cache key is a hash of the prefix, so any edit makes it a new prefix You should see: cache_read_input_tokens drops to 0 and cache_creation_input_tokens rises again</li></ol>
+          
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Watch a prompt prefix go from cache write to cache hit to cache miss in the usage fields
+                </p>
+                <ol class="list-decimal ml-5 my-3 space-y-1"><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">1. ใช้ตัวอย่างการแคชอัตโนมัติ (cache_control ระดับบนสุดที่มีประเภทชั่วคราว) และขยายข้อความแจ้งระบบเป็นมากกว่า 512 โทเค็น จากนั้นส่งไปยัง claude-opus-5-5 เหตุผล: Opus 5.5 จะไม่แคชคํานําหน้าต่ํากว่า 512 โทเค็น และข้อความแจ้งระบบสั้นๆ ของตัวอย่างอยู่ในระดับต่ํากว่า คุณควรเห็น: การใช้งานแสดง cache_creation_input_tokens มากกว่าศูนย์และ cache_read_input_tokens อยู่ที่ 0</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">2. ส่งคําขอเดียวกันอีกครั้งภายใน 5 นาที เหตุผล: คํานําหน้าเดียวกันภายใน TTL ควรอ่านจากแคชแทนที่จะเขียน คุณควรเห็น: cache_read_input_tokens ตอนนี้ครอบคลุมคํานําหน้าแล้ว และ input_tokens มีขนาดเล็ก</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">3. Change one word near the start of the system prompt and send it again Why: The cache key is a hash of the prefix, so any edit makes it a new prefix You should see: cache_read_input_tokens drops to 0 and cache_creation_input_tokens rises again</li></ol>
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1456,6 +1775,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1476,12 +1804,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1546,7 +2137,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

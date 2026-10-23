@@ -76,6 +76,16 @@ def get_thai_heading(h_en):
             num_match = re.match(r"^(\d+\.)\s*", h_en)
             prefix = num_match.group(1) + " " if num_match else ""
             return prefix + v
+    try:
+        from quiz_translator import get_thai_explanation
+        num_match = re.match(r"^(\d+\.)\s*", h_en)
+        prefix = num_match.group(1) + " " if num_match else ""
+        raw_core = re.sub(r"^\d+\.\s*", "", h_en).strip()
+        th_core = get_thai_explanation(raw_core)
+        if th_core and th_core != raw_core:
+            return prefix + th_core
+    except Exception:
+        pass
     return h_en
 
 print("section_translator.py loaded.")

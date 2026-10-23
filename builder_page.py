@@ -1,6 +1,6 @@
 import os, sys, json, re, html
 from bs4 import BeautifulSoup
-from render_engine import render_checkpoint_html
+from render_engine import render_checkpoint_html, render_predict_first_html
 from thai_synthesizer import generate_thai_section_prose
 from section_translator import get_thai_heading
 from domain_knowledge import get_thai_objective, get_thai_key_concept
@@ -135,11 +135,21 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
         # Generate rich Thai prose
         thai_prose_html = generate_thai_section_prose(h, raw_paras)
         
-        # Collect tables, code, exam traps, and checkpoints
+        # Render section elements in original narrative order
         sec_elements = ""
-        for it in sec.get("items", []):
+        for i, it in enumerate(sec.get("items", [])):
             itype = it["type"]
-            if itype == "exam_trap":
+            if itype == "paragraph":
+                p_raw = it["text"]
+                p_th = get_thai_explanation(p_raw)
+                sec_elements += f"""
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  {html.escape(p_th)}
+                </p>
+                """
+            elif itype == "predict_first":
+                sec_elements += render_predict_first_html(it, i)
+            elif itype == "exam_trap":
                 trap_raw = it["text"]
                 trap_th = get_thai_explanation(trap_raw)
                 sec_elements += f"""
@@ -155,15 +165,16 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 </aside>
                 """
             elif itype == "table":
-                t_headers = "".join(f'<th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">{clean_thai_spacing(th)}</th>' for th in it.get("headers", []))
+                t_headers = "".join(f'<th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">{html.escape(clean_thai_spacing(get_thai_explanation(th)))}</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: {html.escape(clean_thai_spacing(th))}</div></th>' for th in it.get("headers", []))
                 t_rows = ""
                 for r in it.get("rows", []):
-                    cells = "".join(f'<td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">{clean_thai_spacing(td)}</td>' for td in r)
+                    cells = "".join(f'<td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">{html.escape(clean_thai_spacing(get_thai_explanation(td)))}</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: {html.escape(clean_thai_spacing(td))}</div></td>' for td in r)
                     t_rows += f'<tr class="hover:bg-slate-800/40 transition-colors">{cells}</tr>'
-                cap_html = f'<figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">{clean_thai_spacing(it["caption"])}</figcaption>' if it.get("caption") else ""
+                caption = clean_thai_spacing(it.get("caption", ""))
+                cap_html = f'<figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">{clean_thai_spacing(get_thai_explanation(caption))}</figcaption>' if caption else ""
                 sec_elements += f"""
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
                     <thead><tr>{t_headers}</tr></thead>
                     <tbody>{t_rows}</tbody>
                   </table>
@@ -171,24 +182,41 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 </div>
                 """
             elif itype == "figure_text":
+                fig_text = clean_thai_spacing(it["text"])
+                fig_th = get_thai_explanation(fig_text)
                 sec_elements += f"""
                 <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  {clean_thai_spacing(it["text"])}
+                  <p>{html.escape(fig_th)}</p>
+                  <p class="text-[11px] text-slate-400 mt-1 not-italic font-sans">EN: {html.escape(fig_text)}</p>
                 </div>
                 """
             elif itype == "code":
+                caption = clean_thai_spacing(it.get("caption", ""))
+                caption = re.sub(r'\s*python$', '', caption, flags=re.I).strip()
+                if caption:
+                    cap_th = get_thai_explanation(caption)
+                    cap_header = f"""
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">{html.escape(cap_th)}</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: {html.escape(caption)}</div>
+                    </div>
+                    """
+                else:
+                    cap_header = """
+                    <div class="flex items-center justify-between px-4 py-2 bg-slate-800/60 border-b border-slate-800 text-slate-400 text-xs font-semibold">
+                      <span>โค้ดตัวอย่างและการตั้งค่า (Code & Schema)</span>
+                    </div>
+                    """
                 sec_elements += f"""
                 <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
-                  <div class="flex items-center justify-between px-4 py-2.5 bg-slate-800/70 border-b border-slate-800 text-slate-400 text-xs font-semibold">
-                    <span>โค้ดตัวอย่างและการตั้งค่า (Code & Schema)</span>
-                  </div>
+                  {cap_header}
                   <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{html.escape(it["text"])}</code></pre>
                 </div>
                 """
             elif itype == "list":
                 tag = "ol" if it.get("ordered") else "ul"
                 cls = "list-decimal ml-5" if it.get("ordered") else "list-disc ml-5"
-                lis = "".join(f'<li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">{clean_thai_spacing(li)}</li>' for li in it.get("items", []))
+                lis = "".join(f'<li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">{clean_thai_spacing(get_thai_explanation(li))}</li>' for li in it.get("items", []))
                 sec_elements += f'<{tag} class="{cls} my-3 space-y-1">{lis}</{tag}>'
             elif itype == "checkpoint_ref":
                 ckey = it["key"]
@@ -305,6 +333,13 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     }}
     code, pre {{
       font-family: 'JetBrains Mono', monospace;
+    }}
+    .no-scrollbar::-webkit-scrollbar {{
+      display: none;
+    }}
+    .no-scrollbar {{
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }}
   </style>
 </head>
@@ -458,6 +493,15 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
         
         updateQuizStats();
       }} else {{
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {{
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        }});
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {{
@@ -478,12 +522,275 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }}
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {{
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{{}}');
+          if (quizProgress[qid]) {{
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }}
+        }} catch(e) {{}}
+        updateQuizStats();
       }}
     }}
 
     function toggleSolutionManual(qid) {{
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }}
+
+    function markQuizSolved(qid) {{
+      try {{
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{{}}');
+        quizProgress[qid] = {{ solved: true, selected: 'REVEALED', updatedAt: Date.now() }};
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      }} catch(e) {{}}
+    }}
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {{}};
+    const matchPairsState = {{}};
+
+    function handleMatchSelectTerm(bid, termIdx) {{
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {{
+        if (!btn.classList.contains('pointer-events-none')) {{
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }}
+      }});
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {{
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }}
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {{
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }}
+    }}
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {{
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {{
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {{
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }}
+        return;
+      }}
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {{
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {{
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }}
+        if (termBadge) {{
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }}
+        if (defBtn) {{
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }}
+        if (defBadge) {{
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }}
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {{
+          if (fb) {{
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }}
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        }} else {{
+          if (fb) {{
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }}
+        }}
+      }} else {{
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {{
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {{
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }}, 800);
+        }}
+        if (fb) {{
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }}
+      }}
+    }}
+
+    function resetMatchGame(bid) {{
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {{
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {{
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }}
+      }});
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {{
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {{
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }}
+      }});
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }}
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {{}};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {{
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {{
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }}
+      if (badge) {{
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }}
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {{
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {{
+          if (currentList[i] !== i) {{
+            isCorrect = false;
+            break;
+          }}
+        }}
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {{
+          for (let i = 0; i < totalSteps; i++) {{
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {{
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }}
+            if (card) {{
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }}
+          }}
+          if (fb) {{
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }}
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        }} else {{
+          for (let i = 0; i < totalSteps; i++) {{
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {{
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }}
+          }}
+          if (fb) {{
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame(\'' + bid + '\')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }}
+        }}
+      }}
+    }}
+
+    function resetOrderGame(bid) {{
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {{
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {{
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }}
+      }});
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }}
 
     // 2. Lesson Completion Handling
@@ -548,7 +855,14 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {{
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {{
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            }} else {{
+              handleQuizAnswer(qid, opt);
+            }}
           }}
         }});
       }} catch(e) {{}}
@@ -674,6 +988,13 @@ def render_course_index_page(catalog, course_type):
     }}
     code, pre {{
       font-family: 'JetBrains Mono', monospace;
+    }}
+    .no-scrollbar::-webkit-scrollbar {{
+      display: none;
+    }}
+    .no-scrollbar {{
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }}
   </style>
 </head>

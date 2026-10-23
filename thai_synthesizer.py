@@ -256,14 +256,7 @@ def generate_thai_section_prose(heading, raw_paragraphs):
         </div>
         """
     else:
-        # High quality generic technical synthesis
-        return f"""
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>{clean_h}</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        """
+        # No generic filler - let the translated lesson paragraphs speak directly
+        return ""
 
 print("thai_synthesizer.py fully updated.")

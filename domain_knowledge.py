@@ -28,18 +28,31 @@ KEY_CONCEPT_TRANSLATIONS = {
 }
 
 def get_thai_objective(obj_en):
+    if not obj_en: return ""
     obj_lower = obj_en.lower()
     for k, v in OBJECTIVE_TRANSLATIONS.items():
         if k in obj_lower:
             return v
-    # Fallback smart formatting
+    try:
+        from quiz_translator import get_thai_explanation
+        th = get_thai_explanation(obj_en)
+        if th: return th
+    except Exception:
+        pass
     return obj_en
 
 def get_thai_key_concept(kc_en):
+    if not kc_en: return ""
     kc_lower = kc_en.lower()
     for k, v in KEY_CONCEPT_TRANSLATIONS.items():
         if k in kc_lower:
             return v
+    try:
+        from quiz_translator import get_thai_explanation
+        th = get_thai_explanation(kc_en)
+        if th: return th
+    except Exception:
+        pass
     return kc_en
 
 print("domain_knowledge.py loaded.")

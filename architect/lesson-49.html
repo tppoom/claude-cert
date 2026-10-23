@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -594,7 +601,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-delivering-managed-settings-to-every-machine" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Delivering managed settings to every machine</span></a></li><li><a href="#2-when-several-managed-sources-compete-first-wins-merge-and-status" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. When several managed sources compete: first-wins, merge and /status</span></a></li><li><a href="#3-locking-permissions-mcp-servers-plugins-and-hooks" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Locking permissions, MCP servers, plugins and hooks</span></a></li><li><a href="#4-pinning-provider-models-and-versions" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Pinning provider, models and versions</span></a></li><li><a href="#practise-it-for-real" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>Practise it for real</span></a></li>
+        <li><a href="#1-delivering-managed-settings-to-every-machine" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Delivering managed settings to every machine</span></a></li><li><a href="#2-when-several-managed-sources-compete-first-wins-merge-and-status" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. When several managed sources compete: first-wins, merge and /status</span></a></li><li><a href="#3-locking-permissions-mcp-servers-plugins-and-hooks" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Locking permissions, MCP servers, plugins and hooks</span></a></li><li><a href="#4-pinning-provider-models-and-versions" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Pinning provider, models and versions</span></a></li><li><a href="#practise-it-for-real" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>ฝึกฝนอย่างจริงจัง</span></a></li>
       </ul>
     </nav>
     
@@ -605,222 +612,285 @@
             <span>1. Delivering managed settings to every machine</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Delivering managed settings to every machine</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A managed-settings.json that denies secret reads, disables bypass mode and makes managed rules the only source of permissions json { "permissions": { "deny": [ "Read(./.env)", "Read(./secrets/**)" ], "disableBypassPermissionsMode": "disable" }, "allowManagedPermissionRulesOnly": true }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การตั้งค่าที่มีการจัดการเป็นขอบเขตการตั้งค่าหลัก ไม่มีสิ่งใดที่นักพัฒนาเขียนในไฟล์ของตัวเองสามารถเขียนทับได้ ทําให้พวกเขาเป็นเพียงสถานที่เดียวในการบังคับใช้นโยบายขององค์กร นโยบายเป็นเอกสาร JSON ที่มีคีย์เดียวกับไฟล์การตั้งค่าใดๆ ส่วนที่ยากคือการนําไปใช้กับทุกเครื่องและทําให้ทันสมัย
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">managed-settings.json ที่ปฏิเสธการอ่านข้อมูลลับ ปิดใช้งานโหมดบายพาส และทําให้กฎที่มีการจัดการเป็นแหล่งข้อมูลเดียวของสิทธิ์ json</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A managed-settings.json that denies secret reads, disables bypass mode and makes managed rules the only source of permissions json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;permissions&quot;: {
+    &quot;deny&quot;: [
+      &quot;Read(./.env)&quot;,
+      &quot;Read(./secrets/**)&quot;
+    ],
+    &quot;disableBypassPermissionsMode&quot;: &quot;disable&quot;
+  },
+  &quot;allowManagedPermissionRulesOnly&quot;: true
+}</code></pre>
                 </div>
                 
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Mechanism</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">How you deliver it</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">When Claude Code reads it</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Priority</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Server-managed</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">claude.ai admin console or a self-hosted Claude apps gateway</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Fetched at startup and polled hourly</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Highest</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">MDM or OS-level policy</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">macOS com.anthropic.claudecode profile, or HKLM\SOFTWARE\Policies\ClaudeCode via Jamf, Intune or Group Policy</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Read at startup and checked for changes every 30 minutes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">High</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">File-based</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">managed-settings.json in /Library/Application Support/ClaudeCode/, /etc/claude-code/ or C:\Program Files\ClaudeCode\</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Read at startup and reloaded when a file changes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Medium</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Windows user registry</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">HKCU\SOFTWARE\Policies\ClaudeCode</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Checked every 30 minutes, and used only when no admin document sits above it</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Lowest</td></tr></tbody>
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">กลไก</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Mechanism</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">How you deliver it</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: How you deliver it</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">When Claude Code reads it</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: When Claude Code reads it</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ลําดับความสําคัญ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Priority</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Server-managed</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Server-managed</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">claude.ai admin console or a self-hosted Claude apps gateway</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: claude.ai admin console or a self-hosted Claude apps gateway</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Fetched at startup and polled hourly</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Fetched at startup and polled hourly</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Highest</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Highest</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">MDM or OS-level policy</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: MDM or OS-level policy</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">macOS com.anthropic.claudecode profile, or HKLM\SOFTWARE\Policies\ClaudeCode via Jamf, Intune or Group Policy</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: macOS com.anthropic.claudecode profile, or HKLM\SOFTWARE\Policies\ClaudeCode via Jamf, Intune or Group Policy</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Read at startup and checked for changes every 30 minutes</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Read at startup and checked for changes every 30 minutes</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สูง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: High</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">File-based</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: File-based</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">managed-settings.json in /Library/Application Support/ClaudeCode/, /etc/claude-code/ or C:\Program Files\ClaudeCode\</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: managed-settings.json in /Library/Application Support/ClaudeCode/, /etc/claude-code/ or C:\Program Files\ClaudeCode\</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Read at startup and reloaded when a file changes</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Read at startup and reloaded when a file changes</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ปานกลาง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Medium</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การลงทะเบียนผู้ใช้ Windows</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Windows user registry</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">HKCU\ซอฟต์แวร์\นโยบาย\ClaudeCode</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: HKCU\SOFTWARE\Policies\ClaudeCode</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Checked every 30 minutes, and used only when no admin document sits above it</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Checked every 30 minutes, and used only when no admin document sits above it</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Lowest</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Lowest</div></td></tr></tbody>
                   </table>
                   <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Delivery mechanisms ranked from highest to lowest priority, and when Claude Code re-reads each</figcaption>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Choose by what you already run. Server-managed settings give a claude.ai organization one place to change policy without touching any device. MDM fits fleets you already manage with Jamf or Intune. The file is for Linux hosts, machines without MDM, and images you build yourself. On the developer&#x27;s machine, the terminal, the IDE extensions and Agent SDK sessions all read these sources. The SDK reads them even when settingSources excludes the user, project and local files.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  สองช่องว่างไล่ทีมออกไปประการแรกเซสชันระบบคลาวด์ในสภาพแวดล้อมที่โฮสต์ด้วยแอนโทรปิกไม่สามารถดูโปรไฟล์ MDM หรือไฟล์ของอุปกรณ์ได้ดังนั้นนโยบายของอุปกรณ์จึงต้องมาจากการตั้งค่าที่จัดการโดยเซิร์ฟเวอร์ประการที่สองการตั้งค่าที่จัดการโดยเซิร์ฟเวอร์จะถูกดึงเฉพาะเมื่อเซสชั่นตรวจสอบสิทธิ์โดยตรงกับ API ของ Anthropic หรือผ่านการเข้าสู่ระบบเกตเวย์นักพัฒนาซอฟต์แวร์ในผู้ให้บริการรายอื่นหรือที่มี anthropic_BASE_URL ชี้ไปที่อื่นจะไม่ได้รับพวกเขาเครื่องเหล่านั้นต้องการ MDM หรือไฟล์
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Server-managed settings from the claude.ai console reach every developer, whatever provider they use. (ทำไมถึงผิด): Remote settings are fetched only when the session authenticates directly to Anthropic&#x27;s API or through a gateway login. On other providers, Claude Code starts at the next source.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การตั้งค่าที่จัดการโดยเซิร์ฟเวอร์จากคอนโซล claude.ai จะเข้าถึงนักพัฒนาทุกคน ไม่ว่าพวกเขาจะใช้ผู้ให้บริการใดก็ตาม (ทําไมจึงผิดพลาด): การตั้งค่าระยะไกลจะถูกดึงข้อมูลเฉพาะเมื่อเซสชันรับรองความถูกต้องโดยตรงกับ Anthropic API หรือผ่านการเข้าสู่ระบบเกตเวย์ บนผู้ให้บริการรายอื่น Claude Code จะเริ่มต้นที่แหล่งข้อมูลถัดไป</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Server-managed settings from the claude.ai console reach every developer, whatever provider they use. (ทำไมถึงผิด): Remote settings are fetched only when the session authenticates directly to Anthropic&#x27;s API or through a gateway login. On other providers, Claude Code starts at the next source.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-2942dc845f04"
-             data-qid="2942dc845f04"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-2942dc845f04" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">This managed-settings.json is meant to make managed settings the only place allow, ask and deny rules can come from, so developers cannot add their own. Which key completes it?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-2942dc845f04">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2942dc845f04-A"
-                    data-qid="2942dc845f04"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('2942dc845f04', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">allowManagedPermissionRulesOnly</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2942dc845f04-B"
-                    data-qid="2942dc845f04"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('2942dc845f04', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">disableBypassPermissionsMode</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2942dc845f04-C"
-                    data-qid="2942dc845f04"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('2942dc845f04', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">enforceAvailableModels</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2942dc845f04-D"
-                    data-qid="2942dc845f04"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('2942dc845f04', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">forceRemoteSettingsRefresh</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-2942dc845f04" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-2942dc845f04" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">AllowManagedPermissionRulesOnly ทำให้การตั้งค่าที่มีการจัดการเป็นแหล่งกฎการอนุญาตเพียงแหล่งเดียว DisableBypassPermissionsMode ซึ่งมีอยู่แล้วในไฟล์ จะปิดเฉพาะโหมดบายพาสเท่านั้น ไม่ได้หยุดนักพัฒนาจากการเพิ่มกฎการอนุญาตของตนเอง</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: allowManagedPermissionRulesOnly makes managed settings the only source of permission rules. disableBypassPermissionsMode, which is already in the file, only turns off bypass mode. It does not stop developers from adding their own allow rules.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-2942dc845f04"
+                 data-qid="2942dc845f04"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-2942dc845f04" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('2942dc845f04')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-15019cd04ab1"
-             data-qid="15019cd04ab1"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-15019cd04ab1" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An organization sets its Claude Code policy only in the claude.ai admin console, as server-managed settings. One team runs Claude Code through another provider, with ANTHROPIC_BASE_URL pointed away from Anthropic&#x27;s API. What happens to that team&#x27;s policy?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-15019cd04ab1">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-15019cd04ab1-A"
-                    data-qid="15019cd04ab1"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('15019cd04ab1', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Their sessions never fetch the server-managed settings, so their machines need the policy delivered through MDM or a managed-settings.json file</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-15019cd04ab1-B"
-                    data-qid="15019cd04ab1"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('15019cd04ab1', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">They receive the server-managed settings like everyone else, because server-managed settings have the highest priority</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-15019cd04ab1-C"
-                    data-qid="15019cd04ab1"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('15019cd04ab1', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">They receive the server-managed settings, but only on the hourly poll instead of at startup</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-15019cd04ab1-D"
-                    data-qid="15019cd04ab1"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('15019cd04ab1', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Claude Code refuses to start until it can reach the admin console</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-15019cd04ab1" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-15019cd04ab1" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Claude Code จะดึงการตั้งค่าระยะไกลเฉพาะเมื่อเซสชันตรวจสอบสิทธิ์โดยตรงกับ API ของ Anthropic หรือลงชื่อเข้าใช้ผ่านเกตเวย์ สำหรับผู้ให้บริการรายอื่น จะข้ามแหล่งที่มานั้นและเริ่มที่แหล่งถัดไป ดังนั้นเครื่องเหล่านั้นจึงจำเป็นต้องมี MDM หรือไฟล์</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Claude Code fetches remote settings only when the session authenticates directly to Anthropic&#x27;s API or signs in through a gateway. On other providers it skips that source and starts at the next one, so those machines need MDM or the file.</div>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">Managed-settings.json นี้มีจุดมุ่งหมายเพื่อให้การตั้งค่าที่มีการจัดการเป็นที่เดียวที่อนุญาต ถาม และปฏิเสธกฎได้ ดังนั้นนักพัฒนาจึงไม่สามารถเพิ่มกฎของตนเองได้ คีย์ไหนทำให้สมบูรณ์?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: This managed-settings.json is meant to make managed settings the only place allow, ask and deny rules can come from, so developers cannot add their own. Which key completes it?</p>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “On other providers, or when ANTHROPIC_BASE_URL points somewhere other than Anthropic’s API, it starts at the next source”
-              <br><a href="https://code.claude.com/docs/en/managed-settings" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;permissions&quot;: {
+    &quot;deny&quot;: [
+      &quot;Read(./.env)&quot;,
+      &quot;Read(./secrets/**)&quot;
+    ],
+    &quot;disableBypassPermissionsMode&quot;: &quot;disable&quot;
+  },
+  &quot;____&quot;: true
+}</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-2942dc845f04">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2942dc845f04-A"
+                        data-qid="2942dc845f04"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('2942dc845f04', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">allowManagedPermissionRulesOnly</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: allowManagedPermissionRulesOnly</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2942dc845f04-B"
+                        data-qid="2942dc845f04"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('2942dc845f04', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">disableBypassPermissionsMode</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: disableBypassPermissionsMode</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2942dc845f04-C"
+                        data-qid="2942dc845f04"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('2942dc845f04', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">enforceAvailableModels</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: enforceAvailableModels</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2942dc845f04-D"
+                        data-qid="2942dc845f04"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('2942dc845f04', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">forceRemoteSettingsRefresh</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: forceRemoteSettingsRefresh</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-2942dc845f04" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-2942dc845f04" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">AllowManagedPermissionRulesOnly ทำให้การตั้งค่าที่มีการจัดการเป็นแหล่งกฎการอนุญาตเพียงแหล่งเดียว DisableBypassPermissionsMode ซึ่งมีอยู่แล้วในไฟล์ จะปิดเฉพาะโหมดบายพาสเท่านั้น ไม่ได้หยุดนักพัฒนาจากการเพิ่มกฎการอนุญาตของตนเอง</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: allowManagedPermissionRulesOnly makes managed settings the only source of permission rules. disableBypassPermissionsMode, which is already in the file, only turns off bypass mode. It does not stop developers from adding their own allow rules.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('2942dc845f04')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
             
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-15019cd04ab1"
+                 data-qid="15019cd04ab1"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-15019cd04ab1" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
+              
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">องค์กรตั้งค่านโยบาย Claude Code ในคอนโซลผู้ดูแลระบบ claude.ai เป็นการตั้งค่าที่จัดการโดยเซิร์ฟเวอร์เท่านั้น ทีมหนึ่งเรียกใช้ Claude Code ผ่านผู้ให้บริการรายอื่น โดยที่ ANTHROPIC_BASE_URL ชี้ไปจาก API ของ Anthropic เกิดอะไรขึ้นกับนโยบายของทีมนั้น?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An organization sets its Claude Code policy only in the claude.ai admin console, as server-managed settings. One team runs Claude Code through another provider, with ANTHROPIC_BASE_URL pointed away from Anthropic&#x27;s API. What happens to that team&#x27;s policy?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-15019cd04ab1">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-15019cd04ab1-A"
+                        data-qid="15019cd04ab1"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('15019cd04ab1', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Their sessions never fetch the server-managed settings, so their machines need the policy delivered through MDM or a managed-settings.json file</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Their sessions never fetch the server-managed settings, so their machines need the policy delivered through MDM or a managed-settings.json file</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-15019cd04ab1-B"
+                        data-qid="15019cd04ab1"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('15019cd04ab1', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">They receive the server-managed settings like everyone else, because server-managed settings have the highest priority</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: They receive the server-managed settings like everyone else, because server-managed settings have the highest priority</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-15019cd04ab1-C"
+                        data-qid="15019cd04ab1"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('15019cd04ab1', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">They receive the server-managed settings, but only on the hourly poll instead of at startup</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: They receive the server-managed settings, but only on the hourly poll instead of at startup</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-15019cd04ab1-D"
+                        data-qid="15019cd04ab1"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('15019cd04ab1', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Claude Code refuses to start until it can reach the admin console</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Claude Code refuses to start until it can reach the admin console</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-15019cd04ab1" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-15019cd04ab1" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">Claude Code จะดึงการตั้งค่าระยะไกลเฉพาะเมื่อเซสชันตรวจสอบสิทธิ์โดยตรงกับ API ของ Anthropic หรือลงชื่อเข้าใช้ผ่านเกตเวย์ สำหรับผู้ให้บริการรายอื่น จะข้ามแหล่งที่มานั้นและเริ่มที่แหล่งถัดไป ดังนั้นเครื่องเหล่านั้นจึงจำเป็นต้องมี MDM หรือไฟล์</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Claude Code fetches remote settings only when the session authenticates directly to Anthropic&#x27;s API or signs in through a gateway. On other providers it skips that source and starts at the next one, so those machines need MDM or the file.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “บนผู้ให้บริการรายอื่นหรือเมื่อ anthropic _ base _ url ชี้ไปที่ไหนสักแห่งนอก API ของ anthropic จะเริ่มต้นจากแหล่งถัดไป”
+              <br><a href="https://code.claude.com/docs/en/managed-settings" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('15019cd04ab1')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('15019cd04ab1')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
+            </div>
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -843,24 +913,117 @@
             <span>2. When several managed sources compete: first-wins, merge and /status</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>When several managed sources compete: first-wins, merge and /status</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">คาดการณ์ก่อนองค์กรมอบการตั้งค่าที่จัดการโดยเซิร์ฟเวอร์ซึ่งปฏิเสธ Bash(./curl *) และฝ่ายไอทียังจัดส่ง Managed-settings.json ที่ปฏิเสธ Read(./secrets/**) ภายใต้พฤติกรรมเริ่มต้น กฎการปฏิเสธใดที่มีผลบังคับใช้ แสดงรายการสหภาพภายในแหล่งเดียวหรือภายใต้โหมดผสานเท่านั้น “Claude Code ใช้แหล่งที่มาที่มีอันดับสูงสุดซึ่งส่งมอบคีย์นโยบายอย่างน้อยหนึ่งรายการและละเว้นส่วนที่เหลือแทนที่จะรวมเข้าด้วยกัน” ที่มา: code.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: An organization delivers server-managed settings that deny Bash(curl *), and IT also ships a managed-settings.json that denies Read(./secrets/**). Under the default behaviour, which deny rules are in force? Only the server-managed deny, because the file-based source is skipped Both, because list keys always union Only the file&#x27;s deny, because local files are more specific The default, first-wins, uses the highest-ranked source that delivers a policy key and ignores the others without merging them. Lists union only within one source or under merge mode. “ Claude Code uses the highest-ranked source that delivers at least one policy key and ignores the rest rather than merging them ” Source: code.claude.com
-                  </div>
-                </aside>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_5d48a0e9"
+         data-qid="pred_5d48a0e9"
+         data-correct="A">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_5d48a0e9" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">An organization delivers server-managed settings that deny Bash(curl *), and IT also ships a managed-settings.json that denies Read(./secrets/**). Under the default behaviour, which deny rules are in force?</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An organization delivers server-managed settings that deny Bash(curl *), and IT also ships a managed-settings.json that denies Read(./secrets/**). Under the default behaviour, which deny rules are in force?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_5d48a0e9">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_5d48a0e9-A"
+                data-qid="pred_5d48a0e9"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_5d48a0e9', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Only the server-managed deny, because the file-based source is skipped</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only the server-managed deny, because the file-based source is skipped</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_5d48a0e9-B"
+                data-qid="pred_5d48a0e9"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_5d48a0e9', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Both, because list keys always union</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Both, because list keys always union</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_5d48a0e9-C"
+                data-qid="pred_5d48a0e9"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_5d48a0e9', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Only the file&#x27;s deny, because local files are more specific</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only the file&#x27;s deny, because local files are more specific</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_5d48a0e9" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_5d48a0e9" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">The default, first-wins, uses the highest-ranked source that delivers a policy key and ignores the others without merging them. Lists union only within one source or under merge mode.</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: The default, first-wins, uses the highest-ranked source that delivers a policy key and ignores the others without merging them. Lists union only within one source or under merge mode.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““Claude Code uses the highest-ranked source that delivers at least one policy key and ignores the rest rather than merging them””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “Claude Code uses the highest-ranked source that delivers at least one policy key and ignores the rest rather than merging them”</div>
+          <div class="mt-1.5 not-italic"><a href="https://code.claude.com/docs/en/managed-settings" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://code.claude.com/docs/en/managed-settings</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_5d48a0e9')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  By default, managed sources do not combine. Under first-wins, Claude Code walks down the ranking (remote, then MDM, then files, then HKCU) and uses the first source that carries a policy key. It ignores every source below that one, with no warning. A source that sets only the two control keys, wslInheritsWindowsSettings and managedSourcesBehavior, does not count as delivering policy, so Claude Code moves on to the next source.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  /status is how you find a skipped source. It names the source Claude Code used and the ones it skipped. When a deny rule you shipped by MDM seems to have vanished, /status usually shows that a server-managed policy took priority over it.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การตั้งค่า ManagedSourcesBehavior ที่จะผสาน (Claude Code v2.1.242 หรือใหม่กว่า) จะใช้ทุกแหล่งที่มาของผู้ดูแลระบบที่ส่งคีย์นโยบาย ในคีย์ส่วนใหญ่ ค่าที่มีลำดับสูงกว่าจะชนะ แสดงรายการสหภาพ และการล็อกใช้ค่าที่เข้มงวดที่สุด คีย์บางคีย์จะถูกอ่านจากแหล่งที่มาของผู้ดูแลระบบทุกรายแม้จะอยู่ภายใต้การชนะครั้งแรกก็ตาม ตัวอย่างเช่น รายการใน DenyMcpServers จากแหล่งที่มาของผู้ดูแลระบบจะนำไปใช้ ภายในแหล่งที่มาตามไฟล์ Managed-settings.d/*.json และ Managed-settings.json จะรวมเข้าด้วยกันเสมอ โดยไฟล์ที่ใหม่กว่าจะแทนที่ค่าเดียว รายการรวมกับรายการที่ซ้ำกันที่ถูกลบออก และบล็อกที่ซ้อนกัน เช่น คีย์ผสาน env ตามคีย์
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ระยะเวลามีความสำคัญระหว่างการเปิดตัว การเปลี่ยนแปลงส่วนใหญ่เข้าถึงเซสชันที่ทำงานอยู่ตามกำหนดเวลาในตารางการจัดส่ง การเปลี่ยนแปลงที่จัดการโดยเซิร์ฟเวอร์ในการตั้งค่าที่ต้องได้รับการอนุมัติ เช่น hook หรือตัวแปร env จะรอจนกว่านักพัฒนาจะยอมรับกล่องโต้ตอบ คีย์บางคีย์ รวมถึง requiredMinimumVersion จะมีผลเฉพาะเมื่อเริ่มเซสชันครั้งถัดไป
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
@@ -873,101 +1036,116 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-2805ced79566"
-             data-qid="2805ced79566"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-2805ced79566" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">After a rollout, developers say a deny rule that IT shipped in the macOS MDM profile is not being enforced. The organization also publishes a policy in the claude.ai admin console, and managedSourcesBehavior is not set. What is the most likely cause, and how should the admin fix it?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-2805ced79566">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2805ced79566-A"
-                    data-qid="2805ced79566"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('2805ced79566', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The server-managed policy ranks higher and carries a policy key, so first-wins silently skipped the MDM profile. Confirm this with /status, then set managedSourcesBehavior to merge so both sources apply</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2805ced79566-B"
-                    data-qid="2805ced79566"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('2805ced79566', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">MDM changes are only checked every 30 minutes, so the deny will apply on its own once the next check runs</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2805ced79566-C"
-                    data-qid="2805ced79566"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('2805ced79566', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Developers&#x27; local allow rules are overriding the managed deny, so the admin should add allowManagedPermissionRulesOnly to the MDM profile</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-2805ced79566-D"
-                    data-qid="2805ced79566"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('2805ced79566', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Deny lists from all managed sources always union, so the MDM profile must be malformed and needs to be redeployed</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-2805ced79566" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-2805ced79566" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ภายใต้พฤติกรรมการชนะครั้งแรกที่เป็นค่าเริ่มต้น Claude Code จะใช้เฉพาะแหล่งที่มีการจัดการอันดับสูงสุดที่ส่งมอบคีย์นโยบาย นี่คือนโยบายที่จัดการโดยเซิร์ฟเวอร์ ดังนั้นโปรไฟล์ MDM จะถูกละเว้นโดยไม่มีคำเตือนใดๆ /status ตั้งชื่อแหล่งที่มาของรหัส Claude ที่ใช้และข้าม และการตั้งค่า ManageSourcesBehavior ที่จะผสานจะใช้ทุกแหล่งที่มาของผู้ดูแลระบบ โดยที่รายการต่างๆ รวมกัน</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Under the default first-wins behaviour, Claude Code uses only the highest-ranked managed source that delivers a policy key. Here that is the server-managed policy, so the MDM profile is ignored without any warning. /status names the sources Claude Code used and skipped, and setting managedSourcesBehavior to merge applies every admin source, with their lists combined.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-2805ced79566"
+                 data-qid="2805ced79566"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-2805ced79566" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">หลังจากการเปิดตัว นักพัฒนากล่าวว่ากฎการปฏิเสธที่ฝ่ายไอทีจัดส่งในโปรไฟล์ macOS MDM ไม่ได้ถูกบังคับใช้ องค์กรยังเผยแพร่นโยบายในคอนโซลผู้ดูแลระบบ claude.ai และไม่ได้ตั้งค่า ManagedSourcesBehavior สาเหตุที่เป็นไปได้มากที่สุดคืออะไร และผู้ดูแลระบบควรแก้ไขอย่างไร</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: After a rollout, developers say a deny rule that IT shipped in the macOS MDM profile is not being enforced. The organization also publishes a policy in the claude.ai admin console, and managedSourcesBehavior is not set. What is the most likely cause, and how should the admin fix it?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-2805ced79566">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2805ced79566-A"
+                        data-qid="2805ced79566"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('2805ced79566', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">นโยบายที่จัดการโดยเซิร์ฟเวอร์มีอันดับที่สูงกว่าและมีคีย์นโยบาย ดังนั้น first-wins จึงข้ามโปรไฟล์ MDM ไปอย่างเงียบๆ ยืนยันด้วย /status จากนั้นตั้งค่า managedSourcesBehavior ให้ผสานเพื่อให้ทั้งสองแหล่งมีผล</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The server-managed policy ranks higher and carries a policy key, so first-wins silently skipped the MDM profile. Confirm this with /status, then set managedSourcesBehavior to merge so both sources apply</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2805ced79566-B"
+                        data-qid="2805ced79566"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('2805ced79566', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">MDM changes are only checked every 30 minutes, so the deny will apply on its own once the next check runs</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: MDM changes are only checked every 30 minutes, so the deny will apply on its own once the next check runs</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2805ced79566-C"
+                        data-qid="2805ced79566"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('2805ced79566', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Developers&#x27; local allow rules are overriding the managed deny, so the admin should add allowManagedPermissionRulesOnly to the MDM profile</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Developers&#x27; local allow rules are overriding the managed deny, so the admin should add allowManagedPermissionRulesOnly to the MDM profile</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-2805ced79566-D"
+                        data-qid="2805ced79566"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('2805ced79566', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ปฏิเสธรายการจากแหล่งที่มาที่ได้รับการจัดการทั้งหมดเสมอ การรวม ดังนั้นโปรไฟล์ MDM จะต้องมีรูปแบบไม่ถูกต้องและจําเป็นต้องนําไปปรับใช้ใหม่</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Deny lists from all managed sources always union, so the MDM profile must be malformed and needs to be redeployed</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-2805ced79566" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-2805ced79566" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ภายใต้พฤติกรรมการชนะครั้งแรกที่เป็นค่าเริ่มต้น Claude Code จะใช้เฉพาะแหล่งที่มีการจัดการอันดับสูงสุดที่ส่งมอบคีย์นโยบาย นี่คือนโยบายที่จัดการโดยเซิร์ฟเวอร์ ดังนั้นโปรไฟล์ MDM จะถูกละเว้นโดยไม่มีคำเตือนใดๆ /status ตั้งชื่อแหล่งที่มาของรหัส Claude ที่ใช้และข้าม และการตั้งค่า ManageSourcesBehavior ที่จะผสานจะใช้ทุกแหล่งที่มาของผู้ดูแลระบบ โดยที่รายการต่างๆ รวมกัน</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Under the default first-wins behaviour, Claude Code uses only the highest-ranked managed source that delivers a policy key. Here that is the server-managed policy, so the MDM profile is ignored without any warning. /status names the sources Claude Code used and skipped, and setting managedSourcesBehavior to merge applies every admin source, with their lists combined.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “&quot;first-wins&quot;, the default: Claude Code uses the highest-ranked source that delivers at least one policy key and ignores the rest rather than merging them”
-              <br><a href="https://code.claude.com/docs/en/managed-settings" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://code.claude.com/docs/en/managed-settings" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('2805ced79566')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('2805ced79566')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1011,76 +1189,289 @@
         </div>
         
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Key</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">What it locks</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">allowManagedPermissionRulesOnly</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Makes managed settings the only source of allow, ask and deny rules</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">permissions.disableBypassPermissionsMode</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Disables --dangerously-skip-permissions; touches no other rule</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">allowedMcpServers, deniedMcpServers, allowManagedMcpServersOnly</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Which MCP servers users can add or connect to</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">managedMcpServers or a deployed managed-mcp.json</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">A fixed set of MCP servers deployed to every user</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">strictKnownMarketplaces, blockedMarketplaces, disableSideloadFlags</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Which plugin marketplace sources users can add and install from, and the CLI flags that sideload plugins for a single run</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">strictPluginOnlyCustomization</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Skills, agents, hooks and MCP servers can come only from plugins or managed settings</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">allowManagedHooksOnly, allowedHttpHookUrls</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Which hooks run, and which URLs HTTP hooks may call</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  กฎการปฏิเสธที่มีการจัดการไม่สามารถแทนที่ได้ แต่โดยค่าเริ่มต้น นักพัฒนายังคงสามารถเพิ่มกฎการอนุญาตของตนเองสำหรับทุกสิ่งที่นโยบายไม่ปฏิเสธ ล็อคปิดช่องว่างนั้น การล็อคแต่ละครั้งจะแจ้งให้ Claude Code ละเว้นการกำหนดค่าทั้งหมดจากแหล่งที่มาของผู้ใช้และโปรเจ็กต์ สิ่งที่สำคัญที่สุดสำหรับการอนุญาตคือ AllowManagedPermissionRulesOnly ซึ่งทำให้การตั้งค่าที่มีการจัดการเป็นแหล่งกฎการอนุญาตเพียงแหล่งเดียว ด้วยการตั้งค่านี้ ไม่มีสิ่งใดที่นักพัฒนาเขียนในไฟล์ของตนเองสามารถคลายนโยบายได้
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">คีย์</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Key</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">What it locks</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: What it locks</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">allowManagedPermissionRulesOnly</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: allowManagedPermissionRulesOnly</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Makes managed settings the only source of allow, ask and deny rules</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Makes managed settings the only source of allow, ask and deny rules</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">permissions.disableBypassPermissionsMode</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: permissions.disableBypassPermissionsMode</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ปิดใช้งาน --dangerously-skip-permissions; ไม่แตะกฏอื่น ๆ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Disables --dangerously-skip-permissions; touches no other rule</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">allowedMcpServers, deniedMcpServers, allowManagedMcpServersOnly</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: allowedMcpServers, deniedMcpServers, allowManagedMcpServersOnly</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Which MCP servers users can add or connect to</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Which MCP servers users can add or connect to</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">managedMcpServers หรือ managed-mcp.json ที่ปรับใช้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: managedMcpServers or a deployed managed-mcp.json</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">A fixed set of MCP servers deployed to every user</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: A fixed set of MCP servers deployed to every user</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">strictKnownMarketplaces, blockedMarketplaces, disableSideloadFlags</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: strictKnownMarketplaces, blockedMarketplaces, disableSideloadFlags</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Which plugin marketplace sources users can add and install from, and the CLI flags that sideload plugins for a single run</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Which plugin marketplace sources users can add and install from, and the CLI flags that sideload plugins for a single run</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">strictPluginOnlyCustomization</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: strictPluginOnlyCustomization</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ทักษะ เจ้าหน้าที่ ฮุค และเซิร์ฟเวอร์ MCP สามารถมาจากปลั๊กอินหรือการตั้งค่าที่ได้รับการจัดการเท่านั้น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Skills, agents, hooks and MCP servers can come only from plugins or managed settings</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">allowManagedHooksOnly, allowedHttpHookUrls</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: allowManagedHooksOnly, allowedHttpHookUrls</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">hooks ใดที่ทำงาน และ hooks HTTP ของ URL ใดที่อาจเรียกใช้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Which hooks run, and which URLs HTTP hooks may call</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Managed lock keys and what each one controls</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">คีย์ล็อกที่มีการจัดการและสิ่งที่แต่ละคีย์ควบคุม</figcaption>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  These keys sound alike but do not substitute for each other. disableBypassPermissionsMode removes only the bypass mode. It leaves user allow rules untouched. allowManagedMcpServersOnly locks the MCP allowlist, not tool permissions. strictKnownMarketplaces limits where plugins come from. Pick the key that matches the risk you are closing. The same managed policy can also set which permission mode sessions start in through permissions.defaultMode, and can remove auto mode with permissions.disableAutoMode. For what each mode means for human review, see [Permission modes: how much the human reviews](lesson:5.3).
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  The MCP lock behaves differently under first-wins. A true for allowManagedMcpServersOnly in any admin source turns the lock on. The allowlist then comes from the highest-ranked admin source that sets one. If no admin source sets a list, every server that passes the denylist loads. Locking without shipping a list is therefore weaker than it looks.
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Setting disableBypassPermissionsMode stops developers from loosening managed permission rules. (ทำไมถึงผิด): That key only disables the bypass mode. To make managed settings the sole source of allow, ask and deny rules, set allowManagedPermissionRulesOnly.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การตั้งค่า disableBypassPermissionsMode หยุดนักพัฒนาจากการลดกฎการอนุญาตที่มีการจัดการ (ทําไมจึงผิดพลาด): คีย์นั้นจะปิดใช้งานโหมดบายพาสเท่านั้น ในการทําให้การตั้งค่าที่มีการจัดการเป็นแหล่งข้อมูลเดียวของกฎอนุญาต ถาม และปฏิเสธ ให้ตั้งค่า allowManagedPermissionRulesOnly</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Setting disableBypassPermissionsMode stops developers from loosening managed permission rules. (ทำไมถึงผิด): That key only disables the bypass mode. To make managed settings the sole source of allow, ask and deny rules, set allowManagedPermissionRulesOnly.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-d3d1c2e398e6"
-             data-qid="d3d1c2e398e6"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-d3d1c2e398e6" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Each managed lock closes a different gap, and none of them stands in for another. Match each key to what it locks.</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-d3d1c2e398e6">
-            
-          </div>
-          
-          <div id="feedback-d3d1c2e398e6" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-d3d1c2e398e6" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Each lock makes Claude Code ignore one category of configuration from user and project sources. Only allowManagedPermissionRulesOnly stops developers from loosening permission rules. Disabling bypass mode, locking MCP servers, or limiting marketplaces does not cover that gap.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Each lock makes Claude Code ignore one category of configuration from user and project sources. Only allowManagedPermissionRulesOnly stops developers from loosening permission rules. Disabling bypass mode, locking MCP servers, or limiting marketplaces does not cover that gap.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-d3d1c2e398e6"
+                 data-qid="d3d1c2e398e6"
+                 data-correct="MATCH"
+                 data-total-pairs="5">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔄</span>
+                  <span>แบบฝึกหัดจับคู่ความสัมพันธ์ (Matching Challenge)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-d3d1c2e398e6" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตรวจสอบแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Match (5 คู่)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ล็อคที่ได้รับการจัดการแต่ละล็อคจะปิดช่องว่างที่แตกต่างกัน และไม่มีล็อคใดที่จะมาขวางกั้นอีกช่องหนึ่งได้ จับคู่แต่ละคีย์กับสิ่งที่ล็อค</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Each managed lock closes a different gap, and none of them stands in for another. Match each key to what it locks.</p>
+              </div>
+
+              <!-- Interactive Matching Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
+                  <span id="match-counter-d3d1c2e398e6" class="text-slate-400 font-mono">จับคู่ได้ 0/5</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <!-- Terms (Left) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">1. รายการคำศัพท์ / หัวข้อ:</div>
+                    
+                <button type="button"
+                        id="match-term-d3d1c2e398e6-0"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('d3d1c2e398e6', 0)">
+                  <span id="match-badge-term-d3d1c2e398e6-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">allowManagedPermissionRulesOnly</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: allowManagedPermissionRulesOnly</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-d3d1c2e398e6-1"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('d3d1c2e398e6', 1)">
+                  <span id="match-badge-term-d3d1c2e398e6-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">permissions.disableBypassPermissionsMode</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: permissions.disableBypassPermissionsMode</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-d3d1c2e398e6-2"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('d3d1c2e398e6', 2)">
+                  <span id="match-badge-term-d3d1c2e398e6-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">allowManagedMcpServersOnly</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: allowManagedMcpServersOnly</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-d3d1c2e398e6-3"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('d3d1c2e398e6', 3)">
+                  <span id="match-badge-term-d3d1c2e398e6-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">strictKnownMarketplaces</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: strictKnownMarketplaces</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-d3d1c2e398e6-4"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('d3d1c2e398e6', 4)">
+                  <span id="match-badge-term-d3d1c2e398e6-4" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">5</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">allowManagedHooksOnly</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: allowManagedHooksOnly</span>
+                  </div>
+                </button>
+                
+                  </div>
+                  <!-- Definitions (Right) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">2. คำอธิบาย / ความหมาย (สลับตำแหน่ง):</div>
+                    
+                <button type="button"
+                        id="match-def-d3d1c2e398e6-4"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('d3d1c2e398e6', 4, 5)">
+                  <span id="match-badge-def-d3d1c2e398e6-4" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">ข้อจํากัดที่ห่วงจะทํางาน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Restricts which hooks run</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-d3d1c2e398e6-2"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('d3d1c2e398e6', 2, 5)">
+                  <span id="match-badge-def-d3d1c2e398e6-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">ล็อครายการอนุญาตของเซิร์ฟเวอร์ MCP ที่ผู้ใช้สามารถเชื่อมต่อได้ ไม่ใช่สิทธิ์อนุญาตของเครื่องมือ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Locks the allowlist of MCP servers users can connect to, not tool permissions</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-d3d1c2e398e6-3"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('d3d1c2e398e6', 3, 5)">
+                  <span id="match-badge-def-d3d1c2e398e6-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">Limits which plugin marketplace sources users can add and install from</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Limits which plugin marketplace sources users can add and install from</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-d3d1c2e398e6-0"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('d3d1c2e398e6', 0, 5)">
+                  <span id="match-badge-def-d3d1c2e398e6-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">กฎอนุญาต ถาม และปฏิเสธสามารถมาจากการตั้งค่าที่มีการจัดการเท่านั้น ดังนั้นนักพัฒนาจึงไม่สามารถเพิ่มกฎอนุญาตของตนเองได้</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Allow, ask and deny rules can come only from managed settings, so developers cannot add their own allow rules</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-d3d1c2e398e6-1"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('d3d1c2e398e6', 1, 5)">
+                  <span id="match-badge-def-d3d1c2e398e6-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">Turns off --dangerously-skip-permissions and leaves developers&#x27; own allow rules in place</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Turns off --dangerously-skip-permissions and leaves developers&#x27; own allow rules in place</span>
+                  </div>
+                </button>
+                
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-d3d1c2e398e6" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetMatchGame('d3d1c2e398e6')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>เริ่มจับคู่ใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('d3d1c2e398e6')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยคู่ความสัมพันธ์
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">จับคู่ให้ครบทุกข้อเพื่อบันทึกผลสำเร็จอัตโนมัติ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-d3d1c2e398e6" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ เฉลยคู่ความสัมพันธ์ที่ถูกต้อง (Verified Pairs):</strong>
+                <div class="space-y-2.5">
+                  
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">1</span>
+                    <span class="font-semibold text-slate-100">allowManagedPermissionRulesOnly</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(allowManagedPermissionRulesOnly)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ กฎอนุญาต ถาม และปฏิเสธสามารถมาจากการตั้งค่าที่มีการจัดการเท่านั้น ดังนั้นนักพัฒนาจึงไม่สามารถเพิ่มกฎอนุญาตของตนเองได้</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Allow, ask and deny rules can come only from managed settings, so developers cannot add their own allow rules</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">2</span>
+                    <span class="font-semibold text-slate-100">permissions.disableBypassPermissionsMode</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(permissions.disableBypassPermissionsMode)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ Turns off --dangerously-skip-permissions and leaves developers&#x27; own allow rules in place</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Turns off --dangerously-skip-permissions and leaves developers&#x27; own allow rules in place</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">3</span>
+                    <span class="font-semibold text-slate-100">allowManagedMcpServersOnly</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(allowManagedMcpServersOnly)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ ล็อครายการอนุญาตของเซิร์ฟเวอร์ MCP ที่ผู้ใช้สามารถเชื่อมต่อได้ ไม่ใช่สิทธิ์อนุญาตของเครื่องมือ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Locks the allowlist of MCP servers users can connect to, not tool permissions</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">4</span>
+                    <span class="font-semibold text-slate-100">strictKnownMarketplaces</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(strictKnownMarketplaces)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ Limits which plugin marketplace sources users can add and install from</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Limits which plugin marketplace sources users can add and install from</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">5</span>
+                    <span class="font-semibold text-slate-100">allowManagedHooksOnly</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(allowManagedHooksOnly)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ ข้อจํากัดที่ห่วงจะทํางาน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Restricts which hooks run</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
+                  <p class="leading-relaxed">Each lock makes Claude Code ignore one category of configuration from user and project sources. Only allowManagedPermissionRulesOnly stops developers from loosening permission rules. Disabling bypass mode, locking MCP servers, or limiting marketplaces does not cover that gap.</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Each lock makes Claude Code ignore one category of configuration from user and project sources. Only allowManagedPermissionRulesOnly stops developers from loosening permission rules. Disabling bypass mode, locking MCP servers, or limiting marketplaces does not cover that gap.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “Make managed settings the only settings source of permission rules. Disable --dangerously-skip-permissions”
-              <br><a href="https://code.claude.com/docs/en/admin-setup" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://code.claude.com/docs/en/admin-setup" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('d3d1c2e398e6')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-57044"
              data-qid="57044"
@@ -1096,8 +1487,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An organization&#x27;s Owner wants to guarantee that only permission rules defined centrally by the security team take effect for every developer, so that even a well-intentioned engineer cannot loosen a restriction by editing their own settings. Which managed setting accomplishes this?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">เจ้าขององค์กรต้องการรับประกันว่าเฉพาะกฎการอนุญาตที่กำหนดโดยทีมรักษาความปลอดภัยเท่านั้นที่มีผลสำหรับนักพัฒนาทุกคนดังนั้นแม้แต่วิศวกรที่มีเจตนาดีก็ไม่สามารถคลายข้อจำกัดโดยการแก้ไขการตั้งค่าของตนเองได้การตั้งค่าที่มีการจัดการใดที่ทำสิ่งนี้ได้สำเร็จ?</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An organization&#x27;s Owner wants to guarantee that only permission rules defined centrally by the security team take effect for every developer, so that even a well-intentioned engineer cannot loosen a restriction by editing their own settings. Which managed setting accomplishes this?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-57044">
@@ -1109,7 +1501,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('57044', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set allowManagedMcpServersOnly to true, since that key controls the MCP server allowlist rather than general permission rules</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Set allowManagedMcpServersOnly to true, since that key controls the MCP server allowlist rather than general permission rules</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set allowManagedMcpServersOnly to true, since that key controls the MCP server allowlist rather than general permission rules</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1120,7 +1515,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('57044', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set allowManagedPermissionRulesOnly to true, so user and project settings can no longer define any allow, ask, or deny rules</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Set allowManagedPermissionRulesOnly to true, so user and project settings can no longer define any allow, ask, or deny rules</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set allowManagedPermissionRulesOnly to true, so user and project settings can no longer define any allow, ask, or deny rules</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1131,7 +1529,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('57044', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set disableBypassPermissionsMode to disable, which only blocks the bypassPermissions mode from being invoked</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Set disableBypassPermissionsMode to disable, which only blocks the bypassPermissions mode from being invoked</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set disableBypassPermissionsMode to disable, which only blocks the bypassPermissions mode from being invoked</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1142,7 +1543,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('57044', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set strictKnownMarketplaces to a fixed list, which restricts plugin installation sources rather than tool permissions</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Set strictKnownMarketplaces to a fixed list, which restricts plugin installation sources rather than tool permissions</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set strictKnownMarketplaces to a fixed list, which restricts plugin installation sources rather than tool permissions</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1164,7 +1568,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. คีย์นี้จะล็อคเซิร์ฟเวอร์ MCP ที่สามารถเพิ่มหรือเชื่อมต่อได้ มันไม่มีผลกระทบต่อกฎการอนุญาตทั่วไป เช่น Bash หรือการเข้าถึงไฟล์ อนุญาต ถาม และปฏิเสธรายการ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. คีย์นี้จะล็อคเซิร์ฟเวอร์ MCP ที่สามารถเพิ่มหรือเชื่อมต่อได้ มันไม่มีผลกระทบต่อกฎการอนุญาตทั่วไป เช่น Bash หรือการเข้าถึงไฟล์ อนุญาต ถาม และปฏิเสธรายการ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. This key locks down which MCP servers can be added or connected to; it has no effect on general permission rules like Bash or file access allow, ask, and deny entries.</div>
             </div>
             
@@ -1173,7 +1577,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. AllowManagedPermissionRulesOnly เป็นการตั้งค่าแบบจัดการเท่านั้น เมื่อเป็นจริง จะป้องกันไม่ให้การตั้งค่าผู้ใช้และโปรเจ็กต์กำหนดกฎการอนุญาต ถาม หรือปฏิเสธการอนุญาตเลย ดังนั้นจะใช้เฉพาะกฎที่ทีมรักษาความปลอดภัยกำหนดไว้ในการตั้งค่าที่มีการจัดการเท่านั้น</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. AllowManagedPermissionRulesOnly เป็นการตั้งค่าแบบจัดการเท่านั้น เมื่อเป็นจริง จะป้องกันไม่ให้การตั้งค่าผู้ใช้และโปรเจ็กต์กำหนดกฎการอนุญาต ถาม หรือปฏิเสธการอนุญาตเลย ดังนั้นจะใช้เฉพาะกฎที่ทีมรักษาความปลอดภัยกำหนดไว้ในการตั้งค่าที่มีการจัดการเท่านั้น</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. allowManagedPermissionRulesOnly is a managed-only setting that, when true, prevents user and project settings from defining any allow, ask, or deny permission rules at all, so only the rules the security team places in managed settings apply.</div>
             </div>
             
@@ -1182,7 +1586,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การตั้งค่านี้จะบล็อกเฉพาะโหมด bypassPermissions ไม่ให้เปิดใช้งาน มันไม่ได้หยุดนักพัฒนาจากการเพิ่มการอนุญาตของตนเองหรือถามกฎในโหมดการอนุญาตอื่น ๆ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การตั้งค่านี้จะบล็อกเฉพาะโหมด bypassPermissions ไม่ให้เปิดใช้งาน มันไม่ได้หยุดนักพัฒนาจากการเพิ่มการอนุญาตของตนเองหรือถามกฎในโหมดการอนุญาตอื่น ๆ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. This setting only blocks the bypassPermissions mode from being enabled; it does not stop developers from adding their own allow or ask rules in other permission modes.</div>
             </div>
             
@@ -1191,7 +1595,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. This setting restricts which plugin marketplace sources can be added, which is unrelated to permission rules for tools like Bash, Read, or Edit.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Incorrect. This setting restricts which plugin marketplace sources can be added, which is unrelated to permission rules for tools like Bash, Read, or Edit.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. This setting restricts which plugin marketplace sources can be added, which is unrelated to permission rules for tools like Bash, Read, or Edit.</div>
             </div>
             
@@ -1229,14 +1633,23 @@
             <span>4. Pinning provider, models and versions</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Pinning provider, models and versions</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ผู้ให้บริการมาก่อน เนื่องจากเป็นผู้ตัดสินใจวิธีการรับรองความถูกต้องของนักพัฒนาและวิธีการเรียกเก็บเงินการใช้งาน Claude สําหรับ Teams หรือ Enterprise เป็นคําแนะนําเริ่มต้น คอนโซลเหมาะสําหรับทีมที่ให้ความสําคัญกับ API เป็นอันดับแรก และจ่ายค่าบริการตามการใช้งานจริง Bedrock, Agent Platform และ Foundry ของ Google Cloud ช่วยให้ทีมสามารถรับช่วงต่อการควบคุมการปฏิบัติตามข้อกําหนดของระบบคลาวด์และการเรียกเก็บเงินที่มีอยู่ได้ เมื่อคุณเลือก allowedProviders (v2.1.285 หรือใหม่กว่า) จะปฏิเสธเซสชันใดๆ บนผู้ให้บริการที่ไม่ได้อยู่ในรายการ โดยการตรวจสอบเมื่อเริ่มต้นระบบ เมื่อเข้าสู่ระบบ และในการเรียกใช้ API ครั้งถัดไป
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การตั้งค่าโมเดลในการตั้งค่าที่มีการจัดการจะเลือกเฉพาะตําแหน่งที่เซสชันเริ่มต้นเท่านั้น โมเดลที่มีการจัดการเป็นค่าเริ่มต้นสําหรับการเริ่มต้น ไม่ใช่ล็อก หากต้องการจํากัดโมเดล ให้ใช้ availableModels ซึ่งจะกรองตัวเลือก เพิ่ม enforceAvailableModels เพื่อให้ค่าเริ่มต้นที่เลือกโดยอัตโนมัติปฏิบัติตามรายการด้วยเช่นกัน ระหว่างแหล่งที่มาที่มีการจัดการ availableModels จะไม่รวมกัน ดังนั้นรายการจากแหล่งที่มาที่นําไปใช้จึงเป็นรายการทั้งหมด maxEffortLevel จะขยายความพยายาม และขอบเขตที่ต่ําที่สุดระหว่างแหล่งที่มาของผู้ดูแลระบบจะชนะ
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  หมุดเวอร์ชันมีสองจุดแข็งเวอร์ชันต่ำสุดจะหยุดการอัปเดตอัตโนมัติจากการติดตั้งสิ่งที่อยู่ใต้พื้นกว้างขององค์กรดังนั้นจะบล็อกเฉพาะการดาวน์เกรดเท่านั้นจำเป็นเวอร์ชันต่ำสุดและจำเป็นเวอร์ชันสูงสุดปฏิเสธที่จะเริ่มรหัสคลอดนอกช่วงที่ได้รับอนุมัติแม้สิ่งเหล่านี้จะไม่จบเซสชั่นที่ทำงานอยู่แล้วดังนั้นเทอร์มินัลที่เปิดทิ้งไว้เป็นเวลาหลายสัปดาห์อาจล้าหลังกว่าการเปิดตัว
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การใช้จ่ายนั่งเคียงข้างหมุดเหล่านี้ กลไกทั่วไปอยู่ใน [ขีดจำกัดอัตราและการใช้จ่ายสูงสุด](บทเรียน: 6.3) สำหรับทีม Claude Code การใช้จ่ายและขีดจำกัดอัตราจะถูกตั้งค่าในการตั้งค่าองค์กรบน Teams หรือ Enterprise เป็นขีดจำกัดพื้นที่ทำงานบน Console หรือผ่านการควบคุมงบประมาณบนคลาวด์ หรือเกตเวย์ที่มีขีดจำกัดต่อผู้ใช้บนคลาวด์ของบุคคลที่สาม หากต้องการดูการใช้งาน ให้ใช้การส่งออก OpenTelemetry ซึ่งใช้ได้กับผู้ให้บริการทุกรายหรือแดชบอร์ดการวิเคราะห์
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
@@ -1248,101 +1661,116 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-8437e9f02aeb"
-             data-qid="8437e9f02aeb"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-8437e9f02aeb" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A platform lead puts a model value in managed settings so the whole team uses one model. A week later, developers are still switching to other models. What should the lead have configured?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-8437e9f02aeb">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8437e9f02aeb-A"
-                    data-qid="8437e9f02aeb"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('8437e9f02aeb', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">availableModels to filter the models developers can pick, plus enforceAvailableModels so the auto-selected default also follows that list</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8437e9f02aeb-B"
-                    data-qid="8437e9f02aeb"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('8437e9f02aeb', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">allowManagedPermissionRulesOnly, so developers&#x27; own settings can no longer override the managed model</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8437e9f02aeb-C"
-                    data-qid="8437e9f02aeb"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('8437e9f02aeb', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The same model value in the committed.claude/settings.json, so it goes through code review and reaches every clone</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-8437e9f02aeb-D"
-                    data-qid="8437e9f02aeb"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('8437e9f02aeb', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">managedSourcesBehavior set to merge, so the managed model value is combined with every developer&#x27;s settings</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-8437e9f02aeb" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-8437e9f02aeb" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">โมเดลที่ได้รับการจัดการจะตั้งค่าเฉพาะโมเดลที่เซสชันเริ่มต้นเท่านั้น มันไม่ได้หยุดนักพัฒนาจากการเปลี่ยน availableModels จำกัดโมเดลที่สามารถเลือกได้ และ enforceAvailableModels ทำให้ค่าเริ่มต้นที่เลือกอัตโนมัติติดตามรายการนั้นด้วย</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A managed model only sets the model that sessions start on. It does not stop developers from switching. availableModels limits which models can be picked, and enforceAvailableModels makes the auto-selected default follow that list too.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-8437e9f02aeb"
+                 data-qid="8437e9f02aeb"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-8437e9f02aeb" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">A platform lead puts a model value in managed settings so the whole team uses one model. A week later, developers are still switching to other models. What should the lead have configured?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A platform lead puts a model value in managed settings so the whole team uses one model. A week later, developers are still switching to other models. What should the lead have configured?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-8437e9f02aeb">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8437e9f02aeb-A"
+                        data-qid="8437e9f02aeb"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('8437e9f02aeb', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">availableModels เพื่อกรองโมเดลที่นักพัฒนาสามารถเลือกได้ รวมถึง enforceAvailableModels เพื่อให้ค่าเริ่มต้นที่เลือกโดยอัตโนมัติยังเป็นไปตามรายการนั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: availableModels to filter the models developers can pick, plus enforceAvailableModels so the auto-selected default also follows that list</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8437e9f02aeb-B"
+                        data-qid="8437e9f02aeb"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('8437e9f02aeb', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">allowManagedPermissionRulesOnly, so developers&#x27; own settings can no longer override the managed model</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: allowManagedPermissionRulesOnly, so developers&#x27; own settings can no longer override the managed model</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8437e9f02aeb-C"
+                        data-qid="8437e9f02aeb"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('8437e9f02aeb', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The same model value in the committed.claude/settings.json, so it goes through code review and reaches every clone</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The same model value in the committed.claude/settings.json, so it goes through code review and reaches every clone</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-8437e9f02aeb-D"
+                        data-qid="8437e9f02aeb"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('8437e9f02aeb', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">managedSourcesBehavior set to merge, so the managed model value is combined with every developer&#x27;s settings</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: managedSourcesBehavior set to merge, so the managed model value is combined with every developer&#x27;s settings</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-8437e9f02aeb" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-8437e9f02aeb" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">โมเดลที่ได้รับการจัดการจะตั้งค่าเฉพาะโมเดลที่เซสชันเริ่มต้นเท่านั้น มันไม่ได้หยุดนักพัฒนาจากการเปลี่ยน availableModels จำกัดโมเดลที่สามารถเลือกได้ และ enforceAvailableModels ทำให้ค่าเริ่มต้นที่เลือกอัตโนมัติติดตามรายการนั้นด้วย</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: A managed model only sets the model that sessions start on. It does not stop developers from switching. availableModels limits which models can be picked, and enforceAvailableModels makes the auto-selected default follow that list too.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “availableModels filters which models appear in the picker. Adding enforceAvailableModels also constrains the auto-selected default model.”
-              <br><a href="https://code.claude.com/docs/en/admin-setup" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://code.claude.com/docs/en/admin-setup" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('8437e9f02aeb')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('8437e9f02aeb')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1362,17 +1790,14 @@
         <section id="practise-it-for-real" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>Practise it for real</span>
+            <span>ฝึกฝนอย่างจริงจัง</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Practise it for real</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
-          <ol class="list-decimal ml-5 my-3 space-y-1"><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">1. Write the managed-settings.json from this page to /etc/claude-code/managed-settings.json Why: This is the file-based managed source on Linux and WSL, which you can use on hosts without MDM You should see: The file sits at the system path, which developers do not edit</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">2. Start claude in any project and run /status Why: /status names the managed source Claude Code applied and any it skipped You should see: The managed settings file is listed as the source in use, unless a higher-ranked source such as server-managed settings took priority</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">3. Ask Claude to read./.env in that project Why: The managed deny rule should block the read regardless of any rule in the user or project files You should see: The read is refused</li></ol>
+          
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ปรับใช้นโยบายที่ได้รับการจัดการตามไฟล์บนเครื่อง Linux และยืนยันว่า Claude Code บังคับใช้
+                </p>
+                <ol class="list-decimal ml-5 my-3 space-y-1"><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">1. เขียน Managed-settings.json จากหน้านี้ไปที่ /etc/claude-code/managed-settings.json เพราะเหตุใด: นี่เป็นต้นทางที่ได้รับการจัดการตามไฟล์บน Linux และ WSL ซึ่งคุณสามารถใช้บนโฮสต์ที่ไม่มี MDM คุณควรเห็น: ไฟล์อยู่ที่เส้นทางของระบบ ซึ่งนักพัฒนาไม่ได้แก้ไข</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">2. Start claude in any project and run /status Why: /status names the managed source Claude Code applied and any it skipped You should see: The managed settings file is listed as the source in use, unless a higher-ranked source such as server-managed settings took priority</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">3. Ask Claude to read./.env in that project Why: The managed deny rule should block the read regardless of any rule in the user or project files You should see: The read is refused</li></ol>
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1506,6 +1931,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1526,12 +1960,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1596,7 +2293,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

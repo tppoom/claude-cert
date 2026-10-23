@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -538,7 +545,7 @@
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
-            Layered persistent context — Claude Code starts every session from files on disk, not from earlier chats. You write instructions in CLAUDE.md files at different scopes, and Claude adds its own notes through auto memory. settings.json files then set what the tool is allowed to do.
+            บริบทถาวรแบบเลเยอร์ – Claude Code เริ่มเซสชันทุกเซสชันจากไฟล์บนดิสก์ ไม่ใช่จากแชทก่อนหน้า คุณเขียนคําแนะนําในไฟล์ CLOUDE.md ในขอบเขตที่แตกต่างกัน และ Claude จะเพิ่มบันทึกของตนเองผ่านไฟล์ auto memory.settings.json จากนั้นตั้งค่าสิ่งที่เครื่องมือได้รับอนุญาตให้ทํา
           </p>
         </section>
         
@@ -549,7 +556,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-the-claude-md-hierarchy" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. The CLAUDE.md hierarchy</span></a></li><li><a href="#2-repository-initialization-with-init-and-path-scoped-rules" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Repository initialization with /init, and path-scoped rules</span></a></li><li><a href="#3-agent-memory-auto-memory-alongside-claude-md" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Agent memory: auto memory alongside CLAUDE.md</span></a></li><li><a href="#4-settings-json-scopes-and-precedence" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. settings.json scopes and precedence</span></a></li>
+        <li><a href="#1-the-claude-md-hierarchy" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. ลําดับชั้นของ CLAUDE.md</span></a></li><li><a href="#2-repository-initialization-with-init-and-path-scoped-rules" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. การเริ่มต้นคลังด้วย /init และกฎที่มีขอบเขตเส้นทาง</span></a></li><li><a href="#3-agent-memory-auto-memory-alongside-claude-md" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. หน่วยความจําเอเจนต์: หน่วยความจําอัตโนมัติควบคู่ไปกับ CLOUDE.md</span></a></li><li><a href="#4-settings-json-scopes-and-precedence" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. settings.json ขอบเขตและลําดับความสําคัญ</span></a></li>
       </ul>
     </nav>
     
@@ -557,135 +564,168 @@
         <section id="1-the-claude-md-hierarchy" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. The CLAUDE.md hierarchy</span>
+            <span>1. ลําดับชั้นของ CLAUDE.md</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>The CLAUDE.md hierarchy</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Scope</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Location</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Shared with</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Managed policy</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">/Library/Application Support/ClaudeCode/CLAUDE.md (macOS), /etc/claude-code/CLAUDE.md (Linux and WSL)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">All users in organization</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">User instructions</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">~/.claude/CLAUDE.md</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Just you (all projects)</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Project instructions</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">./CLAUDE.md or./.claude/CLAUDE.md</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Team members via source control</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Local instructions</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">./CLAUDE.local.md</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Just you (current project)</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ไฟล์ CLOUDE.md ประกอบด้วยคําแนะนําที่คุณเขียนและโหลดลงในทุกเซสชัน ส่วนที่ยากคือการเลือกที่จะวางไว้ที่ไหน มีสี่ขอบเขต แต่ละขอบเขตตอบคําถามที่แตกต่างกัน: คําแนะนํานี้ควรส่งถึงใคร และควรส่งไปที่ git หรือไม่?
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Scope</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Scope</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Location</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Location</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">แชร์กับ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Shared with</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Managed policy</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Managed policy</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">/Library/Application Support/ClaudeCode/CLAUDE.md (macOS), /etc/claude-code/CLAUDE.md (Linux และ WSL)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: /Library/Application Support/ClaudeCode/CLAUDE.md (macOS), /etc/claude-code/CLAUDE.md (Linux and WSL)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">All users in organization</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: All users in organization</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">User instructions</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: User instructions</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">~/.claude/CLAUDE.md</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: ~/.claude/CLAUDE.md</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">แค่คุณ (ทุกโครงการ)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Just you (all projects)</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Project instructions</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Project instructions</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">./CLAUDE.md หรือ./.claude/CLAUDE.md</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: ./CLAUDE.md or./.claude/CLAUDE.md</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Team members via source control</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Team members via source control</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Local instructions</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Local instructions</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">./CLAUDE.local.md</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: ./CLAUDE.local.md</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Just you (current project)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Just you (current project)</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">The four CLAUDE.md scopes</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">สี่ขอบเขตของ Claude.md</figcaption>
                 </div>
                 
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  @path imports inside a CLAUDE.md markdown See @README for project overview and @package.json for available npm commands for this project. # Additional Instructions - git workflow @docs/git-instructions.md
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  CLAUDE.local.md มีไว้สำหรับการตั้งค่าเฉพาะโครงการส่วนบุคคลเช่น URL แซนด์บ็อกซ์ของคุณและคุณควรเพิ่มลงใน.gitignore ไฟล์โครงการคือสิ่งที่ทีมแบ่งปันหากที่เก็บมี AGENTS.md Claude จะอ่านเฉพาะเมื่อไม่มี CLAUDE.md,.claude/CLAUDE.md หรือ CLAUDE.local.md ในไดเรกทอรีการทำงานหรือไดเรกทอรีใดๆด้านบนไฟล์ CLAUDE.md ระดับผู้ใช้และมีการจัดการของคุณจะไม่นับรวมในกฎนั้น
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เขียนคําแนะนําที่เฉพาะเจาะจง ‘ใช้การเยื้อง 2 ช่องว่าง’ ทํางานได้ดีกว่า ‘จัดรูปแบบโค้ดอย่างถูกต้อง’ เก็บไฟล์แต่ละไฟล์ไว้ประมาณ 200 บรรทัด และจัดกลุ่มกฎที่เกี่ยวข้องภายใต้ส่วนหัว หากคําแนะนําสองรายการขัดแย้งกัน Claude อาจทําตามคําแนะนําใดคําแนะนําหนึ่ง คุณสามารถแบ่งไฟล์ยาวได้ด้วย @path imports แต่การนําเข้าไม่ได้ทําให้ราคาถูกขึ้น: ไฟล์ที่นําเข้าจะถูกโหลดเมื่อเปิดตัวด้วยเช่นกัน
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">@path นําเข้าภายในเครื่องหมายดาวน์ CLOUDE.md</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: @path imports inside a CLAUDE.md markdown</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>See @README for project overview and @package.json for available npm commands for this project.
+
+# Additional Instructions
+- git workflow @docs/git-instructions.md</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  คำสั่งสแลชในตัวสองคำสั่งจะช่วยเหลือเมื่อดูเหมือนว่าคำสั่งจะถูกละเว้น /context แสดงรายการไฟล์หน่วยความจำที่โหลดจริง /memory จะเปิดไฟล์เหล่านั้นเพื่อให้คุณสามารถแก้ไขได้
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Moving parts of a long CLAUDE.md into @imported files saves context. (ทำไมถึงผิด): Imported files also load at launch. They make the file easier to organize but cost the same context. To save context, use path-scoped rules.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: การย้ายส่วนต่างๆ ของไฟล์ CLAUDE.md ที่ยาวไปยังไฟล์ @imported จะบันทึกบริบท (ทําไมจึงผิดพลาด): ไฟล์ที่นําเข้าจะโหลดเมื่อเปิดใช้งานด้วยเช่นกัน สิ่งเหล่านี้ทําให้ไฟล์จัดระเบียบได้ง่ายขึ้น แต่มีค่าใช้จ่ายในบริบทเดียวกัน หากต้องการบันทึกบริบท ให้ใช้กฎที่มีขอบเขตเส้นทาง</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Moving parts of a long CLAUDE.md into @imported files saves context. (ทำไมถึงผิด): Imported files also load at launch. They make the file easier to organize but cost the same context. To save context, use path-scoped rules.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-b8358f7af6d7"
-             data-qid="b8358f7af6d7"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-b8358f7af6d7" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">You want Claude to use your personal staging URL in one repository, and you don&#x27;t want teammates to see it. Where does the instruction go?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-b8358f7af6d7">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b8358f7af6d7-A"
-                    data-qid="b8358f7af6d7"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('b8358f7af6d7', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">./CLAUDE.md, committed to the repo</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b8358f7af6d7-B"
-                    data-qid="b8358f7af6d7"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('b8358f7af6d7', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">./CLAUDE.local.md, listed in.gitignore</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b8358f7af6d7-C"
-                    data-qid="b8358f7af6d7"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('b8358f7af6d7', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">~/.claude/CLAUDE.md</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-b8358f7af6d7-D"
-                    data-qid="b8358f7af6d7"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('b8358f7af6d7', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The managed policy CLAUDE.md</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-b8358f7af6d7" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-b8358f7af6d7" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Local instructions cover one project and reach only you. ~/.claude/CLAUDE.md would apply it to every project you open.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Local instructions cover one project and reach only you. ~/.claude/CLAUDE.md would apply it to every project you open.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-b8358f7af6d7"
+                 data-qid="b8358f7af6d7"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-b8358f7af6d7" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Personal project-specific preferences; add to.gitignore”
-              <br><a href="https://code.claude.com/docs/en/memory" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">คุณต้องการให้ Claude ใช้ Staging URL ส่วนตัวของคุณในที่เก็บข้อมูลเดียว และคุณไม่ต้องการให้เพื่อนร่วมทีมเห็น คำสั่งสอนไปไหน?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: You want Claude to use your personal staging URL in one repository, and you don&#x27;t want teammates to see it. Where does the instruction go?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-b8358f7af6d7">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b8358f7af6d7-A"
+                        data-qid="b8358f7af6d7"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('b8358f7af6d7', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">./CLAUDE.md ผูกมัดกับคลัง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: ./CLAUDE.md, committed to the repo</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b8358f7af6d7-B"
+                        data-qid="b8358f7af6d7"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('b8358f7af6d7', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">./CLAUDE.local.md ซึ่งแสดงอยู่ใน.gitignore</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: ./CLAUDE.local.md, listed in.gitignore</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b8358f7af6d7-C"
+                        data-qid="b8358f7af6d7"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('b8358f7af6d7', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">~/.claude/CLAUDE.md</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: ~/.claude/CLAUDE.md</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-b8358f7af6d7-D"
+                        data-qid="b8358f7af6d7"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('b8358f7af6d7', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">นโยบายที่ได้รับการจัดการ Claude.md</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The managed policy CLAUDE.md</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-b8358f7af6d7" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-b8358f7af6d7" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">คําแนะนําในพื้นที่ครอบคลุมหนึ่งโปรเจ็กต์และเข้าถึงได้เฉพาะคุณเท่านั้น ~/.claude/CLAUDE.md จะปรับใช้กับทุกโปรเจ็กต์ที่คุณเปิด</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Local instructions cover one project and reach only you. ~/.claude/CLAUDE.md would apply it to every project you open.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “การตั้งค่าเฉพาะโปรเจ็กต์ส่วนบุคคล; เพิ่มไปยัง.gitignore”
+              <br><a href="https://code.claude.com/docs/en/memory" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('b8358f7af6d7')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('b8358f7af6d7')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55478"
              data-qid="55478"
@@ -701,8 +741,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A developer wants their project&#x27;s CLAUDE.md to mention the path to a git workflow guide without pulling its contents into every session&#x27;s context. They write `` `@docs/git-instructions.md` `` wrapped in backticks inside a paragraph. What happens when Claude Code parses this CLAUDE.md at session start?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">นักพัฒนาต้องการให้ CLAUDE.md ของโปรเจ็กต์ของตนพูดถึงเส้นทางไปยังคู่มือเวิร์กโฟลว์ git โดยไม่ต้องดึงเนื้อหามาไว้ในบริบทของทุกเซสชัน พวกเขาเขียน `` `@docs/git-instructions.md` `` ห่อด้วย backticks ภายในย่อหน้า จะเกิดอะไรขึ้นเมื่อ Claude Code แยกวิเคราะห์ CLAUDE.md นี้เมื่อเริ่มเซสชัน</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A developer wants their project&#x27;s CLAUDE.md to mention the path to a git workflow guide without pulling its contents into every session&#x27;s context. They write `` `@docs/git-instructions.md` `` wrapped in backticks inside a paragraph. What happens when Claude Code parses this CLAUDE.md at session start?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55478">
@@ -714,7 +755,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55478', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Claude Code treats the backtick-wrapped path as literal text and skips the import, since import parsing skips code spans and fenced code blocks.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">โคลด์ โค้ดจะถือว่าเส้นทางที่ถูกห่อด้วยเครื่องหมายยัติภังค์เป็นข้อความตัวอักษรและข้ามการนําเข้า เนื่องจากการวิเคราะห์การนําเข้าข้ามช่วงโค้ดและบล็อกโค้ดที่มีการกําหนดขอบเขต</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Claude Code treats the backtick-wrapped path as literal text and skips the import, since import parsing skips code spans and fenced code blocks.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -725,7 +769,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55478', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Claude Code still imports the file, because the `@` import syntax is resolved before Markdown code span parsing removes the surrounding backticks.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">โค้ด Claude ยังคงนําเข้าไฟล์ เนื่องจากไวยากรณ์การนําเข้า `@` จะถูกแก้ไขก่อนการแยกวิเคราะห์ช่วงโค้ด Markdown จะลบเครื่องหมายยัติภังค์ที่อยู่รอบๆ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Claude Code still imports the file, because the `@` import syntax is resolved before Markdown code span parsing removes the surrounding backticks.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -736,7 +783,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55478', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Claude Code raises a parse error and refuses to load the rest of the CLAUDE.md file until the ambiguous backticked reference is removed entirely.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Claude Code เกิดข้อผิดพลาดในการแยกวิเคราะห์และปฏิเสธที่จะโหลดส่วนที่เหลือของไฟล์ CLAUDE.md จนกว่าการอ้างอิงเครื่องหมายยัติภังค์ที่คลุมเครือจะถูกลบออกทั้งหมด</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Claude Code raises a parse error and refuses to load the rest of the CLAUDE.md file until the ambiguous backticked reference is removed entirely.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -747,7 +797,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55478', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Claude Code imports the file but truncates it to just the first paragraph, since backticked references are treated as partial-preview imports only.</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Claude Code นําเข้าไฟล์ แต่ตัดให้เหลือเพียงย่อหน้าแรกเท่านั้น เนื่องจากการอ้างอิงที่ขึ้นต้นด้วยเครื่องหมายยัติภังค์จะถูกถือเป็นการนําเข้าแบบดูตัวอย่างเพียงบางส่วนเท่านั้น</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Claude Code imports the file but truncates it to just the first paragraph, since backticked references are treated as partial-preview imports only.</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -769,7 +822,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การแยกวิเคราะห์การนำเข้าจะข้ามช่วงโค้ด Markdown และบล็อกโค้ดแบบรั้ว ดังนั้นการล้อมเส้นทางด้วย backticks จะคงไว้เป็นข้อความตามตัวอักษรแทนที่จะทริกเกอร์การนำเข้า</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การแยกวิเคราะห์การนำเข้าจะข้ามช่วงโค้ด Markdown และบล็อกโค้ดแบบรั้ว ดังนั้นการล้อมเส้นทางด้วย backticks จะคงไว้เป็นข้อความตามตัวอักษรแทนที่จะทริกเกอร์การนำเข้า</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Import parsing skips Markdown code spans and fenced code blocks, so wrapping a path in backticks keeps it as literal text instead of triggering an import.</div>
             </div>
             
@@ -778,7 +831,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การข้ามช่วงโค้ดเกิดขึ้นในระหว่างการแยกวิเคราะห์การนำเข้า ดังนั้น backticks จะป้องกันการนำเข้าแทนที่จะถูกประมวลผลในภายหลัง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การข้ามช่วงโค้ดเกิดขึ้นในระหว่างการแยกวิเคราะห์การนำเข้า ดังนั้น backticks จะป้องกันการนำเข้าแทนที่จะถูกประมวลผลในภายหลัง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Code span skipping happens during import parsing itself, so the backticks do prevent the import rather than being processed afterward.</div>
             </div>
             
@@ -787,7 +840,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การอ้างอิงแบบย้อนกลับจะถูกปล่อยให้เป็นข้อความตามตัวอักษร ไม่ทำให้เกิดข้อผิดพลาดในการแยกวิเคราะห์หรือบล็อกการโหลดไฟล์ที่เหลือ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การอ้างอิงแบบย้อนกลับจะถูกปล่อยให้เป็นข้อความตามตัวอักษร ไม่ทำให้เกิดข้อผิดพลาดในการแยกวิเคราะห์หรือบล็อกการโหลดไฟล์ที่เหลือ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. A backticked reference is simply left as literal text; it does not cause a parse error or block loading the rest of the file.</div>
             </div>
             
@@ -796,7 +849,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ไม่มีพฤติกรรมการนำเข้าตัวอย่างบางส่วน ข้อความ backticked จะถูกนำเข้าแบบเต็ม (ช่วงโค้ดภายนอก) หรือตัวอักษรด้านซ้าย (ด้านใน)</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. ไม่มีพฤติกรรมการนำเข้าตัวอย่างบางส่วน ข้อความ backticked จะถูกนำเข้าแบบเต็ม (ช่วงโค้ดภายนอก) หรือตัวอักษรด้านซ้าย (ด้านใน)</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. There is no partial-preview import behavior; backticked text is either imported in full (outside code spans) or left literal (inside them).</div>
             </div>
             
@@ -831,162 +884,300 @@
         <section id="2-repository-initialization-with-init-and-path-scoped-rules" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Repository initialization with /init, and path-scoped rules</span>
+            <span>2. การเริ่มต้นคลังด้วย /init และกฎที่มีขอบเขตเส้นทาง</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Repository initialization with /init, and path-scoped rules</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-ec14c290b08f"
-             data-qid="ec14c290b08f"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-ec14c290b08f" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Put the repository initialization workflow in order</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-ec14c290b08f">
-            
-          </div>
-          
-          <div id="feedback-ec14c290b08f" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-ec14c290b08f" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">/init สร้างแบบร่าง และคุณตรวจสอบก่อนที่มันจะกลายเป็นไฟล์โปรเจ็กต์ที่แชร์</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: /init produces a draft, and you check it before it becomes the shared project file.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ในที่เก็บใหม่ คุณไม่จําเป็นต้องเขียน CLOUDE.md จากศูนย์ เรียกใช้ /init และ Claude จะสํารวจโค้ดเบสและร่างโค้ดเบสที่ครอบคลุมคําสั่งสร้างและทดสอบ ภาพรวมของโครงสร้าง และข้อตกลงใดๆ ที่ตรวจพบ โครงร่างเป็นเพียงจุดเริ่มต้น: ทบทวน ลบสิ่งที่ไม่ถูกต้อง จากนั้นยืนยันเพื่อให้ทีมแชร์
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-ec14c290b08f"
+                 data-qid="ec14c290b08f"
+                 data-correct="ORDER"
+                 data-total-steps="4">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔢</span>
+                  <span>แบบฝึกหัดเรียงลำดับขั้นตอน (Step Sequencing)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-ec14c290b08f" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Order (4 ขั้นตอน)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Review the draft, remove anything inaccurate, and commit it.”
-              <br><a href="https://support.claude.com/en/articles/14553240-give-claude-context-claude-md-and-better-prompts" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
-            </div>
-            
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('ec14c290b08f')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A path-scoped rule in.claude/rules/ markdown --- paths: - "src/api/**/*.ts" --- # API Development Rules - All API endpoints must include input validation - Use the standard error response format - Include OpenAPI documentation comments
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">จัดลําดับเวิร์กโฟลว์การเริ่มต้นคลัง</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Put the repository initialization workflow in order</p>
+              </div>
+
+              <!-- Interactive Step Ordering Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกขั้นตอนตามลำดับที่ถูกต้องตั้งแต่ขั้นตอนที่ 1 ถึง 4</span></span>
+                  <span id="order-counter-ec14c290b08f" class="text-slate-400 font-mono">เรียงแล้ว 0/4</span>
+                </div>
+                <div class="space-y-2.5 pt-1" id="order-cards-ec14c290b08f">
+                  
+                <button type="button"
+                        id="order-step-ec14c290b08f-2"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('ec14c290b08f', 2, 4)">
+                  <span id="order-badge-ec14c290b08f-2" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">ทบทวนร่างและลบสิ่งที่ไม่ถูกต้องออก</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Review the draft and remove anything inaccurate</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-ec14c290b08f-3"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('ec14c290b08f', 3, 4)">
+                  <span id="order-badge-ec14c290b08f-3" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">มอบหมายไฟล์</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Commit the file</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-ec14c290b08f-1"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('ec14c290b08f', 1, 4)">
+                  <span id="order-badge-ec14c290b08f-1" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Claude สำรวจ codebase และร่าง CLAUDE.md</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Claude explores the codebase and drafts a CLAUDE.md</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-ec14c290b08f-0"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('ec14c290b08f', 0, 4)">
+                  <span id="order-badge-ec14c290b08f-0" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">พิมพ์ /init ในโครงการ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Type /init in the project</span>
+                  </div>
+                </button>
+                
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-ec14c290b08f" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetOrderGame('ec14c290b08f')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>รีเซ็ตลำดับเพื่อลองใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('ec14c290b08f')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยลำดับที่ถูกต้อง
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">คลิกจัดลำดับจนครบเพื่อตรวจสอบคำตอบ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-ec14c290b08f" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ ลำดับขั้นตอนที่ถูกต้อง (Correct Sequence 1 ➔ 4):</strong>
+                <div class="space-y-2">
+                  
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">พิมพ์ /init ในโครงการ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Type /init in the project</span>
+                  </div>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-0537f1ef2db8"
-             data-qid="0537f1ef2db8"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Claude สำรวจ codebase และร่าง CLAUDE.md</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Claude explores the codebase and drafts a CLAUDE.md</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">ทบทวนร่างและลบสิ่งที่ไม่ถูกต้องออก</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Review the draft and remove anything inaccurate</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">มอบหมายไฟล์</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Commit the file</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 เหตุผลเบื้องหลังลำดับขั้น (Reasoning):</strong>
+                  <p class="leading-relaxed">/init สร้างแบบร่าง และคุณตรวจสอบก่อนที่มันจะกลายเป็นไฟล์โปรเจ็กต์ที่แชร์</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: /init produces a draft, and you check it before it becomes the shared project file.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ตรวจสอบฉบับร่าง ลบสิ่งที่ไม่ถูกต้อง และยืนยัน”
+              <br><a href="https://support.claude.com/en/articles/14553240-give-claude-context-claude-md-and-better-prompts" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-0537f1ef2db8" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+            
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Which frontmatter field scopes this rule to matching files?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-0537f1ef2db8">
             
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-0537f1ef2db8-A"
-                    data-qid="0537f1ef2db8"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('0537f1ef2db8', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">paths</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-0537f1ef2db8-B"
-                    data-qid="0537f1ef2db8"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('0537f1ef2db8', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">globs</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-0537f1ef2db8-C"
-                    data-qid="0537f1ef2db8"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('0537f1ef2db8', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">include</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-0537f1ef2db8-D"
-                    data-qid="0537f1ef2db8"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('0537f1ef2db8', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">files</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-0537f1ef2db8" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-0537f1ef2db8" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">`paths` เป็นเพียงกฎของฟิลด์เดียวที่รองรับ ใช้รูปแบบ glob เป็นรายการ YAML หรือสตริงที่คั่นด้วยเครื่องหมายจุลภาค</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: `paths` is the only field rules support. It takes glob patterns as a YAML list or a comma-separated string.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เมื่อโปรเจกต์เติบโตขึ้น คําสั่งบางส่วนจะมีความสําคัญเฉพาะกับส่วนหนึ่งของโค้ดเท่านั้น ใส่ไว้ในกฎ: ไฟล์ markdown ใต้.claude/rules/ กฎที่มีฟิลด์ path frontmatter จะโหลดเฉพาะเมื่อ Claude ทํางานกับไฟล์ที่ตรงกับรูปแบบ glob ของกฎ ดังนั้นข้อตกลง API จะไม่นําบริบทมาใช้ในขณะที่ Claude แก้ไข CSS คุณยังสามารถเก็บกฎส่วนตัวไว้ใน ~/.claude/rules/ ได้อีกด้วย
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">กฎที่มีขอบเขตเส้นทางใน.claude/rules/markdown</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A path-scoped rule in.claude/rules/ markdown</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>---
+paths:
+  - &quot;src/api/**/*.ts&quot;
+---
+
+# API Development Rules
+
+- All API endpoints must include input validation
+- Use the standard error response format
+- Include OpenAPI documentation comments</code></pre>
+                </div>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-0537f1ef2db8"
+                 data-qid="0537f1ef2db8"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-0537f1ef2db8" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ฟิลด์ฟรอนต์แมตเทอร์ใดที่ครอบคลุมกฎนี้สําหรับไฟล์ที่ตรงกัน</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Which frontmatter field scopes this rule to matching files?</p>
+              </div>
+              
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>---
+____:
+  - &quot;src/**/*.{ts,tsx}&quot;
+  - &quot;lib/**/*.ts&quot;
+  - &quot;tests/**/*.test.ts&quot;
+---</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-0537f1ef2db8">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-0537f1ef2db8-A"
+                        data-qid="0537f1ef2db8"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('0537f1ef2db8', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เส้นทาง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: paths</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-0537f1ef2db8-B"
+                        data-qid="0537f1ef2db8"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('0537f1ef2db8', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ลูกโลก</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: globs</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-0537f1ef2db8-C"
+                        data-qid="0537f1ef2db8"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('0537f1ef2db8', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">รวม</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: include</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-0537f1ef2db8-D"
+                        data-qid="0537f1ef2db8"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('0537f1ef2db8', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ไฟล์</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: files</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-0537f1ef2db8" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-0537f1ef2db8" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">`paths` เป็นเพียงกฎของฟิลด์เดียวที่รองรับ ใช้รูปแบบ glob เป็นรายการ YAML หรือสตริงที่คั่นด้วยเครื่องหมายจุลภาค</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: `paths` is the only field rules support. It takes glob patterns as a YAML list or a comma-separated string.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('0537f1ef2db8')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('0537f1ef2db8')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1006,27 +1197,36 @@
         <section id="3-agent-memory-auto-memory-alongside-claude-md" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. Agent memory: auto memory alongside CLAUDE.md</span>
+            <span>3. หน่วยความจําเอเจนต์: หน่วยความจําอัตโนมัติควบคู่ไปกับ CLOUDE.md</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Agent memory: auto memory alongside CLAUDE.md</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Aspect</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">CLAUDE.md files</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Auto memory</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Who writes it</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Contains</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Instructions and rules</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Learnings and patterns</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Scope</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Project, user, or org</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Per repository, shared across worktrees</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Loaded into</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Every session</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Every session (first 200 lines or 25KB)</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Claude.md เก็บสิ่งที่คุณบอก Claude ไว้ หน่วยความจําอัตโนมัติเก็บสิ่งที่ Claude เรียนรู้: มันเขียนบันทึกของตนเองเมื่อคุณแก้ไขหรือยืนยันแนวทางที่ทํางานได้ ทั้งสองระบบแตกต่างกันในเรื่องว่าใครเป็นผู้เขียน สิ่งที่เก็บไว้ และปริมาณที่โหลด
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ลักษณะ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Aspect</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ไฟล์ Claude.md</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: CLAUDE.md files</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">หน่วยความจําอัตโนมัติ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Auto memory</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ใครเป็นคนเขียน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Who writes it</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: You</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คล็อด</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ประกอบด้วย</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Contains</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คําแนะนําและกฎ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Instructions and rules</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การเรียนรู้และรูปแบบ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Learnings and patterns</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Scope</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Scope</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โปรเจกต์ ผู้ใช้ หรือองค์กร</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Project, user, or org</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ต่อพื้นที่เก็บข้อมูล แชร์ระหว่างแผนผังงาน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Per repository, shared across worktrees</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โหลดเข้าแล้ว</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Loaded into</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ทุกเซสชัน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Every session</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ทุกเซสชัน (200 บรรทัดแรกหรือ 25 KB)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Every session (first 200 lines or 25KB)</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">CLAUDE.md compared with auto memory</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Claude.md เทียบกับหน่วยความจําอัตโนมัติ</figcaption>
                 </div>
                 
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Turning auto memory off in settings json { "autoMemoryEnabled": false }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ความทรงจําจะถูกจัดเก็บไว้ที่ ~/.claude/projects/&lt;project&gt;/memory/. ดัชนี MEMORY.md ที่นั่นชี้ไปยังไฟล์หนึ่งไฟล์ต่อหน่วยความจํา แต่ละหน่วยความจํามีประเภท: ผู้ใช้ (บทบาทและการตั้งค่าของคุณ), ข้อเสนอแนะ (การแก้ไขและวิธีการที่ยืนยันแล้ว), โปรเจกต์ (การทํางานที่ดําเนินอยู่และการตัดสินใจที่โค้ดไม่แสดง) หรือการอ้างอิง (สถานที่ค้นหาข้อมูลภายนอก) คุณสามารถควบคุมได้จากการตั้งค่า: autoMemoryDirectory จะย้ายโฟลเดอร์ และ autoMemoryEnabled จะปิดคุณสมบัตินี้
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">การปิดหน่วยความจําอัตโนมัติในการตั้งค่า json</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Turning auto memory off in settings json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;autoMemoryEnabled&quot;: false
+}</code></pre>
                 </div>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
@@ -1034,63 +1234,230 @@
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Everything auto memory has saved is loaded into each new session. (ทำไมถึงผิด): Only the start of the memory index loads at session start: the first 200 lines or 25KB.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: ทุกอย่างที่หน่วยความจําอัตโนมัติบันทึกไว้จะถูกโหลดในแต่ละเซสชันใหม่ (ทําไมถึงผิดพลาด): เฉพาะจุดเริ่มต้นของดัชนีหน่วยความจําเท่านั้นที่จะโหลดเมื่อเริ่มต้นเซสชัน: 200 บรรทัดแรกหรือ 25 KB</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Everything auto memory has saved is loaded into each new session. (ทำไมถึงผิด): Only the start of the memory index loads at session start: the first 200 lines or 25KB.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-3ee202552e7b"
-             data-qid="3ee202552e7b"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-3ee202552e7b" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Match each auto memory type to what it records</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-3ee202552e7b">
-            
-          </div>
-          
-          <div id="feedback-3ee202552e7b" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-3ee202552e7b" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">สี่ประเภทนี้จะกำหนดว่าหน่วยความจำอัตโนมัติจะบันทึกอะไรและจะเรียกคืนเมื่อใด</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: These four types decide what auto memory saves and when it is recalled.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-3ee202552e7b"
+                 data-qid="3ee202552e7b"
+                 data-correct="MATCH"
+                 data-total-pairs="4">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔄</span>
+                  <span>แบบฝึกหัดจับคู่ความสัมพันธ์ (Matching Challenge)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-3ee202552e7b" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตรวจสอบแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Match (4 คู่)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “feedback: corrections you give Claude and approaches you confirm”
-              <br><a href="https://code.claude.com/docs/en/memory" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">จับคู่หน่วยความจำอัตโนมัติแต่ละประเภทกับสิ่งที่บันทึก</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Match each auto memory type to what it records</p>
+              </div>
+
+              <!-- Interactive Matching Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
+                  <span id="match-counter-3ee202552e7b" class="text-slate-400 font-mono">จับคู่ได้ 0/4</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <!-- Terms (Left) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">1. รายการคำศัพท์ / หัวข้อ:</div>
+                    
+                <button type="button"
+                        id="match-term-3ee202552e7b-0"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('3ee202552e7b', 0)">
+                  <span id="match-badge-term-3ee202552e7b-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">&quot;ผู้ใช้&quot;</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: user</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-3ee202552e7b-1"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('3ee202552e7b', 1)">
+                  <span id="match-badge-term-3ee202552e7b-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">ความคิดเห็น</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: feedback</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-3ee202552e7b-2"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('3ee202552e7b', 2)">
+                  <span id="match-badge-term-3ee202552e7b-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">“โครงการ”</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: project</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-3ee202552e7b-3"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('3ee202552e7b', 3)">
+                  <span id="match-badge-term-3ee202552e7b-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">การอ้างอิง</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: reference</span>
+                  </div>
+                </button>
+                
+                  </div>
+                  <!-- Definitions (Right) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">2. คำอธิบาย / ความหมาย (สลับตำแหน่ง):</div>
+                    
+                <button type="button"
+                        id="match-def-3ee202552e7b-0"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('3ee202552e7b', 0, 4)">
+                  <span id="match-badge-def-3ee202552e7b-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">บทบาท ความเชี่ยวชาญ และการตั้งค่าการทํางานของคุณ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Your role, expertise, and working preferences</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-3ee202552e7b-1"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('3ee202552e7b', 1, 4)">
+                  <span id="match-badge-def-3ee202552e7b-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">การแก้ไขที่คุณให้แก่คล็อดและวิธีการที่คุณยืนยัน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Corrections you give Claude and approaches you confirm</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-3ee202552e7b-3"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('3ee202552e7b', 3, 4)">
+                  <span id="match-badge-def-3ee202552e7b-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">สถานที่ค้นหาข้อมูลภายนอก เช่น ตัวติดตามปัญหา</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Where to find outside information, such as an issue tracker</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-3ee202552e7b-2"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('3ee202552e7b', 2, 4)">
+                  <span id="match-badge-def-3ee202552e7b-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">งานที่กําลังดําเนินอยู่ กําหนดเวลา และการตัดสินใจที่ไม่สามารถอนุมานจากโค้ดได้</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Ongoing work, deadlines, and decisions not derivable from code</span>
+                  </div>
+                </button>
+                
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-3ee202552e7b" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetMatchGame('3ee202552e7b')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>เริ่มจับคู่ใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('3ee202552e7b')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยคู่ความสัมพันธ์
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">จับคู่ให้ครบทุกข้อเพื่อบันทึกผลสำเร็จอัตโนมัติ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-3ee202552e7b" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ เฉลยคู่ความสัมพันธ์ที่ถูกต้อง (Verified Pairs):</strong>
+                <div class="space-y-2.5">
+                  
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">1</span>
+                    <span class="font-semibold text-slate-100">&quot;ผู้ใช้&quot;</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(user)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ บทบาท ความเชี่ยวชาญ และการตั้งค่าการทํางานของคุณ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Your role, expertise, and working preferences</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">2</span>
+                    <span class="font-semibold text-slate-100">ความคิดเห็น</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(feedback)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ การแก้ไขที่คุณให้แก่คล็อดและวิธีการที่คุณยืนยัน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Corrections you give Claude and approaches you confirm</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">3</span>
+                    <span class="font-semibold text-slate-100">“โครงการ”</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(project)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ งานที่กําลังดําเนินอยู่ กําหนดเวลา และการตัดสินใจที่ไม่สามารถอนุมานจากโค้ดได้</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Ongoing work, deadlines, and decisions not derivable from code</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">4</span>
+                    <span class="font-semibold text-slate-100">การอ้างอิง</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(reference)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ สถานที่ค้นหาข้อมูลภายนอก เช่น ตัวติดตามปัญหา</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Where to find outside information, such as an issue tracker</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
+                  <p class="leading-relaxed">สี่ประเภทนี้จะกำหนดว่าหน่วยความจำอัตโนมัติจะบันทึกอะไรและจะเรียกคืนเมื่อใด</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: These four types decide what auto memory saves and when it is recalled.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ความคิดเห็น: การแก้ไขที่คุณให้แก่คล็อดและวิธีการที่คุณยืนยัน”
+              <br><a href="https://code.claude.com/docs/en/memory" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('3ee202552e7b')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1110,80 +1477,178 @@
         <section id="4-settings-json-scopes-and-precedence" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>4. settings.json scopes and precedence</span>
+            <span>4. settings.json ขอบเขตและลําดับความสําคัญ</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>settings.json scopes and precedence</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Scope</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">File</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Use it for</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">User</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">~/.claude/settings.json</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Personal preferences across every project</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Shared project</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">.claude/settings.json</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Team permissions, hooks, plugins, env vars; commit it</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Project local</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">.claude/settings.local.json</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Personal overrides for one project; kept out of git</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Managed</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">managed-settings.json and other managed sources</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Organization security and compliance policy</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  CLAUDE.md บอก Claude ว่าจะทำอย่างไร settings.json ควบคุมสิ่งที่ Claude Code อนุญาตและวิธีการกำหนดค่า: สิทธิ์, Hooks, ปลั๊กอิน, ตัวแปรสภาพแวดล้อมและแบบจำลองไฟล์การตั้งค่ามีสี่ขอบเขตเช่น CLAUDE.md แต่ขอบเขตในเครื่องทำงานแตกต่างกันใน GIT
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Scope</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Scope</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">File</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: File</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">Use it for</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Use it for</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">&quot;ผู้ใช้&quot;</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: User</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">~/.claude/settings.json</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: ~/.claude/settings.json</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การตั้งค่าส่วนบุคคลในทุกโปรเจ็กต์</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Personal preferences across every project</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Shared project</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Shared project</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">.claude/settings.json</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: .claude/settings.json</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สิทธิ์ของทีม, Hooks, ปลั๊กอิน, env vars; มอบหมาย</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Team permissions, hooks, plugins, env vars; commit it</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Project local</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Project local</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">.claude/settings.local.json</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: .claude/settings.local.json</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การแทนที่ส่วนบุคคลสำหรับหนึ่งโครงการ เก็บออกจากคอมไพล์</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Personal overrides for one project; kept out of git</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">จัดการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Managed</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">managed-settings.json และแหล่งข้อมูลที่มีการจัดการอื่นๆ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: managed-settings.json and other managed sources</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">นโยบายความปลอดภัยและการปฏิบัติตามข้อกําหนดขององค์กร</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Organization security and compliance policy</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">settings.json scopes</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ขอบเขตของ settings.json</figcaption>
                 </div>
                 
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A shared.claude/settings.json with allow and deny permission rules json { "$schema": "https://json.schemastore.org/claude-code-settings.json", "permissions": { "allow": [ "Bash(npm run lint)", "Bash(npm run test *)" ], "deny": [ "Read(./.env)", "Read(./.env.*)" ] } }
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">shared.claude/settings.json ที่มีกฎอนุญาตและปฏิเสธอนุญาต json</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A shared.claude/settings.json with allow and deny permission rules json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;$schema&quot;: &quot;https://json.schemastore.org/claude-code-settings.json&quot;,
+  &quot;permissions&quot;: {
+    &quot;allow&quot;: [
+      &quot;Bash(npm run lint)&quot;,
+      &quot;Bash(npm run test *)&quot;
+    ],
+    &quot;deny&quot;: [
+      &quot;Read(./.env)&quot;,
+      &quot;Read(./.env.*)&quot;
+    ]
+  }
+}</code></pre>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-b99432d7406f"
-             data-qid="b99432d7406f"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-b99432d7406f" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Order these sources from highest to lowest precedence for a key set in all three</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-b99432d7406f">
-            
-          </div>
-          
-          <div id="feedback-b99432d7406f" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-b99432d7406f" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">--settings จะแทนที่ผู้ใช้ โครงการ และไฟล์ในเครื่องของคุณ แต่ไม่สามารถแทนที่คีย์ที่ได้รับการจัดการได้</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: --settings overrides your user, project and local files, but it can&#x27;t override a managed key.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เมื่อตั้งค่าคีย์เดียวกันมากกว่าหนึ่งตําแหน่ง ขอบเขตที่สูงที่สุดจะเป็นผู้ชนะ ลําดับคือการตั้งค่าที่มีการจัดการ ตามด้วยอาร์กิวเมนต์บรรทัดคําสั่ง ตามด้วย project local ตามด้วย project ที่แชร์ ตามด้วย user ธง --settings ส่งผ่าน JSON สําหรับเซสชันเดียวและอยู่เหนือไฟล์ทั้งหมดของคุณ ไม่มีสิ่งใดที่คุณตั้งค่าจะแทนที่คีย์ที่มีการจัดการ Claude Code จะสร้าง.claude/settings.local.json เองเมื่อคุณให้การอนุมัติแบบสแตนด์อโลนครั้งแรกที่พร้อมท์สิทธิ์ และเก็บไว้ภายนอกการยืนยันของคุณ หากไม่สามารถแยกวิเคราะห์ ~/.claude.json ได้ การเรียกใช้ -p จะพิมพ์ข้อผิดพลาดและออก
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-b99432d7406f"
+                 data-qid="b99432d7406f"
+                 data-correct="ORDER"
+                 data-total-steps="3">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔢</span>
+                  <span>แบบฝึกหัดเรียงลำดับขั้นตอน (Step Sequencing)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-b99432d7406f" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Order (3 ขั้นตอน)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">เรียงลำดับแหล่งที่มาเหล่านี้จากลำดับความสำคัญสูงสุดไปต่ำสุดสำหรับชุดคีย์ในทั้งสามรายการ</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Order these sources from highest to lowest precedence for a key set in all three</p>
+              </div>
+
+              <!-- Interactive Step Ordering Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกขั้นตอนตามลำดับที่ถูกต้องตั้งแต่ขั้นตอนที่ 1 ถึง 3</span></span>
+                  <span id="order-counter-b99432d7406f" class="text-slate-400 font-mono">เรียงแล้ว 0/3</span>
+                </div>
+                <div class="space-y-2.5 pt-1" id="order-cards-b99432d7406f">
+                  
+                <button type="button"
+                        id="order-step-b99432d7406f-1"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('b99432d7406f', 1, 3)">
+                  <span id="order-badge-b99432d7406f-1" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">JSON ที่ส่งผ่านด้วย --settings</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: JSON passed with --settings</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-b99432d7406f-2"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('b99432d7406f', 2, 3)">
+                  <span id="order-badge-b99432d7406f-2" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">~/.claude/settings.json</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: ~/.claude/settings.json</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="order-step-b99432d7406f-0"
+                        class="order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3"
+                        onclick="handleOrderStepClick('b99432d7406f', 0, 3)">
+                  <span id="order-badge-b99432d7406f-0" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-100 block">Managed settings</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Managed settings</span>
+                  </div>
+                </button>
+                
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-b99432d7406f" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetOrderGame('b99432d7406f')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>รีเซ็ตลำดับเพื่อลองใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('b99432d7406f')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยลำดับที่ถูกต้อง
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">คลิกจัดลำดับจนครบเพื่อตรวจสอบคำตอบ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-b99432d7406f" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ ลำดับขั้นตอนที่ถูกต้อง (Correct Sequence 1 ➔ 3):</strong>
+                <div class="space-y-2">
+                  
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">Managed settings</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Managed settings</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">JSON ที่ส่งผ่านด้วย --settings</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: JSON passed with --settings</span>
+                  </div>
+                </div>
+                
+                <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed text-xs sm:text-sm">
+                    <span class="text-slate-100 font-medium block">~/.claude/settings.json</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: ~/.claude/settings.json</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 เหตุผลเบื้องหลังลำดับขั้น (Reasoning):</strong>
+                  <p class="leading-relaxed">--settings จะแทนที่ผู้ใช้ โครงการ และไฟล์ในเครื่องของคุณ แต่ไม่สามารถแทนที่คีย์ที่ได้รับการจัดการได้</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: --settings overrides your user, project and local files, but it can&#x27;t override a managed key.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
               “Claude Code applies it above your user, project, and local files and below managed settings.”
-              <br><a href="https://code.claude.com/docs/en/settings" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <br><a href="https://code.claude.com/docs/en/settings" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('b99432d7406f')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1317,6 +1782,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1337,12 +1811,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1407,7 +2144,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

@@ -1,5 +1,5 @@
 from thai_catalog_titles import get_thai_title
-from quiz_translator import clean_thai_spacing
+from quiz_translator import clean_thai_spacing, get_thai_explanation
 import os, sys, json, re, html
 from bs4 import BeautifulSoup
 
@@ -62,6 +62,19 @@ def extract_rsc(html_str):
         
     return blocks, questions
 
+# Match correct option for predict_first asides
+def find_correct_predict_option(options, explanation):
+    exp_lower = explanation.lower()
+    best_idx = 0
+    best_score = -1
+    for i, opt in enumerate(options):
+        words = set(w.lower().strip(".,?!;:\"'()") for w in opt.split() if len(w) > 3)
+        score = sum(1 for w in words if w in exp_lower)
+        if score > best_score:
+            best_score = score
+            best_idx = i
+    return best_idx
+
 # Extract single file data
 def parse_lesson_file(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
@@ -72,7 +85,7 @@ def parse_lesson_file(filepath):
     if not article: return None
     
     h1 = soup.find("h1")
-    title = clean(h1.get_text()) if h1 else ""
+    title = clean(h1.get_text(separator=" ")) if h1 else ""
     
     # meta description for subdomain
     sub_no, sub_title, domain_no = "", "", ""
@@ -87,7 +100,7 @@ def parse_lesson_file(filepath):
     meta_div = article.find("div", class_=re.compile("flex-wrap.*gap-1.5"))
     if meta_div:
         for span in meta_div.find_all("span"):
-            t = clean(span.get_text())
+            t = clean(span.get_text(separator=" "))
             if t: badges.append(t)
             
     # Objectives
@@ -121,23 +134,55 @@ def parse_lesson_file(filepath):
                 continue
             
             if child.name == "aside":
-                items.append({"type": "exam_trap", "text": clean(child.get_text(separator=" "))})
+                ol = child.find("ol")
+                if ol and ol.find("button"):
+                    # Predict first interactive challenge
+                    p_tags = child.find_all("p")
+                    prompt = clean(p_tags[1].get_text(separator=" ")) if len(p_tags) > 1 else clean(p_tags[0].get_text(separator=" "))
+                    options = [clean(b.get_text(separator=" ")) for b in ol.find_all("button")]
+                    sol_div = child.find("div", hidden=True)
+                    explanation = clean(sol_div.find("p").get_text(separator=" ")) if sol_div and sol_div.find("p") else (clean(sol_div.get_text(separator=" ")) if sol_div else "")
+                    quote = clean(child.find("blockquote").get_text(separator=" ")) if child.find("blockquote") else ""
+                    citation_url = child.find("a").get("href", "") if child.find("a") else ""
+                    correct_idx = find_correct_predict_option(options, explanation + " " + quote)
+                    
+                    items.append({
+                        "type": "predict_first",
+                        "prompt": prompt,
+                        "options": options,
+                        "explanation": explanation,
+                        "quote": quote,
+                        "citation_url": citation_url,
+                        "correct_index": correct_idx
+                    })
+                else:
+                    items.append({"type": "exam_trap", "text": clean(child.get_text(separator=" "))})
             elif child.name == "figure":
                 table = child.find("table")
+                pre = child.find("pre")
+                cap = child.find("figcaption")
                 if table:
                     headers = [clean(th.get_text(separator=" ")) for th in table.find_all("th")]
                     rows = [[clean(td.get_text(separator=" ")) for td in tr.find_all("td")] for tr in table.find_all("tr") if tr.find_all("td")]
-                    cap = child.find("figcaption")
                     items.append({
                         "type": "table",
                         "caption": clean(cap.get_text(separator=" ")) if cap else "",
                         "headers": headers,
                         "rows": rows
                     })
+                elif pre:
+                    # Keep code formatting and newlines intact!
+                    code_text = pre.get_text()
+                    caption_text = clean(cap.get_text(separator=" ")) if cap else ""
+                    items.append({
+                        "type": "code",
+                        "caption": caption_text,
+                        "text": code_text
+                    })
                 else:
                     items.append({"type": "figure_text", "text": clean(child.get_text(separator=" "))})
             elif child.name == "pre":
-                items.append({"type": "code", "text": child.get_text()})
+                items.append({"type": "code", "caption": "", "text": child.get_text()})
             elif child.name == "p":
                 t = clean(child.get_text(separator=" "))
                 if not re.match(r"^Sources\s*\d+", t):

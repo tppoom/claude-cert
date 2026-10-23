@@ -1,5 +1,4 @@
 import os, sys, json, re, time, urllib.request, urllib.parse
-from concurrent.futures import ThreadPoolExecutor
 
 CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "raw_data", "quiz_thai_cache.json")
 os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
@@ -20,12 +19,34 @@ def load_cache():
 
 load_cache()
 
+TERM_REPLACEMENTS = [
+    (r"\bเจ้าหน้าที่\s*SDK\b", "Agent SDK"),
+    (r"\bตัวแทน\s*SDK\b", "Agent SDK"),
+    (r"\bSDK\s*ของลูกค้า\b", "Client SDK"),
+    (r"\bSDK\s*ของไคลเอ็นต์\b", "Client SDK"),
+    (r"\bSDK\s*ของไคลเอนต์\b", "Client SDK"),
+    (r"\bเครื่องมือวิ่ง\b", "Tool Runner"),
+    (r"\bนักดนตรีประสานเสียง\b", "Orchestrator"),
+    (r"\bผู้เรียบเรียง\b", "Orchestrator"),
+    (r"\bตัวแทนที่มีการจัดการ\b", "Managed Agents"),
+    (r"\bตัวแทนหลัก\b", "Lead Agent"),
+    (r"\bตัวแทนย่อย\b", "Subagent"),
+    (r"\bเจ้าหน้าที่ย่อย\b", "Subagent"),
+    (r"\bตะขอ\b", "Hooks"),
+    (r"\bเปลือกหอย\b", "Shell"),
+    (r"\bกระแสการควบคุม\b", "Control Flow"),
+]
+
 def clean_thai_spacing(text):
     if not text:
         return ""
     # Remove HTML entities like &quot; if any
-    text = text.replace("&quot;", '"').replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+    text = text.replace("&quot;", '"').replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&#39;", "'")
     
+    # Clean inaccurate literal translations
+    for pat, rep in TERM_REPLACEMENTS:
+        text = re.sub(pat, rep, text, flags=re.IGNORECASE)
+
     # Clean jammed English labels from extraction
     text = re.sub(r'Exam traps?\s*', 'Exam Trap: ', text)
     text = re.sub(r'Predict first\s*', 'Predict First: ', text)
@@ -41,24 +62,37 @@ def clean_thai_spacing(text):
     text = re.sub(r'\)([\u0e00-\u0e7f])', r') \1', text)
     text = re.sub(r'\(\s+', '(', text)
     text = re.sub(r'\s+\)', ')', text)
+
+    # Quotes spacing
+    text = re.sub(r'“\s+', '“', text)
+    text = re.sub(r'\s+”', '”', text)
     
     # Punctuation spacing (no space before colon, comma, period, question mark)
     text = re.sub(r'\s+([,.:;?!])', r'\1', text)
+    text = re.sub(r'([,;:?!])([\u0e00-\u0e7f])', r'\1 \2', text)
     
     # Collapse multiple whitespaces
     text = re.sub(r'[ \t]{2,}', ' ', text)
     return text.strip()
 
+import translators as ts
+
 def trans_one(text):
     if not text:
         return ""
     text_clean = text.strip()
+    
+    # Check cache, verify it actually contains Thai characters
     if text_clean in _cache:
-        return _cache[text_clean]
+        val = _cache[text_clean]
+        if len(re.findall(r'[\u0e00-\u0e7f]', val)) > 0 or len(text_clean) <= 3:
+            return val
     
     norm_k = re.sub(r'[^a-zA-Z0-9]+', '', text_clean.lower())
     if norm_k in _norm_cache:
-        return _norm_cache[norm_k]
+        val = _norm_cache[norm_k]
+        if len(re.findall(r'[\u0e00-\u0e7f]', val)) > 0 or len(text_clean) <= 3:
+            return val
     
     # If text is already predominantly Thai
     thai_chars = len(re.findall(r'[\u0e00-\u0e7f]', text_clean))
@@ -68,24 +102,32 @@ def trans_one(text):
         _norm_cache[norm_k] = res
         return res
 
-    url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=th&dt=t&q=' + urllib.parse.quote(text_clean)
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    # 1. Translate using Caiyun
     try:
-        with urllib.request.urlopen(req, timeout=3) as res:
-            data = json.loads(res.read().decode())
-            translated = ''.join([part[0] for part in data[0] if part[0]])
+        translated = ts.translate_text(text_clean, translator="caiyun", to_language="th")
+        if translated and len(re.findall(r'[\u0e00-\u0e7f]', translated)) > 0:
+            if not re.match(r'^[a-z0-9]{15,}$', translated.strip()):
+                cleaned = clean_thai_spacing(translated)
+                _cache[text_clean] = cleaned
+                _norm_cache[norm_k] = cleaned
+                return cleaned
+    except Exception:
+        pass
+
+    # 2. Fallback to MyMemory
+    try:
+        from deep_translator import MyMemoryTranslator
+        translated = MyMemoryTranslator(source="english", target="thai").translate(text_clean)
+        if translated and len(re.findall(r'[\u0e00-\u0e7f]', translated)) > 0:
             cleaned = clean_thai_spacing(translated)
             _cache[text_clean] = cleaned
             _norm_cache[norm_k] = cleaned
             return cleaned
     except Exception:
         pass
-            
-    # Fallback if network fails or times out
-    fallback = clean_thai_spacing(text_clean)
-    _cache[text_clean] = fallback
-    _norm_cache[norm_k] = fallback
-    return fallback
+
+    # Fallback (Do NOT store untranslated text in cache so it can be retried)
+    return clean_thai_spacing(text_clean)
 
 def save_cache():
     try:

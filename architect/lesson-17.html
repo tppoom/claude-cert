@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -594,7 +601,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-shared-service-identity-versus-acting-on-behalf-of-each-user" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Shared service identity versus acting on behalf of each user</span></a></li><li><a href="#2-keeping-credentials-outside-the-agent-s-boundary" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Keeping credentials outside the agent's boundary</span></a></li><li><a href="#3-which-permission-layer-actually-decides-a-tool-call" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Which permission layer actually decides a tool call</span></a></li>
+        <li><a href="#1-shared-service-identity-versus-acting-on-behalf-of-each-user" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Shared service identity versus acting on behalf of each user</span></a></li><li><a href="#2-keeping-credentials-outside-the-agent-s-boundary" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. การเก็บข้อมูลประจําตัวภายนอกขอบเขตของเอเจนต์</span></a></li><li><a href="#3-which-permission-layer-actually-decides-a-tool-call" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Which permission layer actually decides a tool call</span></a></li>
       </ul>
     </nav>
     
@@ -605,203 +612,262 @@
             <span>1. Shared service identity versus acting on behalf of each user</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Shared service identity versus acting on behalf of each user</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Attaching one end user's vault to a session python session = client.beta.sessions.create(agent=agent.id, environment_id=environment.id, vault_ids=[vault.id], title= "Alice's Slack digest",)
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Every tool call an agent makes runs under some identity. Often that identity is a single service credential that all users share. Two gaps follow from that choice. Each user gets whatever that credential can reach, not what they personally are allowed to reach. And downstream audit logs show one service account, so nobody can tell which end user caused an action. The safer design is for the agent to act as each user, holding a token issued to that user.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Claude Managed Agents สร้างโมเดลนี้ให้เป็นห้องนิรภัย ห้องนิรภัยคือการรวบรวมข้อมูลประจำตัวสำหรับผู้ใช้ปลายทางรายเดียว คุณลงทะเบียนเพียงครั้งเดียวและส่ง ID ของมันเมื่อคุณสร้างเซสชัน ดังนั้นคำจำกัดความของตัวแทนจะยังคงถูกแชร์ในขณะที่ข้อมูลประจำตัวเปลี่ยนแปลงต่อเซสชัน ข้อมูลรับรอง MCP (mcp_oauth, static_bearer) จะถูกคีย์โดย mcp_server_url และฉีดโดยอัตโนมัติเมื่อตัวแทนเชื่อมต่อกับเซิร์ฟเวอร์นั้น สำหรับ mcp_oauth นั้น Anthropic จะรีเฟรชโทเค็นการเข้าถึงในนามของคุณ หากคุณระบุบล็อกการรีเฟรช ค่าข้อมูลรับรองเป็นแบบเขียนอย่างเดียวและ API จะไม่ส่งคืน ใน Claude Code การกำหนดค่า MCP ที่มีการจัดการรองรับรูปแบบเดียวกัน: OAuth หรือส่วนหัวต่อผู้ใช้ อนุญาตให้ผู้ใช้แต่ละรายตรวจสอบสิทธิ์ด้วยตนเอง
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Attaching one end user&#x27;s vault to a session</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Attaching one end user&#x27;s vault to a session</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>session = client.beta.sessions.create(
+    agent=agent.id,
+    environment_id=environment.id,
+    vault_ids=[vault.id],
+    title=&quot;Alice&#x27;s Slack digest&quot;,
+)</code></pre>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-e2c93f26df10"
-             data-qid="e2c93f26df10"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-e2c93f26df10" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">One agent definition is shared by all users. Which session parameter makes this session&#x27;s MCP calls run with Alice&#x27;s own credentials instead of a shared service identity?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-e2c93f26df10">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-e2c93f26df10-A"
-                    data-qid="e2c93f26df10"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('e2c93f26df10', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">vault_ids</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-e2c93f26df10-B"
-                    data-qid="e2c93f26df10"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('e2c93f26df10', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">credential_ids</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-e2c93f26df10-C"
-                    data-qid="e2c93f26df10"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('e2c93f26df10', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">mcp_servers</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-e2c93f26df10-D"
-                    data-qid="e2c93f26df10"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('e2c93f26df10', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">secrets</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-e2c93f26df10" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-e2c93f26df10" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ข้อมูลประจำตัวของผู้ใช้แต่ละรายอยู่ในห้องนิรภัย คุณแนบ vault ต่อเซสชันโดยการส่ง vault_ids ดังนั้นคำจำกัดความของเอเจนต์จะยังคงถูกแบ่งใช้ในขณะที่ข้อมูลประจำตัวเปลี่ยนแปลงสำหรับผู้ใช้แต่ละราย</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Each end user&#x27;s credentials live in a vault. You attach the vault per session by passing vault_ids, so the agent definition stays shared while the credentials change for each user.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  กฎรันไทม์สามกฎจะตัดสินว่าการโทรใช้ข้อมูลประจำตัวของใคร และแต่ละกฎสามารถเปิดช่องว่างได้หากคุณมองข้าม:
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  - If no credential matches the server URL, the connection is attempted unauthenticated. It fails only if the server requires authentication, so a server that allows anonymous access will quietly serve anonymous data. - If several vaults hold a matching credential, the first vault with a match wins. Passing a shared vault ahead of a user&#x27;s vault makes every call run as the shared identity. - In multiagent sessions, vault credentials apply to every thread. Every subagent whose definition declares that server acts as the same user.
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-e2c93f26df10"
+                 data-qid="e2c93f26df10"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-e2c93f26df10" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('e2c93f26df10')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-79dec7d8a4ae"
-             data-qid="79dec7d8a4ae"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-79dec7d8a4ae" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A session is created with vault_ids=[team_shared_vault.id, alice_vault.id]. Both vaults hold an mcp_oauth credential for https://mcp.slack.com/mcp. Whose identity do the agent&#x27;s Slack MCP calls use?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-79dec7d8a4ae">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-79dec7d8a4ae-A"
-                    data-qid="79dec7d8a4ae"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('79dec7d8a4ae', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Alice&#x27;s, because a user&#x27;s own vault always takes precedence over a shared one</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-79dec7d8a4ae-B"
-                    data-qid="79dec7d8a4ae"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('79dec7d8a4ae', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The shared team identity, because the first vault with a matching credential wins</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-79dec7d8a4ae-C"
-                    data-qid="79dec7d8a4ae"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('79dec7d8a4ae', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Both: the credentials are merged, so the agent gets the union of their permissions</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-79dec7d8a4ae-D"
-                    data-qid="79dec7d8a4ae"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('79dec7d8a4ae', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Neither: the matching credentials conflict, so the connection is attempted unauthenticated</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-79dec7d8a4ae" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-79dec7d8a4ae" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ลำดับห้องนิรภัยจะตัดสินว่าจะใช้ข้อมูลรับรองใด: ห้องนิรภัยแรกที่มีการแข่งขันชนะ การวางห้องนิรภัยที่ใช้ร่วมกันไว้ข้างหน้าห้องนิรภัยของผู้ใช้จะทำให้ทุกการโทรทำงานตามข้อมูลระบุตัวตนที่แชร์ ซึ่งนำช่องว่างทั้งสองกลับมา: ผู้ใช้ได้รับสิทธิ์การเข้าถึงข้อมูลรับรองที่ใช้ร่วมกัน และบันทึกการตรวจสอบไม่สามารถบอกได้ว่าผู้ใช้คนไหนทำอะไร</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Vault order decides which credential is used: the first vault with a match wins. Putting a shared vault ahead of the user&#x27;s vault makes every call run as the shared identity. That brings back both gaps: users get the shared credential&#x27;s access, and the audit logs can&#x27;t tell which user did what.</div>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">คำจำกัดความเอเจนต์หนึ่งรายการถูกใช้ร่วมกันโดยผู้ใช้ทั้งหมด พารามิเตอร์เซสชันใดที่ทำให้การเรียก MCP ของเซสชันนี้ทำงานด้วยข้อมูลประจำตัวของ Alice แทนที่จะเป็นข้อมูลระบุตัวตนของบริการที่ใช้ร่วมกัน</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: One agent definition is shared by all users. Which session parameter makes this session&#x27;s MCP calls run with Alice&#x27;s own credentials instead of a shared service identity?</p>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “When multiple vaults contain a matching credential, the first vault with a match wins.”
-              <br><a href="https://platform.claude.com/docs/en/managed-agents/vaults" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>session = client.beta.sessions.create(
+    agent=agent.id,
+    environment_id=environment.id,
+    ____=[vault.id],
+    title=&quot;Alice&#x27;s Slack digest&quot;,
+)</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-e2c93f26df10">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-e2c93f26df10-A"
+                        data-qid="e2c93f26df10"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('e2c93f26df10', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">vault_ids</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: vault_ids</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-e2c93f26df10-B"
+                        data-qid="e2c93f26df10"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('e2c93f26df10', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">credential_ids</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: credential_ids</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-e2c93f26df10-C"
+                        data-qid="e2c93f26df10"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('e2c93f26df10', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">mcpServers</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: mcp_servers</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-e2c93f26df10-D"
+                        data-qid="e2c93f26df10"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('e2c93f26df10', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">secrets</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: secrets</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-e2c93f26df10" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-e2c93f26df10" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ข้อมูลประจำตัวของผู้ใช้แต่ละรายอยู่ในห้องนิรภัย คุณแนบ vault ต่อเซสชันโดยการส่ง vault_ids ดังนั้นคำจำกัดความของเอเจนต์จะยังคงถูกแบ่งใช้ในขณะที่ข้อมูลประจำตัวเปลี่ยนแปลงสำหรับผู้ใช้แต่ละราย</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Each end user&#x27;s credentials live in a vault. You attach the vault per session by passing vault_ids, so the agent definition stays shared while the credentials change for each user.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('e2c93f26df10')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
             
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-79dec7d8a4ae"
+                 data-qid="79dec7d8a4ae"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-79dec7d8a4ae" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
+              
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">เซสชันถูกสร้างขึ้นด้วย vault_ids=[team_shared_vault.id, alice_vault.id] ห้องนิรภัยทั้งสองมีข้อมูลรับรอง mcp_oauth สำหรับ https://mcp.slack.com/mcp การเรียก Slack MCP ของตัวแทนใช้ข้อมูลระบุตัวตนของใคร</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A session is created with vault_ids=[team_shared_vault.id, alice_vault.id]. Both vaults hold an mcp_oauth credential for https://mcp.slack.com/mcp. Whose identity do the agent&#x27;s Slack MCP calls use?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-79dec7d8a4ae">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-79dec7d8a4ae-A"
+                        data-qid="79dec7d8a4ae"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('79dec7d8a4ae', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Alice&#x27;s, because a user&#x27;s own vault always takes precedence over a shared one</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Alice&#x27;s, because a user&#x27;s own vault always takes precedence over a shared one</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-79dec7d8a4ae-B"
+                        data-qid="79dec7d8a4ae"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('79dec7d8a4ae', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The shared team identity, because the first vault with a matching credential wins</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The shared team identity, because the first vault with a matching credential wins</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-79dec7d8a4ae-C"
+                        data-qid="79dec7d8a4ae"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('79dec7d8a4ae', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Both: the credentials are merged, so the agent gets the union of their permissions</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Both: the credentials are merged, so the agent gets the union of their permissions</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-79dec7d8a4ae-D"
+                        data-qid="79dec7d8a4ae"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('79dec7d8a4ae', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Neither: the matching credentials conflict, so the connection is attempted unauthenticated</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Neither: the matching credentials conflict, so the connection is attempted unauthenticated</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-79dec7d8a4ae" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-79dec7d8a4ae" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ลำดับห้องนิรภัยจะตัดสินว่าจะใช้ข้อมูลรับรองใด: ห้องนิรภัยแรกที่มีการแข่งขันชนะ การวางห้องนิรภัยที่ใช้ร่วมกันไว้ข้างหน้าห้องนิรภัยของผู้ใช้จะทำให้ทุกการโทรทำงานตามข้อมูลระบุตัวตนที่แชร์ ซึ่งนำช่องว่างทั้งสองกลับมา: ผู้ใช้ได้รับสิทธิ์การเข้าถึงข้อมูลรับรองที่ใช้ร่วมกัน และบันทึกการตรวจสอบไม่สามารถบอกได้ว่าผู้ใช้คนไหนทำอะไร</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Vault order decides which credential is used: the first vault with a match wins. Putting a shared vault ahead of the user&#x27;s vault makes every call run as the shared identity. That brings back both gaps: users get the shared credential&#x27;s access, and the audit logs can&#x27;t tell which user did what.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “เมื่อ Vault หลาย Vault มีข้อมูลประจําตัวที่ตรงกัน Vault แรกที่มีข้อมูลตรงกันจะชนะ”
+              <br><a href="https://platform.claude.com/docs/en/managed-agents/vaults" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('79dec7d8a4ae')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('79dec7d8a4ae')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
+            </div>
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -821,17 +887,26 @@
         <section id="2-keeping-credentials-outside-the-agent-s-boundary" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Keeping credentials outside the agent's boundary</span>
+            <span>2. การเก็บข้อมูลประจําตัวภายนอกขอบเขตของเอเจนต์</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Keeping credentials outside the agent's boundary</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  An agent that reads untrusted content can be prompt-injected. If it holds a secret, an injected instruction can try to send that secret somewhere. The robust fix is to make sure the agent never has the secret. Vault environment-variable credentials work this way. The sandbox holds only an opaque placeholder, which is swapped for the real value at egress, so the agent never sees the secret value. Setting injection_location to header-only narrows this further. Request bodies are often built from content the agent is working with, so the body is the larger exposure surface.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Substitution only applies to requests going out. If a client uses the stored secret to fetch a session token, for example through an OAuth client-credentials grant, the returned token arrives in the sandbox unredacted. For exchange-based flows, perform the exchange yourself and store the resulting token in the vault.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การปรับใช้ Agent SDK ที่โฮสต์ด้วยตนเองได้รับคุณสมบัติเดียวกันจากพร็อกซีภายนอกคอนเทนเนอร์ของตัวแทน รันคอนเทนเนอร์ด้วย --network none ซึ่งจะลบทุกอินเทอร์เฟซเครือข่าย และติดตั้งซ็อกเก็ต Unix ที่เชื่อมต่อกับพร็อกซีบนโฮสต์ พร็อกซีแทรกข้อมูลรับรอง บังคับใช้รายการปลายทางที่อนุญาต และบันทึกทุกคำขอ เอเจนต์มองเห็นเฉพาะอินเทอร์เฟซของเครื่องมือเท่านั้น คำขอที่แทรกพร้อมท์ไปยังโดเมนของผู้โจมตีนั้นไม่มีเส้นทางเครือข่ายยกเว้นผ่านทางพร็อกซีที่ปฏิเสธ
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Two details decide whether the proxy actually works. First, injecting a credential into HTTPS traffic means the proxy has to read the request, so it must terminate TLS, for example with mitmproxy. The proxy&#x27;s CA certificate then goes into the agent&#x27;s trust store. A plain forward proxy only relays the encrypted tunnel and can neither inspect nor inject. Second, setting HTTP_PROXY / HTTPS_PROXY on its own is not a boundary, because not every tool reads those variables: plain ssh and most database drivers ignore them. Removing the network interface enforces the boundary whatever the tool does. Give the agent&#x27;s service account minimal IAM permissions, not broad ones, and route sensitive access through the proxy where possible.
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
@@ -854,101 +929,116 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-118e5097fb18"
-             data-qid="118e5097fb18"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-118e5097fb18" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Your agent reads untrusted web content. It holds a client secret as a vault environment_variable credential, and inside the sandbox it runs an OAuth client-credentials grant to get an API access token. A reviewer flags this as a gap. Why, and what is the fix?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-118e5097fb18">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-118e5097fb18-A"
-                    data-qid="118e5097fb18"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('118e5097fb18', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">There is no gap: vault substitution keeps every credential derived from the secret out of the sandbox, so the access token is redacted as well</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-118e5097fb18-B"
-                    data-qid="118e5097fb18"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('118e5097fb18', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The access token returned by the exchange reaches the sandbox unredacted, so do the exchange outside the agent and store the resulting token in the vault</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-118e5097fb18-C"
-                    data-qid="118e5097fb18"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('118e5097fb18', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The client secret travels in the request body, so set injection_location to header-only and the returned token will also stay hidden</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-118e5097fb18-D"
-                    data-qid="118e5097fb18"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('118e5097fb18', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The placeholder cannot be exchanged for a token, so put the real client secret directly in the sandbox environment instead</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-118e5097fb18" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-118e5097fb18" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">การทดแทนตัวยึดตำแหน่งใช้กับคำขอขาออกเท่านั้น โทเค็นที่กลับมาจากการแลกเปลี่ยนจะเข้าสู่แซนด์บ็อกซ์เป็นมูลค่าจริง ซึ่งคำสั่งที่แทรกพร้อมท์สามารถส่งออกออกไปได้ การแลกเปลี่ยนด้วยตัวเองและจัดเก็บโทเค็นไว้ในตู้นิรภัยจะทำให้โทเค็นอยู่นอกขอบเขตของตัวแทน</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Placeholder substitution only applies to outbound requests. A token that comes back from an exchange lands in the sandbox as a real value, where a prompt-injected instruction could send it out. Doing the exchange yourself and storing the token in the vault keeps it outside the agent&#x27;s boundary.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-118e5097fb18"
+                 data-qid="118e5097fb18"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-118e5097fb18" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “the returned token arrives in the sandbox unredacted. For exchange-based flows, perform the exchange yourself and store the resulting token in the vault instead.”
-              <br><a href="https://platform.claude.com/docs/en/managed-agents/vaults" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ตัวแทนของคุณอ่านเนื้อหาเว็บที่ไม่น่าเชื่อถือ โดยจะเก็บความลับของไคลเอ็นต์ไว้เป็นข้อมูลรับรองสภาพแวดล้อม vault_variable และภายในแซนด์บ็อกซ์ จะเรียกใช้การให้สิทธิ์ข้อมูลรับรองไคลเอ็นต์ OAuth เพื่อรับโทเค็นการเข้าถึง API ผู้ตรวจสอบทำเครื่องหมายว่าเป็นช่องว่าง เพราะเหตุใด และมีวิธีแก้ไขอย่างไร?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Your agent reads untrusted web content. It holds a client secret as a vault environment_variable credential, and inside the sandbox it runs an OAuth client-credentials grant to get an API access token. A reviewer flags this as a gap. Why, and what is the fix?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-118e5097fb18">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-118e5097fb18-A"
+                        data-qid="118e5097fb18"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('118e5097fb18', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ไม่มีช่องว่าง: การแทนที่ Vault จะเก็บข้อมูลประจําตัวทั้งหมดที่มาจากความลับออกจาก Sandbox ดังนั้นโทเค็นการเข้าถึงจะถูกแก้ไขด้วย</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: There is no gap: vault substitution keeps every credential derived from the secret out of the sandbox, so the access token is redacted as well</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-118e5097fb18-B"
+                        data-qid="118e5097fb18"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('118e5097fb18', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">โทเค็นการเข้าถึงที่ส่งคืนโดยการแลกเปลี่ยนไปถึง Sandbox โดยไม่ได้รับการแก้ไขดังนั้นการแลกเปลี่ยนนอกตัวแทนและเก็บโทเค็นที่เป็นผลลัพธ์ไว้ในตู้นิรภัย</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The access token returned by the exchange reaches the sandbox unredacted, so do the exchange outside the agent and store the resulting token in the vault</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-118e5097fb18-C"
+                        data-qid="118e5097fb18"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('118e5097fb18', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ความลับของลูกค้าเดินทางในเนื้อหาคำขอดังนั้นตั้งค่า INJECTION_LOCATION เป็น HEADER ONLY และโทเค็นที่ส่งคืนจะยังคงซ่อนอยู่</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The client secret travels in the request body, so set injection_location to header-only and the returned token will also stay hidden</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-118e5097fb18-D"
+                        data-qid="118e5097fb18"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('118e5097fb18', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">The placeholder cannot be exchanged for a token, so put the real client secret directly in the sandbox environment instead</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The placeholder cannot be exchanged for a token, so put the real client secret directly in the sandbox environment instead</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-118e5097fb18" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-118e5097fb18" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การทดแทนตัวยึดตำแหน่งใช้กับคำขอขาออกเท่านั้น โทเค็นที่กลับมาจากการแลกเปลี่ยนจะเข้าสู่แซนด์บ็อกซ์เป็นมูลค่าจริง ซึ่งคำสั่งที่แทรกพร้อมท์สามารถส่งออกออกไปได้ การแลกเปลี่ยนด้วยตัวเองและจัดเก็บโทเค็นไว้ในตู้นิรภัยจะทำให้โทเค็นอยู่นอกขอบเขตของตัวแทน</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Placeholder substitution only applies to outbound requests. A token that comes back from an exchange lands in the sandbox as a real value, where a prompt-injected instruction could send it out. Doing the exchange yourself and storing the token in the vault keeps it outside the agent&#x27;s boundary.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “โทเค็นที่ส่งคืนจะมาถึงในแซนด์บ็อกซ์โดยไม่มีการแก้ไข สําหรับโฟลว์ที่อิงตามการแลกเปลี่ยน ให้ดําเนินการแลกเปลี่ยนด้วยตัวเองและจัดเก็บโทเค็นที่ได้รับใน Vault แทน”
+              <br><a href="https://platform.claude.com/docs/en/managed-agents/vaults" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('118e5097fb18')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('118e5097fb18')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-56771"
              data-qid="56771"
@@ -964,8 +1054,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A security architect is designing an Agent SDK deployment that will process untrusted third-party documents and must prevent credential exfiltration even if a prompt injection convinces the agent to try to send data to an attacker-controlled endpoint. Which combination of controls together address this threat, given that TLS-encrypted traffic through a plain forward proxy cannot be inspected or have credentials injected into it? (Select 3)</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">สถาปนิกด้านความปลอดภัยกำลังออกแบบการปรับใช้ Agent SDK ที่จะประมวลผลเอกสารของบุคคลที่สามที่ไม่น่าเชื่อถือ และต้องป้องกันการขโมยข้อมูลประจำตัว แม้ว่าการแทรกพร้อมท์จะโน้มน้าวให้ตัวแทนพยายามส่งข้อมูลไปยังจุดสิ้นสุดที่ผู้โจมตีควบคุมก็ตาม การรวมกันของการควบคุมใดร่วมกันจัดการกับภัยคุกคามนี้ เนื่องจากการรับส่งข้อมูลที่เข้ารหัส TLS ผ่านพร็อกซีการส่งต่อแบบธรรมดาไม่สามารถตรวจสอบได้หรือมีการแทรกข้อมูลประจำตัวลงไป (เลือก 3)</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A security architect is designing an Agent SDK deployment that will process untrusted third-party documents and must prevent credential exfiltration even if a prompt injection convinces the agent to try to send data to an attacker-controlled endpoint. Which combination of controls together address this threat, given that TLS-encrypted traffic through a plain forward proxy cannot be inspected or have credentials injected into it? (Select 3)</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-56771">
@@ -977,7 +1068,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('56771', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Run the agent in a container with --network none and route all outbound calls through a Unix socket to a proxy on the host, so the agent has no direct network interface at all</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Run the agent in a container with --network none and route all outbound calls through a Unix socket to a proxy on the host, so the agent has no direct network interface at all</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Run the agent in a container with --network none and route all outbound calls through a Unix socket to a proxy on the host, so the agent has no direct network interface at all</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -988,7 +1082,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('56771', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Keep credentials outside the agent&#x27;s security boundary entirely, injecting them at a proxy so the agent only ever sends requests without the underlying secret</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Keep credentials outside the agent&#x27;s security boundary entirely, injecting them at a proxy so the agent only ever sends requests without the underlying secret</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Keep credentials outside the agent&#x27;s security boundary entirely, injecting them at a proxy so the agent only ever sends requests without the underlying secret</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -999,7 +1096,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('56771', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Deploy a TLS-terminating proxy with its CA certificate trusted in the agent&#x27;s environment so encrypted HTTPS traffic can be inspected and have credentials injected before re-encryption</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Deploy a TLS-terminating proxy with its CA certificate trusted in the agent&#x27;s environment so encrypted HTTPS traffic can be inspected and have credentials injected before re-encryption</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Deploy a TLS-terminating proxy with its CA certificate trusted in the agent&#x27;s environment so encrypted HTTPS traffic can be inspected and have credentials injected before re-encryption</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1010,7 +1110,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('56771', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set HTTP_PROXY and HTTPS_PROXY environment variables alone, since every tool the agent might invoke respects these variables and a standard forward proxy can inject credentials into an encrypted tunnel</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Set HTTP_PROXY and HTTPS_PROXY environment variables alone, since every tool the agent might invoke respects these variables and a standard forward proxy can inject credentials into an encrypted tunnel</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set HTTP_PROXY and HTTPS_PROXY environment variables alone, since every tool the agent might invoke respects these variables and a standard forward proxy can inject credentials into an encrypted tunnel</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1021,7 +1124,10 @@
                     data-opt="E"
                     onclick="handleQuizAnswer('56771', 'E')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">E</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Grant the agent process broad IAM permissions directly so it can reach any downstream service on its own, without depending on any proxy being available or reachable</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ให้สิทธิ์อนุญาต IAM แบบกว้างแก่กระบวนการเอเจนต์โดยตรงเพื่อให้สามารถเข้าถึงบริการดาวน์สตรีมใดๆ ได้ด้วยตัวเอง โดยไม่ต้องพึ่งพาพร็อกซีใดๆ ที่มีอยู่หรือเข้าถึงได้</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Grant the agent process broad IAM permissions directly so it can reach any downstream service on its own, without depending on any proxy being available or reachable</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1032,7 +1138,10 @@
                     data-opt="5"
                     onclick="handleQuizAnswer('56771', '5')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">5</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Rely on the model&#x27;s built-in judgment to avoid contacting suspicious domains instead of enforcing any network-level boundary that would hold regardless of the model&#x27;s own decisions</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Rely on the model&#x27;s built-in judgment to avoid contacting suspicious domains instead of enforcing any network-level boundary that would hold regardless of the model&#x27;s own decisions</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Rely on the model&#x27;s built-in judgment to avoid contacting suspicious domains instead of enforcing any network-level boundary that would hold regardless of the model&#x27;s own decisions</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1054,7 +1163,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การลบเนมสเปซเครือข่ายและบังคับให้การรับส่งข้อมูลทั้งหมดผ่านซ็อกเก็ต Unix ไปยังพร็อกซีฝั่งโฮสต์หมายความว่าเอเจนต์ไม่มีเส้นทางไปยังปลายทางที่กำหนดโดยตรง ซึ่งเป็นสถาปัตยกรรมที่แนะนำสำหรับการป้องกันจากการกรองที่ขับเคลื่อนด้วยการฉีดพร้อมท์</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. การลบเนมสเปซเครือข่ายและบังคับให้การรับส่งข้อมูลทั้งหมดผ่านซ็อกเก็ต Unix ไปยังพร็อกซีฝั่งโฮสต์หมายความว่าเอเจนต์ไม่มีเส้นทางไปยังปลายทางที่กำหนดโดยตรง ซึ่งเป็นสถาปัตยกรรมที่แนะนำสำหรับการป้องกันจากการกรองที่ขับเคลื่อนด้วยการฉีดพร้อมท์</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Removing the network namespace and forcing all traffic through a Unix socket to a host-side proxy means the agent has no path to reach arbitrary destinations directly, which is the architecture recommended for defense against prompt-injection-driven exfiltration.</div>
             </div>
             
@@ -1063,7 +1172,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. รูปแบบพร็อกซีจะเก็บข้อมูลประจำตัวจริงไว้นอกขอบเขตความน่าเชื่อถือของตัวแทน เจ้าหน้าที่สามารถโทรออกได้แต่ไม่เคยเห็นความลับ ดังนั้นแม้แต่กระบวนการของเจ้าหน้าที่ที่ถูกบุกรุกโดยสมบูรณ์ก็ไม่สามารถทำให้ข้อมูลประจำตัวรั่วไหลได้</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. รูปแบบพร็อกซีจะเก็บข้อมูลประจำตัวจริงไว้นอกขอบเขตความน่าเชื่อถือของตัวแทน เจ้าหน้าที่สามารถโทรออกได้แต่ไม่เคยเห็นความลับ ดังนั้นแม้แต่กระบวนการของเจ้าหน้าที่ที่ถูกบุกรุกโดยสมบูรณ์ก็ไม่สามารถทำให้ข้อมูลประจำตัวรั่วไหลได้</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. The proxy pattern keeps the actual credential outside the agent&#x27;s trust boundary; the agent can make calls but never sees the secret, so even a fully compromised agent process can&#x27;t leak the credential itself.</div>
             </div>
             
@@ -1072,7 +1181,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. Plain Forward Proxy มองเห็นเฉพาะอุโมงค์ CONNECT แบบทึบสำหรับ HTTPS และไม่สามารถแก้ไขหรือตรวจสอบเนื้อหาได้ การแทรกข้อมูลรับรองลงในบริการ HTTPS ที่กำหนดเองจำเป็นต้องยกเลิก TLS ที่พร็อกซี และให้ตัวแทนเชื่อถือใบรับรองของตน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. Plain Forward Proxy มองเห็นเฉพาะอุโมงค์ CONNECT แบบทึบสำหรับ HTTPS และไม่สามารถแก้ไขหรือตรวจสอบเนื้อหาได้ การแทรกข้อมูลรับรองลงในบริการ HTTPS ที่กำหนดเองจำเป็นต้องยกเลิก TLS ที่พร็อกซี และให้ตัวแทนเชื่อถือใบรับรองของตน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. A plain forward proxy only sees an opaque CONNECT tunnel for HTTPS and cannot modify or inspect its contents; injecting credentials into arbitrary HTTPS services requires terminating TLS at the proxy and having the agent trust its certificate.</div>
             </div>
             
@@ -1081,7 +1190,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ใช่ทุกเครื่องมือที่จะเคารพ HTTP_PROXY/HTTPS_PROXY และแม้ว่าจะทำเช่นนั้นก็ตาม พร็อกซีการส่งต่อมาตรฐานก็ไม่สามารถมองเห็นหรือแก้ไขเนื้อหา HTTPS โดยไม่ยกเลิก TLS ได้ ดังนั้นจึงไม่สามารถแทรกข้อมูลรับรองลงในอุโมงค์ที่เข้ารหัสได้ด้วยตัวเอง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ใช่ทุกเครื่องมือที่จะเคารพ HTTP_PROXY/HTTPS_PROXY และแม้ว่าจะทำเช่นนั้นก็ตาม พร็อกซีการส่งต่อมาตรฐานก็ไม่สามารถมองเห็นหรือแก้ไขเนื้อหา HTTPS โดยไม่ยกเลิก TLS ได้ ดังนั้นจึงไม่สามารถแทรกข้อมูลรับรองลงในอุโมงค์ที่เข้ารหัสได้ด้วยตัวเอง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Not every tool respects HTTP_PROXY/HTTPS_PROXY, and even when they do, a standard forward proxy cannot see or modify HTTPS contents without terminating TLS, so it cannot inject credentials into an encrypted tunnel on its own.</div>
             </div>
             
@@ -1090,7 +1199,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก E:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">การให้สิทธิ์ IAM แบบกว้างๆ แก่กระบวนการตัวแทนโดยตรงนั้นตรงกันข้ามกับสิทธิ์ขั้นต่ำ และเพิ่มรัศมีการระเบิดของการฉีดพร้อมท์แทนที่จะบรรเทาลง</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">การให้สิทธิ์ IAM แบบกว้างๆ แก่กระบวนการตัวแทนโดยตรงนั้นตรงกันข้ามกับสิทธิ์ขั้นต่ำ และเพิ่มรัศมีการระเบิดของการฉีดพร้อมท์แทนที่จะบรรเทาลง</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Granting broad IAM permissions directly to the agent process is the opposite of least privilege and increases the blast radius of a prompt injection rather than mitigating it.</div>
             </div>
             
@@ -1099,7 +1208,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก F:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">การใช้วิจารณญาณของโมเดลเพียงอย่างเดียวไม่ใช่ขอบเขตด้านความปลอดภัย การป้องกันเชิงลึกจำเป็นต้องมีการบังคับใช้ระดับเครือข่ายที่ยังคงอยู่ แม้ว่าการตัดสินใจของโมเดลจะถูกจัดการก็ตาม</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">การใช้วิจารณญาณของโมเดลเพียงอย่างเดียวไม่ใช่ขอบเขตด้านความปลอดภัย การป้องกันเชิงลึกจำเป็นต้องมีการบังคับใช้ระดับเครือข่ายที่ยังคงอยู่ แม้ว่าการตัดสินใจของโมเดลจะถูกจัดการก็ตาม</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Relying on model judgment alone is not a security boundary; defense in depth requires network-level enforcement that holds even when the model&#x27;s decision-making is manipulated.</div>
             </div>
             
@@ -1137,35 +1246,140 @@
             <span>3. Which permission layer actually decides a tool call</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Which permission layer actually decides a tool call</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Step</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">What it does</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Under bypassPermissions</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1. Hooks</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Run custom code to allow, deny or modify the request</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Still run; a deny is enforced</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">2. Deny rules</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Block matching calls (disallowed_tools)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Still enforced</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">3. Ask rules</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Send matching calls for approval</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Still route the call to canUseTool</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">4. Permission mode</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Mode-based approvals</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Approves everything reaching it except rm/rmdir of a critical path</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">5. Allow rules</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Auto-approve listed tools (allowed_tools)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Rarely reached</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">6. canUseTool callback</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Runtime approval when no earlier step resolved the call</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Reached only by calls that fall through</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Credentials control what the agent can reach. The Agent SDK&#x27;s permission flow controls which calls it actually makes. The flow is a fixed sequence, and the first step that resolves a call ends the evaluation. A security control placed late in the sequence only sees calls that no earlier step settled.
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ขั้นตอน</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Step</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">สิ่งที่มันทํา</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: What it does</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ภายใต้ bypassPermissions</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Under bypassPermissions</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">1. Hooks</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1. Hooks</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เรียกใช้โค้ดที่กำหนดเองเพื่ออนุญาต ปฏิเสธ หรือแก้ไขคำขอ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Run custom code to allow, deny or modify the request</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ยังวิ่งอยู่; มีการบังคับใช้การปฏิเสธ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Still run; a deny is enforced</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">2. Deny rules</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 2. Deny rules</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Block matching calls (disallowed_tools)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Block matching calls (disallowed_tools)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Still enforced</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Still enforced</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">3. Ask rules</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 3. Ask rules</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Send matching calls for approval</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Send matching calls for approval</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ยังคงกำหนดเส้นทางการโทรไปที่ canUseTool</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Still route the call to canUseTool</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">4. Permission mode</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 4. Permission mode</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Mode-based approvals</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Mode-based approvals</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Approves everything reaching it except rm/rmdir of a critical path</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Approves everything reaching it except rm/rmdir of a critical path</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">5. อนุญาตกฎ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 5. Allow rules</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เครื่องมือที่ลงรายการไว้สําหรับการอนุมัติอัตโนมัติ (allowed_tools)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Auto-approve listed tools (allowed_tools)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เข้าถึงได้ยาก</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Rarely reached</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">6. canUseTool callback</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 6. canUseTool callback</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Runtime approval when no earlier step resolved the call</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Runtime approval when no earlier step resolved the call</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Reached only by calls that fall through</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Reached only by calls that fall through</div></td></tr></tbody>
                   </table>
                   <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Agent SDK permission evaluation order: the first step that resolves the call wins</figcaption>
                 </div>
                 
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">คาดการณ์ล่วงหน้าเอเจนต์ได้รับการกำหนดค่าด้วย allowance_tools=[&quot;Read&quot;, &quot;Grep&quot;] ในโหมดเริ่มต้น โคลดพยายามโทรหาไรท์ จะเกิดอะไรขึ้น?การเขียนถูกปฏิเสธทันที เนื่องจากไม่อยู่ใน listWrite ไม่พร้อมใช้งาน เนื่องจากมีเพียงเครื่องมือที่อยู่ในรายการเท่านั้นที่สามารถเรียกใช้การเรียกจะเข้าสู่โหมดการอนุญาต จากนั้น canUseTool callbackallowed_tools จะอนุมัติเฉพาะเครื่องมือที่อยู่ในรายการโดยอัตโนมัติเท่านั้น เครื่องมือที่ไม่อยู่ในรายการยังคงมีอยู่ และการเรียกของพวกเขาจะยังคงอยู่ในโหมดการอนุญาตและ canUseTool “เครื่องมืออื่นๆ ที่ไม่อยู่ในรายการที่นี่ยังคงมีอยู่ และการเรียกไปยังเครื่องมือที่ต้องการการอนุมัติจะเข้าสู่โหมดการอนุญาตและ canUseTool” ที่มา: code.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: An agent is configured with allowed_tools=[&quot;Read&quot;, &quot;Grep&quot;] in default mode. Claude tries to call Write. What happens? Write is denied outright, because it is not on the list Write is unavailable, because only listed tools can run The call falls through to the permission mode and then the canUseTool callback allowed_tools only auto-approves the tools it lists. Unlisted tools still exist, and their calls continue to the permission mode and canUseTool. “ Other tools not listed here still exist, and calls to them that need approval fall through to the permission mode and canUseTool. ” Source: code.claude.com
-                  </div>
-                </aside>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_58c1a456"
+         data-qid="pred_58c1a456"
+         data-correct="C">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_58c1a456" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">An agent is configured with allowed_tools=[&quot;Read&quot;, &quot;Grep&quot;] in default mode. Claude tries to call Write. What happens?</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An agent is configured with allowed_tools=[&quot;Read&quot;, &quot;Grep&quot;] in default mode. Claude tries to call Write. What happens?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_58c1a456">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_58c1a456-A"
+                data-qid="pred_58c1a456"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_58c1a456', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Write is denied outright, because it is not on the list</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Write is denied outright, because it is not on the list</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_58c1a456-B"
+                data-qid="pred_58c1a456"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_58c1a456', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">Write is unavailable, because only listed tools can run</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Write is unavailable, because only listed tools can run</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_58c1a456-C"
+                data-qid="pred_58c1a456"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_58c1a456', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">The call falls through to the permission mode and then the canUseTool callback</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The call falls through to the permission mode and then the canUseTool callback</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_58c1a456" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_58c1a456" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">allowed_tools only auto-approves the tools it lists. Unlisted tools still exist, and their calls continue to the permission mode and canUseTool.</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: allowed_tools only auto-approves the tools it lists. Unlisted tools still exist, and their calls continue to the permission mode and canUseTool.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““Other tools not listed here still exist, and calls to them that need approval fall through to the permission mode and canUseTool.””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “Other tools not listed here still exist, and calls to them that need approval fall through to the permission mode and canUseTool.”</div>
+          <div class="mt-1.5 not-italic"><a href="https://code.claude.com/docs/en/agent-sdk/permissions" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://code.claude.com/docs/en/agent-sdk/permissions</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_58c1a456')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ลําดับนี้จะอธิบายผลลัพธ์การตรวจสอบทั่วไป ทีมจะตั้งค่า permission_mode=“bypassPermissions” และเพิ่มการเรียกกลับ canUseTool ที่บันทึกคําขอและปฏิเสธทุกสิ่งที่สัมผัสกับไดเรกทอรีข้อมูลประจําตัว การเรียกกลับแทบจะไม่ทํางานเลย จะถูกเรียกใช้เฉพาะเมื่อโฟลว์หยุดที่พร้อมท์ และการเรียกใช้ที่ได้รับการอนุมัติโดยอัตโนมัติโดย allowedTools กฎอนุญาต หรือโหมดการอนุญาตไม่เคยเข้าถึงได้ ตรรกะการปฏิเสธจะถูกข้าม และบันทึกการตรวจสอบจะขาดการเรียกใช้ส่วนใหญ่ การควบคุมที่ต้องเห็นการเรียกใช้ทุกครั้งจะอยู่ในฮ็อก เนื่องจากฮ็อกทํางานก่อน และการตัดสินใจของฮ็อกจะคงอยู่ในทุกโหมด
+                </p>
                 
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A deny rule that blocks every MCP tool across all servers json { "permissions": { "deny": [ "mcp__*" ] } }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Under bypassPermissions, the steps that run before the mode check still apply. Deny rules, explicit ask rules and hooks all still work: a hook&#x27;s deny is enforced, and an ask rule still sends the call to canUseTool. disallowed_tools still has teeth too. A bare name such as &quot;Bash&quot; removes the tool from the request entirely, so Claude cannot even attempt it, and a scoped rule such as &quot;Bash(rm *)&quot; denies matching calls in every mode. allowed_tools, on the other hand, gives no protection here: it lists tools to auto-approve and does not restrict Claude to only these tools. Nor is plan mode a variant of bypass. In plan mode, file-edit and shell-write calls go to canUseTool regardless of allow rules.
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Tool reach is an authorization question too. An agent that can load any MCP server can call tools no one has reviewed, so the gap is closed by deciding which servers and tools exist at all, through [controlling MCP servers, plugins and hooks through policy](lesson:7.1). At the SDK and settings level, one deny rule removes every MCP tool, across all servers, until specific ones are approved.
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">กฎการปฏิเสธที่บล็อกเครื่องมือ MCP ทุกตัวในเซิร์ฟเวอร์ json ทั้งหมด</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A deny rule that blocks every MCP tool across all servers json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;permissions&quot;: {
+    &quot;deny&quot;: [
+      &quot;mcp__*&quot;
+    ]
+  }
+}</code></pre>
                 </div>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
@@ -1179,96 +1393,121 @@
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-ccc3cadebde5"
-             data-qid="ccc3cadebde5"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-ccc3cadebde5" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">To block every MCP tool from every server until specific ones are approved, which permission key completes this settings block?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-ccc3cadebde5">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-ccc3cadebde5-A"
-                    data-qid="ccc3cadebde5"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('ccc3cadebde5', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">deny</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-ccc3cadebde5-B"
-                    data-qid="ccc3cadebde5"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('ccc3cadebde5', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">allow</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-ccc3cadebde5-C"
-                    data-qid="ccc3cadebde5"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('ccc3cadebde5', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">ask</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-ccc3cadebde5-D"
-                    data-qid="ccc3cadebde5"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('ccc3cadebde5', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">additionalDirectories</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-ccc3cadebde5" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-ccc3cadebde5" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">มีเพียงกฎการปฏิเสธเท่านั้นที่จะลบเครื่องมือออก กฎการปฏิเสธจะทำงานตั้งแต่เนิ่นๆ ในโฟลว์การอนุญาต และยังคงมีผลภายใต้ bypassPermissions กฎการอนุญาตจะอนุมัติเฉพาะเครื่องมือที่อยู่ในรายการโดยอัตโนมัติเท่านั้น และปล่อยให้เครื่องมือที่ไม่อยู่ในรายการใช้งานได้ กฎการถามยังคงอนุญาตให้การโทรแต่ละครั้งดำเนินต่อไปได้เมื่อได้รับการอนุมัติแล้ว</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Only a deny rule removes the tools. Deny rules run early in the permission flow and still apply under bypassPermissions. An allow rule only auto-approves the tools it lists and leaves unlisted tools available. An ask rule still lets each call go ahead once it is approved.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-ccc3cadebde5"
+                 data-qid="ccc3cadebde5"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-ccc3cadebde5" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">หากต้องการบล็อกเครื่องมือ MCP ทุกตัวจากทุกเซิร์ฟเวอร์จนกว่าจะได้รับการอนุมัติ คีย์สิทธิ์ใดที่บล็อกการตั้งค่านี้ให้สมบูรณ์</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: To block every MCP tool from every server until specific ones are approved, which permission key completes this settings block?</p>
+              </div>
+              
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;permissions&quot;: {
+    &quot;____&quot;: [
+      &quot;mcp__*&quot;
+    ]
+  }
+}</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-ccc3cadebde5">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-ccc3cadebde5-A"
+                        data-qid="ccc3cadebde5"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('ccc3cadebde5', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ปฏิเสธ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: deny</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-ccc3cadebde5-B"
+                        data-qid="ccc3cadebde5"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('ccc3cadebde5', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">อนุญาต</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: allow</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-ccc3cadebde5-C"
+                        data-qid="ccc3cadebde5"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('ccc3cadebde5', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ask</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: ask</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-ccc3cadebde5-D"
+                        data-qid="ccc3cadebde5"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('ccc3cadebde5', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">additionalDirectories</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: additionalDirectories</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-ccc3cadebde5" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-ccc3cadebde5" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">มีเพียงกฎการปฏิเสธเท่านั้นที่จะลบเครื่องมือออก กฎการปฏิเสธจะทำงานตั้งแต่เนิ่นๆ ในโฟลว์การอนุญาต และยังคงมีผลภายใต้ bypassPermissions กฎการอนุญาตจะอนุมัติเฉพาะเครื่องมือที่อยู่ในรายการโดยอัตโนมัติเท่านั้น และปล่อยให้เครื่องมือที่ไม่อยู่ในรายการใช้งานได้ กฎการถามยังคงอนุญาตให้การโทรแต่ละครั้งดำเนินต่อไปได้เมื่อได้รับการอนุมัติแล้ว</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Only a deny rule removes the tools. Deny rules run early in the permission flow and still apply under bypassPermissions. An allow rule only auto-approves the tools it lists and leaves unlisted tools available. An ask rule still lets each call go ahead once it is approved.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('ccc3cadebde5')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('ccc3cadebde5')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-56768"
              data-qid="56768"
@@ -1284,8 +1523,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">While auditing an Agent SDK integration, you find allowed_tools=[&quot;Read&quot;, &quot;Glob&quot;, &quot;Grep&quot;, &quot;Bash&quot;] combined with permission_mode=&quot;bypassPermissions&quot;, and a canUseTool callback that logs every request and denies anything touching a credentials directory. The developer believed this callback was their safety net. What should the audit conclude?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">เมื่อตรวจสอบการผสานรวม Agent SDK คุณจะพบ allowed_tools=[“Read”, “Glob”, “Grep”, “Bash”] ผสมกับ permission_mode=“bypassPermissions” และการเรียกกลับ canUseTool ที่บันทึกทุกคําขอและปฏิเสธทุกสิ่งที่สัมผัสกับไดเรกทอรีข้อมูลประจําตัว นักพัฒนาเชื่อว่าการเรียกกลับนี้คือตาข่ายความปลอดภัยของพวกเขา การตรวจสอบควรสรุปอะไรได้บ้าง</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: While auditing an Agent SDK integration, you find allowed_tools=[&quot;Read&quot;, &quot;Glob&quot;, &quot;Grep&quot;, &quot;Bash&quot;] combined with permission_mode=&quot;bypassPermissions&quot;, and a canUseTool callback that logs every request and denies anything touching a credentials directory. The developer believed this callback was their safety net. What should the audit conclude?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-56768">
@@ -1297,7 +1537,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('56768', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The callback is shadowed: calls approved earlier in the order, including everything bypassPermissions approves, never reach canUseTool; a PreToolUse hook is needed if every call must be checked</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">การเรียกคืนจะอยู่ในเงา: การโทรที่ได้รับอนุมัติก่อนหน้านี้ในลําดับ รวมถึงทุกสิ่งที่ bypassPermissions อนุมัติ ไม่สามารถเข้าถึง canUseTool ได้; จําเป็นต้องมี hook PreToolUse หากต้องตรวจสอบทุกการโทร</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The callback is shadowed: calls approved earlier in the order, including everything bypassPermissions approves, never reach canUseTool; a PreToolUse hook is needed if every call must be checked</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1308,7 +1551,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('56768', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The callback is functioning as intended, because bypassPermissions only affects tools not already listed in allowed_tools, and Bash was never explicitly allowed so it still reaches the callback</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">The callback is functioning as intended, because bypassPermissions only affects tools not already listed in allowed_tools, and Bash was never explicitly allowed so it still reaches the callback</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The callback is functioning as intended, because bypassPermissions only affects tools not already listed in allowed_tools, and Bash was never explicitly allowed so it still reaches the callback</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1319,7 +1565,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('56768', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The callback is functioning as intended, because canUseTool is always invoked first in the order, before permission mode or allow rules are ever considered</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">การเรียกกลับทํางานตามที่ตั้งใจไว้ เนื่องจาก canUseTool ถูกเรียกใช้ก่อนเสมอในลําดับ ก่อนที่จะพิจารณาโหมดสิทธิ์อนุญาตหรือกฎการอนุญาต</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The callback is functioning as intended, because canUseTool is always invoked first in the order, before permission mode or allow rules are ever considered</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1330,7 +1579,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('56768', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The callback is shadowed only for MCP tools with the requiresUserInteraction metadata flag, while ordinary built-in tools like Bash still reach the callback as expected</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">The callback is shadowed only for MCP tools with the requiresUserInteraction metadata flag, while ordinary built-in tools like Bash still reach the callback as expected</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The callback is shadowed only for MCP tools with the requiresUserInteraction metadata flag, while ordinary built-in tools like Bash still reach the callback as expected</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1352,7 +1604,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. SDK ประเมิน hooks จากนั้นปฏิเสธกฎ จากนั้นถามกฎ จากนั้นจึงโหมดการอนุญาต จากนั้นอนุญาตกฎ จากนั้นจึงเรียกเท่านั้น canUseTool ด้วยการตั้งค่า bypassPermissions ขั้นตอนของโหมดจะอนุมัติทุกการโทรที่มาถึง ดังนั้น Bash และทุกอย่างจะไม่ตกเป็นของการโทรกลับ การตรวจสอบลอจิกที่ต้องรันในทุกการเรียกจะอยู่ใน PreToolUse hook แทน เนื่องจาก hooks จะทำงานก่อน และ hook deny จะมีผลแม้ในโหมด bypassPermissions</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. SDK ประเมิน hooks จากนั้นปฏิเสธกฎ จากนั้นถามกฎ จากนั้นจึงโหมดการอนุญาต จากนั้นอนุญาตกฎ จากนั้นจึงเรียกเท่านั้น canUseTool ด้วยการตั้งค่า bypassPermissions ขั้นตอนของโหมดจะอนุมัติทุกการโทรที่มาถึง ดังนั้น Bash และทุกอย่างจะไม่ตกเป็นของการโทรกลับ การตรวจสอบลอจิกที่ต้องรันในทุกการเรียกจะอยู่ใน PreToolUse hook แทน เนื่องจาก hooks จะทำงานก่อน และ hook deny จะมีผลแม้ในโหมด bypassPermissions</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. The SDK evaluates hooks, then deny rules, then ask rules, then permission mode, then allow rules, and only then calls canUseTool. With bypassPermissions set, the mode step approves every call that reaches it, so Bash and everything else never falls through to the callback. A logic check that must run on every call belongs in a PreToolUse hook instead, since hooks run first and a hook deny applies even in bypassPermissions mode.</div>
             </div>
             
@@ -1361,7 +1613,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">bypassPermissions ไม่ได้จำกัดขอบเขตไว้เฉพาะเครื่องมือที่ไม่อยู่ในรายการเท่านั้น จะอนุมัติทุกการโทรที่มาถึงขั้นตอนโหมดการอนุญาต ไม่ว่าจะระบุไว้หรือไม่ ดังนั้นการโทร Bash จะได้รับการอนุมัติก่อนที่จะปรึกษาการโทรกลับ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">bypassPermissions ไม่ได้จำกัดขอบเขตไว้เฉพาะเครื่องมือที่ไม่อยู่ในรายการเท่านั้น จะอนุมัติทุกการโทรที่มาถึงขั้นตอนโหมดการอนุญาต ไม่ว่าจะระบุไว้หรือไม่ ดังนั้นการโทร Bash จะได้รับการอนุมัติก่อนที่จะปรึกษาการโทรกลับ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: bypassPermissions is not scoped only to unlisted tools; it approves every call that reaches the permission-mode step, listed or not, so Bash calls are approved before the callback is ever consulted.</div>
             </div>
             
@@ -1370,7 +1622,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">This reverses the evaluation order. Hooks, deny rules, ask rules, and permission mode are all checked before allow rules and canUseTool, so canUseTool is one of the last steps, not the first.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">This reverses the evaluation order. Hooks, deny rules, ask rules, and permission mode are all checked before allow rules and canUseTool, so canUseTool is one of the last steps, not the first.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: This reverses the evaluation order. Hooks, deny rules, ask rules, and permission mode are all checked before allow rules and canUseTool, so canUseTool is one of the last steps, not the first.</div>
             </div>
             
@@ -1379,7 +1631,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">The requiresUserInteraction exception applies to AskUserQuestion and specially annotated MCP tools, but it does not change the outcome for the ordinary built-in tools in this scenario, which are fully shadowed by bypassPermissions regardless of that flag.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">The requiresUserInteraction exception applies to AskUserQuestion and specially annotated MCP tools, but it does not change the outcome for the ordinary built-in tools in this scenario, which are fully shadowed by bypassPermissions regardless of that flag.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The requiresUserInteraction exception applies to AskUserQuestion and specially annotated MCP tools, but it does not change the outcome for the ordinary built-in tools in this scenario, which are fully shadowed by bypassPermissions regardless of that flag.</div>
             </div>
             
@@ -1410,8 +1662,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A CISO reviewing an Agent SDK rollout learns that permission_mode is set to bypassPermissions in a batch-processing pipeline and asks which authorization controls, if any, still constrain the agent under that mode. Based on how bypassPermissions is evaluated, which of the following statements are accurate? (Select 2)</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">CISO ที่กำลังตรวจสอบการเปิดตัว Agent SDK จะได้เรียนรู้ว่า Permission_mode ถูกตั้งค่าเป็น BypassPermissions ในไปป์ไลน์การประมวลผลแบบแบตช์ และถามว่าการควบคุมการอนุญาตใด (ถ้ามี) ยังคงจำกัดเอเจนต์ภายใต้โหมดนั้น จากวิธีประเมิน bypassPermissions ข้อความใดต่อไปนี้ถูกต้อง (เลือก 2)</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A CISO reviewing an Agent SDK rollout learns that permission_mode is set to bypassPermissions in a batch-processing pipeline and asks which authorization controls, if any, still constrain the agent under that mode. Based on how bypassPermissions is evaluated, which of the following statements are accurate? (Select 2)</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-56774">
@@ -1423,7 +1676,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('56774', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Hooks still execute and a hook that denies a call is still enforced, because hooks are evaluated before the permission mode step in the flow</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Hooks still execute and a hook that denies a call is still enforced, because hooks are evaluated before the permission mode step in the flow</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Hooks still execute and a hook that denies a call is still enforced, because hooks are evaluated before the permission mode step in the flow</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1434,7 +1690,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('56774', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">An explicit ask rule configured in settings.json still forces the call through the canUseTool callback, even though the mode would otherwise auto-approve it</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">กฎการถามที่กําหนดค่าไว้อย่างชัดเจนใน settings.json ยังคงบังคับการเรียกผ่านการเรียกกลับแบบ canUseTool แม้ว่าโหมดจะอนุมัติโดยอัตโนมัติ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: An explicit ask rule configured in settings.json still forces the call through the canUseTool callback, even though the mode would otherwise auto-approve it</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1445,7 +1704,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('56774', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">allowed_tools still meaningfully restricts which tools are auto-approved, so listing only a narrow set of tools there keeps bypassPermissions scoped to just those tools</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">allowed_tools still meaningfully restricts which tools are auto-approved, so listing only a narrow set of tools there keeps bypassPermissions scoped to just those tools</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: allowed_tools still meaningfully restricts which tools are auto-approved, so listing only a narrow set of tools there keeps bypassPermissions scoped to just those tools</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1456,7 +1718,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('56774', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">disallowed_tools entries for whole tool names have no effect once bypassPermissions is active, since the mode is designed to override every other layer of the permission system</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">disallowed_tools รายการสำหรับชื่อเครื่องมือทั้งหมดจะไม่มีผลเมื่อมีการใช้งาน bypassPermissions เนื่องจากโหมดถูกออกแบบมาเพื่อแทนที่ทุกชั้นอื่นๆของระบบการอนุญาต</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: disallowed_tools entries for whole tool names have no effect once bypassPermissions is active, since the mode is designed to override every other layer of the permission system</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1467,7 +1732,10 @@
                     data-opt="E"
                     onclick="handleQuizAnswer('56774', 'E')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">E</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The plan permission mode and bypassPermissions produce identical behavior for file-edit tools, since both ultimately approve or deny edits at the same evaluation step</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">The plan permission mode and bypassPermissions produce identical behavior for file-edit tools, since both ultimately approve or deny edits at the same evaluation step</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The plan permission mode and bypassPermissions produce identical behavior for file-edit tools, since both ultimately approve or deny edits at the same evaluation step</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1489,7 +1757,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. Hook จะทำงานก่อนตามลำดับการประเมิน นำหน้ากฎการปฏิเสธ กฎ Ask และขั้นตอนของโหมดการอนุญาต ดังนั้นการปฏิเสธของ Hook จะยังคงบล็อกการโทรแม้ว่าจะอยู่ภายใต้การอนุญาตบายพาสก็ตาม</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. Hook จะทำงานก่อนตามลำดับการประเมิน นำหน้ากฎการปฏิเสธ กฎ Ask และขั้นตอนของโหมดการอนุญาต ดังนั้นการปฏิเสธของ Hook จะยังคงบล็อกการโทรแม้ว่าจะอยู่ภายใต้การอนุญาตบายพาสก็ตาม</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Hooks run first in the evaluation order, ahead of deny rules, ask rules, and the permission mode step, so a hook denial still blocks the call even under bypassPermissions.</div>
             </div>
             
@@ -1498,7 +1766,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Correct. Explicit ask rules are checked before the permission mode step, so a matching ask rule still routes the call to canUseTool for confirmation even when bypassPermissions would otherwise auto-approve it.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง กฎการร้องขอที่ชัดเจนจะถูกตรวจสอบก่อนขั้นตอนโหมดสิทธิ์อนุญาต ดังนั้นกฎการร้องขอที่ตรงกันจะยังคงกําหนดเส้นทางการเรียกใช้ไปยัง canUseTool เพื่อยืนยัน แม้ว่าการบายพาส Permissions จะอนุมัติโดยอัตโนมัติก็ตาม</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. Explicit ask rules are checked before the permission mode step, so a matching ask rule still routes the call to canUseTool for confirmation even when bypassPermissions would otherwise auto-approve it.</div>
             </div>
             
@@ -1507,7 +1775,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Allow_tools จะอนุมัติล่วงหน้าเฉพาะเครื่องมือที่อยู่ในรายการเท่านั้น เครื่องมือที่ไม่อยู่ในรายการยังคงอยู่ในโหมดการอนุญาต โดยที่ bypassPermissions จะอนุมัติเครื่องมือเหล่านั้นเช่นกัน การแสดงรายการชุดแคบใน Allow_tools ไม่ได้กำหนดขอบเขตหรือจำกัดสิ่งที่ bypassPermissions อนุมัติ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">Allow_tools จะอนุมัติล่วงหน้าเฉพาะเครื่องมือที่อยู่ในรายการเท่านั้น เครื่องมือที่ไม่อยู่ในรายการยังคงอยู่ในโหมดการอนุญาต โดยที่ bypassPermissions จะอนุมัติเครื่องมือเหล่านั้นเช่นกัน การแสดงรายการชุดแคบใน Allow_tools ไม่ได้กำหนดขอบเขตหรือจำกัดสิ่งที่ bypassPermissions อนุมัติ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: allowed_tools only pre-approves the tools it lists; unlisted tools still fall through to the permission mode, where bypassPermissions approves them too. Listing a narrow set in allowed_tools does not scope or limit what bypassPermissions itself approves.</div>
             </div>
             
@@ -1516,7 +1784,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">รายการ disallowed_tools เป็นกฎการปฏิเสธ และกฎการปฏิเสธจะได้รับการประเมินก่อนขั้นตอนโหมดการอนุญาต และยังคงบล็อกการโทรที่ตรงกันแม้ในโหมด bypassPermissions พวกเขาไม่ได้ถูกแทนที่โดยมัน</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">รายการ disallowed_tools เป็นกฎการปฏิเสธ และกฎการปฏิเสธจะได้รับการประเมินก่อนขั้นตอนโหมดการอนุญาต และยังคงบล็อกการโทรที่ตรงกันแม้ในโหมด bypassPermissions พวกเขาไม่ได้ถูกแทนที่โดยมัน</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: disallowed_tools entries are deny rules, and deny rules are evaluated before the permission mode step and still block matching calls even in bypassPermissions mode; they are not overridden by it.</div>
             </div>
             
@@ -1525,7 +1793,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก E:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">plan mode explicitly routes file-edit and shell-write tools to canUseTool regardless of allow rules, while bypassPermissions auto-approves those same operations at the mode step; the two modes produce opposite outcomes for edits, not identical ones.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">plan mode explicitly routes file-edit and shell-write tools to canUseTool regardless of allow rules, while bypassPermissions auto-approves those same operations at the mode step; the two modes produce opposite outcomes for edits, not identical ones.</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: plan mode explicitly routes file-edit and shell-write tools to canUseTool regardless of allow rules, while bypassPermissions auto-approves those same operations at the mode step; the two modes produce opposite outcomes for edits, not identical ones.</div>
             </div>
             
@@ -1674,6 +1942,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1694,12 +1971,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1764,7 +2304,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

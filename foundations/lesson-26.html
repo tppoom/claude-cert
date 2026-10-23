@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -538,7 +545,7 @@
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
-            Three-part input total — Prompt caching lets a request reuse a stored copy of a prompt prefix that ends at a marked cache breakpoint. Because of that, a response reports its input in three separate fields, and each field is billed at its own rate: tokens read from cache, tokens written to cache, and uncached tokens after the last breakpoint. You only get the real input size, and the real input cost, by adding all three.
+            ยอดรวมอินพุตสามส่วน – การแคชพร้อมท์ช่วยให้คําขอสามารถใช้สําเนาที่จัดเก็บไว้ของคํานําหน้าพร้อมท์ที่สิ้นสุดที่จุดหยุดพักแคชที่ทําเครื่องหมายไว้ได้ ด้วยเหตุนี้ การตอบสนองจะรายงานอินพุตในสามช่องแยกกัน และแต่ละช่องจะถูกเรียกเก็บเงินในอัตราของตนเอง: โทเค็นที่อ่านจากแคช โทเค็นที่เขียนไปยังแคช และโทเค็นที่ไม่ได้แคชหลังจากจุดหยุดพักล่าสุด คุณจะได้รับขนาดอินพุตจริงและค่าใช้จ่ายในการป้อนข้อมูลจริงเท่านั้น โดยการรวมทั้งสามอย่างเข้าด้วยกัน
           </p>
         </section>
         
@@ -549,7 +556,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-input-and-output-tokens-have-separate-prices" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Input and output tokens have separate prices</span></a></li><li><a href="#2-modifiers-that-change-the-per-token-rate" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Modifiers that change the per-token rate</span></a></li><li><a href="#3-counting-tokens-before-you-send" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Counting tokens before you send</span></a></li><li><a href="#4-tracking-actual-spend-and-how-close-you-are-to-limits" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. Tracking actual spend and how close you are to limits</span></a></li>
+        <li><a href="#1-input-and-output-tokens-have-separate-prices" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. โทเค็นอินพุตและเอาต์พุตมีราคาแยกต่างหาก</span></a></li><li><a href="#2-modifiers-that-change-the-per-token-rate" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. ตัวแก้ไขที่เปลี่ยนอัตราต่อโทเค็น</span></a></li><li><a href="#3-counting-tokens-before-you-send" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. การนับโทเค็นก่อนส่ง</span></a></li><li><a href="#4-tracking-actual-spend-and-how-close-you-are-to-limits" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. การติดตามการใช้จ่ายจริงและความใกล้เคียงกับขีดจํากัดของคุณ</span></a></li>
       </ul>
     </nav>
     
@@ -557,120 +564,140 @@
         <section id="1-input-and-output-tokens-have-separate-prices" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. Input and output tokens have separate prices</span>
+            <span>1. โทเค็นอินพุตและเอาต์พุตมีราคาแยกต่างหาก</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Input and output tokens have separate prices</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Model</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Input</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Output</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Fable 5.1</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$10 / MTok</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$50 / MTok</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Opus 5.5</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$4 / MTok</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$20 / MTok</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Sonnet 5.5</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$2 / MTok</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$10 / MTok</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Haiku 4.5</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$1 / MTok</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$5 / MTok</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  โคลด์จะเรียกเก็บเงินตามโทเค็น และราคาจะขึ้นอยู่กับทิศทางที่โทเค็นเดินทางไป [โทเค็น] (บทเรียน: 5.1) คือหน่วยที่โมเดลอ่านและเขียน ทุกสิ่งที่คุณส่งในคําขอจะนับเป็นอินพุต และทุกสิ่งที่โคลด์สร้างขึ้นจะนับเป็นเอาต์พุต แต่ละโมเดลมีราคาหนึ่งสําหรับอินพุตและอีกราคาหนึ่งสําหรับเอาต์พุต ซึ่งทั้งสองราคาเป็นดอลลาร์สหรัฐต่อหนึ่งล้านโทเค็น (MTok)
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">แบบอย่าง</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Model</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">อินพุต</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Input</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">เอาต์พุต</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Output</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Claude Fable 5.1</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Fable 5.1</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$10 / MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $10 / MTok</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$50 / MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $50 / MTok</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Claude Opus 5.5</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Opus 5.5</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$4 / MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $4 / MTok</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$20 / MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $20 / MTok</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คลอด-โคลง-5-5</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Sonnet 5.5</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$2 / MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $2 / MTok</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$10 / MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $10 / MTok</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คล็อด ไฮคุ 4.5</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Haiku 4.5</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$1 / MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $1 / MTok</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$5 / MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $5 / MTok</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Base token prices for the current models, per million tokens</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ราคาโทเค็นพื้นฐานสําหรับโมเดลปัจจุบันต่อหนึ่งล้านโทเค็น</figcaption>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-837725384224"
-             data-qid="837725384224"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-837725384224" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A Claude Sonnet 5.5 request sends 10,000 input tokens and gets back 2,000 output tokens. How do the input and output costs compare?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-837725384224">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-837725384224-A"
-                    data-qid="837725384224"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('837725384224', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Input costs five times as much as output, because there are five times as many input tokens</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-837725384224-B"
-                    data-qid="837725384224"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('837725384224', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">They cost the same, because output tokens are priced at five times the input rate</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-837725384224-C"
-                    data-qid="837725384224"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('837725384224', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Output costs more, because output is billed at a flat per-request fee</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-837725384224-D"
-                    data-qid="837725384224"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('837725384224', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Input is free unless it goes over the context window</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-837725384224" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-837725384224" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Sonnet 5.5 charges $2 per MTok for input and $10 per MTok for output. 10,000 × $2/M and 2,000 × $10/M both come to $0.02.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Sonnet 5.5 charges $2 per MTok for input and $10 per MTok for output. 10,000 × $2/M and 2,000 × $10/M both come to $0.02.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ในแต่ละโมเดลในตารางนั้น โทเค็นเอาต์พุตมีค่าใช้จ่ายสูงกว่าโทเค็นอินพุตห้าเท่า ซึ่งจะเปลี่ยนวิธีที่คุณอ่านการประเมินค่าใช้จ่าย ลองพิจารณาคําขอ Sonnet 5.5 ที่มีโทเค็นอินพุต 10,000 รายการและคําตอบที่มีโทเค็น 2,000 รายการ: อินพุตมีค่าใช้จ่าย 0.02 USD และเอาต์พุตที่สั้นกว่ามากก็มีค่าใช้จ่าย 0.02 USD เช่นกัน หากคุณจัดสรรงบประมาณเฉพาะความยาวของพรอมต์ เวิร์กโหลดที่เขียนคําตอบยาวจะมีค่าใช้จ่ายมากกว่าที่คุณวางแผนไว้
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  อินพุตหมายถึงมากกว่าข้อความที่คุณพิมพ์ เมื่อใช้เครื่องมือ อินพุตประกอบด้วยพารามิเตอร์ของเครื่องมือ (ชื่อ คําอธิบาย และสคีมาของแต่ละเครื่องมือ) บล็อก tool_use และ tool_result ทุกบล็อกในการสนทนา และพร้อมท์ระบบที่ API เพิ่มโดยอัตโนมัติเมื่อมีเครื่องมือ เครื่องมือฝั่งเซิร์ฟเวอร์ เช่น การค้นหาเว็บยังคิดค่าบริการต่อการใช้งานนอกเหนือจากโทเค็น ด้วยเหตุนี้ แค็ตตาล็อกเครื่องมือขนาดใหญ่จึงถูกเรียกเก็บเงินอีกครั้งในแต่ละครั้ง
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-837725384224"
+                 data-qid="837725384224"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-837725384224" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Claude Sonnet 5.5The best combination of speed and intelligence | $2 / MTok | $10 / MTok”
-              <br><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">คำขอ Claude Sonnet 5.5 ส่งโทเค็นอินพุต 10,000 โทเค็นและรับโทเค็นเอาต์พุตกลับ 2,000 โทเค็น ต้นทุนอินพุตและเอาต์พุตเปรียบเทียบกันอย่างไร</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A Claude Sonnet 5.5 request sends 10,000 input tokens and gets back 2,000 output tokens. How do the input and output costs compare?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-837725384224">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-837725384224-A"
+                        data-qid="837725384224"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('837725384224', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">อินพุตมีค่าใช้จ่ายมากกว่าเอาต์พุตห้าเท่าเพราะมีโทเค็นอินพุตห้าเท่า</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Input costs five times as much as output, because there are five times as many input tokens</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-837725384224-B"
+                        data-qid="837725384224"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('837725384224', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">พวกมันมีราคาเท่ากันเพราะโทเค็นเอาต์พุตมีราคาเป็นห้าเท่าของอัตราอินพุต</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: They cost the same, because output tokens are priced at five times the input rate</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-837725384224-C"
+                        data-qid="837725384224"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('837725384224', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เอาต์พุตมีค่าใช้จ่ายมากกว่า เนื่องจากเอาต์พุตจะถูกเรียกเก็บค่าบริการในอัตราคงที่ต่อคําขอ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Output costs more, because output is billed at a flat per-request fee</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-837725384224-D"
+                        data-qid="837725384224"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('837725384224', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การป้อนข้อมูลเป็นอิสระเว้นแต่จะข้ามหน้าต่างบริบท</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Input is free unless it goes over the context window</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-837725384224" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-837725384224" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">ซอนเน็ต 5.5 มีราคา 2 USD ต่อ MTok สําหรับอินพุตและ 10 USD ต่อ MTok สําหรับเอาต์พุต ทั้ง 10,000 × 2 USD/ล้านและ 2,000 × 10 USD/ล้านมีราคาเท่ากับ 0.02 USD</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Sonnet 5.5 charges $2 per MTok for input and $10 per MTok for output. 10,000 × $2/M and 2,000 × $10/M both come to $0.02.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “Claude Sonnet 5.5 การผสมผสานที่ดีที่สุดของความเร็วและสติปัญญา | $2 / MTok | $10 / MTok”
+              <br><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('837725384224')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('837725384224')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -690,131 +717,235 @@
         <section id="2-modifiers-that-change-the-per-token-rate" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Modifiers that change the per-token rate</span>
+            <span>2. ตัวแก้ไขที่เปลี่ยนอัตราต่อโทเค็น</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Modifiers that change the per-token rate</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Modifier</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Effect on price</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Limits</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Batch API</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">50% off input and output tokens</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Fast mode cannot be batched</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Fast mode (Opus 5.5)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">$8 / MTok input, $40 / MTok output</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude API (first-party) only</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">US-only inference_geo</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1.1x on input, output, cache writes and cache reads</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude 4.6 and later models</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">5-minute cache write</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1.25x base input price</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Only on the tokens written</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">1-hour cache write</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">2x base input price</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Only on the tokens written</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Cache read (hit)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">0.1x base input (0.05x on Opus 5.5, 0.025x on Fable 5.1)</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Only on the tokens read</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ราคาพื้นฐานเป็นเพียงจุดเริ่มต้น การตั้งค่าคําขอหลายรายการจะคูณราคานั้น การประมวลผลแบบแบตช์ซึ่งอธิบายไว้ใน [Message Batches API และแบบเรียลไทม์ vs. แบตช์] (บทเรียน: 2.3) จะแบ่งราคาทั้งอินพุตและเอาต์พุตออกครึ่งหนึ่งเพื่อแลกกับการจัดส่งแบบอะซิงโครนัส โหมดเร็วซึ่งอธิบายไว้ใน [ระดับความพยายามและโหมดเร็ว] (บทเรียน: 5.3) จะเป็นไปในทางตรงกันข้าม: บน Claude Opus 5.5 จะคิดค่าบริการ 8 ดอลลาร์สําหรับอินพุตและ 40 ดอลลาร์สําหรับเอาต์พุตต่อ MTok ซึ่งเป็นสองเท่าของอัตรามาตรฐาน การตั้งค่า inference_geo เป็น US-only บนรุ่น Claude 4.6 ขึ้นไปจะเพิ่ม 1.1 เท่าสําหรับแต่ละหมวดหมู่โทเค็น
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  สามแถวด้านล่างเกี่ยวข้องกับการแคชพร้อมท์ คำนำหน้าพร้อมต์ที่ยังคงเหมือนเดิมจากคำขอหนึ่งไปอีกคำขอสามารถถูกแคชไว้ได้ และคุณทำเครื่องหมายตำแหน่งที่คำนำหน้านั้นลงท้ายด้วยเบรกพอยต์ cache_control เมื่อมีคำขอมาถึง ระบบจะตรวจสอบว่าคำนำหน้าจนถึงเบรกพอยต์นั้นถูกแคชไว้แล้วหรือไม่ หากเป็นเช่นนั้น โทเค็นเหล่านั้นจะเป็นแคชที่อ่าน ถ้าไม่เช่นนั้น พรอมต์แบบเต็มจะถูกประมวลผล และคำนำหน้าจะถูกจัดเก็บเป็นการเขียนแคช
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ตัวแก้ไข</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Modifier</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ผลกระทบต่อราคา</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Effect on price</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ขีดจำกัด</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Limits</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">API แบตช์</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Batch API</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ส่วนลด 50% สําหรับโทเค็นอินพุตและเอาต์พุต</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 50% off input and output tokens</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โหมดเร็วไม่สามารถจัดกลุ่มได้</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Fast mode cannot be batched</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โหมดเร็ว (Opus 5.5)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Fast mode (Opus 5.5)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">$8 / อินพุต MTok, $40 / เอาต์พุต MTok</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: $8 / MTok input, $40 / MTok output</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Claude API (ฝ่ายแรกเท่านั้น)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude API (first-party) only</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สหรัฐอเมริกาเท่านั้น inference_geo</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: US-only inference_geo</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">1.1x ในอินพุต เอาท์พุต การเขียนแคช และการอ่านแคช</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1.1x on input, output, cache writes and cache reads</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โมเดล Claude 4.6 ขึ้นไป</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude 4.6 and later models</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การเขียนแคช 5 นาที</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 5-minute cache write</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ราคาอินพุตฐาน 1.25 เท่า</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1.25x base input price</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บนโทเค็นที่เขียนเท่านั้น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Only on the tokens written</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การเขียนแคช 1 ชั่วโมง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 1-hour cache write</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ราคาอินพุตฐาน 2 เท่า</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 2x base input price</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บนโทเค็นที่เขียนเท่านั้น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Only on the tokens written</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การอ่านแคช (hit)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Cache read (hit)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">อินพุตฐาน 0.1x (0.05x บน Opus 5.5, 0.025x บน Fable 5.1)</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 0.1x base input (0.05x on Opus 5.5, 0.025x on Fable 5.1)</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">อ่านเฉพาะบนโทเค็นเท่านั้น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Only on the tokens read</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Pricing modifiers and what they apply to</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">ตัวแก้ไขราคาและสิ่งที่นําไปใช้</figcaption>
                 </div>
                 
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">คาดการณ์ก่อน คุณจัดกลุ่มปริมาณงานซึ่งมีคำขออ่านคำนำหน้าที่ใช้ร่วมกันจากแคชพร้อมท์ด้วย ส่วนลดทั้งสองนำไปใช้อย่างไร โดยซ้อนกัน: ตัวคูณแคชใช้ร่วมกับส่วนลดแบทช์ คำขอแบทช์ ไม่สามารถใช้การแคชพร้อมต์ได้เลย เฉพาะส่วนลดที่มากกว่าเท่านั้นที่ใช้ ตัวคูณแคชรวมกับส่วนลดแบทช์และถิ่นที่อยู่ของข้อมูล อย่างไรก็ตาม การเข้าถึงแคชภายในแบตช์นั้นต้องใช้ความพยายามอย่างดีที่สุด “ตัวคูณเหล่านี้ซ้อนกับตัวแก้ไขราคาอื่นๆ รวมถึงส่วนลด Batch API และถิ่นที่อยู่ของข้อมูล” ที่มา: platform.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: You batch a workload whose requests also read a shared prefix from the prompt cache. How are the two discounts applied? They stack: the cache multipliers apply together with the batch discount Batch requests can&#x27;t use prompt caching at all Only the larger discount applies The cache multipliers combine with the batch discount and with data residency. Cache hits inside a batch are best-effort, though. “ These multipliers stack with other pricing modifiers, including the Batch API discount and data residency. ” Source: platform.claude.com
-                  </div>
-                </aside>
-                
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-822fe3ab97e4"
-             data-qid="822fe3ab97e4"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-822fe3ab97e4" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Which pricing combination cannot be used?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-822fe3ab97e4">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-822fe3ab97e4-A"
-                    data-qid="822fe3ab97e4"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('822fe3ab97e4', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Prompt caching with the Batch API</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-822fe3ab97e4-B"
-                    data-qid="822fe3ab97e4"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('822fe3ab97e4', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Fast mode with prompt caching</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-822fe3ab97e4-C"
-                    data-qid="822fe3ab97e4"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('822fe3ab97e4', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Fast mode with the Batch API</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-822fe3ab97e4-D"
-                    data-qid="822fe3ab97e4"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('822fe3ab97e4', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">US-only inference_geo with prompt caching</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-822fe3ab97e4" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-822fe3ab97e4" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Fast mode stacks with caching and data residency multipliers, but you can&#x27;t submit a fast-mode request through the Batch API.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Fast mode stacks with caching and data residency multipliers, but you can&#x27;t submit a fast-mode request through the Batch API.</div>
-              
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Fast mode is not available with the Batch API.”
-              <br><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
-            </div>
-            
-            </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('822fe3ab97e4')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_4dea9851"
+         data-qid="pred_4dea9851"
+         data-correct="A">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
         </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_4dea9851" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">คุณจัดกลุ่มเวิร์กโหลดที่มีคําขอที่อ่านคํานําหน้าที่ใช้ร่วมกันจากแคชพร้อมท์ด้วย ส่วนลดทั้งสองนี้จะนําไปใช้อย่างไร</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: You batch a workload whose requests also read a shared prefix from the prompt cache. How are the two discounts applied?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_4dea9851">
         
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_4dea9851-A"
+                data-qid="pred_4dea9851"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_4dea9851', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">พวกมันซ้อนกัน: ตัวคูณแคชที่นําไปใช้ร่วมกับส่วนลดชุด</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: They stack: the cache multipliers apply together with the batch discount</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_4dea9851-B"
+                data-qid="pred_4dea9851"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_4dea9851', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">คําขอแบบแบตช์ไม่สามารถใช้การแคชพร้อมท์ได้เลย</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Batch requests can&#x27;t use prompt caching at all</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_4dea9851-C"
+                data-qid="pred_4dea9851"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_4dea9851', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ใช้เฉพาะส่วนลดที่มากกว่าเท่านั้น</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only the larger discount applies</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_4dea9851" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_4dea9851" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">ตัวคูณแคชจะรวมกับส่วนลดชุดและที่อยู่ของข้อมูล อย่างไรก็ตาม การพบแคชภายในชุดเป็นความพยายามที่ดีที่สุด</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: The cache multipliers combine with the batch discount and with data residency. Cache hits inside a batch are best-effort, though.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““ตัวคูณเหล่านี้ซ้อนทับกับตัวแก้ไขราคาอื่นๆ รวมถึงส่วนลด Batch API และที่อยู่ของข้อมูล””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “These multipliers stack with other pricing modifiers, including the Batch API discount and data residency.”</div>
+          <div class="mt-1.5 not-italic"><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://platform.claude.com/docs/en/about-claude/pricing</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_4dea9851')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ตัวแก้ไขเหล่านี้จะรวมกัน ตัวคูณแคชจะถูกนําไปใช้ร่วมกับส่วนลดชุด ดังนั้นคําขอแบบชุดที่อ่านคํานําหน้าที่แคชจะได้รับส่วนลดทั้งสองอย่าง ราคาโหมดเร่งด่วนยังรวมกับการแคชและการถิ่นที่อยู่ของข้อมูลด้วย แต่คุณไม่สามารถรวมกับชุดได้ ความยาวของบริบทไม่ใช่ตัวแก้ไข โมเดล Claude 4.6 ขึ้นไปจะเรียกเก็บเงินสําหรับช่วงโทเค็น 1M ทั้งหมดในอัตราโทเค็นมาตรฐาน ดังนั้นคําขอที่ยาวมากจะมีค่าใช้จ่ายมากกว่าเพียงเพราะมีโทเค็นมากกว่าเท่านั้น
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-822fe3ab97e4"
+                 data-qid="822fe3ab97e4"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-822fe3ab97e4" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
+              
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ชุดราคาใดที่ใช้ไม่ได้</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Which pricing combination cannot be used?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-822fe3ab97e4">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-822fe3ab97e4-A"
+                        data-qid="822fe3ab97e4"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('822fe3ab97e4', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การแจ้งเตือนการแคชด้วย Batch API</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Prompt caching with the Batch API</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-822fe3ab97e4-B"
+                        data-qid="822fe3ab97e4"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('822fe3ab97e4', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">โหมดเร่งด่วนพร้อมการแคชแบบพุช</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Fast mode with prompt caching</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-822fe3ab97e4-C"
+                        data-qid="822fe3ab97e4"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('822fe3ab97e4', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">โหมดเร่งด่วนด้วย Batch API</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Fast mode with the Batch API</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-822fe3ab97e4-D"
+                        data-qid="822fe3ab97e4"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('822fe3ab97e4', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">สหรัฐอเมริกาเท่านั้น inference_geo พร้อมการแคชแบบพุช</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: US-only inference_geo with prompt caching</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-822fe3ab97e4" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-822fe3ab97e4" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">สแต็กโหมดเร่งด่วนที่มีตัวคูณการแคชและที่อยู่ของข้อมูล แต่คุณไม่สามารถส่งคําขอโหมดเร่งด่วนผ่าน Batch API ได้</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Fast mode stacks with caching and data residency multipliers, but you can&#x27;t submit a fast-mode request through the Batch API.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “โหมดเร่งด่วนไม่สามารถใช้ได้กับ Batch API”
+              <br><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
+            </div>
+            
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('822fe3ab97e4')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
+            </div>
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -834,118 +965,150 @@
         <section id="3-counting-tokens-before-you-send" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. Counting tokens before you send</span>
+            <span>3. การนับโทเค็นก่อนส่ง</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Counting tokens before you send</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ตําแหน่งข้อมูล count_tokens บอกคุณถึงขนาดอินพุตของคําขอโดยไม่ต้องเรียกใช้โมเดล ยอมรับอินพุตที่มีโครงสร้างเดียวกันกับการสร้างข้อความ (พร้อมท์ระบบ เครื่องมือ ภาพ และ PDF) และส่งคืนตัวเลขเดียว นั่นคือ input_tokens ซึ่งทําให้เป็นเครื่องมือที่เหมาะสมสําหรับการประเมินค่าใช้จ่าย: นับคําขอแบบเป็นตัวแทนหนึ่งครั้งและคูณด้วยปริมาณที่คาดหวัง โดยไม่ต้องจ่ายค่าอนุมาน ตําแหน่งข้อมูลนี้ใช้งานได้ฟรี แต่มีขีดจํากัดคําขอต่อนาทีเป็นของตัวเอง ซึ่งขึ้นอยู่กับระดับการใช้งานของคุณ
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: A token count measured on an older model still holds after moving to a model with a newer tokenizer. (ทำไมถึงผิด): The endpoint counts with the tokenizer of the model you pass, so count the same request under both models and compare the results.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: จํานวนโทเค็นที่วัดบนโมเดลเก่าจะยังคงมีอยู่หลังจากย้ายไปยังโมเดลที่มีโทเค็นเซอร์ที่ใหม่กว่า (ทําไมถึงผิดพลาด): ตําแหน่งข้อมูลจะนับด้วยโทเค็นเซอร์ของโมเดลที่คุณผ่าน ดังนั้นให้นับคําขอเดียวกันภายใต้ทั้งสองโมเดลและเปรียบเทียบผลลัพธ์</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: A token count measured on an older model still holds after moving to a model with a newer tokenizer. (ทำไมถึงผิด): The endpoint counts with the tokenizer of the model you pass, so count the same request under both models and compare the results.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-21e9d8867230"
-             data-qid="21e9d8867230"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-21e9d8867230" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Which method returns the input token count without generating a response?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-21e9d8867230">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-21e9d8867230-A"
-                    data-qid="21e9d8867230"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('21e9d8867230', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">count_tokens</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-21e9d8867230-B"
-                    data-qid="21e9d8867230"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('21e9d8867230', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">create</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-21e9d8867230-C"
-                    data-qid="21e9d8867230"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('21e9d8867230', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">token_count</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-21e9d8867230-D"
-                    data-qid="21e9d8867230"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('21e9d8867230', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">estimate</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-21e9d8867230" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-21e9d8867230" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">Messages.count_tokens รับอาร์กิวเมนต์เดียวกันกับ Messages.create และส่งคืน {&quot;input_tokens&quot;: 14} สำหรับคำขอนี้ โดยไม่มีการอนุมานใดๆ</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: messages.count_tokens takes the same arguments as messages.create and returns {&quot;input_tokens&quot;: 14} for this request, without any inference.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-21e9d8867230"
+                 data-qid="21e9d8867230"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-21e9d8867230" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">วิธีใดส่งคืนจำนวนโทเค็นอินพุตโดยไม่สร้างการตอบกลับ</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Which method returns the input token count without generating a response?</p>
+              </div>
+              
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code>client = anthropic.Anthropic()
+
+response = client.messages.____(
+    model=&quot;claude-opus-5-5&quot;,
+    system=&quot;You are a scientist&quot;,
+    messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello, Claude&quot;}],
+)
+
+print(response.json())</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-21e9d8867230">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-21e9d8867230-A"
+                        data-qid="21e9d8867230"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('21e9d8867230', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">count_tokens</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: count_tokens</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-21e9d8867230-B"
+                        data-qid="21e9d8867230"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('21e9d8867230', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">create</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: create</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-21e9d8867230-C"
+                        data-qid="21e9d8867230"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('21e9d8867230', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">token_count</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: token_count</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-21e9d8867230-D"
+                        data-qid="21e9d8867230"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('21e9d8867230', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ค่าประมาณ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: estimate</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-21e9d8867230" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-21e9d8867230" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">Messages.count_tokens รับอาร์กิวเมนต์เดียวกันกับ Messages.create และส่งคืน {&quot;input_tokens&quot;: 14} สำหรับคำขอนี้ โดยไม่มีการอนุมานใดๆ</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: messages.count_tokens takes the same arguments as messages.create and returns {&quot;input_tokens&quot;: 14} for this request, without any inference.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('21e9d8867230')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('21e9d8867230')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การนับมีข้อจํากัดสามประการ ประการแรก มันไม่สนใจการแคช คุณสามารถรวมบล็อก cache_control ได้ แต่ผลลัพธ์จะเป็นขนาดอินพุตดิบ ไม่ใช่สิ่งที่คุณจะจ่ายหลังจากที่แคชพบ ประการที่สอง อินพุตบางอย่างที่ Message API ยอมรับจะถูกปฏิเสธที่นี่: เครื่องมือเซิร์ฟเวอร์ส่วนใหญ่ ตัวเชื่อมต่อ MCP และบล็อกภาพหรือเอกสารที่ใช้ URL หรือแหล่งที่มาของไฟล์ ส่งภาพและ PDF เป็น base64 หากคุณต้องการให้มีการนับ ประการที่สาม การนับขึ้นอยู่กับโมเดลที่คุณผ่าน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ความเชื่อมโยงของโมเดลมีความสําคัญเมื่อคุณย้ายข้อมูล Fable 5.1, Mythos 5.1, Fable 5 และ Mythos 5 ใช้โทเค็นเซอร์ที่นํามาใช้กับ Opus 4.7 และพร้อมท์เดียวกันจะปรากฏใหญ่ขึ้นประมาณ 30 เปอร์เซ็นต์เมื่อเทียบกับโมเดลรุ่นเก่า แดชบอร์ดต้นทุนที่สร้างจากการนับเก่าจะประเมินต่ําลง หากต้องการค้นหาความแตกต่างที่แท้จริง ให้นับคําขอเดียวกันสองครั้ง หนึ่งครั้งกับโมเดลปัจจุบันของคุณ และหนึ่งครั้งกับโมเดลใหม่ และเปรียบเทียบค่า input_tokens สองค่า
+                </p>
+                
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55618"
              data-qid="55618"
@@ -961,8 +1124,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A document-analysis pipeline caches a 40,000-token reference manual using an ephemeral cache_control breakpoint with the default TTL. Analysts submit follow-up questions against the manual in bursts, but gaps between bursts are frequently 8 to 10 minutes. The team observes that cache reads are not occurring for most follow-up bursts, so they keep paying the full cache-write price again. What change best fits this usage pattern?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ไปป์ไลน์การวิเคราะห์เอกสารแคชคู่มืออ้างอิง 40,000 โทเค็นโดยใช้เบรกพอยต์ cache_control ชั่วคราวด้วย TTL เริ่มต้น นักวิเคราะห์ส่งคำถามติดตามผลเกี่ยวกับคู่มือดังกล่าวเป็นชุด แต่ช่องว่างระหว่างการระเบิดมักจะอยู่ที่ 8 ถึง 10 นาที ทีมงานสังเกตว่าการอ่านแคชไม่ได้เกิดขึ้นสำหรับการติดตามผลส่วนใหญ่ ดังนั้นพวกเขาจึงยังคงจ่ายราคาเขียนแคชเต็มอีกครั้ง การเปลี่ยนแปลงใดที่เหมาะกับรูปแบบการใช้งานนี้มากที่สุด</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A document-analysis pipeline caches a 40,000-token reference manual using an ephemeral cache_control breakpoint with the default TTL. Analysts submit follow-up questions against the manual in bursts, but gaps between bursts are frequently 8 to 10 minutes. The team observes that cache reads are not occurring for most follow-up bursts, so they keep paying the full cache-write price again. What change best fits this usage pattern?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55618">
@@ -974,7 +1138,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55618', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Set the cache_control ttl to &quot;1h&quot; so the manual stays cached across the longer gaps between analyst bursts, avoiding repeated 5-minute cache writes</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ตั้งค่า cache_control ttl เป็น “1h” เพื่อให้แมนนวลอยู่ในแคชตลอดช่วงเวลาที่ยาวนานขึ้นระหว่างการระเบิดของตัววิเคราะห์ เพื่อหลีกเลี่ยงการเขียนแคชซ้ํา 5 นาที</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Set the cache_control ttl to &quot;1h&quot; so the manual stays cached across the longer gaps between analyst bursts, avoiding repeated 5-minute cache writes</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -985,7 +1152,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55618', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Send a max_tokens: 0 pre-warming request every 5 minutes to keep the existing cache entry perpetually refreshed regardless of gap length</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">ส่งคําขอ max_tokens: 0 ก่อนการระบายความร้อนทุก 5 นาทีเพื่อให้รายการแคชที่มีอยู่ได้รับการรีเฟรชอย่างต่อเนื่องโดยไม่คํานึงถึงความยาวของช่องว่าง</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Send a max_tokens: 0 pre-warming request every 5 minutes to keep the existing cache entry perpetually refreshed regardless of gap length</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -996,7 +1166,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55618', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Split the 40,000-token manual into four separate 10,000-token cache_control breakpoints so each chunk is billed as a smaller, cheaper cache write</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">แบ่งคู่มือ 40,000 โทเค็นออกเป็นสี่จุดหยุดพัก cache_control แยกกัน 10,000 โทเค็น เพื่อให้แต่ละส่วนถูกเรียกเก็บเงินเป็นการเขียนแคชขนาดเล็กและราคาถูกกว่า</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Split the 40,000-token manual into four separate 10,000-token cache_control breakpoints so each chunk is billed as a smaller, cheaper cache write</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1007,7 +1180,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55618', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Increase the model&#x27;s context window setting so the manual is retained in server-side memory between analyst sessions</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เพิ่มการตั้งค่าหน้าต่างบริบทของโมเดลเพื่อให้คู่มือถูกเก็บไว้ในหน่วยความจําฝั่งเซิร์ฟเวอร์ระหว่างเซสชันการวิเคราะห์</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Increase the model&#x27;s context window setting so the manual is retained in server-side memory between analyst sessions</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1029,7 +1205,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ถูกต้อง. TTL แคชชั่วคราวเริ่มต้นคือ 5 นาที ซึ่งสั้นกว่าช่องว่าง 8-10 นาทีที่สังเกตเห็น ดังนั้นแคชจะหมดอายุระหว่างการระเบิดแต่ละครั้ง ตัวเลือก TTL 1 ชั่วโมง (2x ราคาอินพุตพื้นฐานสำหรับการเขียน) ครอบคลุมช่องว่างนั้น และปล่อยให้การระเบิดแคชในภายหลังแทนที่จะเขียนใหม่</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง. TTL แคชชั่วคราวเริ่มต้นคือ 5 นาที ซึ่งสั้นกว่าช่องว่าง 8-10 นาทีที่สังเกตเห็น ดังนั้นแคชจะหมดอายุระหว่างการระเบิดแต่ละครั้ง ตัวเลือก TTL 1 ชั่วโมง (2x ราคาอินพุตพื้นฐานสำหรับการเขียน) ครอบคลุมช่องว่างนั้น และปล่อยให้การระเบิดแคชในภายหลังแทนที่จะเขียนใหม่</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. The default ephemeral cache TTL is 5 minutes, which is shorter than the observed 8-10 minute gaps, so the cache expires between bursts. The 1-hour TTL option (2x base input price for the write) covers that gap and lets later bursts hit the cache instead of re-writing it.</div>
             </div>
             
@@ -1038,7 +1214,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">จังหวะก่อนวอร์ม 5 นาทีคงที่จะรีเฟรชแคชหากคำขอเข้ามาจริงภายในหน้าต่าง TTL 5 นาทีเท่านั้น มันไม่ได้จัดการกับช่องว่าง 8-10 นาทีโดยไม่ต้องรันงานพื้นหลังอย่างไม่มีกำหนด และไม่ใช่กลไกโดยตรงที่ Anthropic มอบให้เพื่อยืดอายุการใช้งานแคช</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">จังหวะก่อนวอร์ม 5 นาทีคงที่จะรีเฟรชแคชหากคำขอเข้ามาจริงภายในหน้าต่าง TTL 5 นาทีเท่านั้น มันไม่ได้จัดการกับช่องว่าง 8-10 นาทีโดยไม่ต้องรันงานพื้นหลังอย่างไม่มีกำหนด และไม่ใช่กลไกโดยตรงที่ Anthropic มอบให้เพื่อยืดอายุการใช้งานแคช</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A fixed 5-minute pre-warm cadence only refreshes the cache if requests actually land within the 5-minute TTL window; it does not address gaps of 8-10 minutes without essentially running a background job indefinitely, and it isn&#x27;t the direct mechanism Anthropic provides for extending cache lifetime.</div>
             </div>
             
@@ -1047,7 +1223,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">การแบ่งจุดพักออกเป็นสี่จุดจะเปลี่ยนรายละเอียด ไม่ใช่ TTL แต่ละโทเค็น 10,000 ชิ้นจะยังคงหมดอายุหลังจากไม่มีการใช้งานเป็นเวลา 5 นาทีภายใต้ TTL เริ่มต้น ดังนั้นปัญหาเดียวกันนี้จึงเกิดขึ้นอีก</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">การแบ่งจุดพักออกเป็นสี่จุดจะเปลี่ยนรายละเอียด ไม่ใช่ TTL แต่ละโทเค็น 10,000 ชิ้นจะยังคงหมดอายุหลังจากไม่มีการใช้งานเป็นเวลา 5 นาทีภายใต้ TTL เริ่มต้น ดังนั้นปัญหาเดียวกันนี้จึงเกิดขึ้นอีก</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Splitting into four breakpoints changes granularity, not TTL; each 10,000-token chunk would still expire after 5 minutes of inactivity under the default TTL, so the same problem recurs.</div>
             </div>
             
@@ -1056,7 +1232,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">There is no context-window setting that retains prompt content in server-side memory between sessions; the context window defines the maximum tokens per request, and caching is controlled through cache_control, not context window size.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่มีการตั้งค่าหน้าต่างบริบทที่จะเก็บเนื้อหาพร้อมท์ไว้ในหน่วยความจําฝั่งเซิร์ฟเวอร์ระหว่างเซสชัน หน้าต่างบริบทกําหนดโทเค็นสูงสุดต่อคําขอ และการแคชจะถูกควบคุมผ่าน cache_control ไม่ใช่ขนาดหน้าต่างบริบท</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: There is no context-window setting that retains prompt content in server-side memory between sessions; the context window defines the maximum tokens per request, and caching is controlled through cache_control, not context window size.</div>
             </div>
             
@@ -1072,101 +1248,116 @@
           </div>
         </div>
         
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-3c7e3bbc1290"
-             data-qid="3c7e3bbc1290"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-3c7e3bbc1290" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team counts a 50,000-token prompt with count_tokens. The request includes a cache_control breakpoint on a prefix that is already cached. What does the endpoint report?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-3c7e3bbc1290">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-3c7e3bbc1290-A"
-                    data-qid="3c7e3bbc1290"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('3c7e3bbc1290', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Only the tokens after the breakpoint, because the prefix is a cache hit</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-3c7e3bbc1290-B"
-                    data-qid="3c7e3bbc1290"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('3c7e3bbc1290', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The full input size, because counting doesn&#x27;t apply caching</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-3c7e3bbc1290-C"
-                    data-qid="3c7e3bbc1290"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('3c7e3bbc1290', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The input size multiplied by the cache-read rate</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-3c7e3bbc1290-D"
-                    data-qid="3c7e3bbc1290"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('3c7e3bbc1290', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">An error, because count_tokens rejects cache_control</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-3c7e3bbc1290" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-3c7e3bbc1290" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">การแคชจะเกิดขึ้นเมื่อมีการสร้างข้อความจริงเท่านั้น การนับคืออินพุตทั้งหมดโดยไม่คำนึงถึงเบรกพอยต์</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Caching only happens when a message is actually created. The count is the full input regardless of breakpoints.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-3c7e3bbc1290"
+                 data-qid="3c7e3bbc1290"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-3c7e3bbc1290" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “No, token counting provides an estimate without using caching logic.”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/token-counting" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมนับพรอมต์ 50,000 โทเค็นด้วย count_tokens คำขอรวมเบรกพอยต์ cache_control บนคำนำหน้าที่ถูกแคชไว้แล้ว จุดสิ้นสุดรายงานอะไร?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team counts a 50,000-token prompt with count_tokens. The request includes a cache_control breakpoint on a prefix that is already cached. What does the endpoint report?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-3c7e3bbc1290">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-3c7e3bbc1290-A"
+                        data-qid="3c7e3bbc1290"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('3c7e3bbc1290', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เฉพาะโทเค็นหลังจากจุดหยุดเท่านั้น เนื่องจากคํานําหน้าเป็นแคชที่พบ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Only the tokens after the breakpoint, because the prefix is a cache hit</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-3c7e3bbc1290-B"
+                        data-qid="3c7e3bbc1290"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('3c7e3bbc1290', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ขนาดอินพุตเต็ม เนื่องจากการนับไม่ใช้การแคช</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The full input size, because counting doesn&#x27;t apply caching</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-3c7e3bbc1290-C"
+                        data-qid="3c7e3bbc1290"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('3c7e3bbc1290', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ขนาดอินพุตคูณด้วยอัตราการอ่านแคช</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The input size multiplied by the cache-read rate</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-3c7e3bbc1290-D"
+                        data-qid="3c7e3bbc1290"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('3c7e3bbc1290', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ข้อผิดพลาด เนื่องจาก count_tokens ปฏิเสธ cache_control</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: An error, because count_tokens rejects cache_control</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-3c7e3bbc1290" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-3c7e3bbc1290" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การแคชจะเกิดขึ้นเมื่อมีการสร้างข้อความจริงเท่านั้น การนับคืออินพุตทั้งหมดโดยไม่คำนึงถึงเบรกพอยต์</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Caching only happens when a message is actually created. The count is the full input regardless of breakpoints.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ไม่ การนับโทเค็นจะให้ค่าประมาณโดยไม่ต้องใช้ตรรกะการแคช”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/token-counting" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('3c7e3bbc1290')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('3c7e3bbc1290')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1186,83 +1377,233 @@
         <section id="4-tracking-actual-spend-and-how-close-you-are-to-limits" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>4. Tracking actual spend and how close you are to limits</span>
+            <span>4. การติดตามการใช้จ่ายจริงและความใกล้เคียงกับขีดจํากัดของคุณ</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Tracking actual spend and how close you are to limits</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Daily token usage for one week, grouped by model bash curl "https://api.anthropic.com/v1/organizations/usage_report/messages?\ starting_at=2025-01-01T00:00:00Z&\ ending_at=2025-01-08T00:00:00Z&\ group_by[]=model&\ bucket_width=1d" \ -H "anthropic-version: 2023-06-01" \ -H "x-api-key: $ANTHROPIC_ADMIN_KEY"
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  อ็อบเจกต์การใช้งานของการตอบสนองแต่ละรายการจะบันทึกสิ่งที่คุณถูกเรียกเก็บเงินจริง และด้านอินพุตจะถูกแบ่งออกเป็นสามส่วน cache_read_input_tokens ถูกอ่านจากแคช, cache_creation_input_tokens ถูกเขียนไปยังแคช และ input_tokens เป็นโทเค็นที่ไม่ได้แคชหลังจากจุดหยุดสุดท้าย ความผิดพลาดทั่วไปคือการบันทึกเฉพาะ input_tokens ด้วยเอกสารที่แคชด้วยโทเค็น 200,000 รายการและคําถามด้วยโทเค็น 50 รายการ ช่องนั้นจะแสดง 50 แม้ว่าโทเค็น 200,050 รายการจะถูกป้อนเข้าไป
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  API การจัดการการใช้งานและต้นทุนจะให้ยอดรวมสําหรับทั้งองค์กร ซึ่งจําเป็นต้องมีคีย์ API การจัดการ ตําแหน่งข้อมูล /v1/organizations/usage_report/messages จะส่งคืนจํานวนโทเค็นในบัคเก็ต 1m, 1h หรือ 1d และคุณสามารถกรองหรือจัดกลุ่มตามโมเดล, พื้นที่ทํางาน, คีย์ API, ระดับบริการ, inference_geo หรือความเร็ว รายงานต้นทุนจะส่งคืนจํานวนเงินเป็นดอลลาร์สหรัฐ ซึ่งทีมการเงินใช้เพื่อปรับระเบียนภายในให้สอดคล้องกับการเรียกเก็บเงินแบบแอนโทรปิก หน้าการใช้งานและต้นทุนของ Console แสดงข้อมูลเดียวกัน และทั้งคู่สามารถส่งออกเป็น CSV ได้
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">การใช้งานโทเค็นรายวันเป็นเวลาหนึ่งสัปดาห์ จัดกลุ่มตามโมเดล bash</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Daily token usage for one week, grouped by model bash</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>curl &quot;https://api.anthropic.com/v1/organizations/usage_report/messages?\
+starting_at=2025-01-01T00:00:00Z&amp;\
+ending_at=2025-01-08T00:00:00Z&amp;\
+group_by[]=model&amp;\
+bucket_width=1d&quot; \
+  -H &quot;anthropic-version: 2023-06-01&quot; \
+  -H &quot;x-api-key: $ANTHROPIC_ADMIN_KEY&quot;</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ฟิลด์อินพุตทั้งสามฟิลด์เดียวกันยังแสดงว่าคุณใกล้ถึงขีดจํากัดอัตราของคุณมากแค่ไหน ซึ่งอธิบายไว้ใน [ขีดจํากัดอัตรา ขีดจํากัดค่าใช้จ่าย และระดับบริการ] (บทเรียน: 2.1) ในรุ่นส่วนใหญ่ input_tokens และ cache_creation_input_tokens จะนับเป็นโทเค็นอินพุตต่อนาที (ITPM) แต่ cache_read_input_tokens ไม่นับ ดังนั้นอัตราแคชที่สูงขึ้นจะลดทั้งต้นทุนและความกดดันบน ITPM หน้าการใช้งานคอนโซลจะพล็อตยอด ITPM ต่อชั่วโมงถัดจากอัตราแคชและขีดจํากัดปัจจุบันของคุณ ดังนั้นแผนภูมิเดียวจะแสดงผลทั้งสองอย่าง
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: The input_tokens field in the response is the request&#x27;s total input size. (ทำไมถึงผิด): input_tokens only covers uncached tokens after the last cache breakpoint. Total input is that plus cache_read_input_tokens plus cache_creation_input_tokens.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: ฟิลด์ input_tokens ในคําตอบคือขนาดอินพุตทั้งหมดของคําขอ (ทําไมถึงผิดพลาด): input_tokens ครอบคลุมเฉพาะโทเค็นที่ไม่ได้แคชหลังจากจุดหยุดแคชล่าสุด อินพุตทั้งหมดคือ + cache_read_input_tokens + cache_creation_input_tokens</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: The input_tokens field in the response is the request&#x27;s total input size. (ทำไมถึงผิด): input_tokens only covers uncached tokens after the last cache breakpoint. Total input is that plus cache_read_input_tokens plus cache_creation_input_tokens.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-7de17a89a419"
-             data-qid="7de17a89a419"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-7de17a89a419" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Match each usage field to what it counts</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-7de17a89a419">
-            
-          </div>
-          
-          <div id="feedback-7de17a89a419" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-7de17a89a419" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ทั้งสามฟิลด์รวมกันเป็นข้อมูลเข้าทั้งหมด input_tokens เพียงอย่างเดียวครอบคลุมเฉพาะส่วนหลังเบรกพอยต์สุดท้าย</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The three fields together make up total input. input_tokens alone covers only the part after the last breakpoint.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-7de17a89a419"
+                 data-qid="7de17a89a419"
+                 data-correct="MATCH"
+                 data-total-pairs="3">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔄</span>
+                  <span>แบบฝึกหัดจับคู่ความสัมพันธ์ (Matching Challenge)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-7de17a89a419" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตรวจสอบแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Match (3 คู่)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Important: input_tokens does NOT represent all input tokens, only the portion after your last cache breakpoint.”
-              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">จับคู่ช่องการใช้งานแต่ละช่องกับสิ่งที่นับ</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Match each usage field to what it counts</p>
+              </div>
+
+              <!-- Interactive Matching Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
+                  <span id="match-counter-7de17a89a419" class="text-slate-400 font-mono">จับคู่ได้ 0/3</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <!-- Terms (Left) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">1. รายการคำศัพท์ / หัวข้อ:</div>
+                    
+                <button type="button"
+                        id="match-term-7de17a89a419-0"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('7de17a89a419', 0)">
+                  <span id="match-badge-term-7de17a89a419-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">cache_read_input_tokens</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: cache_read_input_tokens</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-7de17a89a419-1"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('7de17a89a419', 1)">
+                  <span id="match-badge-term-7de17a89a419-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">cache_creation_input_tokens</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: cache_creation_input_tokens</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-7de17a89a419-2"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('7de17a89a419', 2)">
+                  <span id="match-badge-term-7de17a89a419-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">input_tokens</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: input_tokens</span>
+                  </div>
+                </button>
+                
+                  </div>
+                  <!-- Definitions (Right) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">2. คำอธิบาย / ความหมาย (สลับตำแหน่ง):</div>
+                    
+                <button type="button"
+                        id="match-def-7de17a89a419-0"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('7de17a89a419', 0, 3)">
+                  <span id="match-badge-def-7de17a89a419-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">โทเค็นคํานําหน้าที่ให้บริการจากรายการแคชที่มีอยู่</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Prefix tokens served from an existing cache entry</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-7de17a89a419-1"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('7de17a89a419', 1, 3)">
+                  <span id="match-badge-def-7de17a89a419-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">โทเค็นที่เขียนเพื่อแคชที่จุดหยุดพักในคําขอนี้</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Tokens written to cache at a breakpoint on this request</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-7de17a89a419-2"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('7de17a89a419', 2, 3)">
+                  <span id="match-badge-def-7de17a89a419-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">โทเค็นที่ไม่ได้แคชหลังจากจุดหยุดพักแคชล่าสุด</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Uncached tokens after the last cache breakpoint</span>
+                  </div>
+                </button>
+                
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-7de17a89a419" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetMatchGame('7de17a89a419')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>เริ่มจับคู่ใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('7de17a89a419')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยคู่ความสัมพันธ์
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">จับคู่ให้ครบทุกข้อเพื่อบันทึกผลสำเร็จอัตโนมัติ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-7de17a89a419" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ เฉลยคู่ความสัมพันธ์ที่ถูกต้อง (Verified Pairs):</strong>
+                <div class="space-y-2.5">
+                  
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">1</span>
+                    <span class="font-semibold text-slate-100">cache_read_input_tokens</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(cache_read_input_tokens)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ โทเค็นคํานําหน้าที่ให้บริการจากรายการแคชที่มีอยู่</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Prefix tokens served from an existing cache entry</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">2</span>
+                    <span class="font-semibold text-slate-100">cache_creation_input_tokens</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(cache_creation_input_tokens)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ โทเค็นที่เขียนเพื่อแคชที่จุดหยุดพักในคําขอนี้</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Tokens written to cache at a breakpoint on this request</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">3</span>
+                    <span class="font-semibold text-slate-100">input_tokens</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(input_tokens)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ โทเค็นที่ไม่ได้แคชหลังจากจุดหยุดพักแคชล่าสุด</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Uncached tokens after the last cache breakpoint</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
+                  <p class="leading-relaxed">ทั้งสามฟิลด์รวมกันเป็นข้อมูลเข้าทั้งหมด input_tokens เพียงอย่างเดียวครอบคลุมเฉพาะส่วนหลังเบรกพอยต์สุดท้าย</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The three fields together make up total input. input_tokens alone covers only the part after the last breakpoint.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “สิ่งสําคัญ: input_tokens ไม่ได้แสดงโทเค็นอินพุตทั้งหมด เฉพาะส่วนหลังจากจุดหยุดแคชล่าสุดของคุณเท่านั้น”
+              <br><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('7de17a89a419')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1396,6 +1737,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1416,12 +1766,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1486,7 +2099,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

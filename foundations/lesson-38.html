@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -539,7 +546,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-what-a-pretooluse-hook-receives" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. What a PreToolUse hook receives</span></a></li><li><a href="#2-blocking-with-exit-codes" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Blocking with exit codes</span></a></li><li><a href="#3-structured-decisions-deny-ask-and-allow" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Structured decisions: deny, ask and allow</span></a></li><li><a href="#4-the-same-guardrail-in-the-agent-sdk" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. The same guardrail in the Agent SDK</span></a></li><li><a href="#practise-it-for-real" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>Practise it for real</span></a></li>
+        <li><a href="#1-what-a-pretooluse-hook-receives" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. สิ่งที่ฮ็อก PreToolUse รับ</span></a></li><li><a href="#2-blocking-with-exit-codes" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. การบล็อกด้วยรหัสออก</span></a></li><li><a href="#3-structured-decisions-deny-ask-and-allow" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. การตัดสินใจที่มีโครงสร้าง: ปฏิเสธ ถาม และอนุญาต</span></a></li><li><a href="#4-the-same-guardrail-in-the-agent-sdk" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>4. รางป้องกันเดียวกันใน Agent SDK</span></a></li><li><a href="#practise-it-for-real" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>ฝึกฝนอย่างจริงจัง</span></a></li>
       </ul>
     </nav>
     
@@ -547,116 +554,146 @@
         <section id="1-what-a-pretooluse-hook-receives" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. What a PreToolUse hook receives</span>
+            <span>1. สิ่งที่ฮ็อก PreToolUse รับ</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>What a PreToolUse hook receives</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  The JSON a PreToolUse hook receives for a Bash call json { "session_id": "abc123", "cwd": "/Users/sarah/myproject", "hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": { "command": "npm test" } }
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  PreToolUse hook ทํางานก่อนที่การเรียกเครื่องมือจะดําเนินการ และเป็นเหตุการณ์ hook ที่สามารถยกเลิกการเรียกได้ นั่นเป็นเหตุผลว่าทําไมการป้องกันการดําเนินการทําลายล้างจึงมีอยู่ทุกครั้งที่มันถูกเรียกใช้ ตัวจัดการจะได้รับการเรียกเป็น JSON ฟิลด์ที่ใช้ร่วมกัน เช่น session_id, cwd และ hook_event_name จะมาเป็นอันดับแรก ตามด้วย tool_name และ tool_input ซึ่งถืออาร์กิวเมนต์ที่ Claude ส่งผ่าน สําหรับ Bash คําสั่งเชลล์จะอยู่ใน tool_input.command สําหรับเครื่องมือไฟล์ เส้นทางเป้าหมายจะอยู่ใน tool_input.file_path
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">JSON ที่ PreToolUse ได้รับสําหรับการเรียก json ของ Bash</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: The JSON a PreToolUse hook receives for a Bash call json</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>{
+  &quot;session_id&quot;: &quot;abc123&quot;,
+  &quot;cwd&quot;: &quot;/Users/sarah/myproject&quot;,
+  &quot;hook_event_name&quot;: &quot;PreToolUse&quot;,
+  &quot;tool_name&quot;: &quot;Bash&quot;,
+  &quot;tool_input&quot;: {
+    &quot;command&quot;: &quot;npm test&quot;
+  }
+}</code></pre>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-6752fffdfd77"
-             data-qid="6752fffdfd77"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-6752fffdfd77" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A hook must stop any Bash call containing `git push --force`. Which field of the hook input holds the text to inspect?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-6752fffdfd77">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-6752fffdfd77-A"
-                    data-qid="6752fffdfd77"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('6752fffdfd77', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`tool_name`</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-6752fffdfd77-B"
-                    data-qid="6752fffdfd77"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('6752fffdfd77', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`tool_input.command`</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-6752fffdfd77-C"
-                    data-qid="6752fffdfd77"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('6752fffdfd77', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`hook_event_name`</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-6752fffdfd77-D"
-                    data-qid="6752fffdfd77"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('6752fffdfd77', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">`cwd`</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-6752fffdfd77" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-6752fffdfd77" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">`tool_name` จะบอกคุณเพียงว่าเครื่องมือคือ Bash คำสั่งเชลล์นั้นอยู่ในฟิลด์ `command` ของ `tool_input`</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: `tool_name` would only tell you the tool is Bash. The shell command itself is in the `command` field of `tool_input`.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ปราการจะพิจารณาอาร์กิวเมนต์เหล่านี้ ไม่ใช่เจตนาที่ประกาศโดยโมเดล สคริปต์ที่ดึง tool_input.command ด้วย jq และจับมันสําหรับตารางดรอปจะจับคําสั่งนั้นไม่ว่าการสนทนาจะมาถึงที่นั่นอย่างไร ไม่ว่าผู้ใช้จะขอมันหรือคําแนะนําที่ซ่อนอยู่ในหน้าที่ดึงมาทําเช่นนั้น
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-6752fffdfd77"
+                 data-qid="6752fffdfd77"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-6752fffdfd77" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “tool_input: the arguments Claude passed to the tool. For Bash, its command field holds the shell command.”
-              <br><a href="https://code.claude.com/docs/en/hooks-guide" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">hook ต้องหยุดการเรียก Bash ที่มี `git push --force` ฟิลด์ใดของอินพุต hook ที่เก็บข้อความที่จะตรวจสอบ?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A hook must stop any Bash call containing `git push --force`. Which field of the hook input holds the text to inspect?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-6752fffdfd77">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-6752fffdfd77-A"
+                        data-qid="6752fffdfd77"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('6752fffdfd77', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">`tool_name`</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `tool_name`</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-6752fffdfd77-B"
+                        data-qid="6752fffdfd77"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('6752fffdfd77', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">`tool_input.command`</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `tool_input.command`</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-6752fffdfd77-C"
+                        data-qid="6752fffdfd77"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('6752fffdfd77', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">`hook_event_name`</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `hook_event_name`</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-6752fffdfd77-D"
+                        data-qid="6752fffdfd77"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('6752fffdfd77', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">`cwd`</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: `cwd`</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-6752fffdfd77" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-6752fffdfd77" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">`tool_name` จะบอกคุณเพียงว่าเครื่องมือคือ Bash คำสั่งเชลล์นั้นอยู่ในฟิลด์ `command` ของ `tool_input`</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: `tool_name` would only tell you the tool is Bash. The shell command itself is in the `command` field of `tool_input`.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “tool_input: อาร์กิวเมนต์ที่ Claude ส่งผ่านไปยังเครื่องมือ สําหรับ Bash ช่องคําสั่งจะถือคําสั่งเชลล์”
+              <br><a href="https://code.claude.com/docs/en/hooks-guide" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('6752fffdfd77')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('6752fffdfd77')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -676,34 +713,119 @@
         <section id="2-blocking-with-exit-codes" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Blocking with exit codes</span>
+            <span>2. การบล็อกด้วยรหัสออก</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Blocking with exit codes</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Predict First: A PreToolUse hook inspects a Bash command, finds nothing wrong, and exits 0 with no output. What happens to the call?It goes through the normal permission flow, which may still prompt the userIt runs immediately, because exit 0 approves itIt is blocked, because the hook printed no decisionExit 0 only means the hook has no objection. It is not an approval, so the usual permission rules and prompts still decide.“For a PreToolUse hook this doesn’t approve the tool call: the normal permission flow still applies.”Source: code.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: A PreToolUse hook inspects a Bash command, finds nothing wrong, and exits 0 with no output. What happens to the call? It goes through the normal permission flow, which may still prompt the user It runs immediately, because exit 0 approves it It is blocked, because the hook printed no decision Exit 0 only means the hook has no objection. It is not an approval, so the usual permission rules and prompts still decide. “ For a PreToolUse hook this doesn’t approve the tool call: the normal permission flow still applies. ” Source: code.claude.com
-                  </div>
-                </aside>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_43b25172"
+         data-qid="pred_43b25172"
+         data-correct="A">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_43b25172" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">hook PreToolUse ตรวจสอบคําสั่ง Bash พบว่าไม่มีอะไรผิดปกติ และออกจาก 0 โดยไม่มีเอาต์พุต จะเกิดอะไรขึ้นกับการเรียก?</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A PreToolUse hook inspects a Bash command, finds nothing wrong, and exits 0 with no output. What happens to the call?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_43b25172">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_43b25172-A"
+                data-qid="pred_43b25172"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_43b25172', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">มันจะผ่านโฟลว์สิทธิ์อนุญาตปกติ ซึ่งอาจยังคงกระตุ้นผู้ใช้</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: It goes through the normal permission flow, which may still prompt the user</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_43b25172-B"
+                data-qid="pred_43b25172"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_43b25172', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">มันทํางานทันทีเพราะ exit 0 อนุมัติมัน</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: It runs immediately, because exit 0 approves it</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_43b25172-C"
+                data-qid="pred_43b25172"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_43b25172', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">มันถูกบล็อกเพราะตะขอไม่ได้พิมพ์การตัดสินใจ</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: It is blocked, because the hook printed no decision</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_43b25172" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_43b25172" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">Exit 0 หมายความว่าฮ็อกไม่มีข้อคัดค้านเท่านั้น มันไม่ใช่การอนุมัติ ดังนั้นกฎการอนุญาตและพร้อมท์ตามปกติจึงยังคงตัดสินใจได้</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: Exit 0 only means the hook has no objection. It is not an approval, so the usual permission rules and prompts still decide.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““สําหรับฮ็อก PreToolUse สิ่งนี้ไม่อนุมัติการเรียกเครื่องมือ: การไหลของสิทธิ์อนุญาตปกติยังคงมีผล””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “For a PreToolUse hook this doesn’t approve the tool call: the normal permission flow still applies.”</div>
+          <div class="mt-1.5 not-italic"><a href="https://code.claude.com/docs/en/hooks-guide" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://code.claude.com/docs/en/hooks-guide</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_43b25172')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  กางเกงป้องกันที่ง่ายที่สุดจะตอบสนองด้วยรหัสออกเพียงอย่างเดียว ทางออก 2 บล็อกการโทร และทุกสิ่งที่สคริปต์เขียนไปยัง stderr จะถูกส่งกลับไปยัง Claude เป็นข้อเสนอแนะ ดังนั้น Claude สามารถเปลี่ยนเส้นทางได้แทนที่จะลองคําสั่งเดียวกันซ้ําๆ อย่างไม่รู้ตัว ทางออก 0 หมายถึงไม่มีการคัดค้าน และการโทรจะดําเนินการต่อด้วยการตรวจสอบสิทธิ์ตามปกติ
+                </p>
                 
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Exit code</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Outcome for the tool call</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">0</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">No objection; the normal permission flow applies</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">2</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Blocked; stderr becomes Claude's feedback</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Other, with valid JSON on stdout</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Exit code ignored; the JSON alone decides</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Other, with plain text or empty stdout</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Proceeds as a non-blocking error</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  รหัสออกอื่น ๆ คือที่ที่แนวป้องกันล้มเหลวอย่างเงียบ ๆ ด้วยโค้ดอื่น ๆ โคลด์ โค้ดจะดูที่ stdout หาก stdout มี JSON ที่ผ่านการตรวจสอบสคีมา JSON จะกําหนดผลลัพธ์และโค้ดออกจะถูกเพิกเฉย หาก stdout เป็นข้อความธรรมดาหรือว่างเปล่า การเรียกใช้จะดําเนินการต่อและสําเนาข้อความจะแสดงข้อผิดพลาดแบบ hook ที่ไม่ได้บล็อก สมมติว่าสคริปต์หยุดทํางานด้วย exit 1 เมื่อ jq หายไป มันไม่ได้บล็อกอะไรเลย แนวป้องกันที่ต้องรักษาไว้ควรออกจาก 2 อย่างจงใจเมื่อตรวจพบปัญหา ไม่ควรพึ่งพาการหยุดทํางาน
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">รหัสออก</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Exit code</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ผลลัพธ์สําหรับการเรียกเครื่องมือ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Outcome for the tool call</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">0</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 0</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ไม่มีการคัดค้าน จะใช้โฟลว์การอนุญาตตามปกติ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: No objection; the normal permission flow applies</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">2</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: 2</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ปิดกั้น; stderr กลายเป็นคําติชมของ Claude</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Blocked; stderr becomes Claude&#x27;s feedback</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">อื่นๆ ด้วย JSON ที่ถูกต้องบน stdout</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Other, with valid JSON on stdout</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โค้ดออกจากระบบถูกเพิกเฉย JSON เท่านั้นที่ตัดสินใจ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Exit code ignored; the JSON alone decides</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">อื่นๆ ที่มีข้อความธรรมดาหรือ stdout ที่ว่างเปล่า</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Other, with plain text or empty stdout</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ดําเนินการเป็นข้อผิดพลาดที่ไม่ปิดกั้น</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Proceeds as a non-blocking error</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">How Claude Code reads a PreToolUse hook's exit code</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Claude Code อ่านโค้ดทางออกของ PreToolUse hook อย่างไร</figcaption>
                 </div>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
@@ -711,63 +833,230 @@
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: A PreToolUse hook that exits 0 approves the tool call. (ทำไมถึงผิด): Exit 0 only means the hook has no objection. The normal permission flow still decides, and it may still prompt the user.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: ห่วง PreToolUse ที่ออกจาก 0 อนุมัติการเรียกเครื่องมือ (ทําไมถึงผิดพลาด): ออกจาก 0 หมายความว่าห่วงไม่มีข้อคัดค้านเท่านั้น การไหลของสิทธิ์อนุญาตปกติยังคงตัดสินใจอยู่ และอาจยังคงแจ้งให้ผู้ใช้ทราบ</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: A PreToolUse hook that exits 0 approves the tool call. (ทำไมถึงผิด): Exit 0 only means the hook has no objection. The normal permission flow still decides, and it may still prompt the user.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-7e841a5a2c40"
-             data-qid="7e841a5a2c40"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-7e841a5a2c40" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Match each PreToolUse hook result to what happens to the tool call</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-7e841a5a2c40">
-            
-          </div>
-          
-          <div id="feedback-7e841a5a2c40" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-7e841a5a2c40" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">ทางออกเพียง 2 ช่วงตึกด้วยตัวเอง สำหรับรหัสที่ไม่ใช่ศูนย์อื่นๆ stdout จะตัดสินใจว่าจะดำเนินการกับ JSON ที่ถูกต้อง และสิ่งอื่นใดเพื่อให้การโทรดำเนินต่อไปได้</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Only exit 2 blocks by itself. With other non-zero codes, stdout decides: valid JSON is acted on, and anything else lets the call proceed.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-7e841a5a2c40"
+                 data-qid="7e841a5a2c40"
+                 data-correct="MATCH"
+                 data-total-pairs="4">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔄</span>
+                  <span>แบบฝึกหัดจับคู่ความสัมพันธ์ (Matching Challenge)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-7e841a5a2c40" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตรวจสอบแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Match (4 คู่)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Exit 2: Claude Code blocks the action. Write a reason to stderr.”
-              <br><a href="https://code.claude.com/docs/en/hooks-guide" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">จับคู่ผลลัพธ์ของตะขอ PreToolUse แต่ละรายการกับสิ่งที่เกิดขึ้นกับการเรียกเครื่องมือ</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Match each PreToolUse hook result to what happens to the tool call</p>
+              </div>
+
+              <!-- Interactive Matching Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
+                  <span id="match-counter-7e841a5a2c40" class="text-slate-400 font-mono">จับคู่ได้ 0/4</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <!-- Terms (Left) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">1. รายการคำศัพท์ / หัวข้อ:</div>
+                    
+                <button type="button"
+                        id="match-term-7e841a5a2c40-0"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('7e841a5a2c40', 0)">
+                  <span id="match-badge-term-7e841a5a2c40-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">เอาต์พุต 2 เหตุผลใน stderr</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Exit 2, reason on stderr</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-7e841a5a2c40-1"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('7e841a5a2c40', 1)">
+                  <span id="match-badge-term-7e841a5a2c40-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">ออก 0 ไม่มีเอาต์พุต</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Exit 0, no output</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-7e841a5a2c40-2"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('7e841a5a2c40', 2)">
+                  <span id="match-badge-term-7e841a5a2c40-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">ออกจาก 1 ด้วย JSON ที่มีสคีมาที่ถูกต้องบน stdout</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Exit 1 with schema-valid JSON on stdout</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-7e841a5a2c40-3"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('7e841a5a2c40', 3)">
+                  <span id="match-badge-term-7e841a5a2c40-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">Exit 1 ด้วย stdout ที่ว่างเปล่า</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Exit 1 with an empty stdout</span>
+                  </div>
+                </button>
+                
+                  </div>
+                  <!-- Definitions (Right) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">2. คำอธิบาย / ความหมาย (สลับตำแหน่ง):</div>
+                    
+                <button type="button"
+                        id="match-def-7e841a5a2c40-0"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('7e841a5a2c40', 0, 4)">
+                  <span id="match-badge-def-7e841a5a2c40-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">การโทรถูกบล็อกและคล็อดได้รับเหตุผล</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: The call is blocked and Claude receives the reason</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-7e841a5a2c40-3"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('7e841a5a2c40', 3, 4)">
+                  <span id="match-badge-def-7e841a5a2c40-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">การโทรดําเนินต่อไปและแสดงข้อผิดพลาดที่ไม่ได้บล็อก</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: The call proceeds and a non-blocking error is shown</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-7e841a5a2c40-1"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('7e841a5a2c40', 1, 4)">
+                  <span id="match-badge-def-7e841a5a2c40-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">การไหลของสิทธิ์อนุญาตตามปกติจะกําหนด</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: The normal permission flow decides</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-7e841a5a2c40-2"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('7e841a5a2c40', 2, 4)">
+                  <span id="match-badge-def-7e841a5a2c40-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">JSON ตัดสินใจ; โค้ดออกจะถูกเพิกเฉย</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: The JSON decides; the exit code is ignored</span>
+                  </div>
+                </button>
+                
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-7e841a5a2c40" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetMatchGame('7e841a5a2c40')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>เริ่มจับคู่ใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('7e841a5a2c40')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยคู่ความสัมพันธ์
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">จับคู่ให้ครบทุกข้อเพื่อบันทึกผลสำเร็จอัตโนมัติ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-7e841a5a2c40" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ เฉลยคู่ความสัมพันธ์ที่ถูกต้อง (Verified Pairs):</strong>
+                <div class="space-y-2.5">
+                  
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">1</span>
+                    <span class="font-semibold text-slate-100">เอาต์พุต 2 เหตุผลใน stderr</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Exit 2, reason on stderr)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ การโทรถูกบล็อกและคล็อดได้รับเหตุผล</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: The call is blocked and Claude receives the reason</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">2</span>
+                    <span class="font-semibold text-slate-100">ออก 0 ไม่มีเอาต์พุต</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Exit 0, no output)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ การไหลของสิทธิ์อนุญาตตามปกติจะกําหนด</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: The normal permission flow decides</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">3</span>
+                    <span class="font-semibold text-slate-100">ออกจาก 1 ด้วย JSON ที่มีสคีมาที่ถูกต้องบน stdout</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Exit 1 with schema-valid JSON on stdout)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ JSON ตัดสินใจ; โค้ดออกจะถูกเพิกเฉย</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: The JSON decides; the exit code is ignored</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">4</span>
+                    <span class="font-semibold text-slate-100">Exit 1 ด้วย stdout ที่ว่างเปล่า</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Exit 1 with an empty stdout)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ การโทรดําเนินต่อไปและแสดงข้อผิดพลาดที่ไม่ได้บล็อก</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: The call proceeds and a non-blocking error is shown</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
+                  <p class="leading-relaxed">ทางออกเพียง 2 ช่วงตึกด้วยตัวเอง สำหรับรหัสที่ไม่ใช่ศูนย์อื่นๆ stdout จะตัดสินใจว่าจะดำเนินการกับ JSON ที่ถูกต้อง และสิ่งอื่นใดเพื่อให้การโทรดำเนินต่อไปได้</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: Only exit 2 blocks by itself. With other non-zero codes, stdout decides: valid JSON is acted on, and anything else lets the call proceed.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “เอาต์พุต 2: โคลด์ โค้ดบล็อกการกระทํา เขียนเหตุผลสําหรับ stderr”
+              <br><a href="https://code.claude.com/docs/en/hooks-guide" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('7e841a5a2c40')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -787,27 +1076,52 @@
         <section id="3-structured-decisions-deny-ask-and-allow" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. Structured decisions: deny, ask and allow</span>
+            <span>3. การตัดสินใจที่มีโครงสร้าง: ปฏิเสธ ถาม และอนุญาต</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Structured decisions: deny, ask and allow</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  A command hook that denies rm -rf with a structured decision and otherwise exits 0 bash #!/bin/bash #.claude/hooks/block-rm.sh COMMAND=$(jq -r '.tool_input.command') if echo "$COMMAND" | grep -q 'rm -rf'; then jq -n '{ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: "Destructive command blocked by hook" } }' else exit 0 # no decision; normal permission flow applies fi
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  รหัสทางออกสามารถพูดได้เพียง &quot;บล็อก&quot; หรือ &quot;ไม่มีการคัดค้าน&quot; เอาต์พุต JSON สามารถพูดได้มากกว่านั้น PreToolUse hook พิมพ์วัตถุ hookSpecificOutput ซึ่ง PermissionDecision ใช้ค่าหนึ่งในสามค่า ปฏิเสธยกเลิกการโทรและส่ง PermissionDecisionReason ไปยัง Claude ถามจะแสดงพรอมต์การอนุญาตตามปกติแก่ผู้ใช้ อนุญาตให้ข้ามพรอมต์แบบโต้ตอบ
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">ตะขอคําสั่งที่ปฏิเสธ rm -rf ด้วยการตัดสินใจที่มีโครงสร้างและออกจาก Bash 0</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: A command hook that denies rm -rf with a structured decision and otherwise exits 0 bash</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>#!/bin/bash
+# .claude/hooks/block-rm.sh
+COMMAND=$(jq -r &#x27;.tool_input.command&#x27;)
+
+if echo &quot;$COMMAND&quot; | grep -q &#x27;rm -rf&#x27;; then
+  jq -n &#x27;{
+    hookSpecificOutput: {
+      hookEventName: &quot;PreToolUse&quot;,
+      permissionDecision: &quot;deny&quot;,
+      permissionDecisionReason: &quot;Destructive command blocked by hook&quot;
+    }
+  }&#x27;
+else
+  exit 0  # no decision; normal permission flow applies
+fi</code></pre>
                 </div>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ถามเติมช่องว่างที่รหัสทางออกออก นำทีมปฏิบัติการที่ต้องการเรียกใช้เครื่องมือ MCP ที่เขียนฐานข้อมูลทุกครั้งเพื่อรอมนุษย์ PreToolUse hook ที่มีตัวจับคู่เช่น mcp__db__.* สามารถส่งคืนการขอให้เขียนได้ ผู้ใช้เห็นข้อความแจ้ง และเมื่ออนุมัติแล้ว เครื่องมือจะทำงานได้ตามปกติ การบล็อกด้วยการปฏิเสธจะตัดการดำเนินการทั้งหมดออกไป ซึ่งไม่ใช่สิ่งที่ทีมต้องการ
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การอนุญาตนั้นอ่อนแอกว่าที่เห็น ซึ่งจะลบพร้อมท์แบบโต้ตอบออกและไม่มีอะไรอื่นอีก กฎการปฏิเสธและถามยังคงมีผลบังคับใช้ รวมถึงรายการปฏิเสธที่จัดการโดยองค์กร rm หรือ rmdir ที่กําหนดเป้าหมายไปยังเส้นทางที่สําคัญไม่สามารถอนุมัติโดยกฎการอนุญาตหรือการอนุญาตแบบฮ็อกได้ ความไม่สมมาตรทํางานในทางตรงกันข้ามสําหรับการบล็อก: ฮ็อกจะได้รับการประเมินก่อนที่จะตรวจสอบโหมดการอนุญาต ดังนั้นการปฏิเสธของฮ็อกจะยังคงหยุดเครื่องมือเมื่อเซสชันทํางานใน bypassPermissions
+                </p>
                 
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">On the Exam: Match the decision to the requirement. Never runs: deny. Runs after a human approves: ask. Skips the prompt but still honours every deny rule: allow. Exit 0 is none of these; it only means no objection.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">ในการสอบ: จับคู่การตัดสินใจกับข้อกําหนด ไม่วิ่ง: ปฏิเสธ วิ่งหลังจากที่มนุษย์อนุมัติ: ถาม ข้ามการแจ้ง แต่ยังคงปฏิบัติตามกฎการปฏิเสธทุกข้อ: อนุญาต ทางออก 0 ไม่ใช่สิ่งใดสิ่งหนึ่งเหล่านี้; มันหมายถึงไม่มีการคัดค้านเท่านั้น</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: On the Exam: Match the decision to the requirement. Never runs: deny. Runs after a human approves: ask. Skips the prompt but still honours every deny rule: allow. Exit 0 is none of these; it only means no objection.
                   </div>
@@ -818,107 +1132,122 @@
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: A hook returning permissionDecision allow can approve anything, including rm on a critical path. (ทำไมถึงผิด): Allow only skips the prompt. Deny and ask rules still apply, and critical-path rm and rmdir removals cannot be approved by a hook&#x27;s allow.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: ฮุคที่ส่งคืนสิทธิ์อนุญาต Decision allow สามารถอนุมัติอะไรก็ได้ รวมถึง rm ในเส้นทางที่สําคัญ (ทําไมถึงผิดพลาด): Allow จะข้ามเฉพาะพร้อมท์เท่านั้น กฎการปฏิเสธและถามยังคงมีผลบังคับใช้ และการลบ rm และ rmdir ในเส้นทางที่สําคัญไม่สามารถอนุมัติได้โดยอนุญาตของฮุค</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: A hook returning permissionDecision allow can approve anything, including rm on a critical path. (ทำไมถึงผิด): Allow only skips the prompt. Deny and ask rules still apply, and critical-path rm and rmdir removals cannot be approved by a hook&#x27;s allow.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-3bced06cea88"
-             data-qid="3bced06cea88"
-             data-correct="C">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-3bced06cea88" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Project settings carry a deny rule for `Bash(curl *)`. A PreToolUse hook returns `permissionDecision: &quot;allow&quot;` for a curl command. What happens?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-3bced06cea88">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-3bced06cea88-A"
-                    data-qid="3bced06cea88"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('3bced06cea88', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The call runs, because the hook&#x27;s allow overrides settings rules</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-3bced06cea88-B"
-                    data-qid="3bced06cea88"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('3bced06cea88', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The call runs only in bypassPermissions mode</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-3bced06cea88-C"
-                    data-qid="3bced06cea88"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('3bced06cea88', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The call is still denied, because deny rules apply even when a hook allows</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-3bced06cea88-D"
-                    data-qid="3bced06cea88"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('3bced06cea88', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The user is prompted to choose between the rule and the hook</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-3bced06cea88" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-3bced06cea88" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">การอนุญาตของ hook จะข้ามเฉพาะพรอมต์แบบโต้ตอบเท่านั้น กฎการปฏิเสธและถาม รวมถึงรายการปฏิเสธที่ได้รับการจัดการ ยังคงมีผลบังคับใช้</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A hook&#x27;s allow only skips the interactive prompt. Deny and ask rules, including managed deny lists, still apply.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-3bced06cea88"
+                 data-qid="3bced06cea88"
+                 data-correct="C">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-3bced06cea88" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “skip the interactive permission prompt. Deny and ask rules, including enterprise managed deny lists, still apply”
-              <br><a href="https://code.claude.com/docs/en/hooks-guide" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">การตั้งค่าโปรเจ็กต์มีกฎการปฏิเสธสำหรับ `Bash(curl *)` PreToolUse hook ส่งคืน `permissionDecision: &quot;allow&quot;` สำหรับคำสั่ง curl เกิดอะไรขึ้น?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Project settings carry a deny rule for `Bash(curl *)`. A PreToolUse hook returns `permissionDecision: &quot;allow&quot;` for a curl command. What happens?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-3bced06cea88">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-3bced06cea88-A"
+                        data-qid="3bced06cea88"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('3bced06cea88', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การเรียกจะทํางานเพราะการอนุญาตของฮ็อกจะแทนที่กฎการตั้งค่า</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The call runs, because the hook&#x27;s allow overrides settings rules</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-3bced06cea88-B"
+                        data-qid="3bced06cea88"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('3bced06cea88', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การเรียกใช้จะทํางานในโหมด bypassPermissions เท่านั้น</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The call runs only in bypassPermissions mode</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-3bced06cea88-C"
+                        data-qid="3bced06cea88"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('3bced06cea88', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">การโทรยังคงถูกปฏิเสธ เนื่องจากกฎการปฏิเสธใช้ได้แม้ว่าฮ็อกจะอนุญาต</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The call is still denied, because deny rules apply even when a hook allows</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-3bced06cea88-D"
+                        data-qid="3bced06cea88"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('3bced06cea88', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ผู้ใช้จะได้รับแจ้งให้เลือกระหว่างกฎและตะขอ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The user is prompted to choose between the rule and the hook</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-3bced06cea88" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-3bced06cea88" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก C</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การอนุญาตของ hook จะข้ามเฉพาะพรอมต์แบบโต้ตอบเท่านั้น กฎการปฏิเสธและถาม รวมถึงรายการปฏิเสธที่ได้รับการจัดการ ยังคงมีผลบังคับใช้</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: A hook&#x27;s allow only skips the interactive prompt. Deny and ask rules, including managed deny lists, still apply.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ข้ามการแจ้งสิทธิ์แบบโต้ตอบ กฎการปฏิเสธและถาม รวมถึงรายการปฏิเสธที่จัดการโดยองค์กร ยังคงมีผล”
+              <br><a href="https://code.claude.com/docs/en/hooks-guide" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('3bced06cea88')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('3bced06cea88')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
         <div class="quiz-card my-8 rounded-2xl border border-indigo-500/40 bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur"
              id="quiz-55719"
              data-qid="55719"
@@ -934,8 +1263,9 @@
             </div>
           </div>
           
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team configures a PreToolUse hook that returns exit code 0 with the following JSON on stdout: `{&quot;hookSpecificOutput&quot;: {&quot;hookEventName&quot;: &quot;PreToolUse&quot;, &quot;permissionDecision&quot;: &quot;deny&quot;, &quot;permissionDecisionReason&quot;: &quot;Writing to /etc is not allowed&quot;}}`. What happens to the pending tool call?</p>
+          <div class="mb-4 space-y-1.5">
+            <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมงานกำหนดค่าตะขอ PreToolUse ที่ส่งคืนโค้ดทางออก 0 ด้วย JSON ต่อไปนี้บน stdout: `{&quot;hookSpecificOutput&quot;: {&quot;hookEventName&quot;: &quot;PreToolUse&quot;, &quot;permissionDecision&quot;: &quot;deny&quot;, &quot;permissionDecisionReason&quot;: &quot;ไม่อนุญาตให้เขียนไปยัง /etc&quot;}}` จะเกิดอะไรขึ้นกับการเรียกเครื่องมือที่รอดำเนินการ?</p>
+            <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team configures a PreToolUse hook that returns exit code 0 with the following JSON on stdout: `{&quot;hookSpecificOutput&quot;: {&quot;hookEventName&quot;: &quot;PreToolUse&quot;, &quot;permissionDecision&quot;: &quot;deny&quot;, &quot;permissionDecisionReason&quot;: &quot;Writing to /etc is not allowed&quot;}}`. What happens to the pending tool call?</p>
           </div>
           
           <div class="space-y-2.5 mb-3" id="options-55719">
@@ -947,7 +1277,10 @@
                     data-opt="A"
                     onclick="handleQuizAnswer('55719', 'A')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The tool call is blocked, and the reason is surfaced to Claude so it can adjust its next step</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">การเรียกเครื่องมือถูกบล็อก และเหตุผลถูกเปิดเผยแก่คล็อดเพื่อให้สามารถปรับขั้นตอนต่อไปได้</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The tool call is blocked, and the reason is surfaced to Claude so it can adjust its next step</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -958,7 +1291,10 @@
                     data-opt="B"
                     onclick="handleQuizAnswer('55719', 'B')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The tool call still executes because exit code 0 always signals approval regardless of the JSON payload</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">การเรียกเครื่องมือจะยังคงทํางานอยู่เนื่องจากรหัสออก 0 สัญญาณการอนุมัติเสมอ โดยไม่คํานึงถึงเพย์โหลด JSON</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The tool call still executes because exit code 0 always signals approval regardless of the JSON payload</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -969,7 +1305,10 @@
                     data-opt="C"
                     onclick="handleQuizAnswer('55719', 'C')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Claude Code ignores the JSON and prompts the user interactively to approve or deny the call</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">Claude Code ไม่สนใจ JSON และแจ้งให้ผู้ใช้อนุมัติหรือปฏิเสธการโทรแบบโต้ตอบ</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Claude Code ignores the JSON and prompts the user interactively to approve or deny the call</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -980,7 +1319,10 @@
                     data-opt="D"
                     onclick="handleQuizAnswer('55719', 'D')">
               <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The hook output is discarded because permissionDecision only applies when the exit code is 2</span>
+              <div class="leading-relaxed mt-0.5 grow">
+                <span class="font-medium text-slate-100 block">เอาต์พุตตะขอจะถูกละทิ้งเนื่องจากได้รับอนุญาตการตัดสินใจจะมีผลเฉพาะเมื่อรหัสออกคือ 2</span>
+                <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The hook output is discarded because permissionDecision only applies when the exit code is 2</span>
+              </div>
               <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
             </button>
             
@@ -1002,7 +1344,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก A:</span>
                 <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-semibold">✓ คำตอบที่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Correct. With exit code 0, Claude Code parses the JSON; permissionDecision: deny blocks the call, and permissionDecisionReason is passed back so Claude understands why.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ถูกต้อง ด้วยรหัสออก 0 โค้ดคล็อดจะแยกวิเคราะห์ JSON; permissionDecision: deny บล็อกการเรียกใช้ และ permissionDecisionReason จะถูกส่งกลับเพื่อให้คล็อดเข้าใจเหตุผล</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Correct. With exit code 0, Claude Code parses the JSON; permissionDecision: deny blocks the call, and permissionDecisionReason is passed back so Claude understands why.</div>
             </div>
             
@@ -1011,7 +1353,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก B:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. รหัสออก 0 ไม่ได้บังคับการอนุมัติ โดยจะบอกรหัส Claude ให้แยกวิเคราะห์เอาต์พุต JSON ซึ่งในกรณีนี้จะระบุว่าปฏิเสธ</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. รหัสออก 0 ไม่ได้บังคับการอนุมัติ โดยจะบอกรหัส Claude ให้แยกวิเคราะห์เอาต์พุต JSON ซึ่งในกรณีนี้จะระบุว่าปฏิเสธ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. Exit code 0 does not force approval; it tells Claude Code to parse the JSON output, which in this case specifies deny.</div>
             </div>
             
@@ -1020,7 +1362,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก C:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">Incorrect. A returned permissionDecision is a definitive programmatic decision, not a trigger for an interactive prompt.</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง การอนุญาตที่ส่งคืน Decision เป็นการตัดสินใจทางโปรแกรมที่แน่นอน ไม่ใช่ทริกเกอร์สําหรับพร้อมท์แบบโต้ตอบ</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. A returned permissionDecision is a definitive programmatic decision, not a trigger for an interactive prompt.</div>
             </div>
             
@@ -1029,7 +1371,7 @@
                 <span class="font-bold text-slate-200 text-xs">ตัวเลือก D:</span>
                 <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-xs">ตัวเลือกที่ไม่ถูกต้อง</span>
               </div>
-              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การอนุญาตการตัดสินใจใน hookSpecificOutput ได้รับเกียรติจากรหัสทางออก 0; รหัสทางออก 2 เป็นกลไกการบล็อกแยกต่างหากที่ใช้เมื่อไม่มีการส่งคืน JSON</p>
+              <p class="text-slate-200 text-xs sm:text-sm leading-relaxed">ไม่ถูกต้อง. การอนุญาตการตัดสินใจใน hookSpecificOutput ได้รับเกียรติจากรหัสทางออก 0; รหัสทางออก 2 เป็นกลไกการบล็อกแยกต่างหากที่ใช้เมื่อไม่มีการส่งคืน JSON</p>
               <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: Incorrect. permissionDecision in hookSpecificOutput is honored on exit code 0; exit code 2 is a separate blocking mechanism used when no JSON is returned.</div>
             </div>
             
@@ -1064,7 +1406,7 @@
         <section id="4-the-same-guardrail-in-the-agent-sdk" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>4. The same guardrail in the Agent SDK</span>
+            <span>4. รางป้องกันเดียวกันใน Agent SDK</span>
           </h2>
           
         <div class="space-y-4">
@@ -1083,100 +1425,156 @@
         </div>
         
           
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  Registering a PreToolUse callback for the Bash tool in Python python options = ClaudeAgentOptions(hooks={ "PreToolUse": [HookMatcher(matcher= "Bash", hooks=[my_callback])]})
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ใน Agent SDK ฮ็อกคือฟังก์ชันการเรียกกลับที่ส่งผ่านในตัวเลือกของเอเจนต์แทนที่จะเป็นรายการในไฟล์การตั้งค่า ตัวเลือกฮ็อกจะแมปชื่อเหตุการณ์ เช่น PreToolUse ให้กับรายการของตัวจับคู่ แต่ละตัวจับคู่มีรูปแบบและการเรียกกลับที่จะเรียกใช้ และรูปแบบจะปฏิบัติตามกฎเดียวกันกับตัวจับคู่ในไฟล์การตั้งค่า เครื่องมือ MCP จะรักษาการตั้งชื่อ mcp__&lt;server&gt;__&lt;action&gt;
+                </p>
+                
+                <div class="my-5 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md font-mono text-xs sm:text-sm">
+                  
+                    <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
+                      <div class="text-xs font-semibold text-slate-200">Registering a PreToolUse callback for the Bash tool in Python</div>
+                      <div class="text-[11px] text-slate-400 font-mono">EN: Registering a PreToolUse callback for the Bash tool in Python</div>
+                    </div>
+                    
+                  <pre class="p-5 text-emerald-300 overflow-x-auto leading-relaxed"><code>options = ClaudeAgentOptions(
+    hooks={&quot;PreToolUse&quot;: [HookMatcher(matcher=&quot;Bash&quot;, hooks=[my_callback])]}
+)</code></pre>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-c3ac8a79e394"
-             data-qid="c3ac8a79e394"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-c3ac8a79e394" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Which value completes this callback so that it blocks writes to `.env` files?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-c3ac8a79e394">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-c3ac8a79e394-A"
-                    data-qid="c3ac8a79e394"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('c3ac8a79e394', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">deny</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-c3ac8a79e394-B"
-                    data-qid="c3ac8a79e394"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('c3ac8a79e394', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">block</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-c3ac8a79e394-C"
-                    data-qid="c3ac8a79e394"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('c3ac8a79e394', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">reject</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-c3ac8a79e394-D"
-                    data-qid="c3ac8a79e394"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('c3ac8a79e394', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">false</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-c3ac8a79e394" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-c3ac8a79e394" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">The SDK callback uses the same `permissionDecision` values as Claude Code hooks. `deny` cancels the call and sends the reason to Claude.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The SDK callback uses the same `permissionDecision` values as Claude Code hooks. `deny` cancels the call and sends the reason to Claude.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การเรียกกลับจะตอบสนองโดยการส่งคืนค่า ไม่ใช่การออกจากโค้ด โดยจะได้รับข้อมูลอินพุต (tool_name, tool_input และฟิลด์ที่ใช้ร่วมกัน) รหัสการใช้งานเครื่องมือที่เชื่อมโยงเหตุการณ์ PreToolUse กับเหตุการณ์ PostToolUse ที่ตรงกัน และอาร์กิวเมนต์บริบท ในการปฏิเสธการเรียกกลับจะส่งคืนโครงสร้าง hookSpecificOutput เดียวกันกับที่คําสั่ง hook พิมพ์ ในการปล่อยให้การเรียกกลับดําเนินการต่อจะส่งคืนอ็อบเจกต์ที่ว่างเปล่า การเรียกกลับที่ช้าจะล้มเหลวในการปิด: การเรียกกลับที่เกินเวลาหมดเวลาจะบล็อกการเรียกกลับของเครื่องมือ การรองรับภาษาก็แตกต่างกันเช่นกัน PreToolUse และ PostToolUse ทํางานได้ทั้งใน Python และ TypeScript แต่เหตุการณ์ต่างๆ เช่น SessionStart เป็น TypeScript เท่านั้น
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ฟิลด์ระดับบนสุดเช่น systemMessage ซึ่งแสดงข้อความแก่ผู้ใช้ และ continue จะได้รับการยอมรับในทุกเหตุการณ์ บางเหตุการณ์จะละทิ้งสิ่งเหล่านี้หรือส่งไปยังที่อื่น หากคำอธิบายของ Guardrail ไม่เคยไปถึง UI ของคุณ ให้ตรวจสอบส่วนของเหตุการณ์นั้นในหน้า hooks ก่อนที่คุณจะไปค้นหาข้อบกพร่องใน callback
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-c3ac8a79e394"
+                 data-qid="c3ac8a79e394"
+                 data-correct="A">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-c3ac8a79e394" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ค่าใดที่จะทําให้การเรียกกลับนี้เสร็จสมบูรณ์เพื่อบล็อกการเขียนไปยังไฟล์ `.env`</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Which value completes this callback so that it blocks writes to `.env` files?</p>
+              </div>
+              
+              
+                <div class="my-3 rounded-xl overflow-hidden border border-slate-800 bg-slate-950 font-mono text-xs sm:text-sm shadow-inner">
+                  <pre class="p-4 text-emerald-300 overflow-x-auto leading-relaxed"><code># Define a hook callback that receives tool call details
+async def protect_env_files(input_data, tool_use_id, context):
+    # Extract the file path from the tool&#x27;s input arguments
+    file_path = input_data[&quot;tool_input&quot;].get(&quot;file_path&quot;, &quot;&quot;)
+    file_name = file_path.split(&quot;/&quot;)[-1]
+
+    # Block the operation if targeting a .env file
+    if file_name == &quot;.env&quot;:
+        return {
+            &quot;hookSpecificOutput&quot;: {
+                &quot;hookEventName&quot;: input_data[&quot;hook_event_name&quot;],
+                &quot;permissionDecision&quot;: &quot;____&quot;,
+                &quot;permissionDecisionReason&quot;: &quot;Cannot modify .env files&quot;,
+            }
+        }
+
+    # Return empty object to allow the operation
+    return {}</code></pre>
+                </div>
+                
+              
+              <div class="space-y-2.5 mb-3" id="options-c3ac8a79e394">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-c3ac8a79e394-A"
+                        data-qid="c3ac8a79e394"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('c3ac8a79e394', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ปฏิเสธ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: deny</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-c3ac8a79e394-B"
+                        data-qid="c3ac8a79e394"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('c3ac8a79e394', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">บล็อก</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: block</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-c3ac8a79e394-C"
+                        data-qid="c3ac8a79e394"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('c3ac8a79e394', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ปฏิเสธ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: reject</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-c3ac8a79e394-D"
+                        data-qid="c3ac8a79e394"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('c3ac8a79e394', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เท็จ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: false</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-c3ac8a79e394" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-c3ac8a79e394" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">การเรียกคืน SDK ใช้ค่า `permissionDecision` เดียวกันกับที่ Claude Code hooks `deny` ยกเลิกการโทรและส่งเหตุผลไปยัง Claude</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The SDK callback uses the same `permissionDecision` values as Claude Code hooks. `deny` cancels the call and sends the reason to Claude.</div>
+                  
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('c3ac8a79e394')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('c3ac8a79e394')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1196,17 +1594,14 @@
         <section id="practise-it-for-real" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>Practise it for real</span>
+            <span>ฝึกฝนอย่างจริงจัง</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Practise it for real</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
-          <ol class="list-decimal ml-5 my-3 space-y-1"><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">1. Save the block-rm.sh script from this page as.claude/hooks/block-rm.sh in a scratch project. Why: Inside the project, the script can be committed alongside the settings that call it. You should see: The file exists and reads tool_input.command with jq.</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">2. Run chmod +x.claude/hooks/block-rm.sh. Why: A command handler has to be executable on macOS and Linux. You should see: ls -l shows the execute bit set.</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">3. In.claude/settings.json, register the script under PreToolUse with matcher Bash and if set to Bash(rm *). Why: The matcher limits the hook to Bash, and the if condition limits it further to rm commands. You should see: Claude Code loads the hook at the start of the next session.</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">4. Ask Claude to delete a scratch directory with rm -rf. Why: The call matches both filters, so the handler runs and returns deny. You should see: The call is cancelled and Claude receives "Destructive command blocked by hook".</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">5. Ask Claude to run ls. Why: The matcher passes it, but the if condition does not, so the handler never runs. You should see: The command goes through the normal permission flow.</li></ol>
+          
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ติดตั้งโครงการ PreToolUse hook ที่ปฏิเสธ rm -rf และดูว่ามันบล็อกการโทรจริงหรือไม่
+                </p>
+                <ol class="list-decimal ml-5 my-3 space-y-1"><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">1. บันทึกสคริปต์ block-rm.sh จากหน้านี้เป็น.claude/hooks/block-rm.sh ในโครงการเริ่มต้น เหตุผล: ภายในโครงการ สคริปต์สามารถถูกคอมมิชต์ไปพร้อมกับการตั้งค่าที่เรียกใช้ได้ คุณควรเห็น: ไฟล์มีอยู่และอ่าน tool_input.command ด้วย jq</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">2. รัน chmod +x.claude/hooks/block-rm.sh เหตุผล: ตัวจัดการคำสั่งจะต้องสามารถเรียกใช้งานได้บน macOS และ Linux คุณควรเห็น: ls -l แสดงชุดบิตดำเนินการ</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">3. ใน.claude/settings.json ให้ลงทะเบียนสคริปต์ภายใต้ PreToolUse ด้วยตัวจับคู่ Bash และถ้าตั้งค่าเป็น Bash(rm *) เหตุใด: ตัวจับคู่จํากัดฮ็อกให้เป็น Bash และเงื่อนไข if จํากัดเพิ่มเติมให้เป็นคําสั่ง rm คุณควรเห็น: Claude Code โหลดฮ็อกเมื่อเริ่มต้นเซสชันถัดไป</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">4. ขอให้ Claude ลบไดเรกทอรี Scratch ด้วย rm -rf เหตุผล: การเรียกใช้ตรงกับตัวกรองทั้งสอง ดังนั้นตัวจัดการจะทํางานและส่งคืนการปฏิเสธ คุณควรเห็น: การเรียกใช้ถูกยกเลิกและ Claude ได้รับ “คําสั่งทําลายล้างถูกบล็อกโดย hook”</li><li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">5. ขอให้ Claude วิ่ง ls เหตุผล: ตัวจับคู่จะผ่านมันไป แต่เงื่อนไขถ้าไม่ผ่าน ดังนั้นตัวจัดการจะไม่ทำงาน คุณควรเห็น: คำสั่งต้องผ่านการอนุญาตตามปกติ</li></ol>
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1340,6 +1735,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1360,12 +1764,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1430,7 +2097,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}

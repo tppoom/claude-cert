@@ -13,6 +13,13 @@
     code, pre {
       font-family: 'JetBrains Mono', monospace;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-indigo-500 selection:text-white">
@@ -538,7 +545,7 @@
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
-            Agent harness — The harness is the code that runs the agent loop around the model. It sends the prompt, executes the tools Claude asks for, feeds the results back and decides when to stop. The ways to build a Claude agent mostly differ in who writes and runs that harness: you, a library in your process, or Anthropic.
+            สายรัดเอเจนต์ – สายรัดคือโค้ดที่เรียกใช้ลูปเอเจนต์รอบๆ โมเดล มันส่งพร้อมท์ เรียกใช้เครื่องมือที่ Claude ขอ ส่งผลลัพธ์กลับมา และตัดสินใจว่าเมื่อใดควรหยุด วิธีสร้างเอเจนต์ Claude ส่วนใหญ่จะแตกต่างกันขึ้นอยู่กับว่าใครเป็นผู้เขียนและเรียกใช้สายรัดนั้น: คุณ ไลบรารีในกระบวนการของคุณ หรือ Anthropic
           </p>
         </section>
         
@@ -549,7 +556,7 @@
         <span>หัวข้อในบทเรียนนี้ (In this lesson)</span>
       </div>
       <ul class="space-y-2 ml-1">
-        <li><a href="#1-four-ways-to-build-a-claude-agent" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. Four ways to build a Claude agent</span></a></li><li><a href="#2-claude-managed-agents-agent-environment-session-events" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Claude Managed Agents: agent, environment, session, events</span></a></li><li><a href="#3-your-process-anthropic-s-cloud-or-your-sandbox" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. Your process, Anthropic's cloud, or your sandbox</span></a></li>
+        <li><a href="#1-four-ways-to-build-a-claude-agent" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>1. สี่วิธีในการสร้าง Claude Agent</span></a></li><li><a href="#2-claude-managed-agents-agent-environment-session-events" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>2. Claude Managed Agents: เอเจนต์, สภาพแวดล้อม, เซสชัน, เหตุการณ์</span></a></li><li><a href="#3-your-process-anthropic-s-cloud-or-your-sandbox" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>3. กระบวนการของคุณ ระบบคลาวด์ของ Anthropic หรือ Sandbox ของคุณ</span></a></li>
       </ul>
     </nav>
     
@@ -557,120 +564,144 @@
         <section id="1-four-ways-to-build-a-claude-agent" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>1. Four ways to build a Claude agent</span>
+            <span>1. สี่วิธีในการสร้าง Claude Agent</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Four ways to build a Claude agent</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">You want to</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Use</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Who runs the loop</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Tools</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Call the Claude API directly from your own code</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Client SDK</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">You, or the beta tool runner</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Ones you define and execute</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Embed Claude Code's agent in your own Python or TypeScript application</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Agent SDK</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">The SDK, in a process you operate</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Built-in Read, Edit, Bash, Grep and more, plus MCP</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Have Anthropic host the agent, configured through the Claude API</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Managed Agents</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Anthropic's hosted harness</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Built-in Bash, file operations, web search and fetch, MCP</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Do interactive development or one-off tasks from a terminal</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Code CLI</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Claude Code</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Built-in</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ตัวแทน Claude ทุกคนทำงานรอบเดียวกันคลอดด์จะได้รับการแจ้งเตือนขอให้เรียกเครื่องมือรับผลลัพธ์กลับมาและดำเนินการต่อไปจนกว่าจะรับสายโดยไม่ต้องเรียกเครื่องมือวัฏจักรนั้นสอนใน [The tool-use (agentic) loop] (บทเรียน: 8.1) ตัวเลือกการสร้างจะแตกต่างกันไปตามจำนวนรอบที่คุณเขียนด้วยตัวคุณเองเครื่องมือใดที่มีอยู่แล้วและตำแหน่งที่เจ้าหน้าที่ทำงาน
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ที่ปลายด้านหนึ่งคือ Client SDK ซึ่งเรียก Claude API โดยตรงคุณเขียนลูปเครื่องมือด้วยตัวคุณเองหรือส่งไปยังตัวเรียกใช้เครื่องมือเบต้าของไคลเอนต์ SDK ซึ่งจะขับเคลื่อนลูปในขณะที่คุณยังคงกำหนดและเรียกใช้เครื่องมือทุกอย่างการควบคุมคือประเด็น: API ข้อความได้รับการอธิบายว่าดีที่สุดสำหรับลูปของตัวแทนที่กำหนดเองและการควบคุมแบบละเอียดดังนั้นสายรัดที่กำหนดเองจึงอยู่ที่นี่
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  Agent SDK เป็นตัวเลือกระดับกลาง เป็นไลบรารี Python หรือ TypeScript ที่เรียกใช้ไบนารี Claude Code ภายในกระบวนการที่คุณดําเนินการ Claude Code เป็นเอเจนต์ของ Anthropic สําหรับการทํางานจากเทอร์มินัล โดยมีเครื่องมือในตัวสําหรับอ่าน แก้ไข และเขียนไฟล์ และเรียกใช้คําสั่ง SDK ใช้ลูปและเครื่องมือเป็นไลบรารี คุณสามารถสร้างลูปของ Claude Code ไว้ล่วงหน้าพร้อมกับเครื่องมือในตัว สิทธิ์ เซสชัน ฮ็อก ซับเอเจนต์ และการสนับสนุน MCP และคุณไม่ต้องเขียนลูปด้วยตนเอง บริการ Claude Managed Agents อยู่ที่ปลายสุด: Anthropic เป็นโฮสต์ของฮาร์ดแวร์ และคุณกําหนดค่าผ่าน Claude API
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">คุณต้องการ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: You want to</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">การใช้งาน</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Use</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ใครเป็นคนเรียกใช้ลูป</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Who runs the loop</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">เครื่องมือ</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Tools</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เรียกใช้ Claude API โดยตรงจากโค้ดของคุณเอง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Call the Claude API directly from your own code</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">SDK ไคลเอนต์</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Client SDK</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คุณหรือผู้ใช้งานเครื่องมือแบบเบต้า</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: You, or the beta tool runner</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สิ่งที่คุณกําหนดและดําเนินการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Ones you define and execute</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ฝังเอเจนต์ของ Claude Code ในแอปพลิเคชัน Python หรือ TypeScript ของคุณเอง</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Embed Claude Code&#x27;s agent in your own Python or TypeScript application</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">SDK เอเจนต์</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Agent SDK</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">SDK ในกระบวนการที่คุณดำเนินการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: The SDK, in a process you operate</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">อ่าน แก้ไข แบช Grep และอื่นๆ ในตัว รวมถึง MCP</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Built-in Read, Edit, Bash, Grep and more, plus MCP</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ให้ Anthropic โฮสต์เอเจนต์ที่กําหนดค่าผ่าน Claude API</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Have Anthropic host the agent, configured through the Claude API</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เอเจนต์ที่มีการจัดการ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Managed Agents</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">สายรัดที่ได้รับการดูแลจาก anthropic</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Anthropic&#x27;s hosted harness</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Bash ในตัว, การดําเนินการไฟล์, การค้นหาและดึงข้อมูลบนเว็บ, MCP</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Built-in Bash, file operations, web search and fetch, MCP</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ทําการพัฒนาเชิงโต้ตอบหรืองานแบบครั้งเดียวจากเทอร์มินัล</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Do interactive development or one-off tasks from a terminal</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Claude Code CLI</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Code CLI</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">คล็อด โค้ด</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Claude Code</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">บิวท์อิน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Built-in</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">What each build option handles for you</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">สิ่งที่ตัวเลือกการสร้างแต่ละตัวจัดการให้คุณ</figcaption>
                 </div>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-199241150cfb"
-             data-qid="199241150cfb"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-199241150cfb" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">A team wants Claude Code&#x27;s built-in file and shell tools, hooks and sessions inside their own Python service, and does not want to write the tool loop. Which option fits?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-199241150cfb">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-199241150cfb-A"
-                    data-qid="199241150cfb"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('199241150cfb', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The Client SDK with hand-written tool handlers</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-199241150cfb-B"
-                    data-qid="199241150cfb"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('199241150cfb', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The Agent SDK</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-199241150cfb-C"
-                    data-qid="199241150cfb"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('199241150cfb', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The Client SDK&#x27;s beta tool runner</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-199241150cfb-D"
-                    data-qid="199241150cfb"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('199241150cfb', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The Claude Code CLI run interactively</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-199241150cfb" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-199241150cfb" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">The Agent SDK is a library that runs Claude Code&#x27;s loop and built-in tools in a process you operate. The Client SDK, with or without the tool runner, still leaves you to define the tools.</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: The Agent SDK is a library that runs Claude Code&#x27;s loop and built-in tools in a process you operate. The Client SDK, with or without the tool runner, still leaves you to define the tools.</div>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  แต่ละตัวเลือกชนะในสถานการณ์ที่แตกต่างกันเลือก SDK ของไคลเอ็นต์เมื่อลูปตัวเองเป็นผลิตภัณฑ์ตัวอย่างเช่นเมื่อคุณต้องการกฎการหยุดที่กำหนดเองหรือวิธีการตัดแต่งบริบทของคุณเองเลือกตัวแทน SDK เมื่อคุณต้องการตัวแทนรูปแบบการเข้ารหัสที่ทำงานได้ภายในบริการของคุณเองในสัปดาห์นี้เลือกตัวแทนที่มีการจัดการเมื่องานทำงานเป็นเวลาหลายนาทีหรือหลายชั่วโมงและคุณไม่ต้องการเรียกใช้ Sandbox เลเยอร์การดำเนินการเครื่องมือหรือการจัดเก็บเซสชันด้วยตัวคุณเอง
+                </p>
+                
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-199241150cfb"
+                 data-qid="199241150cfb"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-199241150cfb" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Embed Claude Code’s agent in your own Python or TypeScript application, in a process you operate”
-              <br><a href="https://code.claude.com/docs/en/agent-sdk/overview" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ทีมงานต้องการไฟล์และเครื่องมือเชลล์ในตัวของ Claude Code ฮุคและเซสชันภายในบริการ Python ของตนเอง และไม่ต้องการเขียนลูปเครื่องมือ ตัวเลือกใดที่เหมาะกับ?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A team wants Claude Code&#x27;s built-in file and shell tools, hooks and sessions inside their own Python service, and does not want to write the tool loop. Which option fits?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-199241150cfb">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-199241150cfb-A"
+                        data-qid="199241150cfb"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('199241150cfb', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">SDK ของไคลเอ็นต์ที่มีตัวจัดการเครื่องมือที่เขียนด้วยมือ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The Client SDK with hand-written tool handlers</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-199241150cfb-B"
+                        data-qid="199241150cfb"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('199241150cfb', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เจ้าหน้าที่ SDK</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The Agent SDK</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-199241150cfb-C"
+                        data-qid="199241150cfb"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('199241150cfb', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ตัวเรียกใช้เครื่องมือรุ่นเบต้าของ SDK ของไคลเอนต์</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The Client SDK&#x27;s beta tool runner</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-199241150cfb-D"
+                        data-qid="199241150cfb"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('199241150cfb', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">Claude Code CLI ทำงานแบบโต้ตอบ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The Claude Code CLI run interactively</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-199241150cfb" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-199241150cfb" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">Agent SDK เป็นไลบรารีที่เรียกใช้ลูปของ Claude Code และเครื่องมือในตัวในกระบวนการที่คุณดำเนินการ SDK ของลูกค้าที่มีหรือไม่มีเครื่องมือวิ่งยังคงปล่อยให้คุณกำหนดเครื่องมือ</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: The Agent SDK is a library that runs Claude Code&#x27;s loop and built-in tools in a process you operate. The Client SDK, with or without the tool runner, still leaves you to define the tools.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “ฝังตัวแทนของ Claude Code ในแอปพลิเคชัน Python หรือ TypeScript ของคุณเองในกระบวนการที่คุณดำเนินการ”
+              <br><a href="https://code.claude.com/docs/en/agent-sdk/overview" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('199241150cfb')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('199241150cfb')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -690,79 +721,259 @@
         <section id="2-claude-managed-agents-agent-environment-session-events" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>2. Claude Managed Agents: agent, environment, session, events</span>
+            <span>2. Claude Managed Agents: เอเจนต์, สภาพแวดล้อม, เซสชัน, เหตุการณ์</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Claude Managed Agents: agent, environment, session, events</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  ด้วย Managed Agents การกำหนดค่าจะแทนที่โค้ดส่วนใหญ่ของคุณคุณไม่ได้สร้างลูปตัวแทนเลเยอร์การดำเนินการเครื่องมือหรือรันไทม์คุณอธิบายตัวแทนและสายรัดของ Anthropic ทำงานด้วยการแคชและการบดอัดที่รวดเร็วในตัวแนวคิดสี่ประการครอบคลุมการบริการทั้งหมด
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  นี่คือแนวคิดทั้งสี่:
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  - ตัวแทน: โมเดลระบบพร้อมท์เครื่องมือเซิร์ฟเวอร์ MCP และทักษะคุณสร้างเพียงครั้งเดียวและอ้างอิงตาม ID ในเซสชั่น - สภาพแวดล้อม: ที่ที่เซสชันทำงานไม่ว่าจะเป็นแซนด์บ็อกซ์เมฆที่มีการจัดการแบบแอนโทรปิกหรือแซนด์บ็อกซ์ที่โฮสต์ด้วยตนเองบนโครงสร้างพื้นฐานของคุณเอง - เซสชัน: อินสแตนซ์ตัวแทนที่ทำงานอยู่หนึ่งตัวภายในสภาพแวดล้อมโดยทำงานเฉพาะ - เหตุการณ์: ข้อความระหว่างแอปพลิเคชันของคุณและตัวแทนเช่นการเปลี่ยนผู้ใช้ผลลัพธ์ของเครื่องมือและการอัปเดตสถานะ
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เมื่อรันไทม์คุณจะเริ่มเซสชันที่ชี้ไปที่ตัวแทนและสภาพแวดล้อมคุณส่งข้อความของผู้ใช้เป็นกิจกรรมและ Claude เรียกใช้เครื่องมือด้วยตัวเองในขณะที่สตรีมผลลัพธ์กลับมาจากกิจกรรมที่ส่งโดยเซิร์ฟเวอร์ประวัติเหตุการณ์จะถูกจัดเก็บไว้ในเซิร์ฟเวอร์คุณจึงสามารถเรียกดูได้เต็มรูปแบบในภายหลังในขณะที่เจ้าหน้าที่ทำงานคุณสามารถส่งเหตุการณ์ของผู้ใช้เพิ่มเติมเพื่อคัดท้ายหรือขัดจังหวะเพื่อเปลี่ยนทิศทาง
+                </p>
+                
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  บริการนี้เหมาะกับการดำเนินการที่ยาวนานเซสชันที่มีสถานะพร้อมระบบไฟล์แบบถาวรและทำงานซ้ำตามกำหนดเวลา cron ผ่านการปรับใช้ตามกำหนดเวลาความเป็นรัฐนั้นมีค่าใช้จ่ายเซสชันจัดเก็บประวัติการสนทนาสถานะแซนด์บ็อกซ์และเอาต์พุตในฝั่งแอนโทรปิกดังนั้น Managed Agents จึงไม่มีสิทธิ์ได้รับการเก็บรักษาข้อมูลเป็นศูนย์หรือความครอบคลุมของ HIPAA BAA ในขณะนี้คุณยังสามารถลบเซสชันและไฟล์ที่อัปโหลดผ่าน API ได้
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: Managed Agents can be used for a workload that requires Zero Data Retention. (ทำไมถึงผิด): Managed Agents stores session history, sandbox state and outputs on the server by design, so it is not currently eligible for ZDR or HIPAA BAA coverage.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">กับดักการสอบ: ตัวแทนที่มีการจัดการสามารถใช้สำหรับปริมาณงานที่ต้องมีการเก็บรักษาข้อมูลเป็นศูนย์ทำไมถึงผิด (): Managed Agents จัดเก็บประวัติเซสชันสถานะแซนด์บ็อกซ์และเอาต์พุตบนเซิร์ฟเวอร์ตามการออกแบบดังนั้นจึงไม่มีสิทธิ์ได้รับความคุ้มครอง ZDR หรือ HIPAA BAA ในขณะนี้</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: Managed Agents can be used for a workload that requires Zero Data Retention. (ทำไมถึงผิด): Managed Agents stores session history, sandbox state and outputs on the server by design, so it is not currently eligible for ZDR or HIPAA BAA coverage.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-0a2a95358a5c"
-             data-qid="0a2a95358a5c"
-             data-correct="A">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-0a2a95358a5c" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">Match each Managed Agents concept to what it holds</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-0a2a95358a5c">
-            
-          </div>
-          
-          <div id="feedback-0a2a95358a5c" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-0a2a95358a5c" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">คุณกำหนดตัวแทนหนึ่งครั้ง เลือกสภาพแวดล้อม และเริ่มเซสชันที่อ้างอิงทั้งสองอย่าง เหตุการณ์คือการรับส่งข้อมูลที่เข้าและออกจากเซสชันที่ทำงานอยู่</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: You define the agent once, choose an environment, and start sessions that reference both. Events are the traffic going in and out of a running session.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-0a2a95358a5c"
+                 data-qid="0a2a95358a5c"
+                 data-correct="MATCH"
+                 data-total-pairs="4">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">🔄</span>
+                  <span>แบบฝึกหัดจับคู่ความสัมพันธ์ (Matching Challenge)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-0a2a95358a5c" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตรวจสอบแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Match (4 คู่)</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “Create the agent once and reference it by ID across sessions.”
-              <br><a href="https://platform.claude.com/docs/en/managed-agents/overview" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">จับคู่แนวคิด Managed Agents แต่ละรายการกับสิ่งที่มีอยู่</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: Match each Managed Agents concept to what it holds</p>
+              </div>
+
+              <!-- Interactive Matching Board -->
+              <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-3">
+                <div class="text-xs text-indigo-300 font-medium flex items-center justify-between pb-2 border-b border-slate-800">
+                  <span class="flex items-center gap-1.5"><span>👉</span><span>คำแนะนำ: คลิกเลือกคำศัพท์ฝั่งซ้าย แล้วคลิกเลือกคำอธิบายที่ตรงกันฝั่งขวา</span></span>
+                  <span id="match-counter-0a2a95358a5c" class="text-slate-400 font-mono">จับคู่ได้ 0/4</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <!-- Terms (Left) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">1. รายการคำศัพท์ / หัวข้อ:</div>
+                    
+                <button type="button"
+                        id="match-term-0a2a95358a5c-0"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('0a2a95358a5c', 0)">
+                  <span id="match-badge-term-0a2a95358a5c-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">1</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">ตัวแทน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Agent</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-0a2a95358a5c-1"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('0a2a95358a5c', 1)">
+                  <span id="match-badge-term-0a2a95358a5c-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">2</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">สิ่งแวดล้อม</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Environment</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-0a2a95358a5c-2"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('0a2a95358a5c', 2)">
+                  <span id="match-badge-term-0a2a95358a5c-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">3</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">เซสชัน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Session</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-term-0a2a95358a5c-3"
+                        class="match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectTerm('0a2a95358a5c', 3)">
+                  <span id="match-badge-term-0a2a95358a5c-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">4</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-semibold text-slate-100 block">การแข่งขัน</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Events</span>
+                  </div>
+                </button>
+                
+                  </div>
+                  <!-- Definitions (Right) -->
+                  <div class="space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">2. คำอธิบาย / ความหมาย (สลับตำแหน่ง):</div>
+                    
+                <button type="button"
+                        id="match-def-0a2a95358a5c-1"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('0a2a95358a5c', 1, 4)">
+                  <span id="match-badge-def-0a2a95358a5c-1" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">เซสชั่นที่ดำเนินการ: แซนด์บ็อกซ์เมฆของแอนโทรปิกหรือที่โฮสต์ด้วยตนเอง</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Where sessions run: Anthropic&#x27;s cloud sandbox or a self-hosted one</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-0a2a95358a5c-3"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('0a2a95358a5c', 3, 4)">
+                  <span id="match-badge-def-0a2a95358a5c-3" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">การเปลี่ยนผู้ใช้ผลลัพธ์ของเครื่องมือและการอัปเดตสถานะที่แลกเปลี่ยนกับแอปของคุณ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: User turns, tool results and status updates exchanged with your app</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-0a2a95358a5c-2"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('0a2a95358a5c', 2, 4)">
+                  <span id="match-badge-def-0a2a95358a5c-2" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">อินสแตนซ์ตัวแทนกำลังทำงานที่ทำงานเฉพาะ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: A running agent instance performing a specific task</span>
+                  </div>
+                </button>
+                
+                <button type="button"
+                        id="match-def-0a2a95358a5c-0"
+                        class="match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5"
+                        onclick="handleMatchSelectDef('0a2a95358a5c', 0, 4)">
+                  <span id="match-badge-def-0a2a95358a5c-0" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
+                  <div class="leading-relaxed grow">
+                    <span class="font-medium text-slate-200 block">รุ่นระบบพรอมต์เครื่องมือเซิร์ฟเวอร์ MCP และทักษะนำกลับมาใช้ใหม่โดย ID</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Model, system prompt, tools, MCP servers and skills, reused by ID</span>
+                  </div>
+                </button>
+                
+                  </div>
+                </div>
+              </div>
+
+              <!-- Feedback Banner -->
+              <div id="feedback-0a2a95358a5c" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+
+              <!-- Controls -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div class="flex items-center gap-3">
+                  <button type="button"
+                          onclick="resetMatchGame('0a2a95358a5c')"
+                          class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5">
+                    <span>🔄</span>
+                    <span>เริ่มจับคู่ใหม่ (Reset)</span>
+                  </button>
+                  <button type="button"
+                          onclick="toggleSolutionManual('0a2a95358a5c')"
+                          class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                    ดูเฉลยคู่ความสัมพันธ์
+                  </button>
+                </div>
+                <span class="text-[11px] text-slate-400">จับคู่ให้ครบทุกข้อเพื่อบันทึกผลสำเร็จอัตโนมัติ</span>
+              </div>
+              
+              <!-- Solution Box -->
+              <div id="solution-0a2a95358a5c" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <strong class="text-indigo-300 block text-xs uppercase tracking-wider">✓ เฉลยคู่ความสัมพันธ์ที่ถูกต้อง (Verified Pairs):</strong>
+                <div class="space-y-2.5">
+                  
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">1</span>
+                    <span class="font-semibold text-slate-100">ตัวแทน</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Agent)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ รุ่นระบบพรอมต์เครื่องมือเซิร์ฟเวอร์ MCP และทักษะนำกลับมาใช้ใหม่โดย ID</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Model, system prompt, tools, MCP servers and skills, reused by ID</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">2</span>
+                    <span class="font-semibold text-slate-100">สิ่งแวดล้อม</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Environment)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ เซสชั่นที่ดำเนินการ: แซนด์บ็อกซ์เมฆของแอนโทรปิกหรือที่โฮสต์ด้วยตนเอง</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: Where sessions run: Anthropic&#x27;s cloud sandbox or a self-hosted one</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">3</span>
+                    <span class="font-semibold text-slate-100">เซสชัน</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Session)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ อินสแตนซ์ตัวแทนกำลังทำงานที่ทำงานเฉพาะ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: A running agent instance performing a specific task</span>
+                  </div>
+                </div>
+                
+                <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
+                  <div class="font-bold text-indigo-300 flex items-center gap-2">
+                    <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">4</span>
+                    <span class="font-semibold text-slate-100">การแข่งขัน</span>
+                    <span class="text-xs text-indigo-400/80 font-mono font-normal">(Events)</span>
+                  </div>
+                  <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
+                    <span class="text-slate-200 block font-medium">➔ การเปลี่ยนผู้ใช้ผลลัพธ์ของเครื่องมือและการอัปเดตสถานะที่แลกเปลี่ยนกับแอปของคุณ</span>
+                    <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: User turns, tool results and status updates exchanged with your app</span>
+                  </div>
+                </div>
+                
+                </div>
+                <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
+                  <p class="leading-relaxed">คุณกำหนดตัวแทนหนึ่งครั้ง เลือกสภาพแวดล้อม และเริ่มเซสชันที่อ้างอิงทั้งสองอย่าง เหตุการณ์คือการรับส่งข้อมูลที่เข้าและออกจากเซสชันที่ทำงานอยู่</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: You define the agent once, choose an environment, and start sessions that reference both. Events are the traffic going in and out of a running session.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “สร้างเจ้าหน้าที่หนึ่งครั้งและอ้างอิงตาม ID ในเซสชั่น”
+              <br><a href="https://platform.claude.com/docs/en/managed-agents/overview" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('0a2a95358a5c')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -782,142 +993,246 @@
         <section id="3-your-process-anthropic-s-cloud-or-your-sandbox" class="mt-14 pt-8 border-t border-slate-800/80">
           <h2 class="text-xl sm:text-2xl font-bold text-white flex items-center gap-3 mb-5 scroll-mt-24">
             <span class="w-3 h-3 rounded-full bg-indigo-500 inline-block shadow-md shadow-indigo-500/50"></span>
-            <span>3. Your process, Anthropic's cloud, or your sandbox</span>
+            <span>3. กระบวนการของคุณ ระบบคลาวด์ของ Anthropic หรือ Sandbox ของคุณ</span>
           </h2>
           
-        <div class="space-y-3">
-          <div class="p-4 rounded-xl border border-slate-800 bg-slate-900/60 text-sm sm:text-base text-slate-200 leading-relaxed">
-            <strong class="text-indigo-400 block mb-1">สาระสำคัญและหลักการทำงานของหัวข้อนี้:</strong>
-            หัวข้อนี้เจาะลึก <strong>Your process, Anthropic's cloud, or your sandbox</strong> ตามมาตรฐานและพิมพ์เขียวการสอบของ Anthropic โดยมุ่งเน้นการทำความเข้าใจสถาปัตยกรรมเชิงลึก ข้อดีข้อเสียทางเทคนิค และแนวทางการปฏิบัติจริงในโปรดักชัน
-          </div>
-        </div>
-        
           
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
-                    <span class="text-base">⚠️</span>
-                    <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
-                  </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Predict First: A Managed Agents session is moved to a self-hosted sandbox. Where does Claude&#x27;s reasoning and orchestration now run?On Anthropic&#x27;s side, while tools run on your hostOn your host, next to the toolsSplit evenly, with every tool call reasoned about locallySelf-hosting moves only tool execution. Orchestration stays with Anthropic, and tool inputs and outputs travel to its control plane so Claude can see them.“Self-hosted sandboxes keep the orchestration on Anthropic&#x27;s side but move tool execution into infrastructure you control”Source: platform.claude.com</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
-                    EN: Predict First: A Managed Agents session is moved to a self-hosted sandbox. Where does Claude&#x27;s reasoning and orchestration now run? On Anthropic&#x27;s side, while tools run on your host On your host, next to the tools Split evenly, with every tool call reasoned about locally Self-hosting moves only tool execution. Orchestration stays with Anthropic, and tool inputs and outputs travel to its control plane so Claude can see them. “ Self-hosted sandboxes keep the orchestration on Anthropic&#x27;s side but move tool execution into infrastructure you control ” Source: platform.claude.com
-                  </div>
-                </aside>
+    <div class="quiz-card my-8 rounded-2xl border border-amber-500/40 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+         id="quiz-pred_a5857681"
+         data-qid="pred_a5857681"
+         data-correct="A">
+      <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400 uppercase">
+          <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-300">💡</span>
+          <span>คำถามท้าทายความคิดก่อนอ่านเนื้อหา (Predict First Challenge)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-badge-pred_a5857681" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Predict</span>
+        </div>
+      </div>
+      
+      <div class="mb-4 space-y-1.5">
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">เซสชัน Managed Agents จะถูกย้ายไปยัง Sandbox ที่โฮสต์ด้วยตนเองตอนนี้การให้เหตุผลและการประสานเสียงของ Claude ดำเนินไปถึงไหนแล้ว?</p>
+        <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: A Managed Agents session is moved to a self-hosted sandbox. Where does Claude&#x27;s reasoning and orchestration now run?</p>
+      </div>
+      
+      <div class="space-y-2.5 mb-3" id="options-pred_a5857681">
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_a5857681-A"
+                data-qid="pred_a5857681"
+                data-opt="A"
+                onclick="handleQuizAnswer('pred_a5857681', 'A')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ในฝั่งของแอนโทรปิกขณะที่เครื่องมือทำงานบนโฮสต์</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: On Anthropic&#x27;s side, while tools run on your host</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_a5857681-B"
+                data-qid="pred_a5857681"
+                data-opt="B"
+                onclick="handleQuizAnswer('pred_a5857681', 'B')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">ถัดจากเครื่องมือให้เช่าที่พัก</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: On your host, next to the tools</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+        <button type="button"
+                class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-amber-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                id="opt-pred_a5857681-C"
+                data-qid="pred_a5857681"
+                data-opt="C"
+                onclick="handleQuizAnswer('pred_a5857681', 'C')">
+          <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+          <div class="leading-relaxed mt-0.5 grow">
+            <span class="font-medium text-slate-100 block">แบ่งเท่าๆกันโดยทุกการโทรของเครื่องมือให้เหตุผลเกี่ยวกับท้องถิ่น</span>
+            <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Split evenly, with every tool call reasoned about locally</span>
+          </div>
+          <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+        </button>
+        
+      </div>
+      
+      <div id="feedback-pred_a5857681" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+      
+      <div id="solution-pred_a5857681" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">คำตอบที่ถูกต้อง:</span>
+          <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก A</span>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+          <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+          <p class="text-slate-200 leading-relaxed text-sm">การโฮสต์ด้วยตนเองจะย้ายเฉพาะการดำเนินการกับเครื่องมือเท่านั้น Orchestration อยู่กับ Anthropic และอินพุตและเอาต์พุตของเครื่องมือจะเดินทางไปยังระนาบควบคุมเพื่อให้ Claude สามารถมองเห็นได้</p>
+          <div class="text-xs text-slate-400 font-mono pt-1">EN: Self-hosting moves only tool execution. Orchestration stays with Anthropic, and tool inputs and outputs travel to its control plane so Claude can see them.</div>
+          
+        <blockquote class="my-3 p-3 rounded-lg border-l-4 border-amber-500 bg-amber-950/30 text-xs sm:text-sm text-amber-200 leading-relaxed italic">
+          ““แซนด์บ็อกซ์ที่โฮสต์ด้วยตนเองจะเก็บออร์เคสเทรชั่นไว้ในฝั่งของแอนโทรปิกแต่ย้ายการดำเนินการเครื่องมือไปยังโครงสร้างพื้นฐานที่คุณควบคุม””
+          <div class="mt-1 text-[11px] font-mono text-amber-300/70 not-italic">EN: “Self-hosted sandboxes keep the orchestration on Anthropic&#x27;s side but move tool execution into infrastructure you control”</div>
+          <div class="mt-1.5 not-italic"><a href="https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes" target="_blank" class="underline text-amber-400 hover:text-amber-300 font-mono text-xs">🔗 แหล่งอ้างอิง: https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes</a></div>
+        </blockquote>
+        
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="toggleSolutionManual('pred_a5857681')" class="text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer">
+          ดูเฉลยและคำอธิบาย
+        </button>
+        <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+      </div>
+    </div>
+    
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  มีสามสถานที่ที่เจ้าหน้าที่สามารถทำงานได้และคำถามที่แยกพวกเขาออกจากกันคือด้านใดทำงานเป็นวงและด้านใดทำงานเป็นเครื่องมือด้วย SDK ของตัวแทนทั้งคู่จะเกิดขึ้นในกระบวนการของคุณคุณปรับใช้เช่นเดียวกับบริการอื่นๆในคอนเทนเนอร์หรือบนโครงสร้างพื้นฐานที่ไม่มีเซิร์ฟเวอร์และคุณจัดเก็บเซสชันในแบ็กเอนด์ของคุณเองหากต้องการให้คงอยู่
+                </p>
                 
-                <div class="my-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm">
-                  <table class="min-w-full divide-y divide-slate-800 text-left">
-                    <thead><tr><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Concern</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Cloud environment</th><th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-300 border-b border-slate-700 bg-slate-800/80">Self-hosted sandbox</th></tr></thead>
-                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Where tools run</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Anthropic-managed sandboxes</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Your infrastructure</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Network reach</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Anthropic's egress controls</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Your network policy</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">File and GitHub repo mounting</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Managed by Anthropic</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Managed by you</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Memory stores</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Mounted by Anthropic at /mnt/memory/</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Downloaded to /mnt/memory/ and synced by the SDK worker</td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Lifecycle</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Managed by Anthropic</td><td class="px-4 py-3 text-xs sm:text-sm text-slate-300 border-b border-slate-800/60">Managed by you</td></tr></tbody>
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  เอเจนต์ที่มีการจัดการจะเรียกใช้เครื่องมือใน Sandbox บนระบบคลาวด์ที่จัดการโดย Anthropic ตามค่าเริ่มต้น Anthropic จัดการการควบคุมการออกเครือข่าย การติดตั้งไฟล์และที่เก็บข้อมูล และวงจรชีวิตของ Sandbox Sandbox ที่โฮสต์เองจะรักษาการประสานงานในฝั่งของ Anthropic แต่เรียกใช้เครื่องมือบนโครงสร้างพื้นฐานของคุณ ไฟล์ที่เอเจนต์อ่านและเขียน กระบวนการที่เอเจนต์เริ่มต้น และเครือข่ายที่เอเจนต์สามารถเข้าถึงได้ทั้งหมดจะอยู่ภายใต้การควบคุมของคุณ การป้อนข้อมูลและเอาต์พุตของเครื่องมือจะยังคงกลับไปยังส่วนการควบคุมของ Anthropic เพราะนั่นคือที่ที่ Claude ทํางาน เนื้อหาของทักษะและที่เก็บหน่วยความจําจะถูกคัดลอกไปยัง Sandbox ของคุณสําหรับเซสชัน ที่เก็บหน่วยความจําคือไฟล์หน่วยความจําของเอเจนต์ที่ Anthropic เก็บไว้ ในฝั่งของคุณ โปรแกรมปฏิบัติงาน SDK จะดาวน์โหลดลงใน /mnt/memory/ และซิงค์การเปลี่ยนแปลงของเอเจนต์กลับไปยังที่เก็บ
+                </p>
+                
+                <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
+                  <table class="w-full border-collapse text-left text-xs sm:text-sm">
+                    <thead><tr><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">ความกังวล</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Concern</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">สภาพแวดล้อมคลาวด์</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Cloud environment</div></th><th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">แซนด์บ็อกซ์ที่โฮสต์ด้วยตนเอง</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: Self-hosted sandbox</div></th></tr></thead>
+                    <tbody><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">เครื่องมือทำงานที่ไหน</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Where tools run</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">Sandbox ที่จัดการโดย Anthropic</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Anthropic-managed sandboxes</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">โครงสร้างพื้นฐานของคุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Your infrastructure</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การเข้าถึงเครือข่าย</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Network reach</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การควบคุมการออกของ Anthropic</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Anthropic&#x27;s egress controls</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">นโยบายเครือข่ายของคุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Your network policy</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">การติดตั้งไฟล์และคลัง GitHub</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: File and GitHub repo mounting</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">จัดการโดย Anthropic</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Managed by Anthropic</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">จัดการโดยคุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Managed by you</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ที่เก็บหน่วยความจํา</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Memory stores</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ติดตั้งโดย Anthropic ที่ /mnt/memory/</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Mounted by Anthropic at /mnt/memory/</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">ดาวน์โหลดไปยัง /mnt/memory/ และซิงค์โดยตัวปฏิบัติการ SDK</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Downloaded to /mnt/memory/ and synced by the SDK worker</div></td></tr><tr class="hover:bg-slate-800/40 transition-colors"><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">วงจรชีวิต</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Lifecycle</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">จัดการโดย Anthropic</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Managed by Anthropic</div></td><td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">จัดการโดยคุณ</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: Managed by you</div></td></tr></tbody>
                   </table>
-                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">Managed Agents cloud environment against a self-hosted sandbox</figcaption>
+                  <figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">สภาพแวดล้อมคลาวด์ของตัวแทนที่ได้รับการจัดการเทียบกับแซนด์บ็อกซ์ที่โฮสต์เอง</figcaption>
                 </div>
                 
+                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
+                  การโฮสต์ด้วยตนเองมีค่าใช้จ่ายในการดำเนินงานในสามกรณี: ข้อมูลไม่สามารถออกจากขอบเขตเครือข่ายของคุณได้ตัวแทนต้องเข้าถึงบริการภายในที่ไม่สามารถกำหนดเส้นทางสาธารณะได้หรืองานต้องดำเนินการภายใต้การควบคุมการปฏิบัติตามกฎระเบียบและการตรวจสอบของคุณเองการปิดกั้นสิ่งที่กระบวนการแซนด์บ็อกซ์สามารถเข้าถึงได้จะครอบคลุมอยู่ใน [Runtime sandboxing against exfiltration] (บทเรียน: 7.1) หากไม่มีกรณีเหล่านี้สภาพแวดล้อมระบบคลาวด์หมายถึงโครงสร้างพื้นฐานที่คุณใช้งานได้น้อยลง
+                </p>
+                
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">Exam Trap: A self-hosted sandbox means the whole agent, model calls included, runs inside your infrastructure. (ทำไมถึงผิด): Only tool execution moves to your host. Orchestration stays with Anthropic, and tool inputs and outputs still go to Anthropic&#x27;s control plane.</p>
+                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">กับดักการสอบ: แซนด์บ็อกซ์ที่โฮสต์ด้วยตนเองหมายถึงตัวแทนทั้งหมดรวมถึงการโทรแบบจำลองทำงานภายในโครงสร้างพื้นฐานของคุณทำไมถึงผิด (): เฉพาะการดำเนินการด้วยเครื่องมือเท่านั้นที่จะย้ายไปยังโฮสต์ของคุณ Orchestration ยังคงอยู่กับ Anthropic และอินพุตและเอาต์พุตเครื่องมือยังคงไปที่ระนาบควบคุมของ Anthropic</p>
                   <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: Exam Trap: A self-hosted sandbox means the whole agent, model calls included, runs inside your infrastructure. (ทำไมถึงผิด): Only tool execution moves to your host. Orchestration stays with Anthropic, and tool inputs and outputs still go to Anthropic&#x27;s control plane.
                   </div>
                 </aside>
                 
-        <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
-             id="quiz-446104e32538"
-             data-qid="446104e32538"
-             data-correct="B">
-          <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
-            <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
-              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
-              <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="status-badge-446104e32538" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
-            </div>
-          </div>
-          
-          <div class="mb-4">
-            <p class="text-base font-medium text-slate-100 leading-relaxed">An agent must query an internal inventory service with no public route, and the team wants Anthropic to run the agent loop. Which deployment fits?</p>
-          </div>
-          
-          <div class="space-y-2.5 mb-3" id="options-446104e32538">
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-446104e32538-A"
-                    data-qid="446104e32538"
-                    data-opt="A"
-                    onclick="handleQuizAnswer('446104e32538', 'A')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Managed Agents with the Anthropic-managed cloud sandbox</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-446104e32538-B"
-                    data-qid="446104e32538"
-                    data-opt="B"
-                    onclick="handleQuizAnswer('446104e32538', 'B')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Managed Agents with a self-hosted sandbox</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-446104e32538-C"
-                    data-qid="446104e32538"
-                    data-opt="C"
-                    onclick="handleQuizAnswer('446104e32538', 'C')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">The Client SDK&#x27;s beta tool runner hosted by Anthropic</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-            <button type="button"
-                    class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
-                    id="opt-446104e32538-D"
-                    data-qid="446104e32538"
-                    data-opt="D"
-                    onclick="handleQuizAnswer('446104e32538', 'D')">
-              <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
-              <span class="opt-text leading-relaxed mt-0.5 grow">Any option, because tool calls always run on the caller&#x27;s network</span>
-              <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
-            </button>
-            
-          </div>
-          
-          <div id="feedback-446104e32538" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
-          
-          <div id="solution-446104e32538" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
-              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
-            </div>
-            <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
-              <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-              <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">แซนด์บ็อกซ์ที่โฮสต์เองจะเรียกใช้เครื่องมือภายในเครือข่ายของคุณ เพื่อให้สามารถเข้าถึงบริการภายในได้ ในขณะที่ Anthropic ยังคงดำเนินการประสานต่อไป</p>
-              <div class="text-[11px] text-slate-400 italic font-mono pt-1">EN: A self-hosted sandbox runs tools inside your network, so they can reach internal services, while Anthropic keeps running the orchestration.</div>
+            <div class="quiz-card my-8 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur"
+                 id="quiz-446104e32538"
+                 data-qid="446104e32538"
+                 data-correct="B">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center gap-2 text-xs font-bold tracking-wider text-indigo-400 uppercase">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-300">✓</span>
+                  <span>แบบฝึกหัดตรวจสอบความเข้าใจ (Checkpoint Practice)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span id="status-badge-446104e32538" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ ตอบถูกแล้ว</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Check</span>
+                </div>
+              </div>
               
-            <div class="mt-3 pt-2 border-t border-slate-800 text-xs text-slate-400 italic">
-              “reach internal services that are not publicly routable”
-              <br><a href="https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-0.5 inline-block">🔗 เอกสารอ้างอิง Anthropic</a>
+              <div class="mb-4 space-y-1.5">
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">ตัวแทนต้องสืบค้นบริการสินค้าคงคลังภายในโดยไม่มีเส้นทางสาธารณะ และทีมต้องการให้ Anthropic เรียกใช้ลูปตัวแทน การใช้งานแบบใดที่เหมาะกับ?</p>
+                <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: An agent must query an internal inventory service with no public route, and the team wants Anthropic to run the agent loop. Which deployment fits?</p>
+              </div>
+              
+              
+              
+              <div class="space-y-2.5 mb-3" id="options-446104e32538">
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-446104e32538-A"
+                        data-qid="446104e32538"
+                        data-opt="A"
+                        onclick="handleQuizAnswer('446104e32538', 'A')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">A</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เอเจนต์ที่มีการจัดการด้วย Sandbox บนคลาวด์ที่มีการจัดการด้วยมนุษย์</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Managed Agents with the Anthropic-managed cloud sandbox</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-446104e32538-B"
+                        data-qid="446104e32538"
+                        data-opt="B"
+                        onclick="handleQuizAnswer('446104e32538', 'B')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">B</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">จัดการตัวแทนด้วยแซนด์บ็อกซ์ที่โฮสต์ด้วยตนเอง</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Managed Agents with a self-hosted sandbox</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-446104e32538-C"
+                        data-qid="446104e32538"
+                        data-opt="C"
+                        onclick="handleQuizAnswer('446104e32538', 'C')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">C</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">เครื่องมือทดสอบเบต้าของ SDK ไคลเอ็นต์ที่โฮสต์โดย Anthropic</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: The Client SDK&#x27;s beta tool runner hosted by Anthropic</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+                <button type="button"
+                        class="quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-indigo-500/50 transition-all text-slate-200 text-sm select-none cursor-pointer"
+                        id="opt-446104e32538-D"
+                        data-qid="446104e32538"
+                        data-opt="D"
+                        onclick="handleQuizAnswer('446104e32538', 'D')">
+                  <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">D</span>
+                  <div class="leading-relaxed mt-0.5 grow">
+                    <span class="font-medium text-slate-100 block">ตัวเลือกใดก็ได้เพราะการโทรด้วยเครื่องมือจะทำงานบนเครือข่ายของผู้โทรเสมอ</span>
+                    <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: Any option, because tool calls always run on the caller&#x27;s network</span>
+                  </div>
+                  <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
+                </button>
+                
+              </div>
+              
+              <div id="feedback-446104e32538" class="hidden my-3 p-3.5 rounded-xl text-xs sm:text-sm transition-all duration-200"></div>
+              
+              <div id="solution-446104e32538" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-xs font-semibold uppercase text-slate-400">คำตอบที่ถูกต้อง:</span>
+                  <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold text-sm">ตัวเลือก B</span>
+                </div>
+                <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
+                  <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
+                  <p class="text-slate-200 leading-relaxed text-sm">แซนด์บ็อกซ์ที่โฮสต์เองจะเรียกใช้เครื่องมือภายในเครือข่ายของคุณ เพื่อให้สามารถเข้าถึงบริการภายในได้ ในขณะที่ Anthropic ยังคงดำเนินการประสานต่อไป</p>
+                  <div class="text-[11px] text-slate-400 font-mono pt-1">EN: A self-hosted sandbox runs tools inside your network, so they can reach internal services, while Anthropic keeps running the orchestration.</div>
+                  
+            <div class="mt-3 pt-2.5 border-t border-slate-800 text-xs text-slate-300 italic">
+              “เข้าถึงบริการภายในที่ไม่สามารถกำหนดเส้นทางสาธารณะได้”
+              <br><a href="https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes" target="_blank" class="underline text-indigo-400 not-italic font-sans mt-1 inline-block">🔗 เอกสารอ้างอิงทางการจาก Anthropic</a>
             </div>
             
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between pt-2">
+                <button type="button" onclick="toggleSolutionManual('446104e32538')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
+                  ดูเฉลยและคำอธิบาย
+                </button>
+                <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
+              </div>
             </div>
-          </div>
-          
-          <div class="flex items-center justify-between pt-2">
-            <button type="button" onclick="toggleSolutionManual('446104e32538')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer">
-              ดูเฉลยและคำอธิบาย
-            </button>
-            <span class="text-[11px] text-slate-400">คลิกเลือกคำตอบได้จนกว่าจะถูกต้อง · บันทึกผลใน LocalStorage</span>
-          </div>
-        </div>
-        
+            
           
         <details class="my-6 rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 text-xs text-slate-400">
           <summary class="cursor-pointer font-medium text-slate-400 hover:text-indigo-300 flex items-center justify-between select-none">
@@ -1051,6 +1366,15 @@
         
         updateQuizStats();
       } else {
+        // Reset previously highlighted buttons inside this quiz
+        card.querySelectorAll('.quiz-opt-btn').forEach(btn => {
+          btn.className = "quiz-opt-btn w-full text-left flex items-start gap-3 p-3.5 rounded-xl border border-slate-800 bg-slate-800/40 hover:bg-slate-800 text-slate-300 text-sm select-none cursor-pointer transition-all";
+          const b = btn.querySelector('.opt-badge');
+          if (b) b.className = "opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0";
+          const ic = btn.querySelector('.opt-icon');
+          if (ic) ic.classList.add('hidden');
+        });
+
         // Highlight wrong option (can retry immediately)
         const btn = document.getElementById('opt-' + qid + '-' + opt);
         if (btn) {
@@ -1071,12 +1395,275 @@
           fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ยังไม่ถูกต้อง:</strong> ตัวเลือกนี้ยังไม่ใช่คำตอบที่ตรงตามเอกสารทางการ คุณสามารถกดเลือกตัวเลือกอื่นใหม่ได้ทันที</span></div><span class="text-[11px] bg-rose-900/60 text-rose-300 px-2 py-0.5 rounded font-mono">ลองใหม่</span>';
           fb.classList.remove('hidden');
         }
+
+        // Hide statusBadge and solution on wrong answer
+        if (statusBadge) statusBadge.classList.add('hidden');
+        if (sol) sol.classList.add('hidden');
+
+        // Remove from LocalStorage so incomplete state is accurate
+        try {
+          const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+          if (quizProgress[qid]) {
+            delete quizProgress[qid];
+            localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+          }
+        } catch(e) {}
+        updateQuizStats();
       }
     }
 
     function toggleSolutionManual(qid) {
       const sol = document.getElementById('solution-' + qid);
       if (sol) sol.classList.toggle('hidden');
+    }
+
+    function markQuizSolved(qid) {
+      try {
+        const quizProgress = JSON.parse(localStorage.getItem('claude_cert_quiz_progress') || '{}');
+        quizProgress[qid] = { solved: true, selected: 'REVEALED', updatedAt: Date.now() };
+        localStorage.setItem('claude_cert_quiz_progress', JSON.stringify(quizProgress));
+        const statusBadge = document.getElementById('status-badge-' + qid);
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        updateQuizStats();
+      } catch(e) {}
+    }
+
+    // --- MATCHING CHALLENGE ENGINE ---
+    const matchSelectedTerm = {};
+    const matchPairsState = {};
+
+    function handleMatchSelectTerm(bid, termIdx) {
+      matchSelectedTerm[bid] = termIdx;
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      card.querySelectorAll('.match-term-btn').forEach(btn => {
+        if (!btn.classList.contains('pointer-events-none')) {
+          btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        }
+      });
+      
+      const activeBtn = document.getElementById('match-term-' + bid + '-' + termIdx);
+      if (activeBtn && !activeBtn.classList.contains('pointer-events-none')) {
+        activeBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-indigo-500 bg-indigo-950/50 text-indigo-100 ring-2 ring-indigo-500/40 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+      }
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) {
+        fb.className = "my-3 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm";
+        fb.innerHTML = '👉 <strong>เลือกคำศัพท์ข้อ ' + (termIdx + 1) + ' แล้ว:</strong> คลิกเลือกคำอธิบายฝั่งขวาที่คิดว่าตรงกัน';
+        fb.classList.remove('hidden');
+      }
+    }
+
+    function handleMatchSelectDef(bid, targetIdx, totalPairs) {
+      if (matchSelectedTerm[bid] === undefined || matchSelectedTerm[bid] === null) {
+        const fb = document.getElementById('feedback-' + bid);
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs sm:text-sm";
+          fb.innerHTML = '⚠️ <strong>กรุณาเลือกคำศัพท์ฝั่งซ้ายก่อน:</strong> คลิกข้อ 1, 2, ... ฝั่งซ้าย แล้วจึงเลือกคำอธิบายฝั่งขวา';
+          fb.classList.remove('hidden');
+        }
+        return;
+      }
+      
+      const selectedTerm = matchSelectedTerm[bid];
+      const isCorrect = (selectedTerm === targetIdx);
+      const fb = document.getElementById('feedback-' + bid);
+      
+      if (isCorrect) {
+        matchPairsState[bid] = matchPairsState[bid] || new Set();
+        matchPairsState[bid].add(targetIdx);
+        
+        const termBtn = document.getElementById('match-term-' + bid + '-' + targetIdx);
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        const termBadge = document.getElementById('match-badge-term-' + bid + '-' + targetIdx);
+        const defBadge = document.getElementById('match-badge-def-' + bid + '-' + targetIdx);
+        
+        if (termBtn) {
+          termBtn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (termBadge) {
+          termBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          termBadge.textContent = "✓";
+        }
+        if (defBtn) {
+          defBtn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm transition opacity-90 select-none pointer-events-none flex items-start gap-2.5";
+        }
+        if (defBadge) {
+          defBadge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+          defBadge.textContent = "✓ " + (targetIdx + 1);
+        }
+        
+        matchSelectedTerm[bid] = null;
+        
+        const count = matchPairsState[bid].size;
+        const counterEl = document.getElementById('match-counter-' + bid);
+        if (counterEl) counterEl.textContent = 'จับคู่ได้ ' + count + '/' + totalPairs;
+        
+        if (count === totalPairs) {
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ยอดเยี่ยมมาก!</strong> คุณจับคู่ความสัมพันธ์ได้ถูกต้องครบถ้วนสมบูรณ์</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">ผ่านแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          const sol = document.getElementById('solution-' + bid);
+          if (sol) sol.classList.remove('hidden');
+          const statusBadge = document.getElementById('status-badge-' + bid);
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          if (fb) {
+            fb.className = "my-3 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs sm:text-sm";
+            fb.innerHTML = '✓ <strong>จับคู่สำเร็จ (' + count + '/' + totalPairs + '):</strong> คลิกเลือกคำศัพท์ข้อถัดไปเพื่อจับคู่ต่อ';
+            fb.classList.remove('hidden');
+          }
+        }
+      } else {
+        const defBtn = document.getElementById('match-def-' + bid + '-' + targetIdx);
+        if (defBtn) {
+          defBtn.classList.add('border-rose-500', 'bg-rose-950/40');
+          setTimeout(() => {
+            defBtn.classList.remove('border-rose-500', 'bg-rose-950/40');
+          }, 800);
+        }
+        if (fb) {
+          fb.className = "my-3 p-3 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm";
+          fb.innerHTML = '❌ <strong>ยังไม่ตรงคู่กัน:</strong> คำอธิบายนี้ไม่ใช่ของข้อ ' + (selectedTerm + 1) + ' ลองเลือกคู่ความสัมพันธ์ใหม่อีกครั้ง';
+          fb.classList.remove('hidden');
+        }
+      }
+    }
+
+    function resetMatchGame(bid) {
+      delete matchSelectedTerm[bid];
+      if (matchPairsState[bid]) matchPairsState[bid].clear();
+      
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalPairs = parseInt(card.getAttribute('data-total-pairs') || '0', 10);
+      const counterEl = document.getElementById('match-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'จับคู่ได้ 0/' + totalPairs;
+      
+      card.querySelectorAll('.match-term-btn').forEach((btn, idx) => {
+        btn.className = "match-term-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = idx + 1;
+        }
+      });
+      
+      card.querySelectorAll('.match-def-btn').forEach(btn => {
+        btn.className = "match-def-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800/80 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-2.5";
+        const badge = btn.querySelector('span');
+        if (badge) {
+          badge.className = "inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "?";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
+    }
+
+    // --- STEP ORDERING ENGINE ---
+    const orderSelections = {};
+
+    function handleOrderStepClick(bid, origIdx, totalSteps) {
+      orderSelections[bid] = orderSelections[bid] || [];
+      const currentList = orderSelections[bid];
+      
+      if (currentList.includes(origIdx)) return;
+      
+      currentList.push(origIdx);
+      const rank = currentList.length;
+      
+      const btn = document.getElementById('order-step-' + bid + '-' + origIdx);
+      const badge = document.getElementById('order-badge-' + bid + '-' + origIdx);
+      
+      if (btn) {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-indigo-500/70 bg-indigo-950/40 text-indigo-100 text-xs sm:text-sm select-none transition flex items-start gap-3 pointer-events-none";
+      }
+      if (badge) {
+        badge.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5";
+        badge.textContent = "ลำดับที่ " + rank;
+      }
+      
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว ' + rank + '/' + totalSteps;
+      
+      if (rank === totalSteps) {
+        let isCorrect = true;
+        for (let i = 0; i < totalSteps; i++) {
+          if (currentList[i] !== i) {
+            isCorrect = false;
+            break;
+          }
+        }
+        
+        const fb = document.getElementById('feedback-' + bid);
+        const sol = document.getElementById('solution-' + bid);
+        const statusBadge = document.getElementById('status-badge-' + bid);
+        
+        if (isCorrect) {
+          for (let i = 0; i < totalSteps; i++) {
+            const b = document.getElementById('order-badge-' + bid + '-' + i);
+            const card = document.getElementById('order-step-' + bid + '-' + i);
+            if (b) {
+              b.className = "order-badge inline-flex items-center justify-center w-auto px-2 h-7 rounded-lg bg-emerald-500 text-white font-bold text-xs shrink-0 mt-0.5";
+              b.textContent = "✓ ขั้นที่ " + (i + 1);
+            }
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-emerald-500/60 bg-emerald-950/40 text-emerald-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">🎉</span><span><strong>ถูกต้องยอดเยี่ยม!</strong> ลำดับขั้นตอนถูกต้องตามพิมพ์เขียวของ Anthropic</span></div><span class="text-[11px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded font-mono">บันทึกผลแล้ว</span>';
+            fb.classList.remove('hidden');
+          }
+          if (sol) sol.classList.remove('hidden');
+          if (statusBadge) statusBadge.classList.remove('hidden');
+          markQuizSolved(bid);
+        } else {
+          for (let i = 0; i < totalSteps; i++) {
+            const card = document.getElementById('order-step-' + bid + '-' + currentList[i]);
+            if (card) {
+              card.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-rose-500/60 bg-rose-950/30 text-rose-200 text-xs sm:text-sm select-none flex items-start gap-3";
+            }
+          }
+          if (fb) {
+            fb.className = "my-3 p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm flex items-center justify-between";
+            fb.innerHTML = '<div class="flex items-center gap-2"><span class="text-base">❌</span><span><strong>ลำดับยังไม่ถูกต้อง:</strong> ขั้นตอนที่จัดวางยังไม่ตรงกับหลักการ กรุณากดปุ่ม "รีเซ็ตลำดับเพื่อลองใหม่"</span></div><button onclick="resetOrderGame('' + bid + '')" class="px-2.5 py-1 rounded bg-rose-900/60 text-rose-300 hover:bg-rose-900 text-xs font-semibold cursor-pointer">ลองใหม่</button>';
+            fb.classList.remove('hidden');
+          }
+        }
+      }
+    }
+
+    function resetOrderGame(bid) {
+      delete orderSelections[bid];
+      const card = document.getElementById('quiz-' + bid);
+      if (!card) return;
+      
+      const totalSteps = parseInt(card.getAttribute('data-total-steps') || '0', 10);
+      const counterEl = document.getElementById('order-counter-' + bid);
+      if (counterEl) counterEl.textContent = 'เรียงแล้ว 0/' + totalSteps;
+      
+      card.querySelectorAll('.order-step-btn').forEach(btn => {
+        btn.className = "order-step-btn w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:border-indigo-400 hover:bg-slate-800 text-slate-200 text-xs sm:text-sm cursor-pointer transition select-none flex items-start gap-3";
+        const badge = btn.querySelector('.order-badge');
+        if (badge) {
+          badge.className = "order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5";
+          badge.textContent = "○";
+        }
+      });
+      
+      const fb = document.getElementById('feedback-' + bid);
+      if (fb) fb.classList.add('hidden');
     }
 
     // 2. Lesson Completion Handling
@@ -1141,7 +1728,14 @@
           const qid = card.getAttribute('data-qid');
           if (quizProgress[qid] && quizProgress[qid].solved) {
             const opt = quizProgress[qid].selected;
-            handleQuizAnswer(qid, opt);
+            if (opt === 'REVEALED' || card.getAttribute('data-correct') === 'MATCH' || card.getAttribute('data-correct') === 'ORDER') {
+              const sol = document.getElementById('solution-' + qid);
+              if (sol) sol.classList.remove('hidden');
+              const statusBadge = document.getElementById('status-badge-' + qid);
+              if (statusBadge) statusBadge.classList.remove('hidden');
+            } else {
+              handleQuizAnswer(qid, opt);
+            }
           }
         });
       } catch(e) {}
