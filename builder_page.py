@@ -5,6 +5,7 @@ from thai_synthesizer import generate_thai_section_prose
 from section_translator import get_thai_heading
 from domain_knowledge import get_thai_objective, get_thai_key_concept
 from quiz_translator import get_thai_explanation, clean_thai_spacing
+from rich_formatter import format_readable_content, highlight_tech_terms
 
 def build_sidebar_html(catalog, current_idx, course_type):
     domains_map = {}
@@ -71,7 +72,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     # Objectives (Thai)
     objs_html = ""
     if p.get("objectives"):
-        objs_list = "".join(f'<li class="flex items-start gap-2.5"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span>{clean_thai_spacing(get_thai_objective(obj))}</span></li>' for obj in p["objectives"])
+        objs_list = "".join(f'<li class="flex items-start gap-3 p-2.5 rounded-xl border border-slate-800/60 bg-slate-900/40 hover:border-indigo-500/30 transition-colors"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span class="text-slate-200">{highlight_tech_terms(clean_thai_spacing(get_thai_objective(obj)))}</span></li>' for obj in p["objectives"])
         objs_html = f"""
         <section class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur shadow-sm">
           <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3 flex items-center gap-2">
@@ -95,7 +96,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
           <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
-            {kc_thai}
+            {highlight_tech_terms(kc_thai)}
           </p>
         </section>
         """
@@ -137,29 +138,28 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
         
         # Render section elements in original narrative order
         sec_elements = ""
+        para_idx = 0
         for i, it in enumerate(sec.get("items", [])):
             itype = it["type"]
             if itype == "paragraph":
                 p_raw = it["text"]
                 p_th = get_thai_explanation(p_raw)
-                sec_elements += f"""
-                <p class="text-slate-200 text-sm sm:text-base leading-relaxed my-3.5">
-                  {html.escape(p_th)}
-                </p>
-                """
+                sec_elements += format_readable_content(p_th, p_raw, is_first_para=(para_idx == 0))
+                para_idx += 1
             elif itype == "predict_first":
                 sec_elements += render_predict_first_html(it, i)
             elif itype == "exam_trap":
                 trap_raw = it["text"]
                 trap_th = get_thai_explanation(trap_raw)
+                trap_hl = highlight_tech_terms(trap_th)
                 sec_elements += f"""
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 text-sm sm:text-base text-slate-200 shadow-sm">
+                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 sm:p-6 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed text-sm sm:text-[15px] text-amber-100 font-medium">{html.escape(trap_th)}</p>
-                  <div class="mt-2.5 pt-2 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
+                  <p class="leading-relaxed sm:leading-loose text-sm sm:text-[15px] text-amber-100 font-medium">{trap_hl}</p>
+                  <div class="mt-3 pt-2.5 border-t border-amber-900/40 text-xs text-amber-300/70 font-mono italic">
                     EN: {html.escape(clean_thai_spacing(trap_raw))}
                   </div>
                 </aside>
@@ -184,10 +184,15 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
             elif itype == "figure_text":
                 fig_text = clean_thai_spacing(it["text"])
                 fig_th = get_thai_explanation(fig_text)
+                fig_hl = highlight_tech_terms(fig_th)
                 sec_elements += f"""
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 italic font-mono leading-relaxed">
-                  <p>{html.escape(fig_th)}</p>
-                  <p class="text-[11px] text-slate-400 mt-1 not-italic font-sans">EN: {html.escape(fig_text)}</p>
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+                  <div class="text-xs font-semibold text-slate-400 flex items-center gap-1.5 mb-1.5">
+                    <span>📌</span>
+                    <span>บริบทประกอบ (Context Note):</span>
+                  </div>
+                  <p class="text-slate-200 font-medium leading-relaxed">{fig_hl}</p>
+                  <p class="text-[11px] text-slate-400 mt-1 font-mono">EN: {html.escape(fig_text)}</p>
                 </div>
                 """
             elif itype == "code":
@@ -215,9 +220,22 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 """
             elif itype == "list":
                 tag = "ol" if it.get("ordered") else "ul"
-                cls = "list-decimal ml-5" if it.get("ordered") else "list-disc ml-5"
-                lis = "".join(f'<li class="my-1.5 text-sm sm:text-base text-slate-200 leading-relaxed">{clean_thai_spacing(get_thai_explanation(li))}</li>' for li in it.get("items", []))
-                sec_elements += f'<{tag} class="{cls} my-3 space-y-1">{lis}</{tag}>'
+                is_ord = it.get("ordered", False)
+                lis = ""
+                for l_idx, li in enumerate(it.get("items", [])):
+                    li_th = clean_thai_spacing(get_thai_explanation(li))
+                    li_hl = highlight_tech_terms(li_th)
+                    if is_ord:
+                        badge = f'<span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600/30 text-indigo-300 text-xs font-mono font-bold shrink-0 mt-0.5">{l_idx+1}</span>'
+                    else:
+                        badge = '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>'
+                    lis += f"""
+                    <li class="flex items-start gap-3 p-3.5 rounded-xl border border-slate-800/80 bg-slate-900/40 text-slate-200 text-sm sm:text-base leading-relaxed hover:border-indigo-500/30 transition-colors shadow-sm">
+                      {badge}
+                      <div class="grow">{li_hl}</div>
+                    </li>
+                    """
+                sec_elements += f'<{tag} class="space-y-2.5 my-4">{lis}</{tag}>'
             elif itype == "checkpoint_ref":
                 ckey = it["key"]
                 b_data = None

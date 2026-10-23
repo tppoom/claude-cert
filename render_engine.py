@@ -1,5 +1,6 @@
 import os, sys, json, re, html, hashlib
 from quiz_translator import get_thai_explanation, clean_thai_spacing
+from rich_formatter import highlight_tech_terms
 
 # Common Technical Dictionary for Anthropic Claude Systems
 TERM_MAP = [
@@ -64,7 +65,7 @@ def render_predict_first_html(item, idx):
                 onclick="handleQuizAnswer('{qid}', '{let}')">
           <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">{let}</span>
           <div class="leading-relaxed mt-0.5 grow">
-            <span class="font-medium text-slate-100 block">{html.escape(opt_th)}</span>
+            <span class="font-medium text-slate-100 block">{highlight_tech_terms(opt_th)}</span>
             <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: {html.escape(opt)}</span>
           </div>
           <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
@@ -98,7 +99,7 @@ def render_predict_first_html(item, idx):
       </div>
       
       <div class="mb-4 space-y-1.5">
-        <p class="text-base font-semibold text-slate-100 leading-relaxed">{html.escape(prompt_th)}</p>
+        <p class="text-base font-semibold text-slate-100 leading-relaxed">{highlight_tech_terms(prompt_th)}</p>
         <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: {html.escape(prompt_raw)}</p>
       </div>
       
@@ -115,7 +116,7 @@ def render_predict_first_html(item, idx):
         </div>
         <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
           <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-          <p class="text-slate-200 leading-relaxed text-sm">{html.escape(explanation_th)}</p>
+          <p class="text-slate-200 leading-relaxed text-sm">{highlight_tech_terms(explanation_th)}</p>
           <div class="text-xs text-slate-400 font-mono pt-1">EN: {html.escape(explanation_raw)}</div>
           {quote_html}
         </div>
@@ -275,7 +276,7 @@ def render_checkpoint_html(key, block_data, question_data):
                         onclick="handleMatchSelectTerm('{bid}', {idx})">
                   <span id="match-badge-term-{bid}-{idx}" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/20 text-indigo-300 font-bold text-xs shrink-0 mt-0.5">{idx+1}</span>
                   <div class="leading-relaxed grow">
-                    <span class="font-semibold text-slate-100 block">{html.escape(term_th)}</span>
+                    <span class="font-semibold text-slate-100 block">{highlight_tech_terms(term_th)}</span>
                     <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: {html.escape(term_en)}</span>
                   </div>
                 </button>
@@ -292,7 +293,7 @@ def render_checkpoint_html(key, block_data, question_data):
                         onclick="handleMatchSelectDef('{bid}', {orig_idx}, {total_pairs})">
                   <span id="match-badge-def-{bid}-{orig_idx}" class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">?</span>
                   <div class="leading-relaxed grow">
-                    <span class="font-medium text-slate-200 block">{html.escape(def_th)}</span>
+                    <span class="font-medium text-slate-200 block">{highlight_tech_terms(def_th)}</span>
                     <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: {html.escape(def_en)}</span>
                   </div>
                 </button>
@@ -308,11 +309,11 @@ def render_checkpoint_html(key, block_data, question_data):
                 <div class="p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-950/20 space-y-1.5 text-xs sm:text-sm">
                   <div class="font-bold text-indigo-300 flex items-center gap-2">
                     <span class="inline-flex items-center justify-center w-5 h-5 rounded bg-indigo-500/30 text-indigo-200 text-xs font-bold shrink-0">{idx+1}</span>
-                    <span class="font-semibold text-slate-100">{html.escape(term_th)}</span>
+                    <span class="font-semibold text-slate-100">{highlight_tech_terms(term_th)}</span>
                     <span class="text-xs text-indigo-400/80 font-mono font-normal">({html.escape(term_en)})</span>
                   </div>
                   <div class="ml-7 pl-3 border-l-2 border-indigo-500/40 text-emerald-300 leading-relaxed">
-                    <span class="text-slate-200 block font-medium">➔ {html.escape(def_th)}</span>
+                    <span class="text-slate-200 block font-medium">➔ {highlight_tech_terms(def_th)}</span>
                     <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: {html.escape(def_en)}</span>
                   </div>
                 </div>
@@ -336,7 +337,7 @@ def render_checkpoint_html(key, block_data, question_data):
               </div>
               
               <div class="mb-4 space-y-1.5">
-                <p class="text-base font-semibold text-slate-100 leading-relaxed">{html.escape(prompt_th)}</p>
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">{highlight_tech_terms(prompt_th)}</p>
                 <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: {html.escape(prompt_raw)}</p>
               </div>
 
@@ -389,7 +390,7 @@ def render_checkpoint_html(key, block_data, question_data):
                 </div>
                 <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
                   <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 หลักการสำคัญ (Key Takeaway):</strong>
-                  <p class="leading-relaxed">{html.escape(explanation_th)}</p>
+                  <p class="leading-relaxed">{highlight_tech_terms(explanation_th)}</p>
                   <div class="text-[11px] text-slate-400 font-mono pt-1">EN: {html.escape(explanation_raw)}</div>
                   {cit_html}
                 </div>
@@ -418,7 +419,7 @@ def render_checkpoint_html(key, block_data, question_data):
                         onclick="handleOrderStepClick('{bid}', {orig_idx}, {total_steps})">
                   <span id="order-badge-{bid}-{orig_idx}" class="order-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-slate-300 font-bold text-xs shrink-0 mt-0.5">○</span>
                   <div class="leading-relaxed grow">
-                    <span class="font-medium text-slate-100 block">{html.escape(s_th)}</span>
+                    <span class="font-medium text-slate-100 block">{highlight_tech_terms(s_th)}</span>
                     <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: {html.escape(s)}</span>
                   </div>
                 </button>
@@ -431,7 +432,7 @@ def render_checkpoint_html(key, block_data, question_data):
                 <div class="p-3 rounded-xl border border-indigo-500/30 bg-indigo-950/20 flex items-start gap-3">
                   <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold shrink-0 mt-0.5">{idx+1}</span>
                   <div class="leading-relaxed text-xs sm:text-sm">
-                    <span class="text-slate-100 font-medium block">{html.escape(s_th)}</span>
+                    <span class="text-slate-100 font-medium block">{highlight_tech_terms(s_th)}</span>
                     <span class="text-[11px] text-slate-400 font-mono block mt-0.5">EN: {html.escape(s)}</span>
                   </div>
                 </div>
@@ -455,7 +456,7 @@ def render_checkpoint_html(key, block_data, question_data):
               </div>
               
               <div class="mb-4 space-y-1.5">
-                <p class="text-base font-semibold text-slate-100 leading-relaxed">{html.escape(prompt_th)}</p>
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">{highlight_tech_terms(prompt_th)}</p>
                 <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: {html.escape(prompt_raw)}</p>
               </div>
 
@@ -499,7 +500,7 @@ def render_checkpoint_html(key, block_data, question_data):
                 </div>
                 <div class="mt-3 p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs sm:text-sm text-slate-200 space-y-1.5">
                   <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 เหตุผลเบื้องหลังลำดับขั้น (Reasoning):</strong>
-                  <p class="leading-relaxed">{html.escape(explanation_th)}</p>
+                  <p class="leading-relaxed">{highlight_tech_terms(explanation_th)}</p>
                   <div class="text-[11px] text-slate-400 font-mono pt-1">EN: {html.escape(explanation_raw)}</div>
                   {cit_html}
                 </div>
@@ -535,7 +536,7 @@ def render_checkpoint_html(key, block_data, question_data):
                         onclick="handleQuizAnswer('{bid}', '{let}')">
                   <span class="opt-badge inline-flex items-center justify-center w-7 h-7 rounded-lg bg-slate-700 text-xs font-bold text-slate-300 shrink-0 transition-colors">{let}</span>
                   <div class="leading-relaxed mt-0.5 grow">
-                    <span class="font-medium text-slate-100 block">{html.escape(opt_th)}</span>
+                    <span class="font-medium text-slate-100 block">{highlight_tech_terms(opt_th)}</span>
                     <span class="text-xs text-slate-400 font-mono block mt-0.5">EN: {html.escape(opt)}</span>
                   </div>
                   <span class="opt-icon ml-2 shrink-0 font-bold text-sm hidden"></span>
@@ -559,7 +560,7 @@ def render_checkpoint_html(key, block_data, question_data):
               </div>
               
               <div class="mb-4 space-y-1.5">
-                <p class="text-base font-semibold text-slate-100 leading-relaxed">{html.escape(prompt_th)}</p>
+                <p class="text-base font-semibold text-slate-100 leading-relaxed">{highlight_tech_terms(prompt_th)}</p>
                 <p class="text-xs text-slate-400 font-mono leading-relaxed">EN: {html.escape(prompt_raw)}</p>
               </div>
               
@@ -578,7 +579,7 @@ def render_checkpoint_html(key, block_data, question_data):
                 </div>
                 <div class="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 text-xs sm:text-sm text-slate-200 space-y-2">
                   <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 คำอธิบายเฉลยภาษาไทย (Thai Explanation):</strong>
-                  <p class="text-slate-200 leading-relaxed text-sm">{html.escape(explanation_th)}</p>
+                  <p class="text-slate-200 leading-relaxed text-sm">{highlight_tech_terms(explanation_th)}</p>
                   <div class="text-[11px] text-slate-400 font-mono pt-1">EN: {html.escape(explanation_raw)}</div>
                   {cit_html}
                 </div>
