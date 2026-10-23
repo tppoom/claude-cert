@@ -166,13 +166,13 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 </aside>
                 """
             elif itype == "table":
-                t_headers = "".join(f'<th class="px-3.5 py-3 border-b border-slate-700 bg-slate-800/90 break-words align-top"><div class="text-slate-100 font-bold">{html.escape(clean_thai_spacing(get_thai_explanation(th)))}</div><div class="text-[10px] text-slate-400 font-normal font-mono mt-0.5">EN: {html.escape(clean_thai_spacing(th))}</div></th>' for th in it.get("headers", []))
+                t_headers = "".join(f'<th class="px-4 py-3.5 border-b border-slate-700 bg-slate-800/95 break-words align-top"><div class="text-white font-bold text-xs sm:text-sm">{html.escape(clean_thai_spacing(th))}</div><div class="text-[11px] sm:text-xs text-indigo-300/85 font-normal font-sans mt-1 leading-normal">{highlight_tech_terms(get_thai_explanation(th))}</div></th>' for th in it.get("headers", []))
                 t_rows = ""
                 for r in it.get("rows", []):
-                    cells = "".join(f'<td class="px-3.5 py-3 border-b border-slate-800/60 break-words align-top leading-relaxed"><div class="font-medium text-slate-200">{html.escape(clean_thai_spacing(get_thai_explanation(td)))}</div><div class="text-[11px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800/40">EN: {html.escape(clean_thai_spacing(td))}</div></td>' for td in r)
+                    cells = "".join(f'<td class="px-4 py-3.5 border-b border-slate-800/70 break-words align-top leading-relaxed"><div class="text-slate-100 font-semibold text-xs sm:text-sm">{html.escape(clean_thai_spacing(td))}</div><div class="text-xs text-slate-300/85 font-sans mt-1.5 pt-1.5 border-t border-slate-800/50 leading-relaxed">{highlight_tech_terms(get_thai_explanation(td))}</div></td>' for td in r)
                     t_rows += f'<tr class="hover:bg-slate-800/40 transition-colors">{cells}</tr>'
                 caption = clean_thai_spacing(it.get("caption", ""))
-                cap_html = f'<figcaption class="mt-2.5 text-xs text-slate-400 italic text-center">{clean_thai_spacing(get_thai_explanation(caption))}</figcaption>' if caption else ""
+                cap_html = f'<figcaption class="mt-3 text-xs sm:text-sm text-center space-y-0.5"><span class="text-slate-200 font-medium block">{html.escape(caption)}</span><span class="text-indigo-300/80 block font-sans">({highlight_tech_terms(get_thai_explanation(caption))})</span></figcaption>' if caption else ""
                 sec_elements += f"""
                 <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
                   <table class="w-full border-collapse text-left text-xs sm:text-sm">
@@ -187,13 +187,15 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 fig_th = get_thai_explanation(fig_text)
                 fig_hl = highlight_tech_terms(fig_th)
                 sec_elements += f"""
-                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
-                  <div class="text-xs font-semibold text-slate-400 flex items-center gap-1.5 mb-1.5">
+                <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans space-y-1.5">
+                  <div class="text-xs font-semibold text-indigo-400 flex items-center gap-1.5 mb-1">
                     <span>📌</span>
                     <span>บริบทประกอบ (Context Note):</span>
                   </div>
-                  <p class="text-slate-200 font-medium leading-relaxed">{fig_hl}</p>
-                  <p class="text-[11px] text-slate-400 mt-1 font-mono">EN: {html.escape(fig_text)}</p>
+                  <p class="text-slate-100 font-semibold leading-relaxed text-sm sm:text-base">{html.escape(fig_text)}</p>
+                  <div class="pt-1.5 border-t border-slate-800/60 text-xs text-indigo-200/90 leading-relaxed">
+                    <span>{fig_hl}</span>
+                  </div>
                 </div>
                 """
             elif itype == "code":
@@ -203,8 +205,8 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                     cap_th = get_thai_explanation(caption)
                     cap_header = f"""
                     <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
-                      <div class="text-xs font-semibold text-slate-200">{html.escape(cap_th)}</div>
-                      <div class="text-[11px] text-slate-400 font-mono">EN: {html.escape(caption)}</div>
+                      <div class="text-xs sm:text-sm font-semibold text-slate-100">{html.escape(caption)}</div>
+                      <div class="text-xs text-indigo-300/80 font-sans">{highlight_tech_terms(cap_th)}</div>
                     </div>
                     """
                 else:
