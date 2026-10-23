@@ -5,7 +5,7 @@ from thai_synthesizer import generate_thai_section_prose
 from section_translator import get_thai_heading
 from domain_knowledge import get_thai_objective, get_thai_key_concept
 from quiz_translator import get_thai_explanation, clean_thai_spacing
-from rich_formatter import format_readable_content, highlight_tech_terms
+from rich_formatter import format_readable_content, highlight_tech_terms, split_thai_sentences
 
 def build_sidebar_html(catalog, current_idx, course_type):
     domains_map = {}
@@ -89,15 +89,18 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     kc_html = ""
     if p.get("key_concept"):
         kc_thai = clean_thai_spacing(get_thai_key_concept(p["key_concept"]))
+        kc_sents = split_thai_sentences(kc_thai)
+        if len(kc_sents) > 1:
+            kc_body = '<ul class="space-y-2 mt-2">' + "".join(f'<li class="flex items-start gap-2.5 text-sm sm:text-base text-slate-100 leading-relaxed"><span class="text-amber-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in kc_sents) + '</ul>'
+        else:
+            kc_body = f'<p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">{highlight_tech_terms(kc_thai)}</p>'
         kc_html = f"""
         <section class="my-6 rounded-2xl border-l-4 border-l-amber-500 border-y border-r border-slate-800 bg-amber-950/20 p-5 sm:p-6 shadow-sm">
           <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
             <span class="text-base">💡</span>
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
-          <p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">
-            {highlight_tech_terms(kc_thai)}
-          </p>
+          {kc_body}
         </section>
         """
         
@@ -150,29 +153,59 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 sec_elements += render_predict_first_html(it, i)
             elif itype == "exam_trap":
                 trap_raw = it["text"]
+                clean_trap_en = clean_thai_spacing(re.sub(r'^(?:Exam Trap:?\s*|กับดักการสอบ:?\s*)', '', trap_raw).strip())
                 trap_th = get_thai_explanation(trap_raw)
-                trap_hl = highlight_tech_terms(trap_th)
+                clean_trap_th = clean_thai_spacing(re.sub(r'^(?:Exam Trap:?\s*|กับดักการสอบ:?\s*)', '', trap_th).strip())
+                trap_sents = split_thai_sentences(clean_trap_th)
+                if len(trap_sents) > 1:
+                    th_trap_body = '<ul class="space-y-2 mt-2">' + "".join(f'<li class="flex items-start gap-2 text-xs sm:text-sm text-amber-200/90 leading-relaxed"><span class="text-amber-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in trap_sents) + '</ul>'
+                else:
+                    th_trap_body = f'<div class="mt-1.5 text-xs sm:text-sm text-amber-200/90 leading-relaxed font-sans">{highlight_tech_terms(clean_trap_th)}</div>'
+                
                 sec_elements += f"""
                 <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 sm:p-6 text-sm sm:text-base text-slate-200 shadow-sm">
                   <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <p class="leading-relaxed sm:leading-loose text-sm sm:text-base text-white font-medium">{html.escape(clean_thai_spacing(trap_raw))}</p>
-                  <div class="mt-3 pt-2.5 border-t border-amber-900/40 text-xs sm:text-sm text-amber-200/90 leading-relaxed">
-                    <span class="text-amber-400 font-bold mr-1">คำอธิบายเจาะลึก:</span>
-                    <span>{trap_hl}</span>
+                  <div class="leading-relaxed sm:leading-loose text-sm sm:text-base text-white font-medium">{html.escape(clean_trap_en)}</div>
+                  <div class="mt-3 pt-2.5 border-t border-amber-900/40">
+                    <span class="text-amber-400 font-bold text-xs uppercase tracking-wider block">คำอธิบายเจาะลึก (Deep Dive):</span>
+                    {th_trap_body}
                   </div>
                 </aside>
                 """
             elif itype == "table":
-                t_headers = "".join(f'<th class="px-4 py-3.5 border-b border-slate-700 bg-slate-800/95 break-words align-top"><div class="text-white font-bold text-xs sm:text-sm">{html.escape(clean_thai_spacing(th))}</div><div class="text-[11px] sm:text-xs text-indigo-300/85 font-normal font-sans mt-1 leading-normal">{highlight_tech_terms(get_thai_explanation(th))}</div></th>' for th in it.get("headers", []))
+                th_items = []
+                for th in it.get("headers", []):
+                    th_clean = clean_thai_spacing(th)
+                    th_th = get_thai_explanation(th)
+                    th_sub = ""
+                    if th_th and th_th.strip().lower() != th_clean.strip().lower():
+                        th_sub = f'<div class="text-[11px] sm:text-xs text-indigo-300/85 font-normal font-sans mt-1 leading-normal">{highlight_tech_terms(th_th)}</div>'
+                    th_items.append(f'<th class="px-4 py-3.5 border-b border-slate-700 bg-slate-800/95 break-words align-top"><div class="text-white font-bold text-xs sm:text-sm">{html.escape(th_clean)}</div>{th_sub}</th>')
+                t_headers = "".join(th_items)
+                
                 t_rows = ""
                 for r in it.get("rows", []):
-                    cells = "".join(f'<td class="px-4 py-3.5 border-b border-slate-800/70 break-words align-top leading-relaxed"><div class="text-slate-100 font-semibold text-xs sm:text-sm">{html.escape(clean_thai_spacing(td))}</div><div class="text-xs text-slate-300/85 font-sans mt-1.5 pt-1.5 border-t border-slate-800/50 leading-relaxed">{highlight_tech_terms(get_thai_explanation(td))}</div></td>' for td in r)
-                    t_rows += f'<tr class="hover:bg-slate-800/40 transition-colors">{cells}</tr>'
+                    cells = []
+                    for td in r:
+                        td_clean = clean_thai_spacing(td)
+                        td_th = get_thai_explanation(td)
+                        td_sub = ""
+                        if td_th and td_th.strip().lower() != td_clean.strip().lower():
+                            td_sub = f'<div class="text-xs text-slate-300/85 font-sans mt-1.5 pt-1.5 border-t border-slate-800/50 leading-relaxed">{highlight_tech_terms(td_th)}</div>'
+                        cells.append(f'<td class="px-4 py-3.5 border-b border-slate-800/70 break-words align-top leading-relaxed"><div class="text-slate-100 font-semibold text-xs sm:text-sm">{html.escape(td_clean)}</div>{td_sub}</td>')
+                    t_rows += f'<tr class="hover:bg-slate-800/40 transition-colors">{"".join(cells)}</tr>'
+                
                 caption = clean_thai_spacing(it.get("caption", ""))
-                cap_html = f'<figcaption class="mt-3 text-xs sm:text-sm text-center space-y-0.5"><span class="text-slate-200 font-medium block">{html.escape(caption)}</span><span class="text-indigo-300/80 block font-sans">({highlight_tech_terms(get_thai_explanation(caption))})</span></figcaption>' if caption else ""
+                cap_html = ""
+                if caption:
+                    cap_th = get_thai_explanation(caption)
+                    if cap_th and cap_th.strip().lower() != caption.strip().lower():
+                        cap_html = f'<figcaption class="mt-3 text-xs sm:text-sm text-center space-y-0.5"><span class="text-slate-200 font-medium block">{html.escape(caption)}</span><span class="text-indigo-300/80 block font-sans">({highlight_tech_terms(cap_th)})</span></figcaption>'
+                    else:
+                        cap_html = f'<figcaption class="mt-3 text-xs sm:text-sm text-center"><span class="text-slate-200 font-medium block">{html.escape(caption)}</span></figcaption>'
                 sec_elements += f"""
                 <div class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-sm overflow-x-auto no-scrollbar">
                   <table class="w-full border-collapse text-left text-xs sm:text-sm">
@@ -185,17 +218,19 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
             elif itype == "figure_text":
                 fig_text = clean_thai_spacing(it["text"])
                 fig_th = get_thai_explanation(fig_text)
-                fig_hl = highlight_tech_terms(fig_th)
+                fig_sents = split_thai_sentences(fig_th)
+                if len(fig_sents) > 1:
+                    fig_body = '<ul class="space-y-1.5 mt-2">' + "".join(f'<li class="flex items-start gap-2 text-xs text-indigo-200/90 leading-relaxed"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in fig_sents) + '</ul>'
+                else:
+                    fig_body = f'<div class="pt-1.5 border-t border-slate-800/60 text-xs text-indigo-200/90 leading-relaxed font-sans">{highlight_tech_terms(fig_th)}</div>'
                 sec_elements += f"""
                 <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans space-y-1.5">
                   <div class="text-xs font-semibold text-indigo-400 flex items-center gap-1.5 mb-1">
                     <span>📌</span>
                     <span>บริบทประกอบ (Context Note):</span>
                   </div>
-                  <p class="text-slate-100 font-semibold leading-relaxed text-sm sm:text-base">{html.escape(fig_text)}</p>
-                  <div class="pt-1.5 border-t border-slate-800/60 text-xs text-indigo-200/90 leading-relaxed">
-                    <span>{fig_hl}</span>
-                  </div>
+                  <div class="text-slate-100 font-semibold leading-relaxed text-sm sm:text-base">{html.escape(fig_text)}</div>
+                  {fig_body}
                 </div>
                 """
             elif itype == "code":
@@ -203,10 +238,13 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 caption = re.sub(r'\s*python$', '', caption, flags=re.I).strip()
                 if caption:
                     cap_th = get_thai_explanation(caption)
+                    cap_sub = ""
+                    if cap_th and cap_th.strip().lower() != caption.strip().lower():
+                        cap_sub = f'<div class="text-xs text-indigo-300/80 font-sans">{highlight_tech_terms(cap_th)}</div>'
                     cap_header = f"""
                     <div class="px-4 py-2.5 bg-slate-800/80 border-b border-slate-800 space-y-0.5">
                       <div class="text-xs sm:text-sm font-semibold text-slate-100">{html.escape(caption)}</div>
-                      <div class="text-xs text-indigo-300/80 font-sans">{highlight_tech_terms(cap_th)}</div>
+                      {cap_sub}
                     </div>
                     """
                 else:

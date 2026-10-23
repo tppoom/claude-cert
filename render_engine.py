@@ -1,6 +1,6 @@
 import os, sys, json, re, html, hashlib
 from quiz_translator import get_thai_explanation, clean_thai_spacing
-from rich_formatter import highlight_tech_terms
+from rich_formatter import highlight_tech_terms, split_thai_sentences
 
 # Common Technical Dictionary for Anthropic Claude Systems
 TERM_MAP = [
@@ -33,6 +33,18 @@ def thai_format_text(text):
     for pat, rep in TERM_MAP:
         res = re.sub(pat, rep, res, flags=re.IGNORECASE)
     return clean_thai_spacing(res)
+
+def format_multiline_thai(th_text, theme="indigo"):
+    if not th_text:
+        return ""
+    sents = split_thai_sentences(th_text)
+    if len(sents) > 1:
+        bullet_color = "text-amber-400" if theme == "amber" else "text-indigo-400"
+        text_color = "text-amber-200/90" if theme == "amber" else "text-indigo-200/90"
+        lis = "".join(f'<li class="flex items-start gap-2 {text_color} leading-relaxed"><span class="{bullet_color} font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in sents)
+        return f'<ul class="space-y-1.5 mt-1">{lis}</ul>'
+    else:
+        return f'<div class="mt-0.5 font-sans leading-relaxed">{highlight_tech_terms(th_text)}</div>'
 
 def generate_section_deep_dive(heading, items, domain_title=""):
     return ""
@@ -100,9 +112,9 @@ def render_predict_first_html(item, idx):
       
       <div class="mb-4 space-y-2">
         <p class="text-base sm:text-lg font-semibold text-white leading-relaxed">{html.escape(prompt_raw)}</p>
-        <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-amber-200/90 leading-relaxed">
-          <span class="text-amber-400 font-bold mr-1.5">คำแปลโจทย์:</span>
-          <span>{highlight_tech_terms(prompt_th)}</span>
+        <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-amber-200/90 leading-relaxed">
+          <span class="text-amber-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลโจทย์:</span>
+          {format_multiline_thai(prompt_th, "amber")}
         </div>
       </div>
       
@@ -121,8 +133,8 @@ def render_predict_first_html(item, idx):
           <strong class="text-amber-300 block text-xs uppercase tracking-wider">💡 Official Explanation (คำอธิบายเฉลย):</strong>
           <p class="text-slate-100 font-medium leading-relaxed text-sm sm:text-base">{html.escape(explanation_raw)}</p>
           <div class="pt-2 border-t border-amber-900/40 text-xs sm:text-sm text-amber-200/90 leading-relaxed">
-            <span class="text-amber-400 font-bold mr-1">คำแปลไทย:</span>
-            <span>{highlight_tech_terms(explanation_th)}</span>
+            <span class="text-amber-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลไทย:</span>
+            {format_multiline_thai(explanation_th, "amber")}
           </div>
           {quote_html}
         </div>
@@ -186,8 +198,8 @@ def render_checkpoint_html(key, block_data, question_data):
               </div>
               <p class="text-slate-100 text-xs sm:text-sm font-medium leading-relaxed">{html.escape(e_text)}</p>
               <div class="pt-1.5 border-t border-slate-800/60 text-xs text-indigo-200/90 leading-relaxed">
-                <span class="text-indigo-400 font-bold mr-1">คำแปล:</span>
-                <span>{highlight_tech_terms(e_text_th)}</span>
+                <span class="text-indigo-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปล:</span>
+                {format_multiline_thai(e_text_th, "indigo")}
               </div>
             </div>
             """
@@ -211,9 +223,9 @@ def render_checkpoint_html(key, block_data, question_data):
           
           <div class="mb-4 space-y-2">
             <p class="text-base sm:text-lg font-semibold text-white leading-relaxed">{html.escape(stem_raw)}</p>
-            <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
-              <span class="text-indigo-400 font-bold mr-1.5">คำแปลโจทย์:</span>
-              <span>{highlight_tech_terms(stem_th)}</span>
+            <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
+              <span class="text-indigo-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลโจทย์:</span>
+              {format_multiline_thai(stem_th, "indigo")}
             </div>
           </div>
           
@@ -354,9 +366,9 @@ def render_checkpoint_html(key, block_data, question_data):
               
               <div class="mb-4 space-y-2">
                 <p class="text-base sm:text-lg font-semibold text-white leading-relaxed">{html.escape(prompt_raw)}</p>
-                <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
-                  <span class="text-indigo-400 font-bold mr-1.5">คำแปลโจทย์:</span>
-                  <span>{highlight_tech_terms(prompt_th)}</span>
+                <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
+                  <span class="text-indigo-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลโจทย์:</span>
+                  {format_multiline_thai(prompt_th, "indigo")}
                 </div>
               </div>
 
@@ -411,8 +423,8 @@ def render_checkpoint_html(key, block_data, question_data):
                   <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 Key Takeaway (หลักการสำคัญ):</strong>
                   <p class="text-slate-100 font-medium leading-relaxed">{html.escape(explanation_raw)}</p>
                   <div class="pt-1.5 border-t border-slate-700/60 text-xs text-indigo-200/90 leading-relaxed">
-                    <span class="text-indigo-400 font-bold mr-1">คำแปลไทย:</span>
-                    <span>{highlight_tech_terms(explanation_th)}</span>
+                    <span class="text-indigo-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลไทย:</span>
+                    {format_multiline_thai(explanation_th, "indigo")}
                   </div>
                   {cit_html}
                 </div>
@@ -490,9 +502,9 @@ def render_checkpoint_html(key, block_data, question_data):
               
               <div class="mb-4 space-y-2">
                 <p class="text-base sm:text-lg font-semibold text-white leading-relaxed">{html.escape(prompt_raw)}</p>
-                <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
-                  <span class="text-indigo-400 font-bold mr-1.5">คำแปลโจทย์:</span>
-                  <span>{highlight_tech_terms(prompt_th)}</span>
+                <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
+                  <span class="text-indigo-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลโจทย์:</span>
+                  {format_multiline_thai(prompt_th, "indigo")}
                 </div>
               </div>
 
@@ -543,8 +555,8 @@ def render_checkpoint_html(key, block_data, question_data):
                   <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 Reasoning (เหตุผลเบื้องหลังลำดับขั้น):</strong>
                   <p class="text-slate-100 font-medium leading-relaxed">{html.escape(explanation_raw)}</p>
                   <div class="pt-1.5 border-t border-slate-700/60 text-xs text-indigo-200/90 leading-relaxed">
-                    <span class="text-indigo-400 font-bold mr-1">คำแปลไทย:</span>
-                    <span>{highlight_tech_terms(explanation_th)}</span>
+                    <span class="text-indigo-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลไทย:</span>
+                    {format_multiline_thai(explanation_th, "indigo")}
                   </div>
                   {cit_html}
                 </div>
@@ -605,9 +617,9 @@ def render_checkpoint_html(key, block_data, question_data):
               
               <div class="mb-4 space-y-2">
                 <p class="text-base sm:text-lg font-semibold text-white leading-relaxed">{html.escape(prompt_raw)}</p>
-                <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
-                  <span class="text-indigo-400 font-bold mr-1.5">คำแปลโจทย์:</span>
-                  <span>{highlight_tech_terms(prompt_th)}</span>
+                <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
+                  <span class="text-indigo-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลโจทย์:</span>
+                  {format_multiline_thai(prompt_th, "indigo")}
                 </div>
               </div>
               
@@ -628,8 +640,8 @@ def render_checkpoint_html(key, block_data, question_data):
                   <strong class="text-indigo-300 block text-xs uppercase tracking-wider">💡 Official Explanation (คำอธิบายเฉลย):</strong>
                   <p class="text-slate-100 font-medium leading-relaxed text-sm sm:text-base">{html.escape(explanation_raw)}</p>
                   <div class="pt-2 border-t border-indigo-900/40 text-xs sm:text-sm text-indigo-200/90 leading-relaxed">
-                    <span class="text-indigo-400 font-bold mr-1">คำแปลไทย:</span>
-                    <span>{highlight_tech_terms(explanation_th)}</span>
+                    <span class="text-indigo-400 font-bold text-xs uppercase tracking-wider block mb-1">คำแปลไทย:</span>
+                    {format_multiline_thai(explanation_th, "indigo")}
                   </div>
                   {cit_html}
                 </div>

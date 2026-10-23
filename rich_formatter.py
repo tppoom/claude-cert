@@ -26,26 +26,30 @@ CONCEPT_TERMS = [
 STARTERS = [
     # Pronouns & Direct Subjects
     r'คุณ(?:เขียน|จัดการ|สามารถ|ไม่|ต้อง|จะ|กำหนด|เลือก|ส่ง|นำ|ลอง|ให้|ยังคง|เริ่ม|ใช้|ประเมิน|ดู|พบ|สร้าง|รัน)',
-    r'(?:Claude|คลอดด์|Anthropic)\s*(?:จะ|ประเมิน|ตอบสนอง|ได้|จัดกลุ่ม|แนะนำ)',
-    r'โมเดล(?:จะ|สามารถ|ต้อง|ให้|นี้|ที่)',
-    r'ระบบ(?:จะ|สามารถ|มี|นี้|ที่|อัตโนมัติ)',
-    r'เอเจนต์(?:จะ|สามารถ|ทุก|นี้|ที่|ปล่อย|เรียก|คือ|ช่วย|ย่อย|หลัก)',
-    r'ตัวแทน(?:จะ|สามารถ|ทุก|นี้|ที่|ปล่อย|เรียก|คือ|ช่วย|ย่อย|หลัก)',
+    r'(?:Claude|คลอดด์|Anthropic)\s*(?:จะ|อาจ|สามารถ|ประเมิน|ตอบสนอง|ได้|จัดกลุ่ม|แนะนำ|ช่วย)',
+    r'โมเดล(?:จะ|สามารถ|ต้อง|ให้|นี้|ที่|เหล่านั้น|นั้น)',
+    r'ระบบ(?:จะ|สามารถ|มี|นี้|ที่|อัตโนมัติ|เหล่านั้น)',
+    r'เอเจนต์(?:จะ|สามารถ|ทุก|นี้|ที่|ปล่อย|เรียก|คือ|ช่วย|ย่อย|หลัก|เหล่านั้น)',
+    r'ตัวแทน(?:จะ|สามารถ|ทุก|นี้|ที่|ปล่อย|เรียก|คือ|ช่วย|ย่อย|หลัก|เหล่านั้น)',
     r'เวิร์กโฟลว์(?:เรียกใช้|มี|สามารถ|จะ|คือ|นี้|ที่)',
-    r'ไคลเอ็นต์(?:จะ|สามารถ|มี|ของ)',
-    r'เซิร์ฟเวอร์(?:จะ|สามารถ|มี)',
+    r'ไคลเอ็นต์(?:จะ|อาจ|สามารถ|มี|ของ|อ่าน|เขียน|รับ|ส่ง)',
+    r'เซิร์ฟเวอร์(?:จะ|อาจ|สามารถ|มี|อ่าน|เขียน|รับ|ส่ง)',
+    r'ผู้ใช้(?:ที่|จะ|สามารถ|เหล่านั้น)',
+    r'นักพัฒนา(?:ที่|จะ|สามารถ|ของ)',
+    r'ทีม(?:วิศวกร|พัฒนา|ความปลอดภัย|ที่)',
     r'บริการนี้(?:เหมาะ|ช่วย|จะ)',
     r'สิ่งนี้(?:ช่วย|ทำ|เป็น|หมายถึง)',
     r'บาง(?:งาน|ครั้ง|ระบบ|กรณี)',
     
     # Quantifiers & Noun phrases
     r'ทุก(?:ระบบ|ครั้ง|ขั้นตอน|กรณี|ตัวเลือก|โมเดล|เอเจนต์|คน)',
-    r'แต่ละ(?:เลเยอร์|ตัวเลือก|ขั้นตอน|แบบ|รุ่น|รอบ|งาน|เซสชัน|ส่วน)',
+    r'แต่ละ(?:เลเยอร์|ตัวเลือก|ขั้นตอน|แบบ|รุ่น|รอบ|งาน|เซสชัน|ส่วน|ID|ฟิลด์|คีย์|พารามิเตอร์|โมเดล|เอเจนต์|เครื่องมือ|รายการ|ข้อความ)',
     r'ประการ(?:แรก|ที่สอง|ที่สาม|สุดท้าย)',
-    r'การ(?:วิจัย|ค้นหา|ประเมิน|ทำงาน|ทดสอบ|สลับ|เลือก|สร้าง|กำหนด|ใช้งาน|จัดการ|เรียก|ตอบสนอง|ตั้งค่า|ปักหมุด|วิ่งซ้ำ|ประสานงาน|รวม|ดำเนินการ|บีบอัด|เขียน|เข้าถึง|สนทนา|ตอบกลับ|แลกเปลี่ยน|เชื่อมต่อ)',
+    r'การ(?:วิจัย|ค้นหา|ประเมิน|ทำงาน|ทดสอบ|สลับ|เลือก|สร้าง|กำหนด|ใช้งาน|จัดการ|เรียก|ตอบสนอง|ตั้งค่า|ปักหมุด|วิ่งซ้ำ|ประสานงาน|รวม|ดำเนินการ|บีบอัด|เขียน|เข้าถึง|สนทนา|ตอบกลับ|แลกเปลี่ยน|เชื่อมต่อ|กระตุ้น|แยกบริบท|ตรวจสอบสิทธิ์)',
     r'ความ(?:แตกต่าง|สามารถ|เป็นไปได้|เสี่ยง|ถูกต้อง)',
     r'(?:ต้นทุน|ค่าใช้จ่าย|ความเสี่ยง|ข้อดี|ข้อเสีย|เป้าหมาย|ผลลัพธ์|กฎ|ข้อแตกต่าง|จุดประสงค์|จุดเด่น|สิ่งสำคัญ)(?:หลัก|การออกแบบ|นี้)?คือ',
     r'งานแบบ(?:แบตช์)?',
+    r'งาน(?:วิศวกรรม|แบบ|ย่อย)',
     r'จอแสดงผล(?:ความคืบหน้า)?',
     r'UI\s*(?:แบบสด)?',
     r'ปลั๊กอิน(?:ที่|นี้|จะ)?',
@@ -58,10 +62,29 @@ STARTERS = [
     r'รูปแบบที่(?:ง่าย|ซับซ้อน|เหมาะ)?',
     r'ขั้นตอน(?:สุดท้าย|แรก|ที่สอง|ที่สาม)',
     r'ยืนยันว่า',
+    r'ตั้งแต่(?:รุ่น|เวอร์ชัน|วันนี้|นั้น|เริ่ม|ระดับ|ปี|เดือน|Claude)',
+    r'(?<!ใน)รุ่น(?:เก่า|ใหม่|ก่อนหน้า)(?:จะ|มี|เป็น)?',
+    r'ปัญหา(?:ใน|ด้าน|เรื่อง)',
+    r'ความยุติธรรม(?:เป็น|คือ)',
+    r'ความลับ(?:ที่)?',
+    r'คำจำกัดความ(?:ของ)?',
+    r'ชื่อ(?:เครื่องมือ|โมเดล|ฟังก์ชัน|พารามิเตอร์)?(?:ต้อง|ควร|มี)',
+    r'กฎ(?:เช่น|ที่|สิทธิ์|ข้อกำหนด|ความปลอดภัย)',
+    r'ข้อความ(?:ใดก็ตาม|ที่สร้างขึ้น|ตอบกลับ)',
+    r'แพลตฟอร์ม(?:ที่|จะ)?',
+    r'เครื่องมือ(?:ที่|นี้|จะ|มากเกินไป)',
+    r'ทั้งสอง(?:ฝ่าย|อย่าง|วิธี)?(?:ต่างกัน|แตกต่าง)',
+    r'สถาปัตยกรรม(?:ที่)?',
+    r'เกตเวย์(?:จัดการ|นี้)?',
+    r'โค้ด(?:แอปพลิเคชัน|ของคุณ)?(?:จะ)?',
+    r'สถานการณ์(?:แรก|ที่สอง|ที่สาม|สุดท้าย)(?:คือ)?',
+    r'แทนที่จะ(?:ทําเช่นนั้น|ทำเช่นนั้น)?',
     
     # Connectives & Adverbs
     r'นอกจากนี้', r'อย่างไรก็ตาม', r'ตัวอย่างเช่น', r'ในทางกลับกัน', r'ในขณะเดียวกัน',
     r'อันที่จริง', r'โดยสรุป', r'ท้ายที่สุด', r'นอกเหนือจาก(?:นั้น|พวกเขา|นี้)',
+    r'โดย(?:ปกติแล้ว|ทั่วไปแล้ว|ค่าเริ่มต้น|อัตโนมัติ|ธรรมชาติ)',
+    r'ดังนั้น', r'ทั้งนี้',
     r'(?<!หลัง)จากนั้น(?:จะ|ก็)?',
     
     # Prepositional & Temporal
@@ -69,9 +92,9 @@ STARTERS = [
     r'สำหรับ\s*(?:แอปพลิเคชัน|งาน|กรณี|ระบบ|โมเดล|เอเจนต์|ผู้ใช้|การ|สิ่งนั้น|ข้อมูลนี้|สิ่งนี้)',
     r'สําหรับ\s*(?:แอปพลิเคชัน|งาน|กรณี|ระบบ|โมเดล|เอเจนต์|ผู้ใช้|การ|สิ่งนั้น|ข้อมูลนี้|สิ่งนี้)',
     r'ภายใต้\s*(?:การ|โหมด|สภาวะ|auto)',
-    r'เมื่อ\s*(?:รันไทม์|คุณ|โมเดล|ระบบ|เซสชัน|เกิด|งาน)',
-    r'หาก\s*(?:คุณ|โมเดล|ระบบ|เพื่อนร่วมงาน|ผลลัพธ์|ต้องการ|ค่า|ไม่มี)',
-    r'ถ้า\s*(?:คุณ|โมเดล|ระบบ)',
+    r'เมื่อ\s*(?:รันไทม์|คุณ|นักพัฒนา|โมเดล|ระบบ|เซสชัน|เกิด|งาน|ID|โค้ด|เครื่องมือ|ข้อมูล|ได้รับ)',
+    r'หาก\s*(?:คุณ|นักพัฒนา|โมเดล|ระบบ|เพื่อนร่วมงาน|ผลลัพธ์|ต้องการ|ค่า|ไม่มี|ID|โค้ด|เครื่องมือ|เซสชัน|ข้อมูล)',
+    r'ถ้า\s*(?:คุณ|นักพัฒนา|โมเดล|ระบบ|ID|โค้ด|เครื่องมือ|เซสชัน|ข้อมูล)',
     r'เนื่องจาก\s*(?:เวิร์กโฟลว์|ระบบ|โมเดล|เอเจนต์|การ)?',
     r'ข้อ(?:แรก|ที่สอง|ที่สาม|สุดท้าย|สำคัญ)',
     r'ส่วน(?:นี้|ที่)',
@@ -96,7 +119,7 @@ def is_bad_prefix(prefix):
         return False
     if prefix in BAD_CONJUNCTIONS:
         return True
-    if any(prefix.endswith(c) for c in ['และ', 'หรือ', 'แต่', 'ว่า', 'โดย', 'เพื่อ', 'ซึ่ง', 'กับ', 'รวมถึง', ' ให้']):
+    if any(prefix.endswith(c) for c in ['และ', 'หรือ', 'แต่', 'ว่า', 'โดย', 'เพื่อ', 'ซึ่ง', 'กับ', 'รวมถึง', ' ให้', 'ยังมี', 'เพื่อให้', 'โดยที่', 'และใน', 'แต่ใน', 'ที่อยู่', 'รอบๆ']):
         return True
     if prefix.endswith('ที่') and not any(prefix.endswith(w) for w in ['คงที่', 'หน้าที่', 'สถานที่', 'พื้นที่', 'เต็มที่', 'ทันที', 'ทุกที่', 'เหล่านี้']):
         return True
@@ -168,28 +191,45 @@ def split_thai_sentences(text):
             continue
         split_indices.append(start_idx)
 
-    if not split_indices:
-        return [text.strip()]
-        
     chunks = []
-    last_idx = 0
-    for s_start in split_indices:
-        chunk = text[last_idx:s_start].strip()
-        if chunk:
-            chunks.append(chunk)
-        last_idx = s_start
-    final_chunk = text[last_idx:].strip()
-    if final_chunk:
-        chunks.append(final_chunk)
+    if not split_indices:
+        chunks = [text.strip()]
+    else:
+        last_idx = 0
+        for s_start in split_indices:
+            chunk = text[last_idx:s_start].strip()
+            if chunk:
+                chunks.append(chunk)
+            last_idx = s_start
+        final_chunk = text[last_idx:].strip()
+        if final_chunk:
+            chunks.append(final_chunk)
         
     merged = []
     for c in chunks:
-        if merged and c.startswith('ดังนั้น'):
-            merged[-1] = merged[-1] + ' ' + c
-        elif merged and (len(merged[-1]) < 35 or is_bad_prefix(merged[-1])):
+        if merged and (len(merged[-1]) < 22 or is_bad_prefix(merged[-1])):
             merged[-1] = merged[-1] + ' ' + c
         else:
             merged.append(c)
+
+    # Intelligent fallback: If still a single chunk and length > 260 chars,
+    # split on secondary pauses like commas, semicolons, dashes or secondary Thai markers
+    if len(merged) == 1 and len(merged[0]) > 260:
+        single = merged[0]
+        sec_matches = list(re.finditer(r'(?:[;:\.]\s+|(?<=[^\s])\s*[–—]\s*|(?<=[^\s])\s+(?:ในขณะที่|โดยที่|ทั้งนี้|เนื่องจาก|เพื่อที่|รวมถึง|ซึ่งครอบคลุมใน)\s*)', single))
+        if sec_matches:
+            sec_chunks = []
+            l_idx = 0
+            for sm in sec_matches:
+                split_pt = sm.start()
+                if split_pt - l_idx >= 40:
+                    sec_chunks.append(single[l_idx:split_pt].strip())
+                    l_idx = sm.start()
+            if single[l_idx:].strip():
+                sec_chunks.append(single[l_idx:].strip())
+            if len(sec_chunks) >= 2:
+                return [sc for sc in sec_chunks if sc]
+
     return merged
 
 def format_readable_content(p_th, p_raw, is_first_para=False):
@@ -251,11 +291,12 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
     if is_first_para:
         sents = split_thai_sentences(p_th)
         if len(sents) > 1:
-            body = "".join(f'<p class="text-sm sm:text-base text-slate-100 leading-relaxed sm:leading-loose font-normal my-2">{highlight_tech_terms(s)}</p>' for s in sents)
+            lis = "".join(f'<li class="flex items-start gap-2.5 text-sm sm:text-base text-slate-100 leading-relaxed"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in sents)
+            body = f'<ul class="space-y-2.5 pt-1">{lis}</ul>'
         else:
             body = f'<p class="text-sm sm:text-base text-slate-100 font-medium leading-relaxed sm:leading-loose">{highlight_tech_terms(p_th)}</p>'
         return f"""
-        <div class="my-5 p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/80 shadow-md space-y-2.5">
+        <div class="my-5 p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/80 shadow-md space-y-3">
           <div class="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">
             <span class="text-base">💡</span>
             <span>แนวคิดหลักของหัวข้อนี้ (Core Concept)</span>
@@ -338,15 +379,20 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
         </div>
         """
 
-    # 6. Two-sentence Paragraph -> Dual-Point Mini Card
+    # 6. Two-sentence Paragraph -> Dual-Point Mini Card with Bullet Chips
     elif len(sents) == 2:
         return f"""
-        <div class="my-4 p-4 sm:p-4.5 rounded-xl border border-slate-800/85 bg-slate-900/50 hover:border-indigo-500/30 transition-colors shadow-xs flex items-start gap-3.5">
-          <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-indigo-500/15 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">🔹</span>
-          <div class="grow space-y-1.5 text-xs sm:text-sm leading-relaxed text-slate-200">
-            <div class="font-semibold text-slate-100 text-sm sm:text-[15px]">{highlight_tech_terms(sents[0])}</div>
-            <div class="text-slate-300 text-xs sm:text-sm leading-relaxed">{highlight_tech_terms(sents[1])}</div>
-          </div>
+        <div class="my-4 p-4 sm:p-4.5 rounded-xl border border-slate-800/85 bg-slate-900/50 hover:border-indigo-500/30 transition-colors shadow-xs">
+          <ul class="space-y-2.5">
+            <li class="flex items-start gap-3 text-xs sm:text-sm leading-relaxed text-slate-200">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow font-medium text-slate-100">{highlight_tech_terms(sents[0])}</div>
+            </li>
+            <li class="flex items-start gap-3 text-xs sm:text-sm leading-relaxed text-slate-300">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
+              <div class="grow">{highlight_tech_terms(sents[1])}</div>
+            </li>
+          </ul>
         </div>
         """
 
