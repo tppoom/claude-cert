@@ -45,6 +45,26 @@ def build_sidebar_html(catalog, current_idx, course_type):
           </div>
         </div>
         """
+    # Master Summary Cram Sheet after the last domain
+    is_summary_active = (current_idx == "summary")
+    sum_active_cls = "bg-amber-500/20 text-amber-300 font-semibold border-l-2 border-amber-400 pl-2.5" if is_summary_active else "text-amber-400/90 hover:text-amber-300 hover:bg-slate-800/60 pl-3"
+    html_out += f"""
+    <div class="mt-4 pt-3 border-t border-slate-800">
+      <div class="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-400/80 flex items-center gap-1.5">
+        <span>⚡</span>
+        <span>สรุปเร่งด่วนก่อนสอบ</span>
+      </div>
+      <div class="mt-1 space-y-0.5">
+        <a href="summary.html" class="flex items-center justify-between text-xs py-2 pr-2 rounded transition-colors {sum_active_cls}">
+          <div class="flex items-center min-w-0 pr-1">
+            <span class="mr-1.5">📑</span>
+            <span class="truncate font-medium">รวมสรุปสำคัญทุก Domain ก่อนสอบ</span>
+          </div>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold">ALL</span>
+        </a>
+      </div>
+    </div>
+    """
     return html_out
 
 def render_lesson_page(lesson_data, catalog, current_idx, course_type):
@@ -61,7 +81,13 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     
     # Prev / Next
     prev_item = catalog[current_idx - 2] if current_idx > 1 else None
-    next_item = catalog[current_idx] if current_idx < len(catalog) else None
+    if current_idx < len(catalog):
+        next_item = catalog[current_idx]
+    else:
+        next_item = {
+            "filename": "summary.html",
+            "title": "⚡ สรุปสำคัญทุก Domain ก่อนสอบ (Final Exam Cram Sheet)"
+        }
     
     # Badges
     badges_html = ""
@@ -109,7 +135,6 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
         th_h = clean_thai_spacing(get_thai_heading(h))
         clean_id = re.sub(r"[^a-zA-Z0-9]+", "-", h).lower().strip("-")
         toc_links += f'<li><a href="#{clean_id}" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>{th_h}</span></a></li>'
-    toc_links += f'<li class="pt-2 border-t border-slate-800/80"><a href="#exam-summary" class="text-amber-400 hover:text-amber-300 font-semibold transition-colors flex items-center gap-2"><span class="text-amber-400 text-xs">⚡</span><span>สรุปสำคัญก่อนสอบ (Exam Cram Sheet)</span></a></li>'
     toc_html = f"""
     <nav class="my-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-xs sm:text-sm">
       <div class="font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
@@ -307,10 +332,6 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
         </section>
         """
         
-    # Exam Cram Summary section at the end of every lesson
-    exam_summary_html = render_exam_summary_section(p, catalog, current_idx, course_type)
-    sections_html += exam_summary_html
-        
     # Sources
     sources_html = ""
     if p.get("sources"):
@@ -429,6 +450,11 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
           <span>ทำเครื่องหมายว่าเรียนจบ</span>
         </button>
         
+        <a href="summary.html" class="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-lg border border-amber-500/30 bg-amber-950/30 text-amber-300 hover:bg-amber-900/50 transition font-medium items-center gap-1.5 shadow-xs">
+          <span class="text-amber-400">⚡</span>
+          <span>สรุปสอบ</span>
+        </a>
+
         <a href="{other_course_url}" class="hidden lg:inline-flex text-xs px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-800 text-slate-300 hover:text-white transition font-medium">
           {other_course_name}
         </a>
@@ -1153,6 +1179,34 @@ def render_course_index_page(catalog, course_type):
         </div>
         """
         
+    # Final Cram Sheet card after the last domain
+    domain_cards += f"""
+    <div class="my-8 rounded-2xl border-2 border-amber-500/40 bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 p-6 sm:p-8 backdrop-blur shadow-xl space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center text-2xl font-bold shrink-0 shadow-md">
+            ⚡
+          </div>
+          <div>
+            <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400">
+              <span>ต่อจากบทเรียนสุดท้าย · FINAL EXAM CRAM SHEET</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-bold text-white mt-1">
+              รวมสรุปสำคัญทุก Domain สำหรับทบทวนก่อนสอบ {course_code}
+            </h2>
+            <p class="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed">
+              รวบรวมแก่นสถาปัตยกรรม (Core Rules), กับดักข้อสอบ (Exam Traps) ครบทุกบทเรียน จัดหมวดหมู่ให้อ่านทบทวนได้อย่างรวดเร็วและครบถ้วนที่สุด
+            </p>
+          </div>
+        </div>
+        <a href="summary.html" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition-all shrink-0 cursor-pointer">
+          <span>เปิดหน้ารวมสรุปเร่งด่วน</span>
+          <span>→</span>
+        </a>
+      </div>
+    </div>
+    """
+        
     return f"""<!DOCTYPE html>
 <html lang="th" class="dark scroll-smooth">
 <head>
@@ -1353,10 +1407,15 @@ def render_master_portal(f_cat, a_cat):
             <div class="flex items-center gap-2"><span class="text-blue-400">✓</span><span>Domain 4-8: Eval, Model Selection, Prompts, Safety, MCPs</span></div>
           </div>
         </div>
-        <a href="foundations/index.html" class="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-indigo-600/30">
-          <span>เข้าสู่บทเรียน CCDV-F (45 ตอน)</span>
-          <span>→</span>
-        </a>
+        <div class="flex flex-col sm:flex-row gap-2.5">
+          <a href="foundations/index.html" class="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm transition shadow-lg shadow-indigo-600/30">
+            <span>เข้าสู่บทเรียน (45 ตอน)</span>
+            <span>→</span>
+          </a>
+          <a href="foundations/summary.html" class="inline-flex items-center justify-center gap-1.5 py-3 px-4 rounded-xl border border-amber-500/30 bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 font-semibold text-xs transition">
+            <span>⚡ สรุปสอบ</span>
+          </a>
+        </div>
       </div>
 
       <!-- CCAR-P Card -->
@@ -1377,10 +1436,15 @@ def render_master_portal(f_cat, a_cat):
             <div class="flex items-center gap-2"><span class="text-purple-400">✓</span><span>Domain 4-7: Telemetry, Guardrails, Stakeholders, Deployment</span></div>
           </div>
         </div>
-        <a href="architect/index.html" class="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm transition shadow-lg shadow-purple-600/30">
-          <span>เข้าสู่บทเรียน CCAR-P (53 ตอน)</span>
-          <span>→</span>
-        </a>
+        <div class="flex flex-col sm:flex-row gap-2.5">
+          <a href="architect/index.html" class="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs sm:text-sm transition shadow-lg shadow-purple-600/30">
+            <span>เข้าสู่บทเรียน (53 ตอน)</span>
+            <span>→</span>
+          </a>
+          <a href="architect/summary.html" class="inline-flex items-center justify-center gap-1.5 py-3 px-4 rounded-xl border border-amber-500/30 bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 font-semibold text-xs transition">
+            <span>⚡ สรุปสอบ</span>
+          </a>
+        </div>
       </div>
     </div>
   </section>

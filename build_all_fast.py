@@ -10,6 +10,7 @@ sys.path.insert(0, BASE_DIR)
 import quiz_translator
 from generate_all import f_catalog, a_catalog, parse_lesson_file, FOUNDATIONS_DIR, ARCHITECT_DIR
 from builder_page import render_lesson_page, render_course_index_page, render_master_portal
+from builder_summary import render_summary_page
 from quiz_translator import clean_thai_spacing
 
 # Load Cache into quiz_translator
@@ -89,5 +90,15 @@ master_html = render_master_portal(f_catalog, a_catalog)
 with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
     f.write(master_html)
 
+# 4. Render Master Cram Sheets (Final Review after last domain)
+print("Generating master cram sheets for both courses...", flush=True)
+f_summary_html = render_summary_page(f_catalog, "foundations")
+with open(os.path.join(FOUNDATIONS_DIR, "summary.html"), "w", encoding="utf-8") as f:
+    f.write(f_summary_html)
+
+a_summary_html = render_summary_page(a_catalog, "architect")
+with open(os.path.join(ARCHITECT_DIR, "summary.html"), "w", encoding="utf-8") as f:
+    f.write(a_summary_html)
+
 elapsed = time.time() - t0
-print(f"SUCCESS! All 98 lessons + 3 indices generated in {elapsed:.2f} seconds!", flush=True)
+print(f"SUCCESS! All 98 lessons + 3 indices + 2 Cram Sheets generated in {elapsed:.2f} seconds!", flush=True)
