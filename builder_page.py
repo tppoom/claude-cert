@@ -73,14 +73,14 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     # Objectives (Thai)
     objs_html = ""
     if p.get("objectives"):
-        objs_list = "".join(f'<li class="flex items-start gap-3 p-2.5 rounded-xl border border-slate-800/60 bg-slate-900/40 hover:border-indigo-500/30 transition-colors"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span class="text-slate-200">{highlight_tech_terms(clean_thai_spacing(get_thai_objective(obj)))}</span></li>' for obj in p["objectives"])
+        objs_list = "".join(f'<li class="flex items-start gap-2.5 text-slate-300 text-sm sm:text-[15px] leading-relaxed"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">✓</span><span class="grow">{highlight_tech_terms(clean_thai_spacing(get_thai_objective(obj)))}</span></li>' for obj in p["objectives"])
         objs_html = f"""
-        <section class="my-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6 backdrop-blur shadow-sm">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3 flex items-center gap-2">
+        <section class="my-6 rounded-xl border border-slate-800 bg-slate-900/40 p-5 sm:p-6 backdrop-blur">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-3.5 flex items-center gap-2">
             <span class="text-base">🎯</span>
             <span>สิ่งที่คุณจะสามารถทำได้หลังจบบทเรียนนี้ (What you will be able to do)</span>
           </h2>
-          <ul class="space-y-2.5 text-sm sm:text-[15px] text-slate-200 leading-relaxed">
+          <ul class="space-y-2.5">
             {objs_list}
           </ul>
         </section>
@@ -90,18 +90,15 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
     kc_html = ""
     if p.get("key_concept"):
         kc_thai = clean_thai_spacing(get_thai_key_concept(p["key_concept"]))
-        kc_sents = split_thai_sentences(kc_thai)
-        if len(kc_sents) > 1:
-            kc_body = '<ul class="space-y-2 mt-2">' + "".join(f'<li class="flex items-start gap-2.5 text-sm sm:text-base text-slate-100 leading-relaxed"><span class="text-amber-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in kc_sents) + '</ul>'
-        else:
-            kc_body = f'<p class="text-sm sm:text-base text-slate-200 leading-relaxed font-medium">{highlight_tech_terms(kc_thai)}</p>'
         kc_html = f"""
-        <section class="my-6 rounded-2xl border-l-4 border-l-amber-500 border-y border-r border-slate-800 bg-amber-950/20 p-5 sm:p-6 shadow-sm">
-          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+        <section class="my-5 rounded-xl border-l-4 border-l-amber-500 border-y border-r border-slate-800/80 bg-amber-950/20 p-4 sm:p-5">
+          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-1.5">
             <span class="text-base">💡</span>
             <span>แนวคิดหลักสำคัญ (Key Concept)</span>
           </div>
-          {kc_body}
+          <p class="text-sm sm:text-[15px] text-slate-200 leading-relaxed font-sans">
+            {highlight_tech_terms(kc_thai)}
+          </p>
         </section>
         """
         
@@ -159,22 +156,16 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 clean_trap_en = clean_thai_spacing(trap_clean_pat.sub('', trap_raw).strip())
                 trap_th = get_thai_explanation(trap_raw)
                 clean_trap_th = clean_thai_spacing(trap_clean_pat.sub('', trap_th).strip())
-                trap_sents = split_thai_sentences(clean_trap_th)
-                if len(trap_sents) > 1:
-                    th_trap_body = '<ul class="space-y-2 mt-2">' + "".join(f'<li class="flex items-start gap-2 text-xs sm:text-sm text-amber-200/90 leading-relaxed"><span class="text-amber-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in trap_sents) + '</ul>'
-                else:
-                    th_trap_body = f'<div class="mt-1.5 text-xs sm:text-sm text-amber-200/90 leading-relaxed font-sans">{highlight_tech_terms(clean_trap_th)}</div>'
                 
                 sec_elements += f"""
-                <aside class="my-6 rounded-2xl border-l-4 border-l-amber-500 border border-slate-800 bg-amber-950/25 p-5 sm:p-6 text-sm sm:text-base text-slate-200 shadow-sm">
-                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2.5 text-xs uppercase tracking-wider">
+                <aside class="my-5 rounded-xl border-l-4 border-l-amber-500 border-y border-r border-slate-800/80 bg-amber-950/20 p-4 sm:p-5 text-slate-200">
+                  <div class="flex items-center gap-2 text-amber-400 font-bold mb-2 text-xs uppercase tracking-wider">
                     <span class="text-base">⚠️</span>
                     <span>จุดที่ข้อสอบชอบหลอก & จุดสังเกต (Exam Trap & Key Insight)</span>
                   </div>
-                  <div class="leading-relaxed sm:leading-loose text-sm sm:text-base text-white font-medium">{html.escape(clean_trap_en)}</div>
-                  <div class="mt-3 pt-2.5 border-t border-amber-900/40">
-                    <span class="text-amber-400 font-bold text-xs uppercase tracking-wider block">คำอธิบายเจาะลึก (Deep Dive):</span>
-                    {th_trap_body}
+                  <div class="leading-relaxed text-sm sm:text-base text-white font-medium">{html.escape(clean_trap_en)}</div>
+                  <div class="mt-2.5 pt-2.5 border-t border-amber-900/40">
+                    <p class="text-xs sm:text-sm text-amber-200/90 leading-relaxed font-sans">{highlight_tech_terms(clean_trap_th)}</p>
                   </div>
                 </aside>
                 """
@@ -221,11 +212,6 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
             elif itype == "figure_text":
                 fig_text = clean_thai_spacing(it["text"])
                 fig_th = get_thai_explanation(fig_text)
-                fig_sents = split_thai_sentences(fig_th)
-                if len(fig_sents) > 1:
-                    fig_body = '<ul class="space-y-1.5 mt-2">' + "".join(f'<li class="flex items-start gap-2 text-xs text-indigo-200/90 leading-relaxed"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in fig_sents) + '</ul>'
-                else:
-                    fig_body = f'<div class="pt-1.5 border-t border-slate-800/60 text-xs text-indigo-200/90 leading-relaxed font-sans">{highlight_tech_terms(fig_th)}</div>'
                 sec_elements += f"""
                 <div class="my-4 p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans space-y-1.5">
                   <div class="text-xs font-semibold text-indigo-400 flex items-center gap-1.5 mb-1">
@@ -233,7 +219,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                     <span>บริบทประกอบ (Context Note):</span>
                   </div>
                   <div class="text-slate-100 font-semibold leading-relaxed text-sm sm:text-base">{html.escape(fig_text)}</div>
-                  {fig_body}
+                  <div class="pt-1.5 border-t border-slate-800/60 text-xs text-indigo-200/90 leading-relaxed font-sans">{highlight_tech_terms(fig_th)}</div>
                 </div>
                 """
             elif itype == "code":

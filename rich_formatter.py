@@ -184,7 +184,7 @@ def split_thai_sentences(text):
 
     return merged
 
-def format_readable_content(p_th, p_raw, is_first_para=False):
+def format_readable_content(p_th, p_raw="", is_first_para=False):
     p_th = p_th.strip()
     if not p_th:
         return ""
@@ -194,10 +194,9 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
     p_th = re.sub(r'^(?:(?:จุดที่ข้อสอบชอบหลอก|กับดักการสอบ|หลุมพรางการสอบ|Exam\s*Trap)[\s:\(\)]*)+', '⚠️ จุดที่ข้อสอบชอบหลอก: ', p_th)
     p_th = re.sub(r'^(?:(?:คาดการณ์ก่อนตอบ|คาดการณ์ก่อน|Predict\s*First)[\s:\(\)]*)+', '🔮 คาดการณ์ก่อนตอบ: ', p_th)
 
-    # 1. Numbered Sequence Step List (Cards with step badges)
+    # 1. Numbered Sequence Step List (Clean, readable, NO heavy cards)
     th_steps = extract_numbered_steps(p_th)
     raw_steps = extract_numbered_steps(p_raw) if p_raw else []
-    
     use_steps = th_steps if len(th_steps) >= 2 else (raw_steps if len(raw_steps) >= 2 else [])
     if use_steps:
         lis = ""
@@ -206,19 +205,19 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
             th_body_fmt = highlight_tech_terms(body)
             en_ref_html = ""
             if has_matching_raw and raw_steps[idx][1] != body:
-                en_ref_html = f'<div class="text-xs text-slate-400 font-mono pt-1.5 border-t border-slate-800/60 leading-relaxed">{html.escape(raw_steps[idx][1])}</div>'
+                en_ref_html = f'<div class="text-xs text-slate-400 font-mono mt-1 leading-relaxed">{html.escape(raw_steps[idx][1])}</div>'
             lis += f"""
-            <li class="flex items-start gap-3.5 p-4 rounded-xl border border-slate-800/90 bg-slate-900/50 hover:border-indigo-500/40 transition-colors shadow-sm">
-              <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs shrink-0 mt-0.5 shadow-md shadow-indigo-600/30">{num}</span>
-              <div class="grow space-y-1.5">
-                <div class="text-slate-200 text-sm sm:text-[15px] leading-relaxed sm:leading-loose font-normal">
+            <li class="flex items-start gap-3">
+              <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/15 text-indigo-300 font-semibold text-xs shrink-0 mt-0.5 border border-indigo-500/30">{num}</span>
+              <div class="grow leading-relaxed">
+                <div class="text-slate-200 text-[15px] sm:text-base leading-relaxed sm:leading-loose font-normal">
                   {th_body_fmt}
                 </div>
                 {en_ref_html}
               </div>
             </li>
             """
-        return f'<ol class="space-y-3.5 my-5">{lis}</ol>'
+        return f'<ol class="space-y-3.5 my-5 pl-1">{lis}</ol>'
 
     # 2. Explicit Bullet list inside paragraph (e.g. "- ตัวแทน: โมเดล... - สภาพแวดล้อม: ที่ที่...")
     bullet_parts = [b.strip().lstrip('-•* \t') for b in re.split(r'(?:^|\s+)[-•*]\s+', p_th) if b.strip().lstrip('-•* \t')]
@@ -228,130 +227,59 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
             m_colon = re.match(r'^([^:]{2,35}):\s*(.+)$', bp)
             if m_colon:
                 term, desc = m_colon.group(1), m_colon.group(2)
-                item_content = f'<strong class="text-indigo-300 font-semibold">{highlight_tech_terms(term)}:</strong> <span class="text-slate-200">{highlight_tech_terms(desc)}</span>'
+                item_content = f'<strong class="text-indigo-300 font-semibold">{highlight_tech_terms(term)}:</strong> <span class="text-slate-300">{highlight_tech_terms(desc)}</span>'
             else:
-                item_content = f'<span class="text-slate-200">{highlight_tech_terms(bp)}</span>'
+                item_content = f'<span class="text-slate-300">{highlight_tech_terms(bp)}</span>'
             lis += f"""
-            <li class="flex items-start gap-3 p-3.5 rounded-xl border border-slate-800/80 bg-slate-900/40 text-sm sm:text-base leading-relaxed hover:border-indigo-500/30 transition-colors shadow-sm">
-              <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
-              <div class="grow">{item_content}</div>
+            <li class="flex items-start gap-3">
+              <span class="text-indigo-400 font-bold shrink-0 mt-1 text-sm">•</span>
+              <div class="grow text-[15px] sm:text-base leading-relaxed sm:leading-loose text-slate-300">{item_content}</div>
             </li>
             """
-        return f'<ul class="space-y-2.5 my-4">{lis}</ul>'
+        return f'<ul class="space-y-2.5 my-4 pl-1">{lis}</ul>'
 
-    # 3. Lead Concept Hero Card (First paragraph of section)
-    if is_first_para:
-        sents = split_thai_sentences(p_th)
-        if len(sents) > 1:
-            lis = "".join(f'<li class="flex items-start gap-2.5 text-sm sm:text-base text-slate-100 leading-relaxed"><span class="text-indigo-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in sents)
-            body = f'<ul class="space-y-2.5 pt-1">{lis}</ul>'
-        else:
-            body = f'<p class="text-sm sm:text-base text-slate-100 font-medium leading-relaxed sm:leading-loose">{highlight_tech_terms(p_th)}</p>'
-        return f"""
-        <div class="my-5 p-5 rounded-2xl border-l-4 border-l-indigo-500 border-y border-r border-slate-800 bg-slate-900/80 shadow-md space-y-3">
-          <div class="flex items-center gap-2 text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">
-            <span class="text-base">💡</span>
-            <span>แนวคิดหลักของหัวข้อนี้ (Core Concept)</span>
-          </div>
-          {body}
-        </div>
-        """
-
-    # 4. Colon definition card (starts with 'Concept: ...')
-    m_lead = re.match(r'^([^:]{2,30}):\s*([^\n]+)$', p_th)
-    if m_lead and len(p_th) < 350:
-        term, desc = m_lead.group(1), m_lead.group(2)
-        return f"""
-        <div class="my-3.5 p-4 rounded-xl border border-slate-800/90 bg-slate-900/50 hover:border-indigo-500/40 transition-colors shadow-sm">
-          <div class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-            <span class="text-indigo-500">🔹</span>
-            <span>{html.escape(term)}</span>
-          </div>
-          <p class="text-sm sm:text-[15px] text-slate-200 leading-relaxed font-normal">{highlight_tech_terms(desc)}</p>
-        </div>
-        """
-
-    # 5. Multi-sentence Paragraph -> Card Box with Bullet Points & Highlights
+    # 3. Separate Warning/Caution if embedded in paragraph
     sents = split_thai_sentences(p_th)
-    if len(sents) >= 3:
-        intro = sents[0]
-        points = sents[1:]
-        normal_points = []
-        warnings = []
-        for pt in points:
-            if re.search(r'^(?:อย่า|ระวัง|ข้อควรระวัง|คําเตือน|คำเตือน|Exam Trap)', pt.strip()):
-                warnings.append(pt)
-            else:
-                normal_points.append(pt)
-                
-        bullet_lis = ""
-        for pt in normal_points:
-            m_colon = re.match(r'^([^:–—]{2,35})[:–—]\s*(.+)$', pt)
-            if m_colon:
-                term, desc = m_colon.group(1), m_colon.group(2)
-                pt_fmt = f'<strong class="text-indigo-300 font-semibold">{highlight_tech_terms(term)}:</strong> <span class="text-slate-200">{highlight_tech_terms(desc)}</span>'
-            else:
-                pt_fmt = f'<span class="text-slate-200">{highlight_tech_terms(pt)}</span>'
-                
-            bullet_lis += f"""
-            <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">
-              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
-              <div class="grow">{pt_fmt}</div>
-            </li>
-            """
-
-        warn_html = ""
-        for w in warnings:
-            warn_html += f"""
-            <div class="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/25 text-xs sm:text-sm text-amber-200 leading-relaxed flex items-start gap-2.5 mt-2.5 shadow-xs">
-              <span class="text-amber-400 shrink-0 text-base leading-none">⚠️</span>
-              <div class="grow"><strong class="text-amber-300 font-semibold">ข้อควรระวัง & จุดสังเกต:</strong> {highlight_tech_terms(w)}</div>
-            </div>
-            """
-            
-        return f"""
-        <div class="my-5 p-4 sm:p-5 rounded-2xl border border-slate-800/90 bg-slate-900/60 shadow-sm space-y-3.5">
-          <div class="text-slate-100 font-semibold text-sm sm:text-base flex items-start gap-2.5 leading-relaxed pb-2.5 border-b border-slate-800/70">
-            <span class="text-indigo-400 shrink-0 text-base mt-0.5">📌</span>
-            <span>{highlight_tech_terms(intro)}</span>
-          </div>
-          <ul class="space-y-2.5 pt-1">
-            {bullet_lis}
-          </ul>
-          {warn_html}
-        </div>
-        """
-
-    # 6. Two-sentence Paragraph -> Dual-Point Mini Card with Bullet Chips
-    elif len(sents) == 2:
-        return f"""
-        <div class="my-4 p-4 sm:p-4.5 rounded-xl border border-slate-800/85 bg-slate-900/50 hover:border-indigo-500/30 transition-colors shadow-xs">
-          <ul class="space-y-2.5">
-            <li class="flex items-start gap-3 text-xs sm:text-sm leading-relaxed text-slate-200">
-              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
-              <div class="grow font-medium text-slate-100">{highlight_tech_terms(sents[0])}</div>
-            </li>
-            <li class="flex items-start gap-3 text-xs sm:text-sm leading-relaxed text-slate-300">
-              <span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 text-xs font-bold shrink-0 mt-0.5">▸</span>
-              <div class="grow">{highlight_tech_terms(sents[1])}</div>
-            </li>
-          </ul>
-        </div>
-        """
-
-    # 7. Single Sentence Statement / Transition Line
-    else:
-        if len(p_th) >= 140:
-            return f"""
-            <div class="my-3.5 p-3.5 sm:p-4 rounded-xl border border-slate-800/80 bg-slate-900/40 text-xs sm:text-sm text-slate-200 leading-relaxed flex items-start gap-3 shadow-xs">
-              <span class="text-indigo-400 text-sm shrink-0 mt-0.5">📌</span>
-              <div class="grow">{highlight_tech_terms(p_th)}</div>
-            </div>
-            """
+    warnings = []
+    normal_sents = []
+    for s in sents:
+        if re.search(r'^(?:อย่า|ระวัง|ข้อควรระวัง|คําเตือน|คำเตือน|Exam Trap)', s.strip()):
+            warnings.append(s.strip())
         else:
-            return f"""
-            <p class="text-slate-300 text-xs sm:text-sm font-medium leading-relaxed my-3 flex items-center gap-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
-              <span>{highlight_tech_terms(p_th)}</span>
-            </p>
-            """
+            normal_sents.append(s.strip())
+
+    warn_html = ""
+    for w in warnings:
+        warn_html += f"""
+        <div class="my-4 p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/20 text-xs sm:text-sm text-amber-200 leading-relaxed flex items-start gap-2.5 shadow-xs">
+          <span class="text-amber-400 shrink-0 text-base leading-none">⚠️</span>
+          <div class="grow"><strong class="text-amber-300 font-semibold">ข้อควรระวัง & จุดสังเกต:</strong> {highlight_tech_terms(w)}</div>
+        </div>
+        """
+
+    if not normal_sents:
+        return warn_html
+
+    # 4. Standard Flowing Paragraphs (Natural typography, zero card clutter!)
+    # If the text is very long (>= 4 sentences and >= 350 chars), break into 2 natural paragraphs
+    if len(normal_sents) >= 4 and len(p_th) >= 350:
+        mid = (len(normal_sents) + 1) // 2
+        p1 = " ".join(normal_sents[:mid])
+        p2 = " ".join(normal_sents[mid:])
+        html_p = f"""
+        <p class="text-[15px] sm:text-base text-slate-300 leading-relaxed sm:leading-loose mb-4 font-normal">
+          {highlight_tech_terms(p1)}
+        </p>
+        <p class="text-[15px] sm:text-base text-slate-300 leading-relaxed sm:leading-loose mb-4 font-normal">
+          {highlight_tech_terms(p2)}
+        </p>
+        """
+    else:
+        full_text = " ".join(normal_sents)
+        html_p = f"""
+        <p class="text-[15px] sm:text-base text-slate-300 leading-relaxed sm:leading-loose mb-4 font-normal">
+          {highlight_tech_terms(full_text)}
+        </p>
+        """
+
+    return html_p + warn_html

@@ -135,8 +135,8 @@ def render_exam_summary_section(lesson_data, catalog, current_idx, course_type):
             pts = ["ครอบคลุมแนวคิดทางสถาปัตยกรรมหลักและการเชื่อมต่อระบบตามมาตรฐาน Anthropic Claude"]
             
         point_lis = "".join(
-            f'<li class="flex items-start gap-2.5 text-xs sm:text-[13px] text-slate-200 leading-relaxed">'
-            f'<span class="text-indigo-400 font-bold shrink-0 mt-0.5">▸</span>'
+            f'<li class="flex items-start gap-2.5 text-xs sm:text-[13px] text-slate-300 leading-relaxed">'
+            f'<span class="text-indigo-400 font-bold shrink-0 mt-0.5">•</span>'
             f'<div class="grow">{highlight_tech_terms(pt)}</div>'
             f'</li>'
             for pt in pts
