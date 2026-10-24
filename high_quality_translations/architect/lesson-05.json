@@ -1,0 +1,195 @@
+{
+  "title": "การ Config Coordinator และ Subagents ใน Managed Agents, Agent SDK และ Claude Code",
+  "objectives": [
+    "Config Coordinator และ Predefined Subagents ใน Multiagent Block ของ Managed Agents",
+    "เลือกใช้งานระหว่าง Subagents, Dynamic Workflows และ Advisor ใน Managed Agents",
+    "กำหนด Specialized Subagents ด้วย AgentDefinition ใน Agent SDK",
+    "เลือกใช้งานระหว่าง Subagents, Agent Teams และ Dynamic Workflows ใน Claude Code"
+  ],
+  "key_concept": "การออกแบบและ Config สถาปัตยกรรม Multiagent ในระบบต่างๆ ทั้ง Managed Agents, Agent SDK และ Claude Code โดยเลือก Pattern การทำงาน (Subagents, Dynamic Workflows, Advisor หรือ Agent Teams) ให้เหมาะสมกับโจทย์เพื่อควบคุม Control Flow และ Context ได้อย่างมีประสิทธิภาพ",
+  "sections": [
+    {
+      "heading": "1. Managed Agents: บล็อก multiagent",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "หลักการทำงานของ Coordinator เหมือนกันในทุกแพลตฟอร์ม คือทำหน้าที่กระจายงานให้ Subagents โดยแต่ละ Subagent จะรันอยู่ใน Context ที่แยกขาดจากกัน (isolated context) และส่งกลับมาเฉพาะผลลัพธ์ที่สรุปแล้ว สิ่งที่ต่างกันในแต่ละแพลตฟอร์มคือตำแหน่งการประกาศ Coordinator, Specialist Agents และทางเลือกอื่นนอกเหนือจาก Subagents ใน Claude Managed Agents คุณสามารถกำหนดสิ่งเหล่านี้ได้ในบล็อก `multiagent` ของ Agent Definition โดยเวอร์ชัน `multiagent_20261001` จะเปิดใช้งานทั้ง Subagents และ Dynamic Workflows เป็นค่าเริ่มต้น พร้อมทั้งสามารถกำหนด Advisor ให้กับ Session ได้อีกด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "ก่อนดูตารางด้านล่าง ขออธิบายเรื่อง Threads ก่อน: แต่ละ Agent ใน Session จะรันบน Session Thread ของตัวเอง ซึ่งเป็น Event Stream ที่แยก Context และมี Conversation History เป็นของตัวเอง Agent หลักที่รัน Session จะทำงานบน Primary Thread (Event Stream ระดับ Session) ส่วน Agent ที่ถูก Delegate งานไปจะได้รับ Thread เพิ่มเติมที่ Spawn ขึ้นมาแบบ Runtime ข้อแตกต่างสำคัญระหว่าง Subagents กับ Workflow Runs คือ Thread นั้นจะสามารถรับข้อความต่อได้อีกหรือไม่หลังจากส่ง Report กลับมาแล้ว"
+        },
+        {
+          "type": "table",
+          "caption": "3 วิธีที่ Managed Agents Session ใช้ดึง Agent อื่นเข้ามาร่วมทำงาน",
+          "headers": [
+            "Approach",
+            "Who directs the work",
+            "Choose it when",
+            "Watch for"
+          ],
+          "rows": [
+            [
+              "Subagents",
+              "Agent เป็นผู้ Delegate งานและอ่าน Report แต่ละตัว โดย Thread ของ Subagent จะยังคงอยู่ (persists) ทำให้ Agent ส่งข้อความ Follow-up ต่อได้",
+              "Agent ต้องการ Follow-up กับ Subagent หรือต้องการ Specialist ตามลิสต์ที่มี System Prompt และ Tools แยกเป็นของตัวเอง",
+              "Delegation ทำได้ลึกเพียง 1 ระดับ (one level deep) และจำกัด Child Threads สูงสุด 25 threads ต่อ Session (นับรวม Idle Threads ด้วย)"
+            ],
+            [
+              "Dynamic workflows",
+              "โปรแกรมที่ Agent เขียนขึ้นจะรัน Agent หลายตัวตามเฟสการทำงานใน Background และนำผลลัพธ์มารวมกัน",
+              "งานส่วนใหญ่ที่ต้องใช้ Agent หลายตัว เช่น Audits, Migrations, Deep Research, Cross-checking",
+              "ไม่สามารถ Follow-up ไปยัง Thread ของ Workflow Run ได้ และ Agent ทุกตัวมีการบริโภค Token จึงควรตั้ง Session Budget เสมอ"
+            ],
+            [
+              "Advisor",
+              "Agent ตัวเดียวเป็นผู้ลงมือทำงาน และสามารถปรึกษา Advisor Model ได้ระหว่าง Turn",
+              "ต้องการให้ Agent ตัวเดียวทำงานหลัก แต่ต้องการ Model ที่มีความสามารถสูงกว่าช่วยตัดสินใจในขั้นตอนวางแผนหรือรีวิวรอบสุดท้าย",
+              "เรียกปรึกษาได้เฉพาะจาก Primary Thread เท่านั้น และค่าใช้จ่ายจะคิดตามเรตราคาของ Advisor Model"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "คุณเป็นผู้กำหนดว่า Agent ได้รับอนุญาตให้ใช้ Approach ใดบ้าง และตัว Agent จะเป็นผู้ตัดสินใจเองว่าจะเลือกใช้เมื่อใด โดยคุณสามารถชี้นำการตัดสินใจนี้ผ่าน System Prompt ได้ เช่น กำหนดเงื่อนไขว่าเมื่อไหร่ควรเริ่มรัน Workflow ตัวอย่าง Coordinator ด้านล่างทำหน้าที่เป็น Lead ที่ผูก Specialist ไว้ 2 ตัวผ่าน ID โดยมี System Prompt สั้นๆ สำหรับทำ Routing: ส่งงาน Review ให้ Reviewer และส่งงานเขียน Test ให้ Test Writer ซึ่งทั้ง Reviewer และ Test Writer ต่างเป็น Agent แยกต่างหากที่รันโมเดล `claude-haiku-5-5` และมี System Prompt แบบบรรทัดเดียวของตัวเอง"
+        }
+      ]
+    },
+    {
+      "heading": "2. Predefined และ Inline Agents พร้อมข้อจำกัด",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Subagent แต่ละตัวจะถูกแบ่งเป็น Predefined Agent หรือ Inline Agent โดย Predefined Agent คือตัวที่คุณสร้างและระบุไว้ล่วงหน้าแล้ว ซึ่งจะรันด้วย Model, System Prompt, Tools, MCP Servers และ Skills ของตัวมันเอง ส่วน Inline Agent จะไม่มีการบันทึกไว้ที่ใด โดย Coordinator หรือ Workflow จะเป็นผู้สร้างและกำหนดขึ้นมา ณ จังหวะที่จ่ายงาน ซึ่ง Inline Agent จะสืบทอด Model, Tools, MCP Servers และ Skills ของ Coordinator ไปใช้ทั้งหมด เนื่องจาก Inline Agents เปิดใช้งานเป็นค่าเริ่มต้น หากคุณไม่ปิดการใช้งาน Coordinator จะสามารถสร้าง Helper Agents ที่คุณไม่เคยตรวจสอบล่วงหน้าขึ้นมาเองได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): Inline Subagent ต้องการเข้าถึง GitHub MCP Server คุณต้องประกาศ Server นั้นไว้ที่ใดเพื่อให้ Inline Agent ใช้งานได้? ไม่จริง: ไม่สามารถกำหนด MCP Server ให้กับ Inline Agent โดยตรงได้ เพราะ Inline Agent ไม่มี Definition แยกของตัวเอง หากต้องการให้ใช้งานได้ ต้องประกาศ GitHub MCP Server ไว้ที่ตัว Coordinator ซึ่งส่งผลให้ Coordinator ได้สิทธิ์เข้าถึงไปด้วย หากต้องการจำกัดสิทธิ์ให้เฉพาะ Specialist เท่านั้น ต้องใช้ Predefined Agent แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Inline Agents ไม่มี Definition แยกเป็นของตัวเอง คุณจึงไม่สามารถใช้มันเพื่อจำกัดขอบเขตการเข้าถึง (Scope Access) ได้ โดยพวกมันจะใช้ MCP Servers และ Tools ของ Agent หลักที่รัน Session เสมอ หากต้องการให้ Specialist ถือ Tools ที่ Coordinator ไม่มี คุณต้องตั้งค่าเป็น Predefined Agent ตัวอย่างเช่นในกรณีของ GitHub จะมีเพียง Predefined Researcher เท่านั้นที่ประกาศ GitHub MCP Server ทำให้ Coordinator ไม่มีสิทธิ์เข้าถึง Server นั้น หากต้องการอนุญาตเฉพาะ Agent ตามลิสต์ที่คุณกำหนด ให้ตั้งค่า `inline_agents` เป็น `{\"type\": \"disabled\"}` ภายใต้ `subagents` และ `workflows` ทั้งนี้ แต่ละจุดที่ปิด Inline Agents จะต้องมี Agent ในลิสต์อย่างน้อย 1 ตัว มิฉะนั้น Request จะล้มเหลวด้วยข้อผิดพลาด 400"
+        },
+        {
+          "type": "paragraph",
+          "text": "ลิสต์ `predefined_agents` ของ Subagents และ Workflows แยกจากกันโดยสิ้นเชิง การประกาศ Agent ไว้ใต้ `subagents` ไม่ได้ทำให้ Workflows เรียกใช้ได้ และในทางกลับกันก็เช่นกัน โดยกฎ 4 ข้อต่อไปนี้จะมีผลบังคับใช้กับทั้งสองลิสต์:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Pinning: เมื่อสร้างหรืออัปเดต Coordinator ตัว Agent ที่ถูกอ้างอิงจะถูกล็อกเวอร์ชัน (pinned) ณ จังหวะนั้น การแก้ไข Agent ดังกล่าวในภายหลังจะไม่มีผลกับ Coordinator จนกว่าคุณจะสั่งอัปเดตลิสต์ของ Coordinator อีกครั้ง\n- One level: การระบุ Agent ที่มีบล็อก `multiagent` ของตัวเองจะล้มเหลวด้วย Validation Error 400\n- Up to 20 agents per list: กำหนดได้สูงสุด 20 ตัวต่อลิสต์ โดย Coordinator ยังคงสามารถรันหลาย Copy ของแต่ละ Agent ได้ตราบใดที่ไม่เกิน Thread Limit ของ Session\n- Same inference geography: Agent ทุกตัวในลิสต์ต้อง Pin ค่า `inference_geo` เดียวกันกับ Coordinator หรือต้องไม่มีตัวใดกำหนดค่านี้เลย"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): เมื่ออัปเดต Predefined Subagent แล้ว Coordinator ที่เรียกใช้จะเปลี่ยนไปใช้เวอร์ชันใหม่โดยอัตโนมัติ? ไม่จริง: Reference จะถูก Pin ไว้กับเวอร์ชันที่เป็นปัจจุบัน ณ เวลาที่ Coordinator ถูกสร้างหรืออัปเดต หากต้องการใช้เวอร์ชันใหม่ ต้องส่ง Request อัปเดตลิสต์ `predefined_agents` ของ Coordinator เสียก่อน\n\nคำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): Coordinator สามารถเรียกใช้ Subagent ที่มี Subagents ของตัวเองซ้อนลงไปอีกชั้นเพื่อสร้าง Hierarchy แบบหลายระดับได้? ไม่จริง: การ Delegate งานใน Managed Agents ทำได้ลึกเพียง 1 ระดับเท่านั้น (one level deep) หากใส่ Agent ที่มีการเปิดใช้งาน `multiagent` ระบบจะ Reject ทันทีด้วย 400 Validation Error"
+        }
+      ]
+    },
+    {
+      "heading": "3. Agent SDK: การนิยาม Subagents ด้วย AgentDefinition",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Claude Agent SDK ตัว Coordinator คือ Agent ที่ฟังก์ชัน query() รันอยู่ โดยคุณสามารถประกาศ Specialist Agents ในออปชัน agents ซึ่งแต่ละตัวคือ AgentDefinition ที่ระบุด้วยชื่อ นอกจากนี้ยังมีอีก 2 วิธี คือ เขียน Agent เป็นไฟล์ Markdown เก็บไว้ในไดเรกทอรี .claude/agents/ หรือให้ Claude เรียก General-purpose Subagent ในตัวผ่านเครื่องมือ Agent โดยไม่ต้องนิยามใหม่ ทั้งนี้ต้องใส่ Agent ไว้ใน allowed_tools ของ Coordinator เพื่อให้มอบหมายงานได้โดยไม่ต้องรอ Approval"
+        },
+        {
+          "type": "table",
+          "caption": "ฟิลด์ของ AgentDefinition สำหรับกำหนดการทำงานของ Agent",
+          "headers": [
+            "Field",
+            "Required",
+            "Design role"
+          ],
+          "rows": [
+            [
+              "description",
+              "Yes",
+              "บอก Coordinator ว่าควรเรียกใช้ Subagent นี้เมื่อใด ทำหน้าที่เป็น Routing Signal สำหรับเลือก Agent"
+            ],
+            [
+              "prompt",
+              "Yes",
+              "System Prompt ของ Subagent กำหนดบทบาท ความเชี่ยวชาญ และข้อจำกัด (Constraints)"
+            ],
+            [
+              "tools",
+              "No",
+              "เครื่องมือที่อนุญาตให้ใช้ หากละเว้นไว้ Subagent จะ Inherit เครื่องมือทั้งหมดที่ใช้ได้กับ Subagent มาทำงาน"
+            ],
+            [
+              "disallowedTools",
+              "No",
+              "ตัดเครื่องมือที่ระบุออก โดย mcp__server จะตัดเครื่องมือทั้งหมดที่มาจาก MCP Server นั้น"
+            ],
+            [
+              "model",
+              "No",
+              "โมเดลของแต่ละ Agent เช่น Alias อย่าง 'haiku', 'inherit' หรือระบุเป็น Model ID ตัวเต็ม"
+            ],
+            [
+              "maxTurns",
+              "No",
+              "จำกัดจำนวน Agentic Turns สูงสุด หากชน Limit ผลลัพธ์ที่ส่งกลับมาจะมี Flag ระบุเป็น partial"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ในตัวอย่างเดียวกันยังนิยาม Specialist ตัวที่สองชื่อ test-runner ซึ่งมี Bash, Read และ Grep โดยได้รับสิทธิ์ใช้ Bash เพราะต้องรันเทสต์ ในขณะที่ Reviewer จะเป็นแบบ Read-only เท่านั้น Specialist แต่ละตัวจะได้รับเฉพาะ Tools ที่จำเป็นตามขอบเขตงาน ไม่ขาดและไม่เกิน"
+        }
+      ]
+    },
+    {
+      "heading": "4. Claude Code: เลือกระหว่าง Subagents, Agent Teams หรือ Dynamic Workflow",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code มีวิธีจัดการการทำงานแบบขนานหลายรูปแบบ โดยมี 3 Coordination Patterns หลักที่ออกแบบมาสำหรับงานคนละประเภท"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือก Coordination Pattern ใน Claude Code",
+          "headers": [
+            "Pattern",
+            "What it is",
+            "Use it when"
+          ],
+          "rows": [
+            [
+              "Subagents",
+              "Worker ภายใต้ Session เดียวกันที่แยกไปทำ Side Task ใน Context ของตัวเอง แล้วส่งผลสรุปกลับมา",
+              "งานย่อยเสี่ยงที่จะทำให้ Conversation หลักรกด้วยผลการค้นหา Log หรือเนื้อหาไฟล์ที่ไม่จำเป็นต้องใช้อีก"
+            ],
+            [
+              "Agent teams",
+              "หลาย Session ทำงานร่วมกัน มี Task List กลาง และส่งข้อความคุยกันได้ โดยมี Lead คอยคุม (สถานะ Experimental ปิดเป็นค่าเริ่มต้น)",
+              "ต้องการให้ Claude แตกงานโปรเจกต์ กระจายงาน และ Sync สถานะระหว่าง Worker อัตโนมัติ"
+            ],
+            [
+              "Dynamic workflows",
+              "Script ที่รัน Subagents จำนวนมาก พร้อมทำ Cross-check ตรวจสอบผลลัพธ์ระหว่างกัน",
+              "สเกลงานใหญ่เกินกว่า Subagent ไม่กี่ตัวจะรับไหว หรือจำเป็นต้อง Verify ข้อมูลข้ามกันอย่างเข้มงวด"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อแตกต่างสำคัญคือ รูปแบบการสื่อสาร: Subagents จะคุยกับ Session ผู้สั่งการเท่านั้นและส่งผลสรุปกลับมาตัวละชิ้น จึงเหมาะกับ Side Tasks ที่เป็นเอกเทศ เช่น การไล่หาบักตัวเดียวในไฟล์หลายสิบไฟล์ ส่วนสมาชิกใน Agent Team ทำงานเป็น Peer Sessions ร่วมกัน มี Task List กลาง และส่งข้อความคุยกันได้ ซึ่งจำเป็นเมื่องานมี Dependency ต่อกัน แต่ State ที่แชร์ร่วมกันก็แลกมาด้วย Coordination Cost ที่ Subagents เลี่ยงไปตั้งแต่แรก สำหรับ Dynamic Workflow จะย้าย Coordination ออกจาก Conversation ทั้งหมด โดยใช้ Script ควบคุม Subagents และ Cross-check ผลลัพธ์ เหมาะกับงานสเกลใหญ่เกินกว่าจะจัดการผ่านการโต้ตอบทีละรอบ อนึ่ง Agent Teams เป็นฟีเจอร์เฉพาะของ Claude Code ซึ่งยังเป็น Experimental และต้องเปิดใช้งานก่อนเสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "งาน Migration ไฟล์ 200 ไฟล์ สามารถใช้ Subagents ทั่วไปใน Conversation รันได้เหมือนกันหมด? (ทำไมถึงผิด): ไม่จริง: งานสเกลใหญ่ระดับนี้ที่ต้อง Cross-check ผลลัพธ์และเกินขีดจำกัด Context ควรใช้ Dynamic Workflow ที่คุมด้วย Script เพราะหากใช้ Subagents ใน Conversation จะเกิด Context Overflow และขาดกลไก Automate Cross-checking ที่เชื่อถือได้"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง (Practise it for real)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สร้าง Managed Agents coordinator ที่ทำหน้าที่ delegate งาน code review และ test writing ไปยัง subagents 2 ตัวที่กำหนดไว้ล่วงหน้า โดยคุณจะเขียน Agent แต่ละตัวเป็น Markdown file จากนั้นรันคำสั่ง `ant apply` เพื่อสร้าง Agents ขึ้นมาจากไฟล์เหล่านั้น และไฟล์ `claude-lock.json` จะบันทึก ID ที่ถูก assign ให้กับแต่ละไฟล์ไว้ใน `a.resources` map ซึ่ง map ตาม file path"
+        }
+      ]
+    }
+  ],
+  "questions": []
+}

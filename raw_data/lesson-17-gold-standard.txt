@@ -1,0 +1,239 @@
+แปลทั้งหน้านี้เป็นภาษาไทย
+คำแปลภาษาไทยของเนื้อหาทั้งหมดในหน้านี้ Running Claude Code: Skills, Subagents, Sessions, Headless and Auto Mode:
+
+การรัน Claude Code: สกิล (Skills), เอเจนต์ย่อย (Subagents), เซสชัน (Sessions), โหมด Headless และโหมดอัตโนมัติ (Auto Mode)
+(Domain 3: Claude Code · บทเรียนที่ 10 จาก 25 · การปฏิบัติการของ Claude Code ส่วนที่ 2 จาก 2)
+
+สิ่งที่คุณจะทำได้หลังจบบทเรียนนี้
+เขียน Custom Slash Command ในรูปแบบของสกิล (Skill) และคาดการณ์ได้ว่าตัวใดจะถูกรันเมื่อเกิดชื่อชนกัน
+
+กำหนดเอเจนต์ย่อย (Subagent) ใน .claude/agents/ และระบุได้ว่ามันเริ่มต้นด้วย Context ใด
+
+สานต่องาน (Continue), กู้คืนเซสชัน (Resume) และสลับเซสชัน
+
+รัน Claude Code ในโหมด Headless ด้วยแฟล็ก -p และสตรีมผลลัพธ์ในรูปแบบ stream-json
+
+ตั้งค่า Permission Mode เริ่มต้น และรักษาขอบเขตความปลอดภัยที่เข้มงวดไว้ภายใต้ Auto Mode
+
+หัวข้อในบทเรียนนี้
+สกิล, คำสั่ง และข้อแตกต่างระหว่าง Built-in กับ Custom Slash Commands
+
+เอเจนต์: เอเจนต์ย่อยแบบ Built-in และ Custom
+
+การจัดการเซสชัน (Session Management)
+
+โหมด Headless และการสตรีมผลลัพธ์
+
+โหมดสิทธิ์ (Permission Modes) และโหมดอัตโนมัติ (Auto Mode)
+
+1. สกิล, คำสั่ง และข้อแตกต่างระหว่าง Built-in กับ Custom Slash Commands
+Claude Code มาพร้อมกับ Built-in Slash Commands เช่น /init, /memory, /context, /config, /model, /effort และ /resume นอกจากนี้ยังมี Bundled Skills เช่น /run และ /verify
+
+คุณสามารถเพิ่ม Custom Slash Command ของคุณเองในรูปแบบของ สกิล (Skills):
+
+สกิลคือโฟลเดอร์ที่มีไฟล์ SKILL.md อยู่ข้างใน
+
+จัดเก็บไว้ที่ ~/.claude/skills/ สำหรับการใช้งานส่วนตัว หรือไว้ที่ .claude/skills/ เพื่อแชร์ร่วมกับโปรเจกต์
+
+Claude จะสั่งรันสกิลเมื่อคุณพิมพ์ชื่อคำสั่งนั้น หรือตัดสินใจรันเองโดยอัตโนมัติเมื่อคำขอของคุณตรงกับคำอธิบาย (description) ของสกิล
+
+การใช้ไฟล์ Markdown เดี่ยวๆ ภายใต้ .claude/commands/ คือรูปแบบคำสั่งเดิม (Older format) ซึ่งยังคงใช้งานได้อยู่ แต่แนะนำให้ใช้รูปแบบ Skills มากกว่า เพราะสามารถแนบไฟล์สนับสนุนอื่นๆ เข้ามาในโฟลเดอร์ได้
+
+ตัวอย่างไฟล์ SKILL.md สำหรับสกิล /summarize-changes (บรรทัด !...` สั่งรันคำสั่งและนำผลลัพธ์ใส่เข้าไปใน Prompt):
+
+Markdown
+---
+description: สรุปการเปลี่ยนแปลงที่ยังไม่ได้ commit และแจ้งเตือนจุดที่มีความเสี่ยง ใช้เมื่อผู้ใช้ถามว่ามีอะไรเปลี่ยนแปลงบ้าง ต้องการข้อความ commit หรือขอให้รีวิว diff
+---
+
+## การเปลี่ยนแปลงปัจจุบัน
+
+!`git diff HEAD`
+
+## คำสั่งการทำงาน
+
+สรุปการเปลี่ยนแปลงข้างต้นเป็นหัวข้อย่อย 2 หรือ 3 ข้อ จากนั้นระบุความเสี่ยงใดๆ ที่คุณสังเกตเห็น เช่น ขาดการจัดการข้อผิดพลาด, มีการฝังค่าคงที่ (Hardcoded values) หรือมีโค้ดทดสอบที่ต้องอัปเดต หากไม่มี diff ให้แจ้งว่าไม่มีการเปลี่ยนแปลงที่ยังไม่ได้ commit
+ลำดับความสำคัญเมื่อชื่อสกิลซ้ำกัน:
+
+สกิลระดับ Enterprise ชนะระดับส่วนตัว (Personal)
+
+สกิลระดับส่วนตัว (Personal) ชนะระดับโปรเจกต์ (Project)
+
+สกิลจะชนะไฟล์ใน .claude/commands/ ที่ชื่อซ้ำกันเสมอ
+
+สกิลของคุณจะเข้ามาแทนที่คำสั่งแบบ Bundled ที่ชื่อตรงกัน แต่ ไม่แทนที่นามแฝง (Aliases) ของคำสั่งนั้น
+
+สกิลจากปลั๊กอินจะมี Namespace นำหน้าเสมอ เช่น /plugin-name:skill-name จึงไม่มีวันเกิดชื่อชนกัน
+
+กับดักข้อสอบ (EXAM TRAP)
+ไฟล์ใน .claude/commands/ หยุดทำงานไปแล้วหลังจากมีการนำ Skills เข้ามาใช้ใช่หรือไม่?
+ไม่จริง: ไฟล์คำสั่งเป็นรูปแบบเก่าแต่ยังคงใช้งานได้ตามปกติ เพียงแต่แนะนำให้ใช้ Skills สำหรับงานใหม่มากกว่า และหากมีชื่อชนกัน ตัวที่เป็น Skill จะเป็นฝ่ายชนะ
+
+แบบฝึกหัดทดสอบ (Checkpoint 1)
+Checkpoint 1 of 7: มี deploy อยู่ทั้งใน ~/.claude/skills/ และใน .claude/skills/ ของโปรเจกต์ เมื่อพิมพ์ /deploy ระบบจะรันตัวใด?
+
+คำตอบ: ข้อ 2. สกิลส่วนตัว (The personal skill) (เพราะ Personal ชนะ Project)
+
+2. เอเจนต์: เอเจนต์ย่อยแบบ Built-in และ Custom
+เอเจนต์ย่อย (Subagent) จะทำงานเฉพาะทางใน Context ของตนเอง เพื่อไม่ให้การสำรวจค้นหาข้อมูลมาทำให้บทสนทนาหลักของคุณบวมแน่น
+
+ประเภท Built-in: ได้แก่ Explore และ Plan ซึ่งเป็นเอเจนต์สายค้นคว้าแบบอ่านอย่างเดียว (Read-only), และ General-purpose ซึ่งมีเครื่องมือทุกอย่างที่เอเจนต์ย่อยใช้ได้ และสามารถแก้ไขโค้ดได้
+
+การสร้าง Custom Subagent: ให้สร้างไฟล์ Markdown พร้อม Frontmatter ไปวางไว้ที่ .claude/agents/ สำหรับระดับโปรเจกต์ หรือ ~/.claude/agents/ สำหรับทุกโปรเจกต์ของคุณ
+
+ตัวอย่างการนิยาม Custom Subagent:
+
+Markdown
+---
+name: code-reviewer
+description: ตรวจสอบคุณภาพโค้ดและแนวทางปฏิบัติที่ดีที่สุด
+tools: Read, Glob, Grep
+model: sonnet
+---
+
+คุณคือผู้ตรวจทานโค้ด (Code Reviewer) เมื่อถูกเรียกใช้ ให้วิเคราะห์โค้ดและให้ข้อเสนอแนะที่เฉพาะเจาะจงและนำไปแก้ไขต่อได้จริง ทั้งในด้านคุณภาพ ความปลอดภัย และแนวทางปฏิบัติที่ดีที่สุด
+ลำดับความสำคัญของตำแหน่งที่จัดเก็บ Subagent
+ตำแหน่งจัดเก็บ (Location)	ขอบเขต (Scope)	ลำดับความสำคัญ (Priority)
+Managed settings	ระดับทั้งองค์กร (Organization-wide)	1 (สูงสุด)
+แฟล็ก --agents ใน CLI	เซสชันปัจจุบัน (Current session)	2
+.claude/agents/	โปรเจกต์ปัจจุบัน (Current project)	3
+~/.claude/agents/	ทุกโปรเจกต์ของคุณ (All your projects)	4
+ไดเรกทอรี agents/ ของปลั๊กอิน	จุดที่ปลั๊กอินนั้นเปิดใช้งาน	5 (ต่ำสุด)
+ฟิลด์ที่จำเป็นต้องมี มีเพียง name และ description เท่านั้น
+
+ตามค่าเริ่มต้น Subagent จะโหลดไฟล์ CLAUDE.md ระดับ User, Project และ Local เข้ามาด้วย; หากต้องการข้ามให้ตั้งค่า omitClaudeMd: true
+
+ฟิลด์ skills จะดึงเนื้อหาเต็มของสกิลที่ระบุเข้ามาตั้งแต่เริ่มต้น
+
+ฟิลด์ memory จะมอบพื้นที่เก็บความจำถาวรเฉพาะตัวของ Subagent ในขอบเขต user, project หรือ local เพื่อให้สามารถเรียนรู้ข้ามเซสชันได้
+
+ฟิลด์เสริมอื่นๆ ได้แก่ permissionMode, model, tools และ isolation: worktree
+
+แบบฝึกหัดทดสอบ (Checkpoint 2)
+Checkpoint 2 of 7: Frontmatter ของ Custom Subagent ไม่ได้กำหนดค่า omitClaudeMd ไว้ เมื่อมันเริ่มทำงาน จะเกิดอะไรขึ้นกับไฟล์ CLAUDE.md ของโปรเจกต์?
+
+คำตอบ: ข้อ 2. มันจะถูกโหลดเข้ามา เพราะ Subagents จะได้รับไฟล์ CLAUDE.md ของ User, Project และ Local เว้นแต่จะตั้งค่า omitClaudeMd เป็น true (It loads, because subagents get the user, project and local CLAUDE.md files unless omitClaudeMd is true)
+
+3. การจัดการเซสชัน (Session Management)
+ทุกบทสนทนาคือเซสชันที่ถูกบันทึกไว้ซึ่งคุณสามารถย้อนกลับมาเปิดใหม่ได้ เมื่อทำการ Resume ประวัติทั้งหมดจะกลับมาครบถ้วน รวมถึงการเรียกใช้เครื่องมือและผลลัพธ์ของมัน และโดยปกติเซสชันจะยังคงใช้โมเดลเดิมที่เคยใช้อยู่
+
+ตารางคำสั่งจัดการเซสชัน
+คำสั่ง (Command)	การทำงาน (What it does)
+claude --continue	เปิดบทสนทนาล่าสุดในไดเรกทอรีปัจจุบันขึ้นมาใหม่
+claude --resume	เปิดหน้ารายการให้เลือกเซสชัน (Session picker)
+claude --resume <name>	กู้คืนเซสชันตามชื่อที่ระบุโดยตรง
+claude --from-pr <number>	เปิดหน้ารายการเลือกเซสชัน โดยกรองเฉพาะเซสชันที่เชื่อมโยงกับ Pull Request นั้น
+/resume	สลับไปยังบทสนทนาอื่นจากภายในเซสชันที่กำลังใช้งานอยู่
+แบบฝึกหัดทดสอบ (Checkpoints 3 & 4)
+Checkpoint 3 of 7 (จับคู่คำสั่งกับผลลัพธ์):
+
+claude --continue 
+→
+→ Reopen the latest conversation in this directory (เปิดบทสนทนาล่าสุดในไดเรกทอรีนี้ใหม่)
+
+claude --resume 
+→
+→ Open the session picker (เปิดหน้ารายการเลือกเซสชัน)
+
+/resume 
+→
+→ Switch conversations without leaving the current session (สลับบทสนทนาโดยไม่ต้องออกจากเซสชันปัจจุบัน)
+
+Checkpoint 4 of 7: ตลอดหลายเดือนที่ผ่านมา Claude ได้เขียนบันทึกจำนวนมากลงใน Auto Memory ของโปรเจกต์ และไฟล์ MEMORY.md มีขนาดยาวถึง 340 บรรทัด ในขณะที่ไฟล์แยกแต่ละหัวข้ออย่าง debugging.md และ api-conventions.md ยังคงอยู่ในโฟลเดอร์เดียวกัน เมื่อเริ่มเซสชันใหม่ในโปรเจกต์นี้ ข้อมูลใดจะถูกโหลดเข้าสู่ Context โดยอัตโนมัติ?
+
+คำตอบ: ข้อ 1. (A) โหลดเฉพาะ 200 บรรทัดแรก (หรือขนาดไม่เกิน 25KB แล้วแต่อย่างใดจะถึงก่อน) ของ MEMORY.md เท่านั้น; ส่วนไฟล์แยกแต่ละหัวข้อจะโหลดในภายหลังเฉพาะเมื่อ Claude อ่านไฟล์เหล่านั้นผ่านเครื่องมืออ่านไฟล์ตามความต้องการ (Only the first 200 lines (or 25KB, whichever comes first) of MEMORY.md; the topic files load later only if Claude reads them on demand with its file tools.)
+
+4. โหมด Headless และการสตรีมผลลัพธ์
+แฟล็ก -p ใช้สั่งรัน Claude Code ในโหมด Headless: จะไม่มีเซสชันแบบโต้ตอบ โดยมันจะพิมพ์ผลลัพธ์ออกมาแล้วปิดการทำงาน (Exit) ทันที ซึ่งเป็นวิธีที่ใช้ใน Scripts และ CI
+
+คุณสามารถ Pipe ข้อมูล Input เข้าไป และ Redirect ข้อมูล Output ออกมาได้
+
+แฟล็ก --allowedTools ใช้อนุมัติเครื่องมือล่วงหน้า ทำให้การรันไม่ต้องหยุดถามสิทธิ์
+
+แฟล็ก --bare สั่งรันโดยไม่โหลดการตั้งค่า Local บนเครื่อง
+
+แฟล็กอย่าง --settings, --agents และ --mcp-config ใช้ส่งการตั้งค่าเหล่านั้นเข้าไปอย่างชัดเจน
+
+ตัวอย่างการ Pipe ไฟล์เข้าคำสั่ง Headless:
+
+Bash
+cat build-error.txt | claude -p 'concisely explain the root cause of this build error' > output.txt
+ตัวเลือกของ --output-format (มี 3 ค่า):
+
+text: ค่าเริ่มต้น (ข้อความธรรมดา)
+
+json: ส่งคืนเป็น JSON แบบมีโครงสร้างซึ่งมีทั้งผลลัพธ์, Session ID และ Metadata (สามารถใส่คู่กับ --json-schema เพื่อบังคับ Schema ได้)
+
+stream-json: โหมดสตรีมมิ่ง ส่ง JSON Events คั่นด้วยขึ้นบรรทัดใหม่ (NDJSON) ออกมาทันทีที่เกิดขึ้น (เพิ่มแฟล็ก --include-partial-messages เพื่อรับ Text Deltas ทันทีที่มาถึงได้)
+
+แบบฝึกหัดทดสอบ (Checkpoint 5)
+Checkpoint 5 of 7: Output Format ใดที่ใช้สตรีมเหตุการณ์แบบ Real-time?
+
+Bash
+claude -p "Explain recursion" --output-format ? --verbose --include-partial-messages
+คำตอบ: ข้อ 3. stream-json
+
+5. โหมดสิทธิ์ (Permission Modes) และโหมดอัตโนมัติ (Auto Mode)
+โหมดสิทธิ์จะตัดสินว่า Claude Code จะหยุดถามขออนุญาตบ่อยแค่ไหนก่อนจะลงมือทำ โดยมีโหมดต่างๆ ได้แก่: default, acceptEdits, plan, auto, dontAsk และ bypassPermissions
+
+ใน Auto Mode: ตัวจัดหมวดหมู่ (Classifier) จะเป็นผู้อนุมัติหรือบล็อกแต่ละคำสั่งแทนที่จะคอยหยุดถามคุณ
+
+คุณสามารถเริ่มเซสชันในโหมดที่ต้องการได้ด้วยแฟล็ก หรือตั้งค่าผ่าน permissions.defaultMode ในไฟล์การตั้งค่า
+
+ลองคาดการณ์ก่อน (PREDICT FIRST)
+เพื่อนร่วมทีม Commit ค่า permissions.defaultMode: "auto" ลงในไฟล์ .claude/settings.json ของโปรเจกต์ คุณโคลน Repo มาแล้วเริ่มรัน Claude ใน Terminal เซสชันจะเริ่มต้นในโหมด Auto หรือไม่?
+
+คำตอบ: ข้อ 3. ไม่เริ่มต้นในโหมด Auto เพราะเซสชันใน Terminal จะเพิกเฉยต่อโหมด auto (และ bypassPermissions) เมื่อค่านั้นมาจาก Project Settings (No, terminal sessions ignore auto (and bypassPermissions) when they come from project settings)
+
+ดังนั้นไฟล์โปรเจกต์ที่ Commit ไว้จึงไม่สามารถเปิดโหมด Auto ให้เพื่อนร่วมทีมได้ การตั้งค่า defaultMode จะมีผลก็ต่อเมื่อระบุไว้ใน ~/.claude/settings.json หรือใน Managed Settings เท่านั้น สำหรับการรันรอบเดียว ให้ส่งเป็นแฟล็ก เช่น claude --permission-mode default
+
+Auto Mode ไม่ได้เข้ามาแทนที่กฎสิทธิ์ (Permission Rules):
+
+กฎ permissions.deny จะบล็อกคำสั่งนั้น ก่อน ที่จะส่งไปถาม Classifier เสมอ
+
+กฎ permissions.ask จะเด้งถามผู้ใช้เสมอ และ Classifier ไม่มีสิทธิ์อนุมัติข้ามกฎนี้ได้
+
+ขอบเขตที่คุณเพียงแค่พิมพ์สั่งไว้ในแชท เช่น "อย่าเพิ่ง push จนกว่าฉันจะรีวิว" อาจหลุดหายไปได้เมื่อมีการทำ Context Compaction ดังนั้น สำหรับขอบเขตที่ต้องบังคับใช้อย่างเด็ดขาด จงเขียนเป็นกฎ (Rule) เสมอ
+
+ตัวอย่างการบังคับให้หยุดถามมนุษย์ก่อน Push และสร้าง PR แม้อยู่ใน Auto Mode:
+
+JSON
+{
+  "permissions": {
+    "ask": [
+      "Bash(git push *)",
+      "Bash(gh pr create *)"
+    ]
+  }
+}
+กับดักข้อสอบ (EXAM TRAP)
+การ Commit ค่า defaultMode: auto ใน .claude/settings.json จะทำให้เซสชัน Terminal ของเพื่อนร่วมทีมทุกคนเริ่มในโหมด Auto ใช่หรือไม่?
+ไม่จริง: เซสชันใน Terminal จะยอมรับค่า defaultMode ระดับ Project ทุกค่ายกเว้น auto และ bypassPermissions
+
+แบบฝึกหัดทดสอบ (Checkpoints 6 & 7)
+Checkpoint 6 of 7: ใน Auto Mode กลไกใดที่ช่วยรับประกันว่าคำสั่งจะไม่ถูกรันโดยเด็ดขาด ไม่ว่า Classifier จะตัดสินอย่างไรหรือผู้ใช้จะสั่งอะไรก็ตาม?
+
+คำตอบ: ข้อ 1. กฎ permissions.deny (A permissions.deny rule)
+
+Checkpoint 7 of 7: องค์กรติดตั้งใช้กฎ Deny สำหรับ Bash(curl *) ผ่าน Managed Settings เพื่อไม่ให้นักพัฒนาคนใดสามารถเขียนทับได้ แต่ใน .claude/settings.json ของโปรเจกต์ได้เพิ่มกฎ Allow สำหรับ Bash(curl *) ไว้เพื่อให้ CI ดึง Build Artifacts ได้ เมื่อนักพัฒนาทำงานบนเครื่องของตนเองและรันคำสั่ง curl ใน Interactive Session จะเกิดอะไรขึ้น?
+
+คำตอบ: ข้อ 1. (A) คำสั่งจะยังคงถูกบล็อก เพราะ Managed Settings อยู่ในลำดับความสำคัญสูงสุด และไม่สามารถถูกเขียนทับด้วยการตั้งค่าระดับ Project, Local หรือ User ได้ (The command is still blocked, because managed settings sit at the top of the precedence order and cannot be overridden by project, local, or user settings.)
+
+แบบฝึกหัดปฏิบัติจริง (Practise it for real)
+สร้างสกิลส่วนตัวและทดลองเรียกใช้ทั้งสองวิธี: ผ่านคำสั่ง Slash Command และการสั่งด้วยคำพูดธรรมดา
+
+รันคำสั่ง: mkdir -p ~/.claude/skills/summarize-changes
+
+เหตุผล: สกิลส่วนตัวคือโฟลเดอร์ใต้ ~/.claude/skills/ ซึ่งจะถูกโหลดในทุกโปรเจกต์ของคุณ
+
+บันทึกไฟล์ SKILL.md: นำโค้ดตัวอย่างที่แสดงในบทเรียนนี้ไปบันทึกไว้ในโฟลเดอร์ดังกล่าว
+
+เหตุผล: คำอธิบาย description จะบอก Claude ว่าเมื่อใดควรใช้สกิลนี้ และบรรทัด ! git diff HEAD` จะดึง diff เข้าไปใส่ใน Prompt
+
+ใน Git Repo ที่มีการแก้ไขไฟล์ค้างไว้ ให้พิมพ์: /summarize-changes
+
+เหตุผล: ชื่อโฟลเดอร์จะกลายเป็นคำสั่ง Custom Slash Command ทันที
+
+เปิดคำขอใหม่แล้วถามด้วยคำพูดธรรมดา: "What did I change?"
+
+เหตุผล: Claude สามารถเลือกใช้สกิลได้ด้วยตัวเองเมื่อคำขอของคุณตรงกับคำอธิบายของสกิล โดยที่คุณไม่ต้องพิมพ์ Slash Command นำหน้า```

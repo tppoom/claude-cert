@@ -29,30 +29,40 @@ KEY_CONCEPT_TRANSLATIONS = {
 
 def get_thai_objective(obj_en):
     if not obj_en: return ""
+    try:
+        from quiz_translator import _cache, _norm_cache, clean_thai_spacing
+        o_clean = obj_en.strip()
+        if o_clean in _cache:
+            return clean_thai_spacing(_cache[o_clean])
+        norm_k = re.sub(r'[^a-zA-Z0-9]+', '', o_clean.lower())
+        if norm_k in _norm_cache:
+            return clean_thai_spacing(_norm_cache[norm_k])
+    except Exception:
+        pass
+
     obj_lower = obj_en.lower()
     for k, v in OBJECTIVE_TRANSLATIONS.items():
         if k in obj_lower:
             return v
-    try:
-        from quiz_translator import get_thai_explanation
-        th = get_thai_explanation(obj_en)
-        if th: return th
-    except Exception:
-        pass
     return obj_en
 
 def get_thai_key_concept(kc_en):
     if not kc_en: return ""
+    try:
+        from quiz_translator import _cache, _norm_cache, clean_thai_spacing
+        k_clean = kc_en.strip()
+        if k_clean in _cache:
+            return clean_thai_spacing(_cache[k_clean])
+        norm_k = re.sub(r'[^a-zA-Z0-9]+', '', k_clean.lower())
+        if norm_k in _norm_cache:
+            return clean_thai_spacing(_norm_cache[norm_k])
+    except Exception:
+        pass
+
     kc_lower = kc_en.lower()
     for k, v in KEY_CONCEPT_TRANSLATIONS.items():
         if k in kc_lower:
             return v
-    try:
-        from quiz_translator import get_thai_explanation
-        th = get_thai_explanation(kc_en)
-        if th: return th
-    except Exception:
-        pass
     return kc_en
 
 print("domain_knowledge.py loaded.")

@@ -1,0 +1,174 @@
+{
+  "title": "Settings Scope, Precedence และ Permission Rules ใน Claude Code",
+  "objectives": [
+    "เลือกไฟล์ Settings ได้ถูกต้องตามการใช้งาน: แชร์ในทีม, ใช้ส่วนตัว หรือบังคับใช้ระดับองค์กร",
+    "ประเมินค่าที่จะถูกนำไปใช้เมื่อมีการตั้งค่าซ้ำซ้อนกันในหลาย Scopes พร้อมอธิบายเหตุผลที่ Permission Lists ใช้การ Merge แทนที่จะเขียนทับ (Replace)",
+    "เขียนกฎ Allow, Ask และ Deny พร้อมวิเคราะห์ผลลัพธ์เมื่อเกิดการชนกันระหว่าง Deny ขอบเขตกว้างกับ Allow ขอบเขตแคบ",
+    "ตัดสินใจได้อย่างถูกต้องว่าข้อกำหนดของทีมควรใส่ไว้ใน CLAUDE.md หรือใน Settings"
+  ],
+  "key_concept": "Settings Scope — ไฟล์ Settings แต่ละไฟล์ใน Claude Code จะมี Scope กำกับอยู่ ซึ่งเป็นตัวกำหนดขอบเขตผู้ใช้งานและลำดับความสำคัญ (Precedence) ของการตั้งค่า โดย Managed Settings จากระดับองค์กรจะมีสิทธิ์สูงสุดเหนือไฟล์ทั้งหมดที่ Developer ควบคุมได้ ถัดลงมาคือ Shared Project Settings ที่ Commit เข้า Repository ร่วมกันในทีม, Local Settings สำหรับใช้งานเฉพาะเครื่องของ Developer แต่ละคน และ User Settings ที่มีผลครอบคลุมทุกโปรเจกต์ของ Developer คนนั้น",
+  "sections": [
+    {
+      "heading": "1. 4 Settings Scopes และขอบเขตการทำงานของแต่ละระดับ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เมื่อทีมใช้งาน Claude Code สิ่งแรกที่ต้องตัดสินใจสำหรับทุก Setting คือควรเก็บไว้ในไฟล์ใด เพราะ Permission Rule เดียวกันจะทำงานต่างกันโดยสิ้นเชิงขึ้นอยู่กับตำแหน่งไฟล์ หาก Commit เข้า Repository ก็จะแชร์ให้เพื่อนร่วมทีมทุกคน หากอยู่ใน Home Directory ก็จะมีผลเฉพาะบนเครื่องของคุณ แต่ถ้าถูก Deploy โดย IT จะไม่มีใครในทีม Override ได้เลย Claude Code แบ่งขอบเขตการทำงานออกเป็น 4 Scopes ซึ่งแต่ละระดับจะตอบคำถามว่า \"การตั้งค่านี้มีผลกับใครบ้าง?\" แตกต่างกัน"
+        },
+        {
+          "type": "table",
+          "caption": "Settings Scopes ทั้ง 4 ระดับ, ตำแหน่งไฟล์, และ Use Cases การใช้งาน",
+          "headers": [
+            "Scope",
+            "File",
+            "Who it affects",
+            "Use it for"
+          ],
+          "rows": [
+            [
+              "Managed",
+              "managed-settings.json และแหล่ง Managed อื่นๆ",
+              "ทุกคนในองค์กรที่ถูก Deploy ทับลงไป",
+              "Security Policy และ Compliance Requirements"
+            ],
+            [
+              "Shared project",
+              ".claude/settings.json",
+              "ทุกคนที่ทำงานใน Folder นี้ (ต้อง Commit เข้า Git เพื่อให้ทุกคนในทีมได้ใช้ร่วมกัน)",
+              "Team Permissions, Hooks, Plugins และ Environment Variables ที่ Project จำเป็นต้องใช้"
+            ],
+            [
+              "Project local",
+              ".claude/settings.local.json",
+              "ตัวคุณเอง เฉพาะใน Project นี้เท่านั้น",
+              "Personal Overrides สำหรับ Project เดียว และใช้ทดสอบก่อนแชร์ให้ทีม"
+            ],
+            [
+              "User",
+              "~/.claude/settings.json",
+              "ตัวคุณเอง ในทุก Project บนเครื่องนี้",
+              "Personal Preferences ส่วนตัว เช่น Theme, Editor Mode, Default Model"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Platform Team ไฟล์ Shared Project (.claude/settings.json) ถือเป็นไฟล์ที่สำคัญที่สุด ไฟล์นี้จะอยู่ใน Repository ทำให้ทุกการแก้ไขต้องผ่าน Code Review ตามปกติ และจะส่งต่อไปยังทุกเครื่องที่ Clone โปรเจกต์ทันทีที่มีการ Pull ครั้งถัดไป แต่ตราบใดที่ยังไม่ได้ Commit ไฟล์นี้ก็เป็นเพียงแค่ Local File บนเครื่องคุณที่ไม่มีใครเข้าถึงได้ ในทางกลับกัน Rule ที่เขียนไว้ใน ~/.claude/settings.json จะไม่มีวันหลุดออกจากเครื่องคุณเด็ดขาด ส่วน Managed Settings ก็ไม่เหมาะสำหรับการกำหนด Team Conventions เช่นกัน เพราะองค์กรเป็นผู้ Deploy ลงมา Developer จึงไม่สามารถสร้างหรือแก้ไขได้ และข้ามกระบวนการ Review ของ Repository ไปทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "ไฟล์ Local (.claude/settings.local.json) คือที่สำหรับเก็บ Personal Overrides เมื่อ Claude Code เขียนไฟล์นี้ครั้งแรกใน Git Repository ระบบจะเพิ่มไฟล์เข้า Global Git Excludes ให้อัตโนมัติเพื่อป้องกันการเผลอ Commit แต่ถ้าคุณสร้างไฟล์นี้เอง ให้เพิ่มลงใน .gitignore ด้วยตนเอง นอกจากนี้ Claude Code ยังสามารถเขียนลงไฟล์นี้ให้อัตโนมัติ เช่น เมื่อคุณเลือก \"Yes, and don't ask again\" ตอนมี Prompt ถาม Bash Permission ตัวระบบจะบันทึก Allow Rule ไว้ที่นี่ และเนื่องจากไฟล์นี้เป็นกรรมสิทธิ์เฉพาะตัวคุณ ไม่ได้ผูกกับ Repository กฎ Allow Rules จึงมีผลทันทีโดยไม่ต้องผ่านขั้นตอน Workspace Trust เหมือนไฟล์ที่ถูก Commit ตราบใดที่ไฟล์ยังคงสถานะ Untracked"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ข้อสอบออกบ่อย: Shared Rules ที่ต้องผ่าน Code Review ให้เก็บไว้ใน .claude/settings.json ที่ถูก Commit ส่วน Personal Overrides ที่ห้ามหลุดออกจากเครื่องให้เก็บไว้ใน .claude/settings.local.json สำหรับ Managed Settings มีไว้สำหรับ Organization Policy ที่ Developer แก้ไขไม่ได้ ไม่ได้มีไว้สำหรับ Team Conventions"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Team-shared Rules ควรเก็บไว้ใน managed-settings.json เพราะกระจายไปถึงทุกเครื่อง — ความเป็นจริงคือ Team Conventions ที่ต้องผ่าน Code Review ควรอยู่ใน .claude/settings.json ที่ถูก Commit เข้า Git ส่วน Managed Settings ถูก Deploy จากส่วนกลางขององค์กรเพื่อคุม Security Policy ซึ่ง Developer ทั่วไปไม่สามารถแก้ไขได้"
+        }
+      ]
+    },
+    {
+      "heading": "2. ลำดับความสำคัญ (Precedence) เมื่อ Scopes ขัดแย้งกัน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Key ที่เป็น Single-value เช่น model ค่าจาก Scope ที่มีลำดับสูงกว่าจะชนะและ Override ทันที โดยเรียงลำดับจากสูงสุดไปต่ำสุดดังนี้: Managed Settings > Flag --settings (JSON ที่ส่งเข้ามาสำหรับ Session นั้น) > Project Local > Shared Project > User ทั้งนี้ Flag --settings จะอยู่สูงกว่า User, Project และ Local Files แต่อยู่ต่ำกว่า Managed Settings เสมอ โดยมันสามารถ Override ทุกอย่างที่ User File ตั้งได้ แต่จะไม่สามารถ Override ค่าจาก Managed Key ได้เด็ดขาด"
+        },
+        {
+          "type": "paragraph",
+          "text": "ในทางกลับกัน Arrays จะมีพฤติกรรมต่างออกไป ซึ่ง Permission Rules ทั้งหมดถูกเก็บเป็น Arrays โดยในกลุ่ม Non-managed Scopes นั้น Claude Code จะทำการ Merge ค่า Arrays เข้าด้วยกัน แทนที่จะให้ไฟล์ระดับสูงกว่าทับไฟล์ระดับล่าง ตัวอย่างเช่น หาก Project File สั่ง Deny Command หนึ่งไว้ แต่ Local File ของคุณสั่ง Allow Command อื่น Local File จะไม่ไปทับหรือลบล้าง Deny List ของ Project แต่ทั้งสองกฎจะถูก Merge เข้าด้วยกันใน Effective Set สุดท้าย อย่างไรก็ตาม มีข้อยกเว้นบาง Key เช่น fallbackModel ที่เป็น Ordered Chain ซึ่ง Claude Code จะหยิบทั้งก้อนมาจากไฟล์ระดับสูงสุดที่กำหนดค่านั้นไว้ และหาก Managed Settings มีการกำหนด availableModels ไว้ Claude Code จะใช้ List นั้นตามจริงทันที และ Ignore ค่าที่คุณพยายามเพิ่มเข้าไปจาก Scope ระดับล่างทั้งหมด"
+        }
+      ]
+    },
+    {
+      "heading": "3. การเขียนกฎ allow, ask และ deny",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Permission rule ประกอบด้วยชื่อ Tool และ specifier ในวงเล็บ (ระบุหรือไม่ก็ได้) เช่น Bash เดี่ยวๆ จะ match ทุก Bash command, Bash(npm run build) จะ match เฉพาะคำสั่งนี้เท่านั้น, Read(./.env) จะ match การอ่าน .env ใน current directory และ WebFetch(domain:example.com) จะ match การ fetch ไปยัง domain ดังกล่าว นอกจากนี้บาง Tools ยังรองรับ parameter match เช่น Agent(model:opus) โดยแต่ละกฎจะระบุได้เพียง 1 parameter หากต้องการคุม 2 parameters จะต้องเขียน 2 กฎ ทั้งนี้ Rules จะถูกจัดเก็บไว้ใน permissions.allow, permissions.ask หรือ permissions.deny ตาม Scope ที่เหมาะสม"
+        },
+        {
+          "type": "paragraph",
+          "text": "ประเภทของ Rule ทั้งสามแบบมีหน้าที่ต่างกัน: allow rule อนุญาตให้ Tool รันได้ทันทีโดยไม่ต้องขอ confirmation, ask rule จะ prompt ถามยืนยันทุกครั้ง และ deny rule จะบล็อกไม่ให้ใช้ Tool นั้นโดยเด็ดขาด พึงระวังว่า allow rule ไม่สามารถ override ทับ deny rule ได้ มันทำได้เพียงข้าม prompt เท่านั้น และเนื่องจาก Rules จากทุก Scope จะถูก Merge รวมกัน ดังนั้นหากมี deny ระดับ project เป็น Bash(aws *) และมี allow ระดับ local เป็น Bash(aws s3 ls) คำสั่ง aws s3 ls จะยังคงถูกบล็อก เพราะ allow ที่เจาะจงกว่าไม่สามารถยกเว้น broad deny ได้ และไฟล์ระดับ local ก็ไม่สามารถยกเลิก deny ของระดับ project ได้เช่นกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Path rules มีความต่างของพฤติกรรม (asymmetry) ที่หลายทีมมักพลาดเวลาเขียนป้องกัน secret files: หากเป็น allow rule รูปแบบ Edit(src/**) จะ match เฉพาะ src/ ใต้ current directory เท่านั้น แต่ถ้าเป็น deny หรือ ask rule แพทเทิร์นเดียวกันนี้จะ match ไดเรกทอรี src ในทุกระดับความลึก (any depth) ดังนั้น Read(secrets/**) ใน deny list จะครอบคลุมถึง nested paths เช่น vendor/pkg/secrets/ ด้วย หากต้องการ allow ไดเรกทอรีในทุกระดับความลึก ต้องเขียนเป็น Edit(**/src/**)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้ง allow rule ที่เจาะจงกว่าใน local settings เช่น Bash(aws s3 ls) สามารถสร้างข้อยกเว้นให้กับ broad deny ระดับ project อย่าง Bash(aws *) ได้? (ทำไมถึงผิด): ไม่จริง: Rules จากทุก Scope จะถูก Merge รวมกัน และหากมี deny ที่ match คำสั่งนั้นจะถูกบล็อกทันที โดย allow rule มีหน้าที่เพียงแค่ข้าม prompt ยืนยันเท่านั้น ไม่สามารถ override คำสั่งที่ติด deny ได้"
+        }
+      ]
+    },
+    {
+      "heading": "4. Shared instructions เทียบกับ Enforced settings",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ไฟล์ CLAUDE.md ใช้ Layering แบบเดียวกับ Settings แต่มีหน้าที่เป็น Guide นำทาง Claude ไม่ใช่การ Enforce บังคับ โดย CLAUDE.md ระดับ project (หรือ .claude/CLAUDE.md) จะแชร์ให้ทีมผ่าน Source Control, ส่วน ~/.claude/CLAUDE.md เก็บ Personal preferences สำหรับทุกโปรเจกต์ และ CLAUDE.local.md เก็บโน้ตส่วนตัวเฉพาะโปรเจกต์นั้นๆ สำหรับ Managed policy CLAUDE.md ที่อยู่ในระดับ OS policy path (เช่น /etc/claude-code/CLAUDE.md บน Linux) จะบรรจุคำสั่งระดับ Organization ที่ถูกโหลดในทุก Session และไม่สามารถ Exclude ออกได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความแตกต่างนี้สำคัญมากเพราะ Instruction ไม่ใช่ Control การเขียน \"Never read .env\" ใน CLAUDE.md เป็นเพียงคำแนะนำที่ Claude อาจจะทำตามหรือไม่ก็ได้ แต่การใส่ Read(./.env) ใน permissions.deny จะบล็อกการอ่านไฟล์อย่างเด็ดขาด นอกจากนี้ หากมี Instructions สองข้อขัดแย้งกัน Claude อาจสุ่มเลือกทำข้อใดข้อหนึ่ง ซึ่งยอมรับได้สำหรับ Style guide แต่ใช้เป็น Security boundary ไม่ได้"
+        },
+        {
+          "type": "table",
+          "caption": "จุดที่ Organization ควรใช้กำหนดข้อกำหนดแต่ละประเภท",
+          "headers": [
+            "ข้อกำหนด (Concern)",
+            "กำหนดค่าใน (Configure in)"
+          ],
+          "rows": [
+            [
+              "บล็อก Tools, คำสั่ง หรือ File paths ที่เฉพาะเจาะจง",
+              "Managed settings: permissions.deny"
+            ],
+            [
+              "บังคับใช้ Sandbox isolation",
+              "Managed settings: sandbox.enabled"
+            ],
+            [
+              "จำกัดวิธีการ Login และ Organization",
+              "Managed settings: forceLoginMethod, forceLoginOrgUUID"
+            ],
+            [
+              "แนวทาง Code style และ Quality guidelines",
+              "Managed CLAUDE.md"
+            ],
+            [
+              "คำแนะนำเชิงพฤติกรรม (Behavioral instructions) สำหรับ Claude",
+              "Managed CLAUDE.md"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57041",
+      "question": "ทีม Platform ต้องการให้เซสชัน Claude Code ของวิศวกรทุกคน inherit ชุดกฎ Bash allow และการตั้งค่า MCP server ส่วนกลางที่ทีมดูแลและตรวจสอบผ่าน Code Review ตามปกติ โดยยังคงอนุญาตให้วิศวกรแต่ละคนสามารถเพิ่ม personal overrides ที่ใช้งานเฉพาะบนเครื่องของตนเองได้ ทีมควรวางกฎส่วนกลางไว้ที่ใด และ individual overrides ควรอยู่ที่ใด?",
+      "options": [
+        "Commit กฎส่วนกลางไว้ที่ .claude/settings.json ใน Project และให้วิศวกรเพิ่ม personal overrides ใน .claude/settings.local.json",
+        "Commit กฎส่วนกลางไว้ที่ ~/.claude/settings.json บนเครื่อง Reference และให้วิศวกรเพิ่ม personal overrides ใน .claude/settings.json",
+        "Deploy กฎส่วนกลางผ่าน managed-settings.json ที่ OS policy path และให้วิศวกรเพิ่ม overrides ใน .claude/settings.json",
+        "Commit กฎส่วนกลางไว้ที่ .mcp.json เท่านั้น และให้วิศวกรเพิ่ม personal overrides ของตนเองลงใน ~/.claude.json"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57042",
+      "question": "หัวหน้าทีม Security กำหนด deny rule ระดับโปรเจกต์เป็น Bash(aws *) เพื่อบล็อกการใช้งาน AWS CLI ทั้งหมดจาก Claude Code ต่อมา Developer ได้เพิ่ม allow rule Bash(aws s3 ls) ลงใน Local Settings ของตนเองเพื่อดูรายการไฟล์ใน Bucket เมื่อ Developer สั่งรัน aws s3 ls ในเซสชัน จะเกิดอะไรขึ้น?",
+      "options": [
+        "คำสั่งจะถูกบล็อก เนื่องจาก deny rules จะได้รับการประเมินก่อน allow rules และ deny ในขอบเขตกว้างจะไม่สามารถมีข้อยกเว้นจาก allow rule ที่เฉพาะเจาะจงกว่าได้",
+        "คำสั่งจะทำงานโดยไม่ต้องถามยืนยัน เนื่องจาก allow rule ที่เฉพาะเจาะจงกว่าอย่าง Bash(aws s3 ls) มีลำดับความสำคัญสูงกว่า deny pattern ในภาพกว้างอย่าง Bash(aws *)",
+        "คำสั่งจะแสดง Prompt ถามยืนยัน 1 ครั้ง เนื่องจาก Claude Code จะรวมกฎที่ขัดแย้งกันซึ่งมีความเจาะจงเท่ากันให้กลายเป็นการตัดสินใจแบบ ask",
+        "คำสั่งจะทำงานโดยไม่ต้องถามยืนยัน เนื่องจาก Local Settings จะ Override ค่า Project Settings เสมอ ไม่ว่ากฎนั้นจะเป็น allow หรือ deny"
+      ],
+      "explanation": ""
+    }
+  ]
+}

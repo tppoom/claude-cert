@@ -1,0 +1,167 @@
+{
+  "title": "Claude Model Lifecycle: Deprecation, Retirement และ Migration",
+  "objectives": [
+    "ระบุ 4 สถานะของ Claude Model Lifecycle และผลกระทบต่อ Application ที่รันอยู่",
+    "จำแนก Platform ที่ใช้กำหนดการ Retirement ของ Anthropic และ Platform ที่กำหนดรอบเวลาของตนเอง",
+    "วางแผน Model Migration โดยอาศัย Notice Period, Audit ข้อมูลการใช้งานบน Console และการทดสอบก่อนถึงกำหนด Retirement",
+    "อธิบายการรับประกันของ Header anthropic-version และระบุ Feature Classification ที่พร้อมสำหรับสร้าง Production Workflows"
+  ],
+  "key_concept": "Model Retirement — โมเดล Claude ทุกตัวจะเปลี่ยนสถานะตาม Lifecycle โดยโมเดลที่ Retired จะหยุดให้บริการ Request ทั้งหมดโดยสิ้นเชิง การดูแลระบบที่ใช้ Claude จึงต้องรวมถึงการวางแผน Migration ไปยังโมเดลทดแทนให้เสร็จสิ้นก่อนวัน Retirement",
+  "sections": [
+    {
+      "heading": "1. 4 สถานะใน Model Lifecycle ของ Claude",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การอัปเกรด Dependencies ทั่วไปคุณเลือกเวลาเองได้ แต่กับโมเดลของ Claude นั้นต่างออกไป: Anthropic จะทยอย Retire โมเดลรุ่นเก่าเมื่อมีรุ่นใหม่ออกมา ทำให้โมเดลที่แอปพลิเคชันเรียกใช้มี Lifecycle เป็นของตัวเอง แยกจาก Release Schedule ของคุณอย่างสิ้นเชิง หน้าระบุ Deprecations ระบุไว้ชัดเจนว่าแอปพลิเคชันที่ต่อกับโมเดลของ Anthropic \"อาจต้องอัปเดตโค้ดเป็นระยะเพื่อให้ทำงานต่อได้\" โดย Anthropic จะแจ้งเตือนลูกค้าผ่านอีเมลและ Documentation ล่วงหน้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "Anthropic แบ่งสถานะออกเป็น 4 ระดับ: Active คือโมเดลที่ซัพพอร์ตเต็มรูปแบบและแนะนำให้ใช้งาน, Legacy คือโมเดลที่ไม่ได้รับการอัปเดตอีกต่อไปและอาจถูก Deprecate ในอนาคต, Deprecated คือโมเดลที่ยังใช้งานได้ แต่มีโมเดลใหม่ที่แนะนำให้ย้ายไปใช้พร้อมกำหนดวัน Retirement Date ไว้แล้ว และ Retired คือโมเดลที่ถูกปิดตัวลงอย่างถาวร Request ทั้งหมดที่ส่งไปจะ Error ทันที จุดสำคัญทางปฏิบัติคือความต่างระหว่าง Deprecated กับ Retired: Deprecated คือช่วงเริ่มต้น Migration Window ส่วน Retirement คือวันสิ้นสุดเส้นตาย ระบบจะไม่มีการ Reroute Traffic ให้อัตโนมัติ หากโค้ดยังเรียกใช้โมเดลที่ Retired แล้ว ระบบจะพังทันที"
+        },
+        {
+          "type": "table",
+          "caption": "Lifecycle States พร้อมตัวอย่างจริงจาก Model Status Table",
+          "headers": [
+            "State",
+            "ผลกระทบต่อแอปพลิเคชันของคุณ",
+            "ตัวอย่างจาก Status Table"
+          ],
+          "rows": [
+            [
+              "Active",
+              "ซัพพอร์ตเต็มรูปแบบ และแนะนำให้ใช้งาน",
+              "claude-haiku-4-5-20251001: retirement not sooner than October 15, 2026"
+            ],
+            [
+              "Legacy",
+              "ไม่ได้รับการอัปเดตอีกต่อไป และอาจถูก Deprecate ในอนาคต",
+              "(ปัจจุบันยังไม่มีโมเดลที่อยู่ในสถานะ Legacy ในตาราง)"
+            ],
+            [
+              "Deprecated",
+              "ยังใช้งานได้ตามปกติ มีโมเดลทดแทนที่แนะนำ และกำหนดวัน Retirement Date ชัดเจนแล้ว",
+              "claude-mythos-preview: deprecated June 9, 2026, retirement to be announced"
+            ],
+            [
+              "Retired",
+              "ยุติการให้บริการอย่างถาวร ทุก Request จะ Fail ทันที",
+              "claude-opus-4-1-20250805: deprecated June 5, 2026, retired August 5, 2026"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "โมเดลที่ Deprecated แล้วจะหยุดทำงานทันที หรือระบบจะสลับไปใช้โมเดลใหม่ให้อัตโนมัติ? (ทำไมถึงผิด): ไม่จริง: โมเดลสถานะ Deprecated ยังคงทำงานได้ตามปกติจนกว่าจะถึงกำหนด Retirement Date หลังจากวันนั้น Request ถึงจะ Fail และระบบไม่มีการ Auto-reroute คุณต้องจัดการ Migrate โค้ดด้วยตัวเอง"
+        }
+      ]
+    },
+    {
+      "heading": "2. กำหนดการ Retirement ของ Platform ไหนที่มีผลบังคับใช้?",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "วันที่ระบุในหน้า Deprecations มีผลบังคับใช้เฉพาะ Platform ที่ Anthropic ดูแลเองโดยตรงเท่านั้น ได้แก่ Claude API, Claude Platform on AWS และ Microsoft Foundry ส่วน Amazon Bedrock และ Google Cloud นั้นดูแลโดย Partners ซึ่งจะกำหนดตาราง Retirement ของตนเองแยกต่างหาก ทำให้โมเดลตัวเดียวกันอาจมี Lifecycle Status และเส้นตายที่ต่างกันในแต่ละ Platform โดยแต่ละ Partner จะประกาศ Model Table ของตัวเอง"
+        },
+        {
+          "type": "table",
+          "caption": "ผู้กำหนดวัน Lifecycle ในแต่ละ Platform",
+          "headers": [
+            "Platform",
+            "ผู้ให้บริการ (Operated by)",
+            "กำหนดการ Retirement ที่ต้องยึดถือ"
+          ],
+          "rows": [
+            [
+              "Claude API",
+              "Anthropic",
+              "หน้า Deprecations ของ Anthropic"
+            ],
+            [
+              "Claude Platform on AWS",
+              "Anthropic",
+              "หน้า Deprecations ของ Anthropic"
+            ],
+            [
+              "Microsoft Foundry",
+              "Anthropic",
+              "หน้า Deprecations ของ Anthropic"
+            ],
+            [
+              "Amazon Bedrock",
+              "Partner",
+              "Model Table ของ Bedrock เอง"
+            ],
+            [
+              "Google Cloud",
+              "Partner",
+              "Model Table ของ Google Cloud เอง"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับทีมที่ Deploy แอปพลิเคชันเดียวกันผ่านหลาย Platform การแจ้งเตือน Deprecation เพียงครั้งเดียวอาจมี Migration Deadlines หลายรอบที่ไม่พร้อมกัน ดังนั้นจึงต้องวางแผนการ Migrate แยกตามกำหนดการของแต่ละ Platform ที่รันอยู่จริง ไม่ใช่ยึดตามวันที่ของ Anthropic เพียงวันเดียว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Retirement Date ที่ Anthropic ประกาศ มีผลบังคับใช้กับโมเดลเดียวกันบน Amazon Bedrock และ Google Cloud ด้วยหรือไม่? (ทำไมถึงผิด): ไม่จริง: วันที่ของ Anthropic บังคับใช้เฉพาะ Platform ที่ตนเองดูแลโดยตรงเท่านั้น ส่วน Bedrock และ Google Cloud มีตารางเวลาแยกเป็นของตัวเอง ซึ่งอาจไม่ตรงกัน"
+        }
+      ]
+    },
+    {
+      "heading": "3. การทำ Migration ก่อนครบกำหนด Deadline",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Model ที่ปล่อยสู่สาธารณะ Anthropic จะแจ้งเตือนลูกค้าที่มี Active Deployment ล่วงหน้าอย่างน้อย 60 วันก่อนทำ Retirement ให้ใช้ช่วงเวลานี้ดำเนินการตามลำดับ: ขั้นแรก ตรวจสอบว่ายังมีส่วนใดใช้งาน Deprecated Model อยู่บ้าง โดยเข้าไปที่ Claude Console หน้า Usage แล้วกด Export นำไฟล์ CSV ที่แจกแจงการใช้งานตาม API Key และ Model มาวิเคราะห์ เพื่อดูว่า Service หรือ Key ใดต้องปรับปรุงก่อนตามลำดับความสำคัญ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ขั้นถัดไปคือการ Test โดย Anthropic แนะนำให้ทดสอบ Application ร่วมกับ Model ตัวใหม่ล่วงหน้าก่อนที่ตัวเดิมจะ Retire เพื่อประเมิน Performance กับ Use Case จริง และตรวจจับ Breaking Request Changes ไปพร้อมกัน ไม่ใช่ดูแค่คุณภาพของ Output เพียงอย่างเดียว ตัวอย่างเช่น Opus 5.5 Migration Guide ระบุว่าการกำหนด Manual Thinking Budget (thinking: {\"type\": \"enabled\", \"budget_tokens\": N}) ไม่รองรับแล้วบน Claude Opus 4.7 ขึ้นไป และจะส่งผลลัพธ์เป็น 400 Error ทำให้ Request Code ที่เคยทำงานได้บน Model เดิมพังเมื่อย้ายมารุ่นใหม่ได้ ดังนั้น ควรอ่าน Migration Guide ของ Model นั้นๆ ก่อนเปลี่ยน Model ID จากนั้นให้อัปเดตโค้ดไปยังตัวทดแทนที่แนะนำโดยเร็ว หมั่นตรวจสอบเอกสาร Deprecations สม่ำเสมอ และติดต่อ Support หากพบปัญหาติดขัดระหว่าง Migration"
+        }
+      ]
+    },
+    {
+      "heading": "4. API Versions และ Feature Classifications",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "นอกจาก Model แล้ว ส่วนอื่นของแพลตฟอร์มก็มี Life Cycle เช่นกัน ทุก API Request จะต้องส่ง Header `anthropic-version` เสมอ เช่น `anthropic-version: 2023-06-01` (โดย Client SDKs จะจัดการส่งให้อัตโนมัติ) ภายใต้ Version เดียวกัน Anthropic จะรักษา Parameter เดิมทั้ง Input และ Output ไว้ แต่ยังอาจมีการเพิ่ม Optional Inputs, เพิ่ม Output Values, ปรับเปลี่ยนเงื่อนไขของ Error Types หรือเพิ่ม Variant ใหม่ๆ ในโครงสร้างแบบ Enum (เช่น Streaming Event Types) ดังนั้น โค้ดที่ Handle ค่า Enum แบบตายตัว (Strict) จึงอาจพังได้แม้จะอยู่ใน Version เดิม ทั้งนี้ Anthropic แนะนำให้ใช้ API Version ล่าสุดเสมอ และ Version เก่าอาจถูกปิดไม่ให้ผู้ใช้ใหม่เข้าถึง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Features แต่ละตัวมี Classification แยกชัดเจน ซึ่งเป็นตัวกำหนดว่าสามารถนำไปสร้าง Critical Workflows ได้อย่างปลอดภัยหรือไม่ หากในช่อง Availability ของแพลตฟอร์มไม่มี Label ใดๆ ระบุไว้ แสดงว่า Feature นั้นอยู่ในสถานะ Stable รองรับการใช้งานเต็มรูปแบบ แนะนำสำหรับ Production พร้อมการการันตีตามมาตรฐาน Versioning ส่วน Beta Features เป็นเพียงเวอร์ชัน Preview ที่อาจมีการเปลี่ยนแปลงครั้งใหญ่หรือถูกยกเลิกได้ จึงไม่มีการรับประกันสำหรับ Production ต่อเนื่อง ขณะที่ Deprecated Feature จะยังคงใช้งานได้อยู่ พร้อมมี Migration Path และกำหนดการ Removal Timeline แจ้งไว้ชัดเจน สำหรับ Retired Feature คือสถานะที่ไม่สามารถใช้งานได้อีกต่อไป ทั้งนี้ Feature ไม่จำเป็นต้องผ่านครบทุก Stage และสามารถเริ่มต้นที่ Stage ใดก็ได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Beta feature ปลอดภัยและนำไปใช้สร้าง Critical Production Workflows ได้เหมือนกับ Stable feature? (ทำไมถึงผิด): ไม่จริง: Beta features อาจมีการเปลี่ยนแปลงครั้งใหญ่ (Breaking changes) หรือถูกยกเลิกได้ตลอดเวลา และไม่มีการการันตีสำหรับการใช้งานบน Production เฉพาะ Feature ที่ไม่มี Label กำกับ (Stable) เท่านั้นที่แนะนำสำหรับ Production"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55357",
+      "question": "ทีม Platform Engineering รันแอปพลิเคชัน Customer Support ที่ใช้งาน Claude บน Production และต้องการสร้าง Compliance Policy สำหรับวางแผน Migration Testing เมื่อโมเดลที่ใช้งานอยู่ถูก Deprecate ตามข้อผูกพันอย่างเป็นทางการของ Anthropic ระยะเวลาแจ้งเตือนล่วงหน้าขั้นต่ำ (Minimum notice period) ที่ทีมจะได้รับก่อนที่โมเดล Publicly Released ที่กำลังใช้งานอยู่จะถูก Retire คือข้อใด?",
+      "options": [
+        "อย่างน้อย 30 วันก่อนวัน Retirement",
+        "อย่างน้อย 60 วันก่อนวัน Retirement",
+        "อย่างน้อย 90 วันก่อนวัน Retirement",
+        "อย่างน้อย 180 วันก่อนวัน Retirement"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55359",
+      "question": "ก่อนที่จะถึงกำหนดวัน Retirement ทีม Platform จำเป็นต้องตรวจสอบทุกจุดใน Production Traffic ที่ยังคงมีการเรียกใช้โมเดลที่กำลังจะถูกปลดระวาง โดยต้องการแยกรายละเอียดตาม API Key และ Model ก่อนที่จะสรุป Migration Plan ทีมควรดำเนินการอย่างไรใน Claude Console?",
+      "options": [
+        "ติดต่อ Anthropic Support และรอรับรายงาน Traffic ของบัญชีที่สรุปด้วยตนเอง (Manually compiled)",
+        "เปิดใช้งาน Extended Thinking ในทุก Request เพื่อให้ Response Payload มี Model ID แนบมาด้วย",
+        "ไปที่หน้า Usage ใน Claude Console และ Export ไฟล์ CSV ที่แยกข้อมูลตาม API Key และ Model",
+        "ใช้คำสั่ง Grep ค้นหาข้อความคำว่า 'deprecated' ใน Server Logs ขององค์กรจากทุก Service"
+      ],
+      "explanation": ""
+    }
+  ]
+}

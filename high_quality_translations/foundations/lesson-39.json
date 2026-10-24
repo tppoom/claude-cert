@@ -1,0 +1,167 @@
+{
+  "title": "Claude API Keys: Identity, Storage, Rotation และการรับมือเหตุข้อมูลรั่วไหล",
+  "objectives": [
+    "เลือกใช้งาน Personal, Service Account, Legacy Workspace และ Admin API Keys ตามขอบเขต Identity และ Lifecycle",
+    "แยกความแตกต่างระหว่าง Authentication Failure (401) กับ Insufficient Permission (403) พร้อมแนวทางแก้ไข",
+    "วิเคราะห์ผลลัพธ์ของ API เมื่อ Workspace Scope ของ Key ไม่ตรงกับ Request",
+    "จัดเก็บ กำหนดอายุ และ Rotate Key ตั้งแต่ไฟล์ .env บนเครื่อง Local จนถึง Production Secrets Manager",
+    "รับมือและจำกัดความเสียหายเมื่อ Key รั่วไหล ด้วยการ Scan, Deactivate, ตั้ง Spend Limits และ Monitor การใช้งาน"
+  ],
+  "key_concept": "Identity-backed API key — Key ประเภท Personal หรือ Service Account ที่ผูกกับ Identity ภายในองค์กร สิทธิ์การเข้าถึงจะอิงตาม Identity นั้นโดยตรง เมื่อ Identity ถูกลบ Key จะหยุดทำงานทันทีและไม่สามารถใช้งานต่อได้",
+  "sections": [
+    {
+      "heading": "1. ประเภทของ Key และ Identity ที่ผูกกับ Key",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Request ที่ส่งไปยัง Claude API จะทำหน้าที่แทน Identity ของใครบางคนเสมอ โดยประเภทของ Key จะเป็นตัวกำหนด Static API key คือ Secret ที่ขึ้นต้นด้วย sk-ant-api... ซึ่งต้องส่งผ่าน Header Authorization: Bearer <key> ในทุก Request เมื่อสร้าง Key ใน Claude Console ภายใต้ Settings → API keys ช่อง Linked account จะเป็นตัวกำหนดประเภท เลือกลิงก์กับตัวเองสำหรับ Personal key หรือลิงก์กับ Service Account สำหรับ Key ที่ต้องใช้ร่วมกันหลายคนหรือรันบน Workload ประเภทของ Key จะกำหนด Resource ที่เข้าถึงได้และเงื่อนไขการหมดอายุการใช้งาน"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบประเภทของ API key",
+          "headers": [
+            "Key type",
+            "Acts as",
+            "Stops working when"
+          ],
+          "rows": [
+            [
+              "Personal key",
+              "ตัวคุณเอง ตาม Roles และ Permissions ที่คุณมี",
+              "คุณเสียสิทธิ์การเข้าถึง Organization (หรือ Workspace สำหรับ Key ที่จำกัดเฉพาะ Workspace); Archived keys จะไม่ถูกกู้คืนแม้จะได้รับคำเชิญใหม่อีกครั้ง"
+            ],
+            [
+              "Service account key",
+              "Service account",
+              "Service account ถูก Archive หรือถูกลบออกจาก Workspace นั้น (กรณีเป็น Single-workspace key)"
+            ],
+            [
+              "Workspace key (legacy)",
+              "ไม่มีใคร (เป็นกรรมสิทธิ์ของ Workspace)",
+              "Key หมดอายุ, ถูก Disable, ถูกลบ, หรือ Workspace ถูก Archive โดยไม่ขึ้นกับสถานะของผู้สร้าง Key"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Personal key และ Service account key เป็นแบบ Identity-backed กล่าวคือทุก Request จะรันด้วย Permissions ของ User หรือ Service Account ภายใต้ Organization เสมอ ดังนั้นการลบ Identity นั้นทิ้งจะทำให้ Key ถูกตัดสิทธิ์ทันที ต่างจาก Workspace key (Legacy) ที่ไม่มี Owner จึงยังคงทำงานต่อได้แม้ Engineer ผู้สร้างจะลาออกไปแล้ว นี่คือเหตุผลที่ Workspace key ของอดีตพนักงานยังรัน Pipeline ต่อได้เป็นเดือนๆ และเป็นเหตุผลว่าทำไม Integration ใหม่จึงควรเปลี่ยนมาใช้ Identity-backed keys ทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกระหว่าง Identity-backed สองประเภทขึ้นอยู่กับว่าใครเป็นผู้รันโค้ด สคริปต์ส่วนตัวหรือช่วง Local Development ควรใช้ Personal key การนำ Personal key ไปแชร์ในทีมจะทำให้ระบบผูกกับตัวบุคคลคนเดียวและพังทันทีที่คนนั้นลาออก ส่วน CI Jobs และ Production Services ต้องใช้ Service account แยกต่างหาก โดยให้ Organization Admin เป็นผู้สร้างเพื่อให้ Workload นั้นมี Identity อิสระเป็นของตัวเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Admin API keys เป็น Credential คนละประเภท ใช้สำหรับจัดการ Organization ไม่ใช่สำหรับเรียก Model สร้างได้เฉพาะผู้ใช้ที่มี Admin Role ใน Claude Console ภายใต้ Settings → Admin keys โดยมี Prefix เป็น sk-ant-admin01-... ใช้ Authenticate ได้ทั้ง Admin API, Usage and Cost API, Rate Limits API และ API หมวด Admin อื่นๆ โดย Key ที่สร้างใน Organization หนึ่งจะไม่สามารถนำไปจัดการ Organization อื่นได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Authentication คือขั้นตอนที่ API ตรวจสอบว่าใครเป็นผู้เรียก โดยมี Key ทำหน้าที่เป็นหลักฐานยืนยัน Key จะถูกส่งเป็น Bearer token ใน Authorization Header แต่ระบบยังรองรับ Header เก่าอย่าง x-api-key อยู่ ซึ่งโดยทั่วไป Admin API มักส่งผ่านทางนี้ หาก Key ไม่ถูกต้อง, ถูก Archive หรือ Expired จะล้มเหลวที่ขั้นตอนนี้ด้วย 401 authentication_error ซึ่ง Key ที่หมดอายุแล้วจะไม่สามารถกู้คืนได้ ต้องสร้าง Key ใหม่เท่านั้น นอกจากนี้ยังมี Federated Workload Identity เป็นอีกวิธีในการรับ Claude Token ซึ่งจะมีเนื้อหาในส่วนถัดไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "Authorization (Level verification) คือการตรวจสอบแยกต่างหากว่า Caller ที่ Authenticate ผ่านแล้วมีสิทธิ์ทำ Action นั้นหรือไม่ หากล้มเหลวจะได้ Status 403 Forbidden สำหรับ Personal key ระดับสิทธิ์จะอิงตาม Organization Role ของเจ้าของ (เช่น Developer จัดการ API keys ได้ แต่การจัดการ Users ต้องใช้สิทธิ์ Admin) ส่วน Claude Enterprise keys จะมีการกำหนด Scope ชัดเจน เช่น read:members หรือ read:analytics ตั้งแต่ตอนสร้าง Key หากยิง Request นอก Scope จะได้รับ 403 พร้อมระบุ Scopes ที่ Key มีและ Scopes ที่ Endpoint ต้องการ การขยาย Scope ทำได้โดยสร้าง Key ใหม่เท่านั้น สำหรับ Console Admin API keys จะไม่มี Scope ให้เลือกและมีสิทธิ์เต็มในทุก Endpoint ที่รองรับ แต่ Service-account และ Federation Endpoints จะรับเฉพาะ org:admin OAuth token เท่านั้น Admin API key จึงถูกปฏิเสธเสมอไม่ว่าผู้สร้างจะมีสิทธิ์สูงแค่ไหนก็ตาม ให้ดู HTTP Status Code เป็นหลัก: 401 คือแก้ที่ Credential, 403 คือแก้ที่ Permission Level"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การลบ Engineer ออกจาก Organization จะ Revoke API Key ทั้งหมดที่เขาสร้างขึ้นจริงหรือไม่? (ทำไมถึงผิด): ไม่จริง: การลบผู้ใช้ออกจะ Archive เฉพาะ Personal keys ของเขาเท่านั้น แต่ Legacy workspace key เป็นกรรมสิทธิ์ของ Workspace จึงยังคงทำงานได้ต่อไปจนกว่าจะหมดอายุ, ถูก Disable, ถูกลบ หรือ Workspace ถูก Archive | หากได้ Status 403 จาก Admin หรือ Compliance APIs แสดงว่า Key เสียและควร Re-issue Key แบบเดิมมาเปลี่ยนใหม่จริงหรือไม่? (ทำไมถึงผิด): ไม่จริง: 403 หมายถึง Key ผ่าน Authentication แล้ว แต่ขาด Permission/Scope ที่ Endpoint นั้นต้องการ เนื่องจาก Scope ถูกกำหนดตายตัวตั้งแต่สร้าง Key การแก้ไขจึงต้องสร้าง Key ใหม่ที่กำหนด Scopes ให้ครอบคลุม ไม่ใช่การขอ Re-issue Key สิทธิ์เดิมซ้ำ"
+        },
+        {
+          "type": "paragraph",
+          "text": "การย้าย Integration ออกจาก Workspace key ต้องทำตามลำดับขั้นตอนที่แน่นอน โดยให้ลบหรือยกเลิก Key เก่าเป็นขั้นตอนสุดท้ายเสมอ เพื่อให้มั่นใจว่าระบบไม่มี Traffic ขาดตอนจากการไม่มี Credential ที่พร้อมทำงาน"
+        }
+      ]
+    },
+    {
+      "heading": "2. การตรวจสอบ Workspace Scope ของ Key โดย API",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Workspace Scope ของ Key เป็นตัวกำหนดข้อมูลที่ Request ต้องส่งให้ API หาก Key ถูกสร้างขึ้นสำหรับ Single Workspace จะใช้งานได้เฉพาะใน Workspace นั้นและไม่ต้องระบุ Workspace ID ใน Request แต่หาก Key ไม่ได้ผูก Scope เจาะจงกับ Workspace ใด จะต้องระบุ ID ใน Header anthropic-workspace-id ทุกครั้ง หากไม่ส่ง Header นี้ API จะตอบกลับเป็น 400 invalid_request_error"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อระบุ Workspace ID ใน Header แล้ว Identity ของ Key นั้นจะต้องมีสิทธิ์เข้าถึง Workspace ดังกล่าวด้วย หาก Format ID ผิดพลาดจะได้ 400 แต่หาก Format ถูกต้องแต่ User หรือ Service Account ของ Key ไม่มีสิทธิ์เข้าถึง จะได้ 404 not_found_error ซึ่งเป็น Response เดียวกันกับกรณีที่ Workspace นั้นไม่มีอยู่จริง ดังนั้น Error 404 ในจุดนี้ส่วนใหญ่มักเกิดจากการไม่มี Membership สิทธิ์เข้าถึง ไม่ใช่การพิมพ์ ID ผิด ทั้งนี้ Service Accounts จะเป็นสมาชิกของ Default Workspace โดยอัตโนมัติ ส่วน Workspace อื่นๆ จะต้องทำการ Assign เพิ่มเข้าไปเองอย่างชัดเจน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Admin API มีเงื่อนไขการตรวจ Scope ในทิศทางตรงกันข้าม โดยจะยอมรับ Personal key หรือ Service account key ก็ต่อเมื่อ Key นั้นไม่ได้ผูก Scope ไว้กับ Workspace ใด Workspace หนึ่งเท่านั้น ดังนั้น Single-workspace personal key แม้จะยิงมาจากเครื่องของ Admin ก็จะใช้กับ Organization-management Endpoints ไม่ผ่าน แม้ Role ของ Admin คนนั้นจะมีสิทธิ์ทำ Action ดังกล่าวก็ตาม"
+        }
+      ]
+    },
+    {
+      "heading": "3. Storing, expiring and rotating keys",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "API Key มักรั่วไหลได้ 2 ทางหลัก: เผลอ Commit key แบบ Plaintext ขึ้น Public Repository หรือนำ Key ไปวางใน Third-party tools โดย Service ใดก็ตามที่ได้รับ Key ไปจะสามารถเรียกใช้งานและตัดเงินจากบัญชีของคุณได้ทันที การอัปโหลด Key ไปยัง Web IDE, Cloud Provider หรือ CI/CD Platform จะทำให้ทีมผู้พัฒนา Tool นั้นเข้าถึง Claude Console Account ของคุณได้ จึงต้องเก็บเป็น Encrypted Secret เท่านั้น ห้ามใส่ใน Code หรือ Config Files เด็ดขาด และสมาชิกในทีมแต่ละคนควรมี Key แยกเป็นของตนเอง ไม่ควรใช้ร่วมกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "สถานที่จัดเก็บ Key ขึ้นอยู่กับ Environment ที่ Code รัน: สำหรับ Local Development บน Laptop สามารถใช้ไฟล์ .env ร่วมกับ python-dotenv ได้ โดยต้องระบุไฟล์ไว้ใน .gitignore เสมอ ส่วนบน Cloud แนะนำให้ใช้ Secret Manager แทนไฟล์ .env เพื่อ Inject Key เข้าสู่ Environment Variable ANTHROPIC_API_KEY ซึ่ง SDK จะอ่านค่าให้อัตโนมัติ หากระบบมี Key จำนวนมาก ควรใช้ Key Management System (KMS) เพื่อรวมศูนย์การจัดเก็บแบบเข้ารหัส มี Fine-grained Access Control, มี Audit Trails และจัดการ Rotation ได้ง่ายขึ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Expiration ถูกกำหนดได้เพียงครั้งเดียวตอนสร้าง Key โดย Console มี Preset ให้เลือกคือ 3 hours, 1 day, 7 days, 30 days, Custom Duration หรือเลือก Never สำหรับ Key ที่เก็บใน Secret Manager และจัดการ Rotate เอง นอกจากนี้ Organization ยังสามารถตั้ง Maximum Expiration Policy เพื่อจำกัดตัวเลือกและตัดตัวเลือก Never ออกได้ เมื่อสร้าง Key แล้วจะไม่สามารถเปลี่ยน Expiration ได้อีก ทั้งนี้ Anthropic จะส่งอีเมลแจ้งเตือนล่วงหน้าก่อนหมดอายุ (แจ้งเตือนล่วงหน้า 7 วันสำหรับ Key ที่มีอายุตั้งแต่ 14 วันขึ้นไป และล่วงหน้า 1 วันสำหรับ Key ที่มีอายุตั้งแต่ 7 วันขึ้นไป) เมื่อ Key หมดอายุ Request จะได้รับ 401 authentication_error ทันที และแก้ไขได้ด้วยการสร้าง Key ใหม่เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Rotation คือการสร้าง Key ใหม่ขึ้นมาก่อนที่จะปลดระวาง Key เดิม โดยทำตามรอบเวลาที่กำหนด เช่น ทุกๆ 90 วัน การตั้ง Expiration ช่วยจำกัดกรอบเวลาที่ Leaked Key จะถูกนำไปใช้ประโยชน์ได้ แต่ไม่สามารถทดแทนการดูแล Secret Hygiene ที่ถูกต้องได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Key ที่หมดอายุแล้วสามารถเปิดใช้งานใหม่ (Reactivate) หรือขยายเวลา Expiration จาก Console ได้? (ทำไมถึงผิด): ไม่จริง: Expiration จะถูก Fix ทันทีตั้งแต่ตอนสร้าง Key เมื่อหมดอายุแล้วจะ Return 401 authentication_error และไม่สามารถ Reactivate หรือขยายเวลาได้ ต้องสร้าง Key ใหม่เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "4. Detecting a leak, shutting it down and watching usage",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Secret Scanning ช่วยตรวจจับ Key ก่อนหรือทันทีที่เกิดการรั่วไหล คุณสามารถเปิดใช้งาน Scanning บน Source Control Provider, รัน SAST Tool เช่น Gitleaks ตรวจสอบ Repository และผสานเข้ากับ CI/CD Pipeline เพื่อดักจับ Secret ก่อนถูก Merge เข้าสู่ Main Branch ยิ่งไปกว่านั้น GitHub (Public) ยังมี Safety Net เพิ่มเติมผ่านโครงการ Secret Scanning Partner Program หากตรวจพบ Claude API Key ใน Public Repository ข้อมูลจะถูกส่งตรงไปยัง Anthropic เพื่อ Deactivate Key นั้นโดยอัตโนมัติ พร้อมส่งอีเมลแจ้งเตือนผู้ใช้งานทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากสงสัยว่า Key หลุด ให้ Revoke ทันที แล้วสร้าง Key ใหม่ไปใส่ใน Secret Manager โดยบน Console มี 2 คำสั่งจัดการ ซึ่งมีความแตกต่างเรื่องการย้อนกลับ (Reversible): คำสั่ง Disable สามารถย้อนกลับได้ Key จะมีสถานะเป็น Inactive และสามารถกด Re-enable เพื่อกลับมา Active ใหม่ได้ เหมาะสำหรับกรณีที่ยังไม่แน่ใจ ส่วนคำสั่ง Delete จะมีผลถาวร Key จะถูก Archive และยังแสดงผลใน List API Keys ด้วย status: \"archived\" สำหรับ Key ที่หมดอายุแล้วจะสามารถกดได้เฉพาะคำสั่ง Delete เท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การ Delete Key ที่ต้องสงสัยสามารถย้อนกลับ (Reversible) ได้เหมือนกับการ Disable? (ทำไมถึงผิด): ไม่จริง: เฉพาะคำสั่ง Disable เท่านั้นที่ย้อนกลับได้ด้วยการกด Re-enable ส่วนคำสั่ง Delete มีผลถาวร โดย Key จะถูก Archive ไว้เพื่อเป็นประวัติบันทึกเท่านั้น ไม่สามารถนำกลับมาใช้งานได้อีก"
+        },
+        {
+          "type": "paragraph",
+          "text": "Spend Controls ช่วยจำกัดความเสียหายด้านค่าใช้จ่ายก่อนที่จะมีคนสังเกตเห็นเมื่อ Key หลุด (อ่านรายละเอียดเรื่อง Limits เพิ่มเติมได้ที่ [Rate limits, spend limits and service tiers](lesson:2.1)) สำหรับกรณี Leaked Key ให้โฟกัสที่การตั้งค่าเหล่านี้: สำหรับ Custom Rate Limit Organizations ควรกำหนด Usage และ Spend Limits ให้ชัดเจน ส่วน Standard Rate Limit Organizations ควรตั้งค่า Auto-reload Threshold อย่างรัดกุม เพราะทุกครั้งที่มีการ Reload เติมเงินอัตโนมัติ จะกลายเป็น Credit เพิ่มเติมที่ Attacker สามารถนำไปผลาญได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Monitoring เป็นวิธีแยกแยะการใช้งานที่ได้รับอนุญาตออกจากการบุกรุก ตรวจสอบ Logs และรูปแบบ Usage ของแต่ละ Key ใน Console อยู่เสมอ ควรแยก Key ออกจากกันตาม Environment เช่น Development, Testing และ Production เพื่อให้ Usage สัมพันธ์กับจุดประสงค์การใช้งานจริง และหากเกิด Key Compromise ก็ระงับใช้งานเฉพาะ Key นั้นได้ นอกจากนี้ Admin API ยัง Return ค่า expires_at ผ่าน List API Keys และ Retrieve API Key ช่วยให้คุณสามารถ Audit และทำ Rotation ล่วงหน้าก่อน Key หมดอายุได้ รวมถึงการใช้ Identity-backed Keys จะช่วยให้ระบุได้อย่างชัดเจนว่า User หรือ Service Account ใดเป็นผู้เรียกใช้ API ในแต่ละ Request"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55746",
+      "question": "ทีมงานกำหนดค่าเซสชันของ Claude Agent SDK ด้วย `permission_mode: \"bypassPermissions\"` และ `allowed_tools: [\"Read\"]` โดยเชื่อว่าการตั้งค่านี้จะจำกัดให้ Agent เข้าถึงไฟล์ได้แบบ Read-only เท่านั้น เพื่อความปลอดภัยในระหว่างการทำ Autonomous Refactor แต่ระหว่างการทำงาน Agent กลับเรียกใช้คำสั่ง `Bash` ลบไดเรกทอรีได้สำเร็จ คำอธิบายใดถูกต้องที่สุดสำหรับผลลัพธ์นี้?",
+      "options": [
+        "`allowed_tools` ทำหน้าที่เพียง Pre-approve เครื่องมือตามรายชื่อที่ระบุเท่านั้น ส่วนเครื่องมือที่ไม่ได้ระบุอย่าง `Bash` จะไม่ตรงกับ Allow Rule ใดๆ จึงส่งต่อการตัดสินใจไปยัง Permission Mode ซึ่ง `bypassPermissions` จะทำการอนุมัติการทำงานให้อยู่ดี",
+        "การตั้งค่าของทีมมี Syntax Error เนื่องจากไม่สามารถใช้งาน `allowed_tools` ร่วมกับ `bypassPermissions` ในเซสชันเดียวกันได้ และ SDK ควรจะ Reject ตั้งแต่ช่วง Startup",
+        "`bypassPermissions` มีผลเฉพาะกับเครื่องมือที่ระบุชื่อไว้อย่างชัดเจนใน `allowed_tools` เท่านั้น ดังนั้น `Bash` ควรถูกบล็อก เหตุการณ์นี้จึงบ่งชี้ว่าเป็น Bug ใน Permission Evaluator ของ SDK",
+        "การลบเกิดขึ้นเพราะไม่มี `PreToolUse` Hook โดย Hook เป็นกลไกเดียวเท่านั้นที่สามารถสกัดกั้นคำสั่ง Bash ที่เป็นอันตราย (Destructive Commands) ในโหมด Bypass ได้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55740",
+      "question": "Auditor ด้าน Compliance ขอให้ทีมวิศวกรแสดงหลักฐานว่า Claude API Key ใดบ้างที่ใกล้หมดอายุในทุก Workspace เพื่อให้สามารถหมุนเวียน (Rotate) Credentials เก่าได้ในเชิงรุกก่อนที่จะหมดอายุ การกระทำใดสามารถดึงข้อมูลนี้ได้ในรูปแบบ Programmatic?",
+      "options": [
+        "เรียกใช้ Endpoint \"List API Keys\" ของ Admin API ด้วย Admin API Key แล้วตรวจสอบ Timestamp ในฟิลด์ `expires_at` ของแต่ละ Key โดยถือว่าค่า `null` คือ Key ที่ไม่มีวันหมดอายุ",
+        "Query หา Event `key.created` จาก Activity Feed ของ Compliance API แล้วคำนวณวันหมดอายุโดยการบวกเพิ่ม 30 วันจาก Timestamp ของแต่ละ Event",
+        "เรียกใช้ Usage and Cost API สำหรับแต่ละ Workspace แล้วคัดกรองรายการที่ส่งกลับมาเฉพาะรายการที่มีฟิลด์ `cost` เป็นศูนย์พอดี",
+        "ใช้ Rate Limits API เพื่อดู Configuration ของ Rate Limit ในแต่ละ Workspace เนื่องจาก Key ที่ใกล้หมดอายุจะถูกปรับลด Rate Limit ลงโดยอัตโนมัติ"
+      ],
+      "explanation": ""
+    }
+  ]
+}

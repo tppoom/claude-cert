@@ -1,0 +1,190 @@
+{
+  "title": "Explore, plan, implement, commit: วงจรการทำงานของ Claude Code",
+  "objectives": [
+    "รันงานใน Claude Code โดยแบ่งเป็น 4 เฟส (explore, plan, implement, commit) พร้อมเข้าใจเหตุผลที่ต้องค้นคว้าและวางแผนก่อนเริ่มเขียนโค้ด",
+    "เลือก Permission Mode ให้เหมาะกับระดับการเปลี่ยนแปลงที่อนุญาตให้ทำได้โดยไม่ต้องรออนุมัติ",
+    "เขียน Prompts ชี้เป้าไปยังไฟล์ แหล่งข้อมูล และอาการของปัญหาให้ตรงจุด แทนการอธิบายแบบกว้างๆ",
+    "รักษา Session ให้คลีนด้วยการ Interrupt, Rewind, Clear และ Delegating งานค้นคว้าให้ Subagents",
+    "กำหนด Check ให้ Claude รันตรวจผลงานตัวเองได้อัตโนมัติ (เช่น Test, Screenshot หรือ Build)"
+  ],
+  "key_concept": "Explore, plan, implement, commit — Workflow ของ Claude Code ที่แยกการอ่านโค้ดและการวางแผนออกจากขั้นตอนการแก้โค้ด โดยเริ่มจากการศึกษาโค้ดที่เกี่ยวข้อง เสนอแผนให้รีวิวก่อน แล้วจึงเริ่มเขียนโค้ด รันทดสอบ และ Commit การเปลี่ยนแปลง",
+  "sections": [
+    {
+      "heading": "1. Explore, plan, implement, commit",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code ทำงานแบบ Agent ที่สามารถอ่านไฟล์ รัน shell commands แก้ไขโค้ด และใช้ git ได้โดยตรง คำสั่งกว้างๆ เช่น \"add Google OAuth\" จึงอาจทำให้ Agent เริ่มแก้โค้ดทันทีทั้งที่ยังไม่ได้สำรวจ codebase การใช้ loop แบบ explore, plan, implement, commit จะช่วยป้องกันปัญหานี้ โดยแบ่งแต่ละ phase ออกเป็นแต่ละ prompt ชัดเจน และจะไม่มีการเขียนโค้ดจนกว่า Claude จะเข้าใจโค้ดเดิมและคุณเห็นชอบกับ plan แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "Explore สั่งให้ Claude อ่านและอธิบายเท่านั้นโดยไม่แก้ไขใดๆ, Plan ให้ระบุไฟล์ที่จะแก้และ flow การทำงาน เพื่อให้คุณ review และแก้ไขแนวทางได้ก่อนโดยไม่มี cost, Implement จะอ้างอิงจาก \"plan ของคุณ\" พร้อมขั้นตอน verification เช่น เขียน tests, รัน test suite และแก้ข้อผิดพลาด, Commit จะนำผลลัพธ์ที่เสร็จสมบูรณ์ไปสร้างเป็น commit และ pull request"
+        },
+        {
+          "type": "paragraph",
+          "text": "Plan mode ช่วยให้สอง phase แรกปลอดภัย หากเปิด session ด้วย claude --permission-mode plan ทาง Claude จะทำได้แค่ตรวจสอบและเสนอแนวทางแก้ไข แต่ไม่สามารถเขียนทับ source files ได้ คุณสามารถ review ข้อเสนอก่อน แล้วค่อยออกจาก plan mode เพื่อเข้าสู่ขั้น implement จึงมั่นใจได้ว่าจะไม่มีโค้ดถูกเขียนลง disk ก่อนที่คุณจะเห็น plan"
+        }
+      ]
+    },
+    {
+      "heading": "2. Matching the permission mode to the task",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Permission mode กำหนดว่า actions ใดที่ Claude ทำได้เองทันที และ actions ใดต้องรอคุณ approve การเลือก mode จึงขึ้นอยู่กับ workflow เช่น การ explore repo ที่ไม่คุ้นเคย, การ review untrusted code หรือการ refactor ทั่วไป ล้วนต้องการระดับ autonomy ที่ต่างกัน"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบ Permission modes ตามสิทธิ์การรันโดยไม่ต้องขอ approval",
+          "headers": [
+            "Mode",
+            "Runs without asking",
+            "Waits for you",
+            "Best for"
+          ],
+          "rows": [
+            [
+              "Manual (default prompting mode)",
+              "อ่านและค้นหาไฟล์",
+              "การ edit ไฟล์และ shell command ทุกครั้ง",
+              "Untrusted code เช่น pull request จาก external contributor"
+            ],
+            [
+              "Accept edits",
+              "การ edit ไฟล์และ filesystem commands ทั่วไป เช่น mkdir และ mv",
+              "Shell commands อื่นๆ",
+              "งาน Implementation ที่ไว้ใจการ edit โค้ดได้ แต่ยังต้องการ review commands ก่อนรัน"
+            ],
+            [
+              "Plan",
+              "Exploration เท่านั้น ไม่มีการ edit source files",
+              "การสลับออกจาก plan mode เพื่อเริ่ม implement",
+              "Explore และ plan phases"
+            ],
+            [
+              "Auto",
+              "Actions ส่วนใหญ่ โดยมี background classifier คอย block คำสั่งที่มีความเสี่ยง",
+              "แทบไม่ต้องรอการยืนยันในงาน routine เพราะ classifier จะตัดสินใจแทน",
+              "Long sessions ที่การ prompt ถามทุก step จะทำให้ workflow ช้า"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น Security Engineer กำลัง review pull request จากภายนอก Claude ควรอ่านไฟล์และรัน analysis ได้ แต่ทุกการ edit และทุก command ต้องผ่าน approval จาก engineer ก่อนเสมอ ซึ่ง Manual เป็น mode เดียวที่ตอบโจทย์นี้ หากใช้ Accept edits จะทำให้ไฟล์ถูกแก้ทันทีโดยไม่ถาม, Auto จะปล่อยให้ classifier เป็นตัว approve ส่วนใหญ่, ส่วน Plan จะ block การ edit แต่เน้นไว้เสนอ changes ไม่ได้ออกแบบมาเพื่อ approve ทีละรายการ สำหรับ bypassPermissions จะข้าม prompt ทั้งหมดและอันตรายยิ่งกว่า โดยจะไม่แสดงในรอบ Shift+Tab ปกติ เว้นแต่จะเปิด Claude Code ด้วย flag --allow-dangerously-skip-permissions ทั้งนี้ใน Claude Code เวอร์ชันล่าสุด Auto ถูกตั้งเป็น default starting mode สำหรับ interactive sessions ดังนั้นหากต้องการความปลอดภัยสูงสุด คุณต้องสลับไปใช้ Manual ด้วยตัวเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "นอกจากนี้ คุณยังสามารถใช้ permission allowlists เพื่อ pre-approve เฉพาะคำสั่งที่มั่นใจว่าปลอดภัยล่วงหน้าได้ เช่น npm run lint หรือ git commit ซึ่ง Claude จะไม่ถามซ้ำสำหรับคำสั่งเหล่านั้น แต่ยังคง prompt ถามคำสั่งอื่นๆ ตามปกติ การ pre-approve บางคำสั่งจึงปลอดภัยกว่าการสลับทั้ง session ไปใช้ mode ที่เปิดสิทธิ์กว้างเกินไป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Accept edits mode จะยังคงถามยืนยันก่อน edit ทุกครั้ง จึงปลอดภัยเมื่อต้องการ approve การเปลี่ยนแปลงทีละไฟล์? (ทำไมถึงผิด): ไม่จริง: Accept edits จะ apply การ edit ไฟล์และ filesystem commands ทั่วไปทันทีโดยไม่ถาม หากต้องการให้ถามยืนยันก่อน edit ไฟล์และรัน shell command ทุกครั้ง ต้องใช้ Manual mode เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. Pointing Claude at exact context",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ความแม่นยำของ Prompt กำหนดความแม่นยำของผลลัพธ์ ถ้าสั่งแค่ \"fix the login bug\" Claude จะต้องค้นหาจุดบกพร่อง เดาปัญหา และตัดสินใจเอาเองว่าแก้งานเสร็จเมื่อไร แต่ถ้าระบุตำแหน่งไฟล์, Scenario ที่เกิดปัญหา และเงื่อนไขการแก้ให้ชัดเจน Claude ก็ไม่ต้องคาดเดาอะไรเลย ตารางด้านล่างเปรียบเทียบระหว่าง Request ที่คลุมเครือกับแบบที่เจาะจงชัดเจน"
+        },
+        {
+          "type": "table",
+          "caption": "การปรับ Request ที่คลุมเครือให้ระบุ Context ที่ชัดเจนแก่ Claude",
+          "headers": [
+            "Technique",
+            "Vague",
+            "Specific"
+          ],
+          "rows": [
+            [
+              "Scope the task",
+              "add tests for foo.py",
+              "write a test for foo.py covering the edge case where the user is logged out. avoid mocks."
+            ],
+            [
+              "Point to sources",
+              "why does ExecutionFactory have such a weird api?",
+              "look through ExecutionFactory's git history and summarize how its api came to be"
+            ],
+            [
+              "Reference existing patterns",
+              "add a calendar widget",
+              "look at how existing widgets are implemented on the home page; HotDogWidget.php is a good example"
+            ],
+            [
+              "Describe the symptom",
+              "fix the login bug",
+              "login fails after session timeout; check the auth flow in src/auth/, write a failing test that reproduces the issue, then fix it"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การอ้างอิงไฟล์ด้วย @ มีประสิทธิภาพมากกว่าการพิมพ์บรรยายตำแหน่งโค้ด เพราะ Claude จะอ่านเนื้อหาไฟล์ก่อนเริ่มตอบ เช่น Explain the logic in @src/utils/auth.js จะดึงเนื้อหาไฟล์นั้นเข้าสู่ Context ทันที ส่วนการอ้างอิงไดเรกทอรี เช่น @src/components จะส่งเฉพาะรายชื่อไฟล์ในโฟลเดอร์ให้ Claude เท่านั้น ไม่รวมเนื้อหาไฟล์ ใช้เทคนิคนี้เพื่อให้ Claude เห็นภาพรวมโครงสร้าง แล้วค่อยระบุไฟล์สำคัญที่ต้องการใช้งาน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Context ยังส่งเข้าไปได้อีกหลายวิธี ไม่ว่าจะเป็นการวางหรือลาก Screenshot ของ Error หรือ Design Mockup เข้ามา, การ Pipe ข้อมูลเข้า Claude โดยตรงด้วย cat error.log | claude -p \"explain this error\", การระบุ Documentation URL หรือจะสั่งให้ Claude ดึงสิ่งที่ต้องการด้วยตัวเองผ่าน Bash commands, MCP tools หรือคำสั่งอ่านไฟล์ ซึ่งช่วยประหยัดเวลา ไม่ต้อง Copy ข้อความขนาดยาวมาแปะเอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การอ้างอิงไดเรกทอรีด้วย @ จะโหลดเนื้อหาของทุกไฟล์ในโฟลเดอร์นั้นเข้า Context? (ทำไมถึงผิด): ไม่จริง: การระบุไดเรกทอรีจะให้แค่รายชื่อไฟล์ (List of files) เท่านั้น หากต้องการโหลดเนื้อหาไฟล์เข้า Context ต้องอ้างอิงระบุที่ตัวไฟล์นั้นโดยตรง"
+        }
+      ]
+    },
+    {
+      "heading": "4. Redirecting, clearing and delegating",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ปรับทิศทาง Session ทันทีที่เริ่มหลงประเด็น เพราะการปล่อยไว้นานจะยิ่งเสียเวลา Revert งานทิ้ง กด Esc เพื่อสั่งหยุด Claude ระหว่างกำลังทำงาน Tool call ที่กำลังรันจะถูกยกเลิกแต่ยังรักษา Context ไว้ ทำให้พิมพ์แก้ทิศทางต่อได้ทันที หาก Claude กำลังมาถูกทางแต่ต้องการปรับรายละเอียดเล็กน้อย ให้พิมพ์คำสั่งเพิ่มเติมแล้วกด Enter ได้เลยโดยไม่ต้องกดหยุด ข้อความจะเข้าไปอยู่ในคิว และ Claude จะอ่านทันทีที่ Tool calls รอบปัจจุบันทำงานเสร็จใน Turn เดียวกัน แต่ถ้างานเสียหายไปแล้ว ให้กด Esc สองครั้ง หรือรัน /rewind เพื่อ Restore ทั้งประวัติ Conversation และโค้ดกลับไปยัง State ก่อนหน้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "Context ที่ค้างอยู่ก็ส่งผลเสียเช่นกัน Session ที่ยาวและเต็มไปด้วยข้อมูลจากงานก่อนหน้าที่ไม่เกี่ยวข้องกันจะทำให้ประสิทธิภาพของ Claude ลดลง ให้ใช้คำสั่ง /clear เมื่อจะสลับไปทำ Task ใหม่เพื่อเริ่มจาก Context ที่ว่างเปล่า สำหรับคำถามแทรกสั้นๆ ให้ใช้ /btw ซึ่งคำตอบจะไม่ถูกบันทึกลง Conversation history และหากจำเป็นต้องทำ Session เดิมต่อ ให้ใช้ /compact Focus on the API changes เพื่อสรุปเนื้อหาตาม Scope ที่เรากำหนด แทนที่จะปล่อยให้ระบบเลือกตัดทอน Context อัตโนมัติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Subagents ช่วยรักษา Main Context ให้สะอาดด้วยอีกวิธีหนึ่ง เช่น Prompt ว่า \"use subagents to investigate how our authentication system handles token refresh\" จะส่งงานอ่านไฟล์ไปให้ Agent ย่อยจัดการแยกต่างหาก แล้วส่งกลับมาเฉพาะผลสรุปเข้าสู่ Session ของคุณ นอกจากนี้ Subagent ยังสามารถตั้งค่าเป็น Specialist ที่นำกลับมาใช้ซ้ำได้ โดยกำหนด Tool set และ Instructions เฉพาะทางไว้ในไฟล์ Config:"
+        }
+      ]
+    },
+    {
+      "heading": "5. การเปิดทางให้ Claude ตรวจสอบผลงานตัวเอง (Self-Checking)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "[Feedback loops และการปรับปรุงผลลัพธ์แบบทำซ้ำ (Iterative Refinement)](lesson:1.2) คือกลไกที่ระบบใช้ตรวจสอบและแก้ไข Output ของตัวเอง สำหรับ Claude Code คุณต้องกำหนดเกณฑ์การตรวจสอบที่ชัดเจนและจับต้องได้ เช่น แทนที่จะสั่งลอยๆ ว่า \"เขียนฟังก์ชัน validate อีเมล\" ซึ่งไม่มีจุดสิ้นสุด ให้ระบุ Test cases กำกับไปด้วย (user@example.com เป็น true, invalid เป็น false, user@.com เป็น false) พร้อมคำสั่ง \"รันเทสต์หลังเขียนเสร็จ\" เพื่อให้ Claude มีเกณฑ์วัดผลลัพธ์ที่ชัดเจน งาน UI ก็ใช้รูปแบบเดียวกัน: ส่ง Screenshot ดีไซน์ต้นแบบ ให้ Claude ถ่าย Screenshot ผลงานเทียบกัน แล้วแก้ส่วนต่าง หรือกรณี Build พัง ให้ส่ง Error จริงลงไป แล้วสั่งให้แก้ที่ Root cause แทนที่จะสั่งแค่ซ่อน Error"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางผูกเกณฑ์การตรวจสอบ (Check) มี 4 วิธี ขึ้นอยู่กับขอบเขตของระยะเวลาและความเข้มงวดที่ต้องการ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- ภายใน Prompt เดียว: สั่งให้ Claude รันเทสต์ตรวจสอบและแก้ซ้ำๆ ภายใน Turn เดียวกัน\n- ตลอดทั้ง Session: กำหนดเกณฑ์ไว้ในเงื่อนไขของ /goal โดยจะมี Evaluator แยกต่างหากคอยเช็กซ้ำหลังจบทุก Turn ทำให้ Claude ลุยงานต่อจนกว่าจะบรรลุ Goal\n- ใช้ Deterministic Gate: ใช้ Stop hook รัน Script ตรวจสอบ ซึ่งจะบล็อกไม่ให้จบรอบ Turn จนกว่าจะผ่าน\n- หา Second Opinion: ใช้ Verification Subagent โดยให้ Model ตัวใหม่ที่ไม่มี Context เก่าเข้ามาพยายามจับผิด (Refute) ผลงาน เพื่อแยกตัวที่ทำงานกับตัวที่ตรวจงานออกจากกัน ไม่ให้คนทำเป็นคนตรวจเอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การให้ AI ตรวจสอบงานตัวเองจำเป็นต้องพึ่งมนุษย์รีวิวซ้ำเสมอหรือไม่? (ทำไมถึงเข้าใจผิด): ไม่จริง: เราสามารถออกแบบระบบ Automation เพื่อให้ AI ตรวจสอบงานตัวเองได้ทันที (เช่น การสั่งรัน Unit Tests, Build Checks หรือเปรียบเทียบ UI Screenshot) ทำให้ประหยัดเวลาและลดภาระที่ Developer ต้องคอย Verify ทุกขั้นตอนด้วยตนเอง"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57055",
+      "question": "Security Engineer ต้องการให้ Claude Code ทำการ review pull request จาก external contributor โดย Claude ควรสามารถอ่านไฟล์และรันคำสั่ง analysis ได้ แต่ Engineer ต้อง approve การแก้ไขไฟล์ (file edit) และ shell command ทุกครั้งด้วยตนเองก่อนที่จะ execute ข้อใดคือ permission mode ที่ตรงกับความต้องการนี้?",
+      "options": [
+        "default (Manual) mode ซึ่งจะถาม prompt ยืนยันก่อนการ write หรือรันคำสั่งใดๆ นอกเหนือจากการ read",
+        "acceptEdits mode ซึ่งจะ auto-approve การแก้ไขไฟล์และคำสั่ง filesystem ทั่วไปโดยอัตโนมัติ",
+        "auto mode ซึ่งใช้ background classifier ในการ approve action ส่วนใหญ่โดยอัตโนมัติ",
+        "bypassPermissions mode ซึ่งจะข้าม prompt ทั้งหมด รวมถึงการ write ไปยัง protected path"
+      ],
+      "explanation": ""
+    }
+  ]
+}

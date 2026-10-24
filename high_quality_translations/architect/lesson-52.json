@@ -1,0 +1,205 @@
+{
+  "title": "วินิจฉัย Configuration ของ Claude Code: ตรวจสอบสถานะและลำดับการโหลด",
+  "objectives": [
+    "ใช้คำสั่ง /memory, /hooks, /mcp, /permissions, /status และ /doctor เพื่อตรวจสอบสิ่งที่ Claude Code โหลดขึ้นมาจริงใน Session ก่อนแก้ไขค่าใดๆ",
+    "อธิบายสาเหตุที่ค่า Settings, Memory file, Permission rule หรือ Hook มีอยู่บน Disk แต่ไม่ส่งผลใดๆ ในการทำงาน",
+    "แยกความแตกต่างระหว่าง MCP Server ที่ทำงานล้มเหลว (Failed), ยังไม่อนุมัติ (Unapproved) และเชื่อมต่อสำเร็จแต่ไม่มี Tool (Zero-tools) พร้อมวิธีแก้ไขที่ถูกต้องสำหรับแต่ละกรณี",
+    "ระบุและแยกปัญหา Configuration โดยใช้ Safe mode และการทดสอบด้วย Configuration directory ที่สะอาด"
+  ],
+  "key_concept": "วินิจฉัยจากสิ่งที่ถูกโหลดจริง ไม่ใช่จากสิ่งที่เขียนไว้บน Disk — ไฟล์บน Disk บ่งบอกเพียงความตั้งใจในการตั้งค่า ก่อนเริ่มแก้ไข ให้ตรวจสอบกับ Session ที่กำลังทำงานอยู่ว่าโหลดค่าใดเข้ามาจริงและ Configuration จาก Source ใดมีผล จากนั้นจึงจำกัดสาเหตุด้วยการปิด Customizations ทีละส่วน",
+  "sections": [
+    {
+      "heading": "1. เริ่มจากอาการที่พบ แล้วเช็กสิ่งที่ถูกโหลดเข้ามา",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ปัญหาส่วนใหญ่ที่เจอใน Claude Code เช่น \"ทำไมมันไม่ยอมใช้ Settings ที่ตั้งไว้\" มักเกิดจาก 3 สาเหตุหลัก: ไม่ได้อ่านไฟล์ config, อ่านแล้วแต่ถูกเขียนทับ (override), หรืออ่านแล้วแต่ไม่ match กับเงื่อนไขใดเลย การเปิดดูไฟล์ JSON ซ้ำๆ จะแยกสาเหตุเหล่านี้ไม่ออก เพราะโครงสร้างไฟล์ดูถูกต้องทั้ง 3 กรณี แต่ Session รู้ความแตกต่างนี้ได้ เพราะแต่ละ Customization มี Slash Command ไว้ตรวจสอบค่าที่ active อยู่จริง ณ ปัจจุบัน"
+        },
+        {
+          "type": "table",
+          "caption": "Commands สำหรับตรวจสอบสิ่งที่โหลดเข้ามาใน Session ปัจจุบัน",
+          "headers": [
+            "Command",
+            "สิ่งที่แสดงผล"
+          ],
+          "rows": [
+            [
+              "/memory",
+              "Path ของ Memory file ทั้งระดับ User และ Project รวมถึงโฟลเดอร์ Auto memory และสถานะเปิด/ปิด"
+            ],
+            [
+              "/skills",
+              "Skills ที่พร้อมใช้งานจาก Project, User และ Plugin"
+            ],
+            [
+              "/hooks",
+              "Hook configurations ที่กำลัง active"
+            ],
+            [
+              "/mcp",
+              "MCP servers ที่เชื่อมต่ออยู่พร้อมสถานะการทำงาน"
+            ],
+            [
+              "/permissions",
+              "Allow และ Deny rules ทั้งหมดที่ผ่านการ resolve และมีผลใช้งานอยู่"
+            ],
+            [
+              "/status",
+              "Settings sources ที่ active อยู่ รวมถึงสถานะว่ามีการใช้ Managed settings หรือไม่"
+            ],
+            [
+              "/doctor",
+              "ตรวจสอบสภาพระบบ: หาไฟล์ Settings ที่ syntax ผิดพลาด, Extensions ที่ไม่ได้ใช้, Subagent names ซ้ำ พร้อมแนะนำวิธีแก้"
+            ],
+            [
+              "/debug [issue]",
+              "เปิด Debug logging และให้ Claude วิเคราะห์ปัญหาจาก Log และ Path ของ Settings"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เลือก Command ให้ตรงกับอาการที่พบ: ถ้า Hook ไม่ยอม trigger ให้เปิด `/hooks`, ถ้า Deny rule ไม่บล็อกคำสั่ง ให้เปิด `/permissions`, หรือถ้าไม่แน่ใจว่าเกิดจาก Layer ไหน ให้ใช้ `/status` เพื่อดู Settings source ทุกระดับ รวมถึง Managed settings ที่ไฟล์ของ User ไม่สามารถ override ได้ ผลลัพธ์ที่ว่างเปล่าหรือไม่เป็นไปตามที่คิดคือเบาะแสแรกที่จะบอกว่า ปัญหาเกิดจากการโหลด (Loading), ลำดับความสำคัญ (Precedence) หรือการจับคู่เงื่อนไข (Matching)"
+        }
+      ]
+    },
+    {
+      "heading": "2. Settings, Memory files และ Permission rules ที่ไม่ทำงานแบบเงียบๆ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ลำดับความสำคัญ (Precedence) เป็นเหตุผลหลักที่ทำให้ค่าใน Settings \"ถูกมองข้าม\" โดยลำดับคือ `settings.local.json` จะชนะ `settings.json` ของ Project และตามด้วย `~/.claude/settings.json` ของ User เสมอ ค่าที่ Developer ตั้งไว้ในไฟล์ Local ของตัวเองจะ override ค่าที่ทีม commit ไว้ แม้คำสั่ง `/status` จะยังแสดงว่าอ่านไฟล์ของ Project อยู่ก็ตาม อีกข้อผิดพลาดที่พบบ่อยคือการวาง config ผิดไฟล์: `~/.claude.json` มีไว้สำหรับเก็บ App state และ UI toggles ส่วน Permissions, Hooks และ Env ต้องอยู่ใน `~/.claude/settings.json` เท่านั้น หากใส่ Rule ไว้ในไฟล์แรก จะไม่มีผลทำงานใดๆ ทั้งสิ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Memory files อาจเขียนถูกต้องแต่ยังไม่ถูกโหลดเข้ามา หาก Claude ดูเหมือนจะมองข้ามคำแนะนำ ให้เปิด `/memory` เพื่อตรวจว่า Session รับรู้ไฟล์ใดบ้าง (การเขียนคำแนะนำที่ดีดูได้จาก [CLAUDE.md as implementation guidance](lesson:6.4)) จุดที่มักพลาดมี 2 เรื่อง: `CLAUDE.md` ใน Subdirectory จะโหลดแบบ On-demand เมื่อ Claude อ่านไฟล์ใน Subdirectory นั้น ไม่ได้โหลดตอนเริ่ม Session และ Subagents ในตัวอย่าง Explore และ Plan จะข้ามการโหลด `CLAUDE.md` ตอน startup ดังนั้นควรรวมคำสั่งสำคัญไว้ใน Prompt ที่ใช้ delegate เสมอ รวมถึง Custom Subagent ที่ตั้งค่า `omitClaudeMd` ก็จะข้ามการโหลดนี้เช่นกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Permission rules ที่ไม่ทำงานมักเกิดจากการไม่ match ไม่ใช่เพราะมี Error (รายละเอียดการเขียนดูได้จาก [permission rules: allow, ask and deny](lesson:7.1)) จุดสำคัญในการ Debug คือ Bash rule จะเทียบกับ String คำสั่งแบบ Literal ตัวอย่างเช่น `Bash(rm *)` จะไม่บล็อก `/bin/rm` หรือ `find -delete` และระบบจะไม่แจ้งเตือนใดๆ ให้เช็กค่าที่ผ่านการ Resolve แล้วผ่าน `/permissions` เสมอ หากต้องการการันตีความปลอดภัยที่แน่นอน ควรใช้ PreToolUse hook หรือ Sandbox แทนการใช้ String pattern"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ถ้า /status แสดงว่ากำลังอ่าน settings.json ของ Project แสดงว่าทุกค่าในนั้นต้องมีผลใช้งานจริง? (ทำไมถึงผิด): ไม่จริง: การที่ไฟล์ถูกอ่านไม่ได้แปลว่าจะชนะเสมอไป คีย์เดียวกันที่อยู่ใน settings.local.json จะ override ไฟล์ของ Project และไฟล์ของ Project ก็จะ override ไฟล์ของ User ตามลำดับ Precedence"
+        }
+      ]
+    },
+    {
+      "heading": "3. Hooks ที่ไม่เคยทำงาน (Never Fire)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Hook ที่ไม่ทำงานมักจะไม่แสดง Error ใดๆ ออกมาเลย ทำให้สังเกตและตรวจจับได้ยาก กลไกการทำงานของ [hooks: actions that always run](lesson:7.2) มีอธิบายไว้ในบทอื่น สำหรับการ Debug ให้เริ่มต้นด้วยคำสั่ง /hooks หาก Hook ไม่ปรากฏในรายการ แสดงว่า Hook ไม่ถูกโหลด แต่ถ้ามีชื่ออยู่ในรายการแต่ไม่เคยถูก Trigger แสดงว่า Matcher ไม่ตรงกับเงื่อนไขใดๆ เลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "สาเหตุหลักที่พบบ่อยซ้ำๆ มีดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Standalone file: แยกไฟล์ Hook ไว้ต่างหาก ทั้งที่ Project hooks และ User hooks ต้องกำหนดไว้ใต้คีย์ \"hooks\" ใน settings.json เท่านั้น (มีเพียง Plugins เท่านั้นที่โหลดแยกจาก hooks/hooks.json)\n- Array matcher: กำหนด Matcher เป็น JSON Array แทนที่จะเป็น String เดี่ยว ซึ่ง Claude Code จะแจ้งเตือน Invalid Setting ตอน Startup และในคำสั่ง claude doctor โดยหากเกิดขึ้นใต้ PreToolUse หรือ PermissionRequest จะส่งผลให้ Hook อื่นๆ ทั้งหมดในไฟล์นั้นไม่ถูกโหลดไปด้วย\n- Lowercase name: ใช้ชื่อตัวพิมพ์เล็ก เช่น \"bash\" จะไม่ตรงกับอะไรเลย เพราะการ Match เป็นแบบ Case-sensitive และชื่อ Tools ต้องขึ้นต้นด้วยตัวพิมพ์ใหญ่เสมอ (Bash, Edit, Write, Read)\n- Comma separator บนเวอร์ชันเก่า: ในเวอร์ชันก่อนหน้า v2.1.191 ค่า \"Edit,Write\" จะถูกประเมินแบบ Literal String และไม่เคย Match สำเร็จ ควรใช้ \"Edit|Write\" ซึ่งรองรับทุกเวอร์ชัน\n- Misspelled tool name: พิมพ์ชื่อ Tool ผิด ทำให้ Matcher ไม่ตรงกับเงื่อนไข ส่งผลให้ Hook ล้มเหลวเงียบๆ (Silent Fail)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ข้อควรระวังในข้อสอบ: การใส่ Matcher เป็น Array ใต้ PreToolUse ไม่ได้ทำให้ Hook นั้นพังแค่ตัวเดียว แต่จะทำให้ Hook อื่นๆ ทั้งหมดในไฟล์เดียวกันไม่ถูกโหลดไปด้วย จนดูเหมือน Hook ทั้งหมดพังพร้อมกัน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Hook ที่ตั้ง Matcher เป็น \"bash\" หากผิดพลาด อย่างน้อยระบบต้องพ่น Error Log ออกมา? (ทำไมถึงผิด): ไม่จริง: Matcher เป็นแบบ Case-sensitive และ Matcher ที่ไม่ตรงกับอะไรเลยจะไม่สร้าง Error ใดๆ ขึ้นมา ทำให้ Hook แค่ไม่ถูกเรียกทำงานเลยโดยสิ้นเชิง"
+        }
+      ]
+    },
+    {
+      "heading": "4. สถานะล้มเหลว 3 แบบของ MCP Server และวิธีแก้ไข",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "อาการ \"MCP server ใช้งานไม่ได้\" สามารถแบ่งออกได้เป็น 3 สถานะ ซึ่งแต่ละสถานะมีวิธีแก้ไขที่แตกต่างกัน คำสั่ง /mcp จะแสดงสถานะปัจจุบัน ให้แก้ปัญหาให้ตรงกับสถานะนั้น เพราะการนำวิธีแก้ของสถานะอื่นมาใช้จะไม่ช่วยอะไร"
+        },
+        {
+          "type": "table",
+          "caption": "สถานะ MCP Server ใน /mcp, ความหมาย และแนวทางแก้ไข",
+          "headers": [
+            "สถานะใน /mcp",
+            "ความหมาย",
+            "วิธีแก้ (Fix)"
+          ],
+          "rows": [
+            [
+              "failed",
+              "Server Process ไม่เริ่มทำงาน มักเกิดจาก Relative Path ใน command หรือ args ซึ่งจะ resolve อิงตาม Launch Directory",
+              "ใช้ Absolute Path สำหรับ Local Scripts ส่วน Executables บน PATH เช่น npx หรือ uvx สามารถใช้งานได้ตามเดิม"
+            ],
+            [
+              "Not listed / disabled (project server)",
+              "ผู้ใช้เคยกดปิดหรือข้าม One-time Approval Prompt สำหรับ Server ใน .mcp.json",
+              "กด Approve ผ่านคำสั่ง /mcp"
+            ],
+            [
+              "connected, zero tools",
+              "Server เริ่มทำงานแล้ว แต่ไม่ส่ง Tool List กลับมา",
+              "เลือก Reconnect หากยังมี 0 Tools ให้รัน claude --debug=mcp แล้วดู stderr ของ Server ใน ~/.claude/debug/<session-id>.txt"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สถานะ Zero-tools เป็นสถานะที่คนมักวินิจฉัยผิดมากที่สุด ในเมื่อ Server ขึ้นสถานะ Connected แสดงว่า Process เริ่มทำงานสำเร็จแล้ว การไปแก้ Path หรือขอ Approval ใหม่จึงเป็นการแก้ผิดจุด ข้อมูลที่สำคัญที่สุดคือ stderr ของตัว Server เอง ซึ่งจะแสดงอยู่ใน Debug Log เท่านั้น นอกจากนี้ Safe Mode ก็ไม่เกี่ยวกับเคสนี้ เพราะ Safe Mode จะปิด MCP Servers ทั้งหมด ดังนั้น Server ที่ขึ้นสถานะ Connected ย่อมไม่ได้รันอยู่ใต้ Safe Mode แน่นอน"
+        },
+        {
+          "type": "paragraph",
+          "text": "หาก Server ไม่ปรากฏในรายการเลย มักหมายความว่าไฟล์ Config ไม่ถูกอ่าน Project Servers ต้องอยู่ใน .mcp.json ที่ Root ของ Repository เท่านั้น (ไม่ใช่ใต้ .claude/) และต้องอยู่ใต้คีย์ mcpServers ไม่ใช่คีย์ servers แบบ VS Code อีกทั้ง settings.json จะไม่อ่านคีย์ mcpServers เลย หาก Server รันขึ้นแต่ขาด Environment Variables ให้ตั้งค่าแยกราย Server ภายใน Entry ของมันใน .mcp.json"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Server ที่ขึ้น Connected แต่แสดง 0 Tools จำเป็นต้องเปลี่ยนไปใช้ Absolute Path หรือขอ Approval ใหม่อีกครั้ง? (ทำไมถึงผิด): ไม่จริง: ปัญหาเรื่อง Path ทำให้ Server สตาร์ทไม่ติด (Failed) ส่วนการ Dismiss Approval จะทำให้ Server อยู่ในสถานะ Disabled แต่ถ้า Server ขึ้น Connected แล้ว แสดงว่า Process ทำงานเรียบร้อย ขั้นตอนถัดไปคือการกด Reconnect และตรวจสอบ stderr ของ Server ใน Debug Log"
+        }
+      ]
+    },
+    {
+      "heading": "5. แยกหาสาเหตุด้วย Safe Mode หรือ Clean Config Directory",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การทำ Isolation เหมาะสำหรับกรณีที่คำสั่ง Reporting ต่างๆ แสดงผลปกติ แต่ปัญหายังคงอยู่ โดย Safe Mode เป็นขั้นตอนแรกที่เร็วที่สุด เริ่มด้วยการรัน `claude --safe-mode` หรือตั้งค่า `CLAUDE_CODE_SAFE_MODE` ซึ่งจะไม่อัปโหลด `CLAUDE.md`, Skills, Plugins, Hooks, MCP Servers ตลอดจน Custom Commands และ Agents แต่ยังคงใช้งาน Authentication, Model Selection, Built-in Tools และ Permissions ได้ตามปกติ หากปัญหาหายไป แสดงว่าต้นเหตุมาจาก Customization ตัวใดตัวหนึ่งที่ถูกปิดไป การทดสอบนี้ยังใช้ได้ดีกับปัญหา CPU หรือ Memory พุ่งสูง (Runaway) หากการใช้งานลดลงใน Safe Mode ให้พุ่งเป้าไปที่ Plugins, MCP Servers และ Hooks ก่อน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การใช้ Clean Configuration Directory เป็นการเจาะลึกขึ้นเพื่อระบุว่าปัญหาเกิดจาก Layer ไหน โดยสร้างโฟลเดอร์ว่างขึ้นมาใหม่ แล้วเปิด Claude Code โดยชี้ Config ไปยังตำแหน่งใหม่ และเปิดใช้งานเฉพาะ User Settings Sources:"
+        },
+        {
+          "type": "paragraph",
+          "text": "จากนั้นลอง Reproduce ปัญหาอีกครั้ง หากปัญหาหายไป แสดงว่าสาเหตุอยู่ใน User หรือ Project Configuration ให้ค่อยๆ Copy `~/.claude.json` และไฟล์ต่างๆ ใน `~/.claude` เข้ามาใน Clean Directory ทีละไฟล์จนกว่าปัญหาจะกลับมา หากยังไม่พบปัญหา ให้ย้ายไปที่ Project Directory แล้วรันโดยไม่ใส่ `--setting-sources user` แต่ถ้าปัญหายังคงอยู่แม้จะใช้ Clean Setup แสดงว่าสาเหตุอยู่นอกเหนือ User และ Project Configuration ให้รัน `/status` เพื่อตรวจสอบ Managed Settings แล้วตรวจสอบ Environment Variables ของ Shell ต่อไป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Safe Mode ช่วยปิดการทำงานทุกอย่างยกเว้น Customizations ใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: Safe Mode ปิดเฉพาะ Customizations (เช่น `CLAUDE.md`, Skills, Plugins, Hooks, MCP Servers) แต่ยังคงเปิด Permissions, Authentication, Built-in Tools และ Model Selection ไว้ หากยังมีปัญหาใน Safe Mode สาเหตุอาจมาจาก Permissions หรือ Config ในระดับ Environment / Managed Settings ซึ่งต้องใช้ `/status` หรือ `/doctor` ตรวจสอบต่อ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57068",
+      "question": "Admin ได้ตั้งค่า model: claude-opus-4-8 ในไฟล์ .claude/settings.json ของโปรเจกต์ เพื่อให้ทุกคนในทีมใช้ Opus เป็นค่า default แต่มีวิศวกรคนหนึ่งที่ session ยังคงเริ่มต้นด้วย Sonnet เสมอ ทั้งที่คำสั่ง /status ยืนยันแล้วว่ามีการอ่านค่า project settings ข้อใดคือสาเหตุที่เป็นไปได้มากที่สุด?",
+      "options": [
+        "วิศวกรคนดังกล่าวมีการตั้งค่าคีย์ model เดียวกันนี้ไว้ใน .claude/settings.local.json ซึ่งจะ override ค่า settings.json ในระดับโปรเจกต์",
+        "ไม่มีการ export ค่า environment variable ชื่อ ANTHROPIC_MODEL ใน shell ของวิศวกรคนนั้น ทำให้ Claude Code ไม่สามารถอ่านค่า default ของโปรเจกต์ได้เลย",
+        "เวอร์ชันของ Claude Code ที่วิศวกรใช้งานอยู่เก่าเกินกว่าจะรองรับฟิลด์ model ใน settings.json ทำให้คีย์ดังกล่าวถูกละเลย (silently ignored)",
+        "ค่า default ของ model ที่กำหนดใน settings.json จะมีผลเฉพาะกับโปรเจกต์ใหม่ที่สร้างขึ้นหลังจากเพิ่มการตั้งค่าเท่านั้น ไม่ส่งผลต่อ directory โปรเจกต์เดิมที่มีอยู่แล้ว"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57067",
+      "question": "โปรเจกต์ของทีมต้องพึ่งพา internal MCP server สำหรับการค้นหา ticket เมื่อรันคำสั่ง /mcp พบว่าสถานะของ server แสดงเป็น connected แต่ Claude แจ้งว่าไม่มี tools ให้ใช้งานจาก server นั้นและไม่สามารถค้นหา ticket ได้ ขั้นตอนที่ถูกต้องในการวินิจฉัย (diagnose) ปัญหานี้คือข้อใด?",
+      "options": [
+        "เลือก Reconnect สำหรับ server นั้นจากคำสั่ง /mcp และหากจำนวน tools ยังคงเป็นศูนย์ ให้รัน claude --debug mcp เพื่อดู stderr output ของ server",
+        "แก้ไขไฟล์ .mcp.json เพื่อเปลี่ยนคำสั่ง command ของ server จาก relative path เป็น absolute path เนื่องจาก relative path จะทำให้ tools ไม่โหลดเสมอ",
+        "ทำการ Approve server นั้นจากคำสั่ง /mcp ใหม่อีกครั้ง เนื่องจาก project-scoped MCP servers จะหยุดส่งคืน tools ทันทีหลังจาก one-time approval หมดอายุ",
+        "รีสตาร์ต Claude Code ด้วยคำสั่ง claude --safe-mode เนื่องจาก server ที่รายงาน tools เป็นศูนย์ขณะเชื่อมต่ออยู่ จะถูกปิดใช้งานภายใต้ safe mode เสมอ"
+      ],
+      "explanation": ""
+    }
+  ]
+}

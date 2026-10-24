@@ -1,0 +1,225 @@
+{
+  "title": "Progressive Discovery เทียบกับ Monolithic Context: Tool Search และแนวทางการเลือกใช้",
+  "objectives": [
+    "ประเมิน Cost ต่อ Request จากการโหลด Tool Definitions ทั้งหมดตั้งแต่ต้น และระบุจำนวน Tools ที่เริ่มส่งผลให้ Selection Accuracy ลดลง",
+    "ตั้งค่า Tool Search ด้วย defer_loading และอธิบายกลไกการดึง Deferred Tools เข้า Context ผ่าน tool_reference Blocks",
+    "กำหนดค่า ENABLE_TOOL_SEARCH ใน Agent SDK พร้อมวิเคราะห์เงื่อนไขที่แต่ละค่าจะโหลด Tools ล่วงหน้า",
+    "เลือกสถาปัตยกรรมที่เหมาะสมระหว่าง Fixed Tool Set, Tool Search, Skills หรือ Hybrid โดยเปรียบเทียบ Search Round-trips กับ Context Window ที่ประหยัดได้"
+  ],
+  "key_concept": "Progressive Discovery — รักษาเฉพาะ Entry Points ขนาดเล็กไว้ใน Context เช่น Search Tool หรือชื่อและ Description ของ Skill แล้วจึงโหลด Definitions และ Instructions ฉบับเต็มเมื่อ Request ร้องขอ ต่างจาก Monolithic Strategy ที่โหลดทุกอย่างลงทุก Request ไม่ว่าจะถูกเรียกใช้หรือไม่",
+  "sections": [
+    {
+      "heading": "1. ต้นทุนของ Monolithic Tool Set ก่อนเริ่มงานจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "กลยุทธ์ Monolithic Context คือการยัด Tool Definitions ทั้งหมดลง Context Window ในทุก Request ซึ่งเป็นวิธีแบบเดิมที่นำมาเทียบกับ Progressive Discovery นิยามของ Tools จะถูกนับ Token รวมใน Context เช่นเดียวกับข้อความทั่วไป ในระบบ Multiserver ทั่วไปที่ต่อ GitHub, Slack, Sentry, Grafana และ Splunk อาจกิน Token ไปถึง 55k tokens สำหรับ Definitions เพียงอย่างเดียวก่อนที่ Claude จะได้เริ่มทำอะไรจริงจัง ส่วน Agent SDK มี Rule of Thumb ประเมินไว้ว่า Tools ประมาณ 50 ตัว อาจใช้ไปถึง 10–20K tokens"
+        },
+        {
+          "type": "paragraph",
+          "text": "Token Cost เป็นเพียงครึ่งหนึ่งของปัญหาเท่านั้น ความแม่นยำของ Claude ในการเลือก Tool จะเริ่มลดลงอย่างเห็นได้ชัดเมื่อมี Tools ให้เลือกพร้อมกันเกิน 30–50 ตัว Agent ที่เคยทำงานได้ดีกับ 2 MCP Servers อาจเริ่มเลือก Tool ผิดทันทีเมื่อต่อ Server ที่ 3 หรือ 4 เพิ่ม แม้ตัว Tools เดิมจะไม่มีการเปลี่ยนแปลงใดๆ ซ้ำยังเจอปัญหา Context Rot เมื่อ Token เพิ่มขึ้นทั้ง Accuracy และ Recall จะดรอปลง ทำให้ Definitions ขนาดใหญ่ที่แทบไม่ได้ใช้งานไปรบกวน Context ส่วนอื่นทั้งหมด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ตัวเลขที่ต้องจำสำหรับความแม่นยำในการเลือก Tools (Tool-Selection Accuracy) คือเท่าไร?: ไม่จริง: การโหลด Tools หลายสิบหรือหลายร้อยตัวพร้อมกันไม่มีผลต่อความแม่นยำ ข้อเท็จจริงคือ ประสิทธิภาพจะเริ่มดรอปเมื่อโหลด Tools พร้อมกันเกิน 30–50 ตัว โดยจำนวนเลขหลักเดียวถือว่าปลอดภัย แต่หลักร้อยตัวจะส่งผลเสียอย่างรุนแรง"
+        },
+        {
+          "type": "paragraph",
+          "text": "การขยาย Context Window ให้ใหญ่ขึ้นไม่ได้ช่วยแก้ปัญหานี้ แม้ Context ขนาดใหญ่จะรองรับ 55k tokens ได้ แต่ไม่ได้ช่วยฟื้นฟู Selection Accuracy และ Context Rot จะยิ่งแย่ลงเมื่อ Context เต็ม สิ่งสำคัญคือปริมาณข้อมูลที่อยู่ใน Context ไม่ใช่ขนาดพื้นที่ว่างที่เหลืออยู่"
+        }
+      ]
+    },
+    {
+      "heading": "2. การใช้ Tool Search เพื่อกัน Deferred Tools ออกจาก Context",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Tool Search คือกลไก Progressive Discovery สำหรับ Tools ในระดับ API โดยเปลี่ยนจากการยัด Catalogue ทั้งหมดมาเป็นการค้นหาทีละขั้น Tool Search ช่วยลด Footprint ของ Definition ลงได้มากกว่า 85% โดยจะโหลดเฉพาะ Tools 3–5 ตัวที่ Request นั้นจำเป็นต้องใช้จริงๆ เข้ามา ส่งผลให้ Selection Accuracy ยังคงสูงอยู่เสมอ แม้ทั้งระบบจะมี Tools เป็นพันๆ ตัวก็ตาม เนื่องจาก Claude เลือกจากลิสต์ขนาดสั้นที่เกี่ยวข้องเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tool Search มีให้เลือก 2 รูปแบบ คือ Regex Variant (`tool_search_tool_regex_20251119`) ที่ Claude จะค้นหาด้วย Regex Patterns และ BM25 Variant (`tool_search_tool_bm25_20251119`) ที่ Claude จะค้นหาด้วย Natural Language ทั้งสองแบบจะค้นหาจาก Tool Names, Descriptions, Argument Names และ Argument Descriptions ดังนั้น Description ที่เขียนอย่างชัดเจนจึงเป็นกุญแจสำคัญที่ทำให้หา Tool เจอ การเปิดใช้งานทำได้โดยเพิ่ม Variant ตัวใดตัวหนึ่งลงใน `tools` list และกำหนด `defer_loading: true` ให้กับ Tools ที่ต้องการกันออกจาก Context"
+        },
+        {
+          "type": "paragraph",
+          "text": "`defer_loading` ทำหน้าที่กำหนดว่าอะไรจะถูกนำเข้า Context Window ของ Claude ไม่ใช่การตัดออกจาก Request ในตอนเริ่มต้น Context ของ Claude จะมีเฉพาะตัว Search Tool และ Tools ที่ไม่ได้กำหนด Deferred เท่านั้น เมื่อ Claude ต้องการเรียกใช้ Tool อื่น จะทำการ Call ไปยัง Search Tool ซึ่งการค้นหาจะรันบนเซิร์ฟเวอร์ของ Anthropic และส่งผลลัพธ์ที่ตรงกันกลับมาเป็น `tool_reference` blocks (ค่า Default คือ 5 รายการ และ Claude สามารถกำหนด Limit ได้ระหว่าง 1 ถึง 10,000) จากนั้น API จะทำการขยาย Reference แต่ละตัวให้เป็น Full Tool Definition อัตโนมัติก่อนที่ Claude จะเห็น โดยฝั่ง Developer ไม่ต้องเขียนโค้ดขยายเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อควรระวังสำคัญสำหรับ Conversation Loop ที่มักผิดพลาดบ่อย:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- ต้องส่ง Assistant Content กลับไปโดยห้ามดัดแปลง รวมถึง `server_tool_use` และ `tool_search_tool_result` blocks\n- ห้ามส่ง `tool_result` สำหรับ ID ที่ขึ้นต้นด้วย `srvtoolu_...` เด็ดขาด เพราะ API จะ Reject คำขอทันที\n- Execute การเรียกใช้งาน `tool_use` ปกติของ Tool ที่ค้นพบ แล้วส่ง `tool_result` กลับไปตามขั้นตอนปกติ\n- หากค้นหาไม่พบ Tool ที่ตรงกัน API จะส่ง Array `tool_references` ว่างกลับมา ไม่ใช่ Error"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tools ที่ถูกค้นพบแล้วจะยังคงใช้งานได้ต่อเนื่อง API จะทำการขยาย `tool_reference` blocks ตลอด Conversation History ทำให้ Claude สามารถเรียกใช้ Tool ตัวเดิมซ้ำในเทิร์นถัดๆ ไปได้ทันทีโดยไม่ต้อง Search ใหม่ อีกทั้ง Deferred Tools จะไม่ถูกนำไปรวมใน System-Prompt Prefix แต่จะแทรก Reference เข้ามาแบบ Inline ทำให้ Prefix คงเดิมและ Prompt Caching ยังคงทำงานได้อย่างสมบูรณ์ ทั้งนี้ ต้องมี Tool อย่างน้อยหนึ่งตัว (โดยทั่วไปคือตัว Search Tool เอง) ที่ไม่ได้ตั้งค่า Deferred และห้ามตั้ง `defer_loading: true` บน Search Tool เด็ดขาด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: สามารถตัด Deferred Tools ออกจาก `tools` array ใน Request ได้เพราะ Claude จะค้นหาเองในภายหลัง ข้อเท็จจริงคือ `defer_loading` ควบคุมเฉพาะข้อมูลที่จะส่งเข้า Context เท่านั้น แต่ API ยังคงต้องการ Full Definitions ครบทุกตัวในทุก Request เพื่อใช้รัน Search Engine และขยาย `tool_reference` blocks"
+        }
+      ]
+    },
+    {
+      "heading": "3. การเปิดใช้งาน Tool Search ใน Agent SDK ด้วย ENABLE_TOOL_SEARCH",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Agent SDK การเปิดใช้ Tool Search จะควบคุมผ่าน Environment Variable ที่ชื่อว่า ENABLE_TOOL_SEARCH ซึ่งส่งผ่านตัวเลือก env โดยบน Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 และโมเดลรุ่นหลังจากนี้ Tool Search จะถูกเปิดใช้งานเป็น Default จุดนี้สำคัญมากเมื่อเชื่อมต่อ MCP Server ขนาดใหญ่ เพราะ Tools ต่างๆ จะถูก Defer โดยอัตโนมัติเว้นแต่จะกำหนดไว้เป็นอย่างอื่น ค่าแต่ละแบบจะเป็นตัวตัดสินว่าจะ Defer นิยามของ Tools หรือจะโหลดขึ้นมาล่วงหน้า (Load Up Front)"
+        },
+        {
+          "type": "table",
+          "caption": "ค่าต่างๆ ของ ENABLE_TOOL_SEARCH และพฤติกรรมการทำงาน",
+          "headers": [
+            "Value",
+            "Behavior"
+          ],
+          "rows": [
+            [
+              "(unset)",
+              "เปิดใช้งาน Tool Search โดย Defer นิยามของ Tools ไว้; จะ Fallback กลับไปเป็นแบบโหลดล่วงหน้าทั้งหมด (Load Up Front) บนโมเดลรุ่นเก่า, มีการตั้งค่า ANTHROPIC_BASE_URL ที่ไม่ใช่ First-party หรือการ Deploy ด้วย Microsoft Foundry บน Azure"
+            ],
+            [
+              "true",
+              "เปิด Tool Search ไว้เสมอแม้จะใช้ ANTHROPIC_BASE_URL ที่ไม่ใช่ First-party; Request จะล้มเหลวทันทีหากผ่าน Proxy ที่ไม่รองรับบล็อก tool_reference"
+            ],
+            [
+              "auto",
+              "เปิดใช้งานเฉพาะเมื่อนิยามของ Tools ที่สามารถ Defer ได้มีขนาดแตะ 10% ของ Context Window ของโมเดล; หากต่ำกว่านั้นจะโหลดล่วงหน้าทั้งหมด"
+            ],
+            [
+              "auto:N",
+              "เหมือนกับ auto แต่กำหนด Threshold เองได้ เช่น auto:5 จะเริ่มทำงานเมื่อถึง 5%"
+            ],
+            [
+              "false",
+              "ปิดการใช้งาน; โหลดนิยามของ Tools ทั้งหมดเข้าสู่ Context ในทุกๆ Turn"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ค่า auto ช่วยแปลงการเลือกระหว่างสองกลยุทธ์ให้เป็น Threshold ที่วัดผลได้ โดยจะนับจำนวน Token ในนิยามของ Tools ที่ Defer ได้ แล้วนำไปเทียบกับ Context Window ของโมเดล ชุด Tools ขนาดเล็กจึงยังคงเป็นแบบ Monolithic (โหลดรวมทั้งหมด) ส่วนชุด Tools ที่ขยายใหญ่ขึ้นจะสลับไปใช้ Search อัตโนมัติโดยไม่ต้องแก้โค้ด การตั้งค่า N ต่ำลงจะทำให้สลับเร็วขึ้น ขณะที่ false จะบังคับใช้กลยุทธ์ Monolithic ในทุก Turn สำหรับใน SDK แค็ตตาล็อกหนึ่งสามารถเก็บ Tools ได้สูงสุดถึง 10,000 ตัว และการ Search แต่ละครั้งจะส่งคืน 5 Tools ที่เกี่ยวข้องที่สุดโดย Default"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้งค่า ENABLE_TOOL_SEARCH เป็น auto หมายความว่า Tool Definitions จะถูก Defer เสมอ? (ทำไมถึงผิด): ไม่จริง: auto จะ Defer ก็ต่อเมื่อนิยามของ Tools ที่ Defer ได้มีขนาดแตะ 10% ของ Context Window หากต่ำกว่า Threshold นั้น ทุกนิยามจะถูกโหลดล่วงหน้า (Load Up Front) ทั้งหมด"
+        }
+      ]
+    },
+    {
+      "heading": "4. การเลือกระหว่าง Progressive Discovery หรือ Fixed Tool Set",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "หลักคิดทั่วไปคือ: ให้โหลดชุด Tools ขนาดเล็กที่ใช้งานบ่อยไว้ล่วงหน้า (Load Up Front) และใช้ Progressive Discovery สำหรับแค็ตตาล็อกขนาดใหญ่หรือ Tools ที่แทบไม่ได้เรียกใช้ ต้นทุนของ Tool Search คือเรื่อง Latency เพราะ Claude ต้องใช้เพิ่มอีกหนึ่ง Turn ในการค้นหา Tool ก่อนจะเรียกใช้งานจริง แต่สิ่งที่แลกกลับมาคือ Baseline Context Usage จะลดลงอย่างมหาศาล Trade-off นี้จะคุ้มค่าเมื่อมี Tools ตั้งแต่ 20 ตัวขึ้นไปที่ส่วนใหญ่ไม่ได้ถูกเรียกใช้ในทุก Turn แต่จะไม่คุ้มค่าเลยหากทุก Tool ถูกเรียกใช้งานอย่างต่อเนื่องตลอดเวลา"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือกกลยุทธ์การโหลดให้เหมาะกับชุด Tools",
+          "headers": [
+            "Situation",
+            "Strategy",
+            "Reason"
+          ],
+          "rows": [
+            [
+              "มี Tools เล็กน้อย และแทบทุกตัวถูกเรียกใช้ในเกือบทุก Request",
+              "Load all up front (ไม่ต้องใช้ Tool Search)",
+              "การเสีย Round-trip ไปค้นหา Tool ก่อนเรียกใช้ ทั้งที่ Claude ต้องใช้อยู่แล้วนั้นไม่คุ้มค่า และแทบไม่ช่วยประหยัด Context"
+            ],
+            [
+              "มี Tools ราวๆ 20+ ตัว และส่วนใหญ่ไม่ได้ใช้งานในแต่ละ Turn",
+              "ใช้ Tool Search ร่วมกับ defer_loading บนกลุ่ม Long Tail (Tools ที่นานๆ ใช้ที)",
+              "ลด Baseline Context ลงได้อย่างมาก โดยแลกกับการเพิ่ม 1 Turn สำหรับ Lookup"
+            ],
+            [
+              "แค็ตตาล็อกขนาดใหญ่ แต่มี Tools ไม่กี่ตัวที่ใช้งานหนักมาก",
+              "ใช้ Tool Search โดยกำหนดให้ 3–5 Tools ที่ใช้บ่อยที่สุดเป็น Non-deferred",
+              "การเรียกใช้งานทั่วไปจะข้ามขั้นตอน Search ไปได้ทันที ส่วน Tools ที่ใช้น้อยจะยังอยู่นอก Context"
+            ],
+            [
+              "ชุด Tools ขนาดใหญ่แต่คงที่ (Fixed) ตลอดหลาย Request",
+              "Prompt Caching (ใช้เดี่ยวๆ หรือใช้ร่วมกับ Tool Search)",
+              "ช่วยลดค่าใช้จ่ายของนิยาม Tools ที่ส่งซ้ำ แต่ไม่ได้ลดจำนวน Token ที่ค้างอยู่ใน Context"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น Internal Agent ที่มี 7 Tools กินขนาดนิยามราว 1,200 Tokens และเกือบทุก Tool ถูกเรียกใช้ในทุก Request การ Defer เครื่องมือเหล่านี้จะเพิ่มขั้นตอน Search ก่อนการเรียกใช้งานที่ Claude รู้อยู่แล้วว่าจะต้องเรียก โดยแลกกับการประหยัด Token เพียงเล็กน้อยซึ่งแทบไม่มีผล ดังนั้นควรโหลดทั้งหมดทิ้งไว้ (Keep Loaded) เช่นเดียวกับคำแนะนำที่ให้คง 3–5 Tools ที่ใช้บ่อยที่สุดเป็น Non-deferred เพราะตราบใดที่ Tool มีแนวโน้มว่าจะต้องถูกใช้งาน มันก็ควรอยู่ใน Context ตั้งแต่แรก"
+        },
+        {
+          "type": "paragraph",
+          "text": "ในทางกลับกัน Multiserver Agent ขนาด 55k Tokens คือกรณีตรงกันข้าม Tool Search คือทางออกของเคสนี้ เพราะเป็นตัวเลือกเดียวที่นำเอานิยามออกจาก Context ได้จริง การทำ Prompt Caching ช่วยให้นิยามที่ส่งซ้ำมีราคาถูกลงก็จริง แต่ทุก Token ยังคงกินพื้นที่ใน Context และ Agent ยังต้องคอยเลือกระหว่าง Tools หลายสิบตัวอยู่ดี ส่วนการเขียนคำอธิบายใหม่ทั้งหมดด้วยมืออาจช่วยลดขนาดนิยามลงได้บ้าง แต่จำนวน Tools ยังเท่าเดิมและทำให้ผลการ Search แย่ลงด้วย เพราะ Search อาศัยการ Match จากชื่อและคำอธิบายเป็นหลัก ทั้งสองวิธีนี้สามารถผสานร่วมกันได้: Tool Search ช่วยให้ชุด Tools กระชับ ส่วน Caching ช่วยลดต้นทุนของสิ่งที่ยังโหลดค้างไว้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามเกี่ยวกับโจทย์ลักษณะเครื่องมือที่ใช้บ่อยและแค็ตตาล็อกขนาดใหญ่? (ทำไมถึงผิด): ไม่จริง: หากโจทย์ระบุถึงชุด Tools ขนาดเล็กที่ถูกใช้งานตลอดเวลา คำตอบคือการโหลดล่วงหน้า (Load Up Front) แต่หากเป็นแค็ตตาล็อกขนาดใหญ่แบบ Multi-server ที่มี Token Footprint สูง คำตอบคือ Tool Search ทั้งนี้ Prompt Caching ช่วยลด Cost เท่านั้นแต่ไม่ได้ลด Context Size จึงไม่สามารถแก้ปัญหา Context Bloat ได้ด้วยตัวมันเอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การทำ Prompt Caching บน Tool Definitions สามารถแก้ปัญหา Context Bloat จากแค็ตตาล็อก Multi-server ขนาดใหญ่ได้ หรือการ Defer ทุก Tool จะมีประสิทธิภาพสูงสุดเสมอแม้เป็นชุดเครื่องมือขนาดเล็กที่ใช้ตลอดเวลา? (ทำไมถึงผิด): ไม่จริง: Caching ช่วยแค่ลดราคาของนิยามที่ส่งซ้ำ แต่นิยามทั้งหมดยังคงกินพื้นที่ใน Context และส่งผลกระทบต่อ Selection Accuracy มีเพียง Tool Search เท่านั้นที่ตัดนิยามออกจาก Context ได้จริง และการ Defer ทุก Tool จะเพิ่ม Overhead การ Search 1 Turn ก่อนเรียกใช้งานเสมอ Tools ที่ใช้งานบ่อยจึงควรโหลดค้างไว้ (Keep Loaded) เพื่อให้ Claude เรียกใช้งานได้ทันที"
+        }
+      ]
+    },
+    {
+      "heading": "5. Skills และการโหลดแบบ Hybrid ในฐานะ Progressive Discovery อีกรูปแบบหนึ่ง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Tool Search ไม่ใช่วิธีเดียวในการโหลด Context แบบ on-demand เพราะ Agent Skills ก็ใช้หลักการเดียวกันสำหรับ Instructions และ Reference Material โดย Skills จะโหลดข้อมูลเป็น 3 ระดับ (ตาม [Progressive disclosure in Skills (three loading levels)](lesson:2.5)): เริ่มจาก Metadata ตอนเริ่มต้น (Startup) ต่อด้วยเนื้อหาใน SKILL.md เมื่อ Skill ถูก Trigger และสุดท้ายคือไฟล์ Bundle ต่างๆ เมื่อถูกเรียกอ่าน จุดสำคัญในการเลือกใช้คือ Always-on Cost เนื่องจากแต่ละ Skill ใช้พื้นที่ใน System Prompt เพียงประมาณ 100 Tokens สำหรับชื่อและคำอธิบาย ทำให้สามารถติดตั้ง Skills ไว้ได้เป็นจำนวนมากโดยไม่ต้องจ่าย Cost ให้กับเนื้อหาที่ยังไม่ได้ถูกใช้งาน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tool Search และ Skills ออกแบบมาแก้ปัญหาคนละแบบ: Tool Search ช่วยชะลอการโหลด Tool Schemas โดยให้ API ค้นหาและขยาย Schema ผ่าน Tool_reference Blocks ส่วน Skills จะชะลอการโหลด Know-how เช่น Workflows, Schemas และ Scripts ซึ่ง Claude จะอ่านไฟล์จาก Filesystem ด้วย Bash และดึงเฉพาะ Output ของ Script เข้าสู่ Context เท่านั้น โดยไม่มีตัว Source Code ติดเข้ามา ดังนั้น หากมี Actions จำนวนมากควรเลือกใช้ Tool Search แต่หากเป็นขั้นตอนการทำงาน (Procedures) หรือเอกสารอ้างอิงชุดใหญ่ ควรใช้ Skills ทั้งนี้ Skills จำเป็นต้องมีสภาพแวดล้อม Code Execution ในการทำงาน ส่วน Tool Search จำเป็นต้องใช้ Model ที่รองรับ (Claude Opus 4.1 และรุ่นก่อนหน้ายังไม่รองรับ)"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางแบบ Hybrid มักให้ผลลัพธ์ที่ดีที่สุด ตัวอย่างเช่น Claude Code จะโหลดไฟล์ CLAUDE.md เข้า Context ไว้ล่วงหน้าตั้งแต่แรก จากนั้นจึงใช้ glob และ grep ดึงไฟล์อื่นๆ เข้ามาเฉพาะตอนที่จำเป็น เนื่องจากการสำรวจแบบ On-demand ก็มี Overhead ในตัวเอง ทั้งความเร็วที่ช้ากว่าการเตรียมข้อมูลไว้ล่วงหน้า และความเสี่ยงที่ Agent จะเสีย Context ไปกับทางตันหากขาด Guidance ที่ดี ดังนั้นกฎสำคัญคือ: โหลดเฉพาะสิ่งที่เกือบทุก Request ต้องใช้ไว้ล่วงหน้า แล้วชะลอการโหลดส่วนที่เหลือไว้แบบ On-demand"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: คิดว่าควรโหลด Tools หรือ Instructions ทั้งหมดแบบ On-demand เพื่อประหยัด Context ให้ได้มากที่สุดเสมอ (เพราะ On-demand Exploration มี Cost แฝงเรื่อง Latency ที่ช้ากว่า และหาก Agent ขาด Guidance ที่ดี จะหลงทางจนเปลือง Context ยิ่งกว่าเดิม หลักปฏิบัติที่ถูกต้องคือแบบ Hybrid โดยโหลดสิ่งที่ทุก Request ต้องใช้ (เช่น Core Rules / CLAUDE.md) ไว้ล่วงหน้า และชะลอการโหลดเฉพาะส่วนที่ไม่ค่อยได้ใช้ผ่าน Tool Search หรือ Skills)"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56839",
+      "question": "ในระหว่างการทดสอบ ทีมวิศวกรพบว่า Claude เริ่มเลือก tool ผิดบ่อยขึ้นเมื่อมีการเชื่อมต่อ MCP server เข้ากับ agent มากขึ้น โดยประมาณแล้ว ความแม่นยำในการเลือก tool จะเริ่มลดลงอย่างเห็นได้ชัดเมื่อโหลด tool พร้อมกันประมาณกี่ตัว?",
+      "options": [
+        "ระหว่าง 30 ถึง 50 tools",
+        "ระหว่าง 5 ถึง 10 tools",
+        "ระหว่าง 100 ถึง 200 tools",
+        "ระหว่าง 500 ถึง 1,000 tools"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56837",
+      "question": "ทีมงานสร้าง agent ภายในองค์กรที่เรียกใช้ tool พอดี 7 ตัว โดยเกือบทุก tool จำเป็นต้องใช้ในแทบทุกคำขอ (request) และคำนิยามของ tool ทั้งหมดรวมกันมีขนาดประมาณ 1,200 tokens ทีมงานควรใช้ context strategy ใดสำหรับการโหลด tool?",
+      "options": [
+        "โหลดคำนิยามของ tool ทั้งหมด 7 ตัวเข้าสู่ context ในทุกๆ turn เนื่องจากชุด tool มีขนาดเล็กและทุกตัวถูกใช้งานเป็นประจำ",
+        "เปิดใช้งาน tool search ด้วย BM25 variant เพื่อให้ Claude ดึงเฉพาะ tool ที่เกี่ยวข้องกับแต่ละ request เท่านั้น",
+        "เปิดใช้งาน tool search ด้วย regex variant และทำ defer tool ทั้ง 7 ตัวไว้ เพื่อให้ agent ทำการค้นหาก่อนการเรียกใช้ทุกครั้ง",
+        "แยก tool ออกเป็น 2 MCP servers และเปิดใช้งาน tool search ในแต่ละ server แยกกันเพื่อลดขนาด context ลงไปอีก"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56838",
+      "question": "Agent ระดับองค์กรรวบรวม tool catalog จาก MCP server ต่างๆ ได้แก่ GitHub, Slack, Sentry, Grafana และ Splunk โดยคำนิยามของ tool ทั้งหมดรวมกันใช้พื้นที่ประมาณ 55,000 tokens ก่อนที่ agent จะเริ่มทำงานใดๆ กลยุทธ์ใดจัดการปัญหา context bloat นี้ได้ดีที่สุด?",
+      "options": [
+        "เปิดใช้งาน tool search เพื่อให้ Claude ค้นหาและโหลดเฉพาะ 3 ถึง 5 tools ที่เกี่ยวข้องกับแต่ละ request แทนที่จะโหลดคำนิยามทั้งหมดล่วงหน้า",
+        "ขอให้ model provider เพิ่มขีดจำกัด context window เพื่อให้คำนิยามขนาด 55,000 tokens พอดีกับบริบทการสนทนาที่เหลือ",
+        "เขียนคำอธิบาย tool ของทุก MCP server ใหม่ด้วยตนเองให้เป็นประโยคสั้นๆ เพียงประโยคเดียว เพื่อลดขนาดคำนิยามรวมให้ต่ำกว่า 55,000 tokens",
+        "ใช้ prompt caching กับคำนิยามของ tool เพื่อให้คำขอที่เกิดขึ้นซ้ำข้ามการส่ง 55,000 tokens ใหม่อีกครั้งในแต่ละ turn ถัดไป"
+      ],
+      "explanation": ""
+    }
+  ]
+}

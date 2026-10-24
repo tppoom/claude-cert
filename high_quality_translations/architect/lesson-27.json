@@ -1,0 +1,210 @@
+{
+  "title": "Eval datasets และ Graders: การออกแบบ Mixed-method Test Framework",
+  "objectives": [
+    "ปรับ Success Criteria ที่คลุมเครือให้ชัดเจน วัดผลได้จริง และพร้อมสำหรับนำไป Test",
+    "สร้าง Evaluation Dataset ที่จำลอง Real Traffic พร้อมเสริม Edge Cases อย่างตั้งใจ",
+    "อธิบายข้อได้เปรียบของการรัน Automated Test ซ้ำหลายรอบ เมื่อเทียบกับ Hand-graded แค่ไม่กี่เคส",
+    "เลือกใช้ Code, LLM หรือ Human Graders ให้เหมาะกับแต่ละเกณฑ์ พร้อมรวมเข้าเป็น Framework เดียว"
+  ],
+  "key_concept": "Eval Test Case — หน่วยย่อยพื้นฐานของทุก Evaluation ประกอบด้วย Input ที่ส่งให้โมเดล, Output จากโมเดล, Golden Answer สำหรับเทียบผลลัพธ์ และคะแนนจาก Grader การออกแบบ Dataset คือการคัดเลือก Inputs กับ Golden Answers ส่วนการออกแบบ Framework คือการกำหนดวิธีให้คะแนนแต่ละ Output",
+  "sections": [
+    {
+      "heading": "1. Success criteria ต้องมาก่อน Test cases เสมอ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Evaluation dataset จะมีประโยชน์ก็ต่อเมื่อมันวัดผลบางอย่างที่จับต้องได้ชัดเจน ก่อนจะเริ่มเขียน Test case ทีมต้องกำหนด Success criteria ให้ชัดเจนก่อนว่า Output ที่ดีหน้าตาเป็นอย่างไร เพราะทุก Test case และ Grader สร้างขึ้นมาเพื่อตรวจสอบเกณฑ์เหล่านี้ การเลือกมิติที่สำคัญ เช่น Accuracy, Latency, Cost หรือ Safety เป็นเรื่องของ [defining evaluation metrics](lesson:4.1) แต่บทเรียนนี้จะเริ่มในขั้นตอนถัดมา: การจัดโครงสร้าง Criterion ให้พร้อมก่อนที่ Dataset จะนำไปใช้ทดสอบได้จริง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Criterion ที่ดีและ Test ได้จริง (Testable) ต้องมี 4 คุณสมบัติ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Specific: ระบุพฤติกรรมชัดเจน เช่น \"Sentiment classification แม่นยำ\" ถือว่า Specific แต่คำว่า \"Performance ดี\" นั้นกว้างเกินไป\n- Measurable: วัดผลเป็นตัวเลขได้ หรือใช้ Qualitative scale ควบคู่กับตัวเลขอย่างสม่ำเสมอ แม้แต่เรื่อง Safety ก็นับเป็นตัวเลขได้ เช่น Toxicity ต้องต่ำกว่า 0.1% จากการทดสอบ 10,000 ครั้ง\n- Achievable: เป้าหมายต้องอ้างอิงจาก Industry benchmarks, ผลการทดลองก่อนหน้า หรือ Expert knowledge และต้องอยู่ในขอบเขตความสามารถของ Frontier models ในปัจจุบัน\n- Relevant: สอดคล้องกับเป้าหมายของ Application เช่น Citation accuracy อาจวิกฤตมากสำหรับ Medical app แต่สำคัญน้อยกว่ามากสำหรับ Casual chatbot"
+        },
+        {
+          "type": "paragraph",
+          "text": "ลองดูตัวอย่างการ Rewrite: ประโยคอย่าง \"Model ควรจำแนก Sentiment ได้ดี\" สอบตกทั้ง 4 ข้อ แต่เวอร์ชันที่ดีจะกำหนดว่า \"ต้องได้ F1 score อย่างน้อย 0.85 บน Held-out test set จำนวน 10,000 ทวีตที่มีความหลากหลาย ซึ่งดีกว่า Baseline ปัจจุบัน 5%\" สังเกตว่า Criterion นี้ระบุรายละเอียดของ Dataset ครบถ้วน ทั้งขนาด Data, แหล่งที่มา และการเป็น Held-out set ซึ่งทำให้เรารู้ทันทีว่าต้องสร้างอะไรต่อ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใช้หลักการเดียวกันกับดราฟต์อย่าง \"Summary ควรกระชับและเป็นประโยชน์\" เมื่อ Rewrite เป็น \"ได้คะแนน Completeness rubric เฉลี่ยอย่างน้อย 4 จาก 5 จาก Sample จำนวน 500 Claims\" จะกลายเป็นตัวเลขที่ตรวจเช็กได้ทุก Run และสมเหตุสมผล เพราะ Rubric scale เป็นการวัดเชิงคุณภาพที่ได้มาตรฐาน และค่าเฉลี่ยยังเปิดช่องให้ Output รายชิ้นมีจุดบกพร่องได้บ้าง ในทางกลับกัน อีก 3 ตัวอย่างที่ดูเหมือนจะดีแต่ยังใช้ไม่ได้ ได้แก่: \"ฟังดูเป็นหุ่นยนต์น้อยลง\" (เป็นแค่ Preference ที่ไม่มีตัวเลขวัดผล), \"ได้ 5 เต็มจาก Reviewer ทุกคน\" (วัดผลได้แต่ไม่ Achievable เพราะตั้งเป้า Agreement 100% โดยไม่มี Baseline รองรับ) และ \"Summary ทุกชิ้นต้องผ่านการ Sign off โดย Senior reviewer\" (นี่คือ Review process ไม่ใช่ Criterion และดึงคนเข้ามาอยู่ใน Loop การ Grade ทุกครั้ง)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การตั้งเกณฑ์แบบกว้างๆ หรือการใช้ Human review ในทุก Run ถือเป็น Success criteria ที่ดี — ในทางปฏิบัติ Success criteria ต้องระบุ Dataset size, ตัวเลขเป้าหมายที่ชัดเจน และ Baseline ที่ต้องการปรับปรุง เพื่อให้ระบบ Eval ทำงานได้แบบอัตโนมัติและวัดผลซ้ำได้จริง"
+        }
+      ]
+    },
+    {
+      "heading": "2. Test cases ต้องสะท้อน Real traffic ก่อน แล้วค่อยเสริมด้วย Edge cases",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Criteria บอกว่าคุณต้อง Test อะไร ส่วน Production จะบอกว่า Input mix แบบไหนที่ต้องนำมา Test การมี Dataset ที่มีแต่ Easy cases หรือข้อมูลที่จัดรูปมาสวยงาม จะได้คะแนนสูงแต่แทบ Predict ปัญหาจริงไม่ได้เลย Automated evals จะสร้างความมั่นใจแบบผิดๆ หากไม่ตรงกับ Real usage pattern งานแรกจึงเป็นการจำลอง Input ที่ระบบได้รับจริงใน Production ทั้งประเภท Document, ความยาว, สำนวนภาษา และ Noise ในสัดส่วนที่ใกล้เคียงของจริง"
+        },
+        {
+          "type": "paragraph",
+          "text": "จากนั้นให้จงใจเพิ่ม Edge cases เข้าไป เพราะเคสเหล่านี้พบได้ยากใน Sample ทั่วไป แต่จุดที่ระบบพังมักจะซ่อนอยู่ตรงนี้ โดยมีหมวดหมู่มาตรฐาน ได้แก่:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Input data ที่ไม่เกี่ยวข้อง (Irrelevant) หรือไม่มีอยู่จริง (Nonexistent)\n- Input data หรือ User input ที่ยาวเกินไป\n- User input ที่แย่, มีความเสี่ยง (Harmful) หรือไม่ตรงประเด็น ในกรณีของ Chat\n- Ambiguous cases ที่แม้แต่คนประเมินเองก็ยังหาข้อสรุปตรงกันได้ยาก"
+        },
+        {
+          "type": "paragraph",
+          "text": "แต่ละ Task จะมี Edge cases ต่างกันไป เช่น Summarization set ให้เพิ่มบทความแบบ Multi-topic และพาดหัวที่ชวนให้เข้าใจผิด; FAQ consistency set ให้เพิ่ม Typo, คำถามยาวเยิ่นเย้อ และข้อมูลส่วนตัวที่ไม่เกี่ยวข้อง; Medical-privacy set ให้เพิ่มข้อมูลสุขภาพทั้งแบบชัดเจน (Explicit), แบบสมมติ (\"ถ้าเพื่อนชื่ออลิซ เกิดวันที่...\") และแบบนัย (Implicit, เช่น \"ยาตัวเดียวกับที่พ่อกิน\") และทุก Test case จำเป็นต้องมี Golden answer เสมอ ไม่ว่าจะเป็น Exact match ที่บังคับตรงกันเป๊ะ หรือตัวอย่าง Perfect answer เพื่อให้ Grader ใช้เปรียบเทียบ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ยกตัวอย่างฟีเจอร์ Clause extraction ที่ถูกเทสต์เฉพาะสัญญาเช่าพาณิชย์มาตรฐานที่ Clean การเพิ่มสัญญาแบบ Clean เข้าไปอีกทำให้ได้แค่ Statistical confidence ในส่วนที่ไม่เคยมีความเสี่ยง; การแปล Test set เป็นภาษาอื่นก็เป็นการวัด Capability ที่ Production อาจไม่ได้ใช้จริง; การให้ Expert มา Re-label สัญญาชุดเดิมก็ช่วยแค่ Label quality แต่ไม่ได้เพิ่ม Coverage สิ่งที่ช่วยเพิ่มพลังการทำนาย (Predictive power) คือการเพิ่มสัญญาที่มีปัญหา สแกนมาเอียง หรือนอกมาตรฐานที่ Production ต้องเจอจริงๆ โดยแบ่งกลุ่ม (Stratified) ให้เคสเหล่านี้อยู่ร่วมกับสัญญามาตรฐานอย่างได้สัดส่วน"
+        },
+        {
+          "type": "paragraph",
+          "text": "หลังระบบ Launch แล้ว เคสที่พังจริงใน Production คือแหล่งข้อมูลที่ดีที่สุดในการทำ Test cases ใหม่ บั๊กทุกตัวที่ถูกแปลงเป็น Test case จะช่วยป้องกันไม่ให้บั๊กเดิมกลับมาซ้ำ ส่งผลให้ Dataset มีคุณภาพและสะท้อน Production ได้ใกล้เคียงยิ่งขึ้นตามเวลา"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การเพิ่มจำนวน Test cases ในหมวดหมู่เดิมที่มีอยู่แล้วคือวิธีที่ดีที่สุดในการทำให้ Dataset มีพลังการทำนาย (Predictive power) สูงขึ้น — เพราะ Predictive power เกิดจากการจำลอง Real input distribution และการตั้งใจใส่ Edge cases ลงไป ไม่ใช่การเพิ่มแต่ Easy cases หรือเคสเดิมๆ ซ้ำซ้อน"
+        }
+      ]
+    },
+    {
+      "heading": "3. Volume, automation และ repeated trials",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ชุดทดสอบแบบ Automated จำนวนมากให้ผลลัพธ์ที่ดีกว่าเคสที่ตรวจด้วยมือ (Hand-graded) ไม่กี่เคสเสมอ ด้วยเหตุผลเรื่องต้นทุนระยะยาว การสร้างคำถามและ Golden Answers มักมีต้นทุนจ่ายครั้งเดียวจบ แต่ต้นทุนการตรวจ (Grading) จะเกิดขึ้นซ้ำทุกครั้งที่รัน Eval และ Eval ที่มีประโยชน์จะต้องถูกรันอยู่ตลอดเวลา ทั้งตอนแก้ Prompt, อัปเกรด Model ไปจนถึงตอน Release การตรวจด้วยมือทำให้ทุก Run ช้าและแพง ขณะที่ Automated Grading ช่วยให้รันได้หลายร้อยเคสในทุกการเปลี่ยนแปลง หากยังไม่มี Dataset เราสามารถให้ Claude ช่วย Generate คำถามขึ้นมาได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Automation เริ่มต้นตั้งแต่ตอนเขียนโจทย์ ไม่ใช่ตอนตรวจ ควรออกแบบโครงสร้าง Test Case ให้ตรวจสอบผลลัพธ์ได้ด้วยเครื่องมืออัตโนมัติ เช่น Multiple Choice, String Match, Code-graded หรือ LLM-graded ตัวอย่างเช่น Eval ที่ถามว่าสัตว์มีกี่ขา และสั่งให้ Claude ตอบกลับมาเป็นตัวเลขเท่านั้น จะสามารถตรวจด้วย Exact Match ได้ทันที แม้กระทั่งเคสซับซ้อนอย่างสุนัขจิ้งจอกที่งอกขาใหม่แถมขาพิเศษเพิ่มขึ้นมา ในทางกลับกัน หากตั้งคำถามปลายเปิด จะต้องใช้มนุษย์มานั่งอ่านคำตอบทุกครั้ง"
+        },
+        {
+          "type": "paragraph",
+          "text": "การรันเพียงรอบเดียวไม่เพียงพอ เพราะการรัน Task แต่ละครั้งถือเป็นหนึ่ง Trial และผลลัพธ์จาก Model มีความผันแปรระหว่างรอบ การรัน Test Suite เพียงรอบเดียวจึงเป็นแค่การสุ่มตัวอย่างจาก Non-deterministic System การรัน Multiple Trials ต่อหนึ่ง Task จึงให้ผลลัพธ์ที่สม่ำเสมอกว่า ช่วยแยกแยะได้ว่าคะแนนที่เปลี่ยนไป 2-3 จุดไม่ใช่แค่ Noise นอกจากนี้ เกณฑ์วัดบางอย่างจำเป็นต้องอาศัยการรันซ้ำอยู่แล้ว เช่น Target ด้าน Toxicity ที่วัดจาก 10,000 Trials หรือเงื่อนไขที่คำถามเดิมถูกถามสองครั้งจะต้องได้คำตอบที่มี Semantic คล้ายคลึงกัน ซึ่งไม่สามารถตรวจวัดได้ด้วยการรันแค่รอบเดียว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: เคสที่คัดสรรและตรวจด้วยมืออย่างละเอียดจำนวนน้อย จะให้ Eval ที่ดีกว่าเคสแบบ Automated จำนวนมาก เพราะในความเป็นจริง Volume สำคัญกว่า Per-case Quality เนื่องจากต้นทุนการตรวจเกิดขึ้นซ้ำทุกรอบ การใช้ Automated Grading บน Test Cases ปริมาณมากจึงให้ Signal ที่นำไปใช้งานได้จริงในทุกๆ การเปลี่ยนแปลงของโค้ด"
+        }
+      ]
+    },
+    {
+      "heading": "4. การประเมินแบบ Code-graded, LLM-graded และ Human-graded",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เลือกใช้ Grader ที่ต้นทุนต่ำที่สุดที่ยังสามารถวัดเกณฑ์ได้อย่างแม่นยำและเชื่อถือได้ Code-based Grading คือวิธีที่ดีที่สุดเมื่อออกแบบ Eval ให้รองรับได้ เพราะเร็วและเชื่อถือได้สูงมาก ส่วน Model-based Grading มีไว้รองรับกรณีที่โค้ดตรวจวัดไม่ได้ สำหรับ Human Grading แม้วัดได้เกือบทุกอย่างแต่ช้าและแพง จึงควรหลีกเลี่ยงการออกแบบ Eval ที่ต้องพึ่งพามนุษย์หากไม่จำเป็น"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบ Grader ทั้งสามประเภท",
+          "headers": [
+            "Grader",
+            "Typical methods",
+            "Strengths",
+            "Weaknesses",
+            "Best fit"
+          ],
+          "rows": [
+            [
+              "Code-based",
+              "String match (exact, regex, fuzzy), binary tests, static analysis, outcome verification",
+              "เร็ว, ราคาถูก, เป็นกลาง (Objective), ได้ผลลัพธ์ซ้ำเดิม (Reproducible), Debug ง่าย",
+              "เปราะบางต่อคำตอบที่ถูกต้องแต่มี Variation หลากหลาย, ไม่เข้าใจความลึกซึ้ง (Nuance)",
+              "คำตอบที่เป็นหมวดหมู่ (Categorical) หรือคำตอบสั้นที่กำหนดไว้ชัดเจน"
+            ],
+            [
+              "Model-based (LLM)",
+              "Rubric-based scoring, natural language assertions, pairwise comparison, multi-judge consensus",
+              "ยืดหยุ่น, สเกลง่าย, จับ Nuance ได้ดี, จัดการคำตอบแบบ Freeform ได้",
+              "Non-deterministic, ราคาแพงกว่า Code-based, ต้องผ่านการ Calibrate ร่วมกับ Human Graders",
+              "การตรวจ Tone, คำตอบปลายเปิด, Policy Checks ที่มีความซับซ้อนละเอียดอ่อน"
+            ],
+            [
+              "Human",
+              "SME review, spot-check sampling, inter-annotator agreement",
+              "คุณภาพระดับ Gold Standard, สอดคล้องกับการตัดสินของผู้เชี่ยวชาญจริง",
+              "แพง, ช้า, มักต้องใช้ผู้เชี่ยวชาญ (SME) ในระดับ Scale",
+              "ใช้ Calibrate ให้ LLM Graders, ตรวจสอบ Output ที่เป็น Subjective"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Code Graders มีหลายรูปแบบ ซึ่งแต่ละแบบตอบคำถามต่างกัน: Exact Match ตรวจสอบว่า Output ตรงกับคำตอบที่ถูกต้องหลัง Normalize ช่องว่างและตัวพิมพ์แล้วหรือไม่ เหมาะกับ Categorical Labels; Cosine Similarity ระหว่าง Sentence Embeddings ใช้ตรวจสอบว่าคำถามที่ Paraphrase ได้คำตอบที่มี Semantic เหมือนกันหรือไม่ ซึ่งใช้วัด Consistency ไม่ใช่ Correctness; ROUGE-L วัด Longest Common Subsequence ระหว่างข้อความสรุปที่ Generate ออกมากับ Reference Summary"
+        },
+        {
+          "type": "paragraph",
+          "text": "LLM Graders มักนำไปใช้ 2 รูปแบบหลัก: Likert Scale Grader ให้ Model ให้คะแนน Output 1 ถึง 5 เทียบกับเป้าหมาย เช่น ความเข้าอกเข้าใจ (Empathy) ในคำตอบ Customer Service เหมาะกับคุณภาพที่มีความละเอียดอ่อนอย่าง Empathy, Professionalism หรือ Patience ที่ Metric ทั่วไปวัดได้ยาก; Binary Grader ตั้งคำถามแบบ Yes/No เช่น \"คำตอบนี้มีข้อมูลสุขภาพส่วนบุคคลหรือไม่?\" ซึ่งช่วยตรวจจับเคสแอบแฝงที่ Rule-based ตรวจพลาดได้ ทั้งสองรูปแบบควรกำหนด Prompt ให้ได้ Constrained Output เสมอ (เช่น \"Output only the number\", \"Output only 'yes' or 'no'\") เพื่อให้ Parse ผลลัพธ์ต่อใน Code ได้ง่าย และตาม Best Practice ควรใช้ Model คนละตัวกับที่ Generate คำตอบมาเป็น Grader"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การเลือก Grader ไม่ตรงกับสิ่งที่เกณฑ์ต้องการ เช่น บอทตอบคำถาม HR Policy เรื่อง \"ลาป่วยได้กี่วัน?\" ซึ่งคำตอบเป็นข้อเท็จจริงที่สั้นและชัดเจน ควรตรวจด้วย Exact หรือ Normalized String Match เทียบกับ Answer Key ที่อัปเดตตาม Policy การใช้ Cosine Similarity เทียบกับคำตอบเดิมบอกได้แค่ว่าบอทมีความสม่ำเสมอ (Consistency) ทำให้ตอบผิดซ้ำๆ ก็ยังได้คะแนนเต็ม การใช้คะแนน Professionalism 1–5 ก็วัดได้แค่ Tone ไม่ใช่ความถูกต้องของข้อมูล ส่วนการสุ่มตรวจด้วยคนเป็นรายสัปดาห์นั้นช้า ครอบคลุม Traffic แค่บางส่วน และอัปเดตไม่ทันการเปลี่ยนแปลงของระบบ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ค่า Cosine Similarity ที่สูงระหว่างคำตอบของ Model แปลว่าคำตอบนั้นถูกต้อง เพราะ Cosine Similarity วัดเพียง Consistency ระหว่าง Input ที่ถูก Paraphrase หากคำตอบนั้นตอบผิดเหมือนกันทุกครั้งก็ยังได้คะแนนสูง การวัดความถูกต้องเชิงข้อเท็จจริง (Factual Correctness) จำเป็นต้องเปรียบเทียบกับ Golden Answer เสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "5. การรวม Graders ให้อยู่ใน Framework เดียว (Combining graders in one framework)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "แอปพลิเคชันส่วนใหญ่ต้องวัดผลผ่าน Success Criteria หลายด้านพร้อมกัน จึงต้องใช้วิธีแบบผสม (Mixed Methods) เช่น Sentiment Model ตัวอย่างก่อนหน้า ต้องวัดทั้งค่า F1, สัดส่วน Non-toxic Outputs, ระดับความรุนแรงของ Error (Severity) และ Response Time บน Held-out Set ชุดเดียวกัน เนื่องจากไม่มี Grader ตัวไหนตรวจได้ครบทั้ง 4 ด้าน งานหนึ่งชิ้นจึงมักต้องใช้ Graders หลายตัวแยกกันตรวจคนละส่วนของ Output"
+        },
+        {
+          "type": "paragraph",
+          "text": "การรวมผลลัพธ์ของ Graders ออกมาเป็นข้อสรุปเดียว (Verdict) ทำได้ 3 วิธี: 1) Weighted Scoring รวมคะแนนถ่วงน้ำหนักให้ถึง Threshold ที่กำหนด 2) Binary Scoring ทุก Grader ต้องผ่านทั้งหมด (Pass/Fail) 3) Hybrid รวมทั้งสองวิธีเข้าด้วยกัน เช่น กำหนดให้ Privacy Check เป็น Hard Gate ที่ต้องผ่านเท่านั้น ส่วนเรื่อง Tone และ Completeness ให้นำมาถ่วงน้ำหนักรวมกัน นอกจากนี้ Graders ยังตรวจสอบ Evidence คนละจุดกันได้ เช่น Agent จองตั๋วเครื่องบินอาจตอบใน Transcript ว่า \"Your flight has been booked\" แต่ผลลัพธ์จริง (Outcome) อยู่ที่ว่ามีการจองเกิดขึ้นใน Database จริงหรือไม่ ซึ่ง Code Check ตรวจ Outcome จะจับจุดผิดพลาดที่ Rubric ตรวจ Transcript มองข้ามไปได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน Mixed Framework มนุษย์มีหน้าที่เฉพาะคือการ Calibration เพราะ LLM Graders มีความ Non-deterministic จึงต้องเทียบผลกับ Human Graders ก่อนถึงจะเชื่อถือคะแนนได้ การทำ Systematic Human Review จึงควรใช้ไปกับการ Calibrate ตัว LLM Graders และใช้ตรวจ Subjective Outputs ที่ต้องอิงฉันทามติของมนุษย์เป็น Reference Standard เช่น Video-editing Agent ของ Descript ที่เปลี่ยนจาก Manual Grading มาใช้ LLM Graders ตามเกณฑ์ของ Product Team และมี Human Calibration เป็นระยะ ผลลัพธ์คือ Stack ที่ใช้ Code ตรวจสิ่งที่ตรวจได้ชัดเจน, ใช้ LLM ตัดสินจุดที่ต้องดูความละเอียดอ่อน (Nuance), และใช้ Human Sample กลุ่มเล็กๆ ตรวจเป็นประจำเพื่อคุมให้ LLM Judges ยังเที่ยงตรง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? เมื่อมี LLM Grader แล้ว ก็ไม่จำเป็นต้องใช้ Human Review อีกต่อไป: ไม่จริง: เพราะ Model-based Graders มีความเป็น Non-deterministic จึงต้องทำ Calibration เทียบกับ Human Graders เสมอ Framework ที่ดีจึงยังต้องมี Systematic Human Review ไว้เพื่อ Calibrate"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56861",
+      "question": "ทีมพัฒนากำลังกำหนด success criteria สำหรับฟีเจอร์สรุปข้อมูลการเคลมประกัน (claims-summarization) ก่อนที่จะสร้าง evaluation dataset โดยเกณฑ์ร่างในปัจจุบันระบุว่า: \"บทสรุปต้องกระชับและเป็นประโยชน์ (concise and helpful)\" เกณฑ์ที่ปรับปรุงใหม่ในข้อใดสอดคล้องกับหลักการ SMART framework สำหรับการออกแบบ evaluation มากที่สุด?",
+      "options": [
+        "กำหนดให้บทสรุปได้คะแนนเฉลี่ยอย่างน้อย 4 จาก 5 คะแนนตาม completeness rubric จากกลุ่มตัวอย่างการเคลมจำนวน 500 เคส",
+        "กำหนดให้บทสรุปต้องได้คะแนน completeness เต็ม 5 จาก 5 คะแนนจาก adjuster ทุกคนในกลุ่มตัวอย่าง",
+        "กำหนดให้บทสรุปฟังดูเหมือนหุ่นยนต์น้อยลงและอ่านแล้วเป็นธรรมชาติมากขึ้นสำหรับ adjuster ที่เป็นผู้ตรวจสอบ",
+        "กำหนดให้บทสรุปทุกฉบับต้องได้รับการอนุมัติ (sign off) จาก senior adjuster ก่อนจึงจะนับว่ายอมรับได้ (acceptable)"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56862",
+      "question": "ทีม evaluation กำลังรวบรวม test cases สำหรับฟีเจอร์สกัดข้อความในสัญญา (clause-extraction) ที่ใช้กับสัญญาที่อัปโหลดเข้ามา ปัจจุบัน dataset มีเฉพาะสัญญาเช่าเชิงพาณิชย์มาตรฐานที่จัดรูปแบบมาอย่างดี (well-formatted) เท่านั้น ตามแนวทางปฏิบัติที่ดีที่สุด (best practices) ในการออกแบบ evaluation การเพิ่มข้อมูลชุดใดจะช่วยปรับปรุงความสามารถของ test set ในการคาดการณ์ข้อผิดพลาดที่จะเกิดขึ้นจริงใน production ได้ดีที่สุด?",
+      "options": [
+        "เพิ่มชุดสัญญาที่มีรูปแบบผิดเพี้ยน (malformed), เอกสารที่สแกนมา (scanned) และสัญญาที่ไม่เป็นไปตามมาตรฐาน แบบ stratified เพิ่มเติมจากสัญญาเช่ามาตรฐาน เพื่อจำลองเอกสารที่พบจริงใน production",
+        "เพิ่มจำนวนสัญญาเช่ามาตรฐานที่จัดรูปแบบมาอย่างดีให้มากขึ้น เพื่อให้กลุ่มข้อมูลเดิมมีความเชื่อมั่นทางสถิติ (statistical confidence) ของค่าคะแนน accuracy สูงขึ้น",
+        "เพิ่มชุดสัญญาที่แปลเป็นหลายภาษา เพื่อให้สามารถวัดผลความคล่องแคล่วในการใช้หลายภาษา (multilingual fluency) ควบคู่ไปกับ extraction accuracy",
+        "จัดตั้งคณะผู้เชี่ยวชาญด้านกฎหมายเพื่อทำ clause extraction ซ้ำจากสัญญาเช่ามาตรฐานเดิมที่มีอยู่ เพื่อดับเบิ้ลเช็ก human labels เดิม"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56863",
+      "question": "ทีมกำลังออกแบบ test framework สำหรับเครื่องมือที่ใช้ Claude ตอบคำถามเชิงข้อเท็จจริงเกี่ยวกับนโยบาย HR ภายในองค์กร โดยเน้นคำตอบสั้นและมีคำตอบที่ชัดเจน (เช่น \"วันลาป่วยที่ได้รับค่าจ้างมีได้สูงสุดกี่วัน?\") เพื่อให้ทันกับนโยบายที่มีการอัปเดตบ่อยครั้ง แนวทางการตรวจให้คะแนน (grading approach) ใดที่รองรับ automation ได้ดีที่สุดโดยที่ยังคงความแม่นยำ?",
+      "options": [
+        "ตรวจให้คะแนนแต่ละคำตอบด้วย exact-match หรือ normalized string comparison เทียบกับ answer key ที่มีการอัปเดตและดูแลรักษาอยู่เสมอ",
+        "ให้ทีม HR ผลัดเปลี่ยนกันเข้ามา manual review ตัวอย่าง transcripts ในแต่ละสัปดาห์และ flag คำตอบที่ไม่ถูกต้อง",
+        "ใช้ Claude อีก call หนึ่งแยกต่างหากเพื่อประเมินคะแนนคำตอบในสเกล 1-5 ว่าฟังดูเป็นมืออาชีพสำหรับพนักงานมากเพียงใด",
+        "นำคำตอบแต่ละข้อไปตรวจสอบผ่าน cosine-similarity เทียบกับคำตอบก่อนหน้าของคำถามเดียวกันเพื่อใช้เป็นตัวแทนวัดความถูกต้อง (correctness)"
+      ],
+      "explanation": ""
+    }
+  ]
+}

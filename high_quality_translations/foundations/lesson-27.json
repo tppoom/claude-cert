@@ -1,0 +1,190 @@
+{
+  "title": "Prompt Caching: Breakpoints, TTLs และ Hit Rates",
+  "objectives": [
+    "อธิบายกลไกการเกิด Cache Hit จาก Prompt Prefix และการเปลี่ยนแปลงที่ทำให้ Cache Invalidate",
+    "กำหนด Breakpoint ด้วย cache_control บน Content ที่คงที่และมีความยาวเกินขีดต่ำสุดของ Model",
+    "เลือกใช้ TTL ระหว่าง 5 นาที หรือ 1 ชั่วโมง โดยคำนวณจาก Write Cost, Read Count และระยะห่างระหว่าง Request",
+    "วัดผล Cache Hit Rate จาก Usage Field และตรวจจับปัญหา Cache หลุด"
+  ],
+  "key_concept": "การใช้ Prompt Caching อย่างคุ้มค่าด้วย Breakpoints, TTLs ที่เหมาะสม และการมอนิเตอร์ Cache Hit Rate",
+  "sections": [
+    {
+      "heading": "1. How a prompt prefix becomes a cache hit",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt caching ช่วยให้ request สามารถ reuse prefix ของ prompt ก่อนหน้าที่เหมือนกันทุกประการได้ ทำให้จ่ายค่า input token ของ prefix นั้นในราคาที่ถูกลงอย่างมาก เมื่อเปิดใช้งาน caching ตัว API จะตรวจเช็คว่า prompt ตั้งแต่ต้นจนถึง cache breakpoint เคยถูก cache ไว้ใน request ล่าสุดหรือไม่ หากเคย cache ไว้แล้ว ระบบจะดึงเวอร์ชันที่ cache ไว้มาใช้ทันที แต่ถ้ายังไม่มี ระบบจะประมวลผล prompt ทั้งหมดตามปกติและ cache ส่วน prefix ให้ทันทีที่เริ่มสร้าง response ทั้งนี้ Cache key คำนวณจาก cryptographic hash ของ prompt จนถึงตำแหน่ง breakpoint ดังนั้นเฉพาะ prefix ที่ตรงกันแบบ exact match เท่านั้นจึงจะเกิด cache hit"
+        },
+        {
+          "type": "paragraph",
+          "text": "วิธีเปิดใช้งานที่ง่ายที่สุดคือ automatic caching โดยส่งฟิลด์ cache_control ระดับ top-level เพียงค่าเดียว ระบบจะวาง breakpoint ไว้ที่บล็อกสุดท้ายที่ cache ได้ให้อัตโนมัติ และขยับ breakpoint ไปข้างหน้าเรื่อยๆ เมื่อบทสนทนายาวขึ้น ส่งผลให้แต่ละ turn จะอ่านข้อมูลก่อนหน้าจาก cache และ write ลง cache เฉพาะเนื้อหาใหม่เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "เนื่องจาก cache hit ต้องการ prefix ที่ตรงกันทุกประการ การเปลี่ยนแปลงองค์ประกอบอื่นๆ นอกเหนือจากตัว text ก็ส่งผลให้ cache หลุดได้เช่นกัน เพราะ cache ถูกจัดเรียงเป็น Layer: เริ่มจาก tools ตามด้วย system และปิดท้ายด้วย messages หากแก้ไข tool definition จะทำให้ทั้ง 3 Layer หลุดจาก cache ทั้งหมด, การเปิดหรือปิด web search / citations จะกระทบต่อ system layer และบล็อกทั้งหมดที่อยู่ถัดไป, ส่วนการเปลี่ยน tool_choice, เพิ่มหรือลดรูปภาพ, หรือปรับ thinking parameters / effort setting จะทำให้ message layer ขึ้นไปหลุดจาก cache เสมอ ปัจจุบัน Prompt caching ใช้งานได้เป็น GA โดยไม่ต้องใส่ beta prefix แล้ว โค้ดเก่าที่เรียกผ่าน client.beta.prompt_caching ถือว่าเลิกใช้ (outdated) และควรเปลี่ยนมาใช้ client.messages.create แทน"
+        }
+      ]
+    },
+    {
+      "heading": "2. Where to put cache_control breakpoints",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ควรวาง breakpoint ไว้ที่บล็อกสุดท้ายที่เป็น static content (ไม่เปลี่ยนแปลงระหว่าง request) การทำ cache write จะเกิดขึ้นเฉพาะบล็อกที่คุณระบุเท่านั้น และ request ถัดไปที่มี prefix เดียวกันจะอ่าน entry นั้นขึ้นมาใช้ หากวาง breakpoint ไว้บนจุดที่เปลี่ยนทุกครั้ง เช่น timestamp หรือข้อความล่าสุดของ user ทุก request จะเกิดการ write ใหม่ตลอดเวลาและไม่มีทาง hit สำหรับ prompt ทั่วไป การวาง breakpoint เพียงจุดเดียวที่ท้าย static content ก็เพียงพอแล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "สามารถใช้ breakpoint ได้สูงสุด 4 จุด เมื่อส่วนต่างๆ ของ prompt มีความถี่ในการเปลี่ยนแปลงไม่เท่ากัน โครงสร้างทั่วไปของ 4-breakpoint agent มักแยก cache ระหว่าง tool definitions, static instructions, RAG documents และ conversation ออกจากกัน หากมีการแก้ไขที่ breakpoint ใด จะส่งผลให้ segment นั้นและ segment ที่อยู่ถัดไปหลุดจาก cache ทั้งหมด แต่ segment ก่อนหน้ายังคง reuse ได้ตามปกติ อีกเหตุผลในการเพิ่ม breakpoint คือกรณี conversation ขนาดยาวที่ข้อความเดินหน้าเกิน 20 บล็อกนับจาก cache write ล่าสุด ซึ่งหลุด lookback window ทั้งนี้ การกำหนด breakpoint ไม่มีค่าใช้จ่ายเพิ่มเติม คุณจะจ่ายเฉพาะค่า token ที่ถูก write และ read เท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "โครงสร้าง Four-breakpoint layout และผลกระทบต่อ Cache เมื่อมีการเปลี่ยนแปลง",
+          "headers": [
+            "Breakpoint",
+            "Caches",
+            "หากจุดนี้เปลี่ยนแปลง ส่วนที่ยัง Reuse ได้"
+          ],
+          "rows": [
+            [
+              "1",
+              "Tool definitions ทั้งหมด",
+              "ไม่มี (หลุดทั้งหมด)"
+            ],
+            [
+              "2",
+              "Static system instructions",
+              "Tools"
+            ],
+            [
+              "3",
+              "RAG knowledge-base documents",
+              "Tools และ instructions"
+            ],
+            [
+              "4",
+              "Conversation จนถึงปัจจุบัน",
+              "Tools, instructions และ documents"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Breakpoint จะไม่ทำงานหาก prefix ก่อนหน้าสั้นเกินไป แต่ละโมเดลมีข้อกำหนด minimum cacheable length ต่างกัน: 512 tokens สำหรับ Fable 5.1, Mythos 5.1, Opus 5.5, Opus 5 และ Sonnet 5.5; 1,024 tokens สำหรับ Opus 4.8 และ Sonnet 5; 4,096 tokens สำหรับ Haiku 4.5 หาก prefix สั้นกว่าเกณฑ์ ระบบจะประมวลผลตามปกติโดยไม่ error และไม่เกิด cache write สังเกตได้จากค่า cache_creation_input_tokens ที่ยังเป็น 0 ตัวอย่าง automatic caching ด้านบนมี system prompt เพียงไม่กี่สิบ token จึงต่ำกว่า minimum threshold ทุกโมเดล"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเพิ่ม cache_control breakpoint แต่ละจุดจะทำให้เสียค่าใช้จ่ายเพิ่มขึ้น จึงควรใช้ให้น้อยที่สุด? (ทำไมถึงผิด): ไม่จริง: Breakpoint ไม่มีค่าใช้จ่ายเพิ่มเติม ค่าบริการคิดตามจำนวน token ที่ถูก write และ read จาก cache เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. การเลือก TTL ระหว่าง 5 นาที หรือ 1 ชั่วโมง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ค่าเขียน Cache (Cache Write) สูงกว่า Input ปกติ โดยราคาจะขึ้นอยู่กับอายุของ Cache (TTL) โดย TTL 5 นาที คิดค่าเขียน 1.25x ของราคา Base Input ส่วน TTL 1 ชั่วโมง คิด 2x ขณะที่ค่าอ่าน (Cache Read / Hit) คิดเพียง 0.1x บนโมเดลส่วนใหญ่ (0.05x บน Opus 5.5 และ 0.025x บน Fable 5.1) ทั้งนี้ ทุกครั้งที่มี Cache Hit อายุของ Cache จะถูกรีเฟรชใหม่ทันทีโดยไม่มีค่าใช้จ่ายเพิ่มเติม ดังนั้น TTL 5 นาทีจะยังคง Warm อยู่ตลอดตราบใดที่ Request ถูกส่งเข้ามาเรื่อยๆ ภายในทุก 5 นาที"
+        },
+        {
+          "type": "table",
+          "caption": "ราคา Cache ต่อ 1 ล้านโทเค็น (Million Tokens) บนโมเดลปัจจุบัน",
+          "headers": [
+            "Model",
+            "Base input",
+            "5m write",
+            "1h write",
+            "Hit"
+          ],
+          "rows": [
+            [
+              "Claude Opus 5.5",
+              "$4",
+              "$5",
+              "$8",
+              "$0.20"
+            ],
+            [
+              "Claude Sonnet 5.5",
+              "$2",
+              "$2.50",
+              "$4",
+              "$0.20"
+            ],
+            [
+              "Claude Haiku 4.5",
+              "$1",
+              "$1.25",
+              "$2",
+              "$0.10"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "อายุ TTL เริ่มนับตั้งแต่ Request เริ่มส่งเข้ามา ไม่ใช่ตอนที่ Response สร้างเสร็จ ดังนั้นการ Generate ข้อความที่ยาวจะกินเวลาหน้าต่าง TTL ไปด้วย การเลือก TTL จึงขึ้นอยู่กับระยะเวลาเว้นช่วง (Gap) ระหว่าง Request เพราะหากเกิด Cache Miss ไม่ว่าจะใช้ TTL แบบใด ระบบจะคิดเงิน Prefix ทั้งก้อนใหม่ที่ราคา Write เสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดคุ้มทุน (Break-even points) คำนวณได้จากตาราง เช่น Prefix ขนาด 1M tokens บน Sonnet 5.5 หากไม่ใช้ Caching จะจ่าย $2 ต่อ Request หากใช้ TTL 5 นาที: เขียน 1 ครั้ง + อ่าน 1 ครั้ง = $2.50 + $0.20 = $2.70 (เทียบกับ $4.00 สำหรับ 2 Requests ปกติ) นั่นคือ อ่านเพียง 1 ครั้งก็คุ้มค่าเขียนแล้ว แต่สำหรับ TTL 1 ชั่วโมง: เขียน 1 ครั้ง + อ่าน 1 ครั้ง = $4.00 + $0.20 = $4.20 (ยังเกิน $4.00) ต้องอ่านครั้งที่ 2 จึงเป็น $4.40 เทียบกับ $6.00 แบบไม่แคช ดังนั้น TTL 1 ชั่วโมงต้องอ่านซ้ำอย่างน้อย 2 ครั้งถึงจะถึงจุดคุ้มทุน (คำนวณบนเรตปกติ 0.1x ส่วน Opus 5.5 และ Fable 5.1 ค่าอ่านถูกกว่า จึงคืนทุนเร็วกว่า)"
+        },
+        {
+          "type": "paragraph",
+          "text": "ถ้า Turn ส่งเข้ามาถี่ระดับวินาที TTL 5 นาทีจะไม่มีวันหมดอายุ การจ่ายค่าเขียนเพิ่มเป็น 2x ของ TTL 1 ชั่วโมงจึงสิ้นเปลืองโดยเปล่าประโยชน์ จากการทดสอบของ Anthropic กับ Agent Run ที่ทำงานต่อเนื่องไม่หยุด TTL 5 นาทีช่วยประหยัดต้นทุนรวมได้มากกว่า TTL 1 ชั่วโมง 15% บน Sonnet 5 และ 15% ถึง 18% บน Opus 5.5 แต่ TTL 1 ชั่วโมงจะเริ่มคุ้มค่าเมื่อเริ่มมีช่วงว่าง (Pause) ระหว่าง 5 นาทีถึง 1 ชั่วโมง เพราะ TTL 5 นาทีจะหลุดและต้องเสียค่าเขียนใหม่ 1.25x ขณะที่ TTL 1 ชั่วโมงจะเก็บ Hit ได้ที่ราคา 0.1x กฎเบื้องต้น (Rule of Thumb) ของ Anthropic คือ: ให้เปลี่ยนไปใช้ TTL 1 ชั่วโมง เมื่อมี Gap ช่วง 5 นาทีถึง 1 ชั่วโมง มากกว่า 1 ใน 20 ครั้ง (เป็นเกณฑ์จากสถิติจริง ไม่ใช่สูตรคำนวณ) และหาก Gap นานเกิน 1 ชั่วโมง ทั้งสองแบบจะหมดอายุเหมือนกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Batch ต้องระวังเรื่อง Caching เป็นพิเศษ เนื่องจาก Batch Requests ทำงานแบบ Concurrent และไม่รับประกันลำดับการประมวลผล Cache Hit จึงเป็นแบบ Best-effort อีกทั้งหลาย Batch ใช้เวลาทำงาน 5 นาทีถึง 1 ชั่วโมง หากต้องการ Warm Cache ล่วงหน้าอย่างตั้งใจ ให้ใช้ TTL 1 ชั่วโมงตามลำดับขั้นดังนี้:"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Cache TTL เริ่มนับหลังจาก Response สตรีมเสร็จสิ้น (ความจริงคือ เริ่มนับทันทีตั้งแต่ Request เริ่มส่งเข้ามา การ Generate ข้อความที่ยาวจึงลดทอนระยะเวลาของ Cache Window ลง)\n\nคำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: TTL 1 ชั่วโมงประหยัดกว่าเสมอเพราะข้อมูลอยู่นานกว่า (ความจริงคือ ค่าเขียนของ TTL 1 ชั่วโมงสูงถึง 2x เทียบกับ 1.25x ของ 5 นาที และต้อง Hit อย่างน้อย 2 ครั้งถึงจะคุ้มทุน หากเป็น Agent Turn ที่ส่งเข้ามาถี่ระดับวินาที การใช้ TTL 5 นาทีตามค่า Default จะถูกกว่ามาก)"
+        }
+      ]
+    },
+    {
+      "heading": "4. การวัดผล Cache Hit Rate",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Hit Rate คือสัดส่วนของ Input Tokens ที่ดึงมาจาก Cache คำนวณจาก `cache_read_input_tokens` หารด้วย Total Input ทั้งหมด ใน Request แรกของ Agent ที่เปิดใช้ Cache โทเค็นเกือบทั้งหมดจะไปปรากฏใน `cache_creation_input_tokens` และค่า Read จะเป็นศูนย์ แต่ใน Turn ถัดๆ ไป ค่า Read จะครอบคลุมบริบทเดิมทั้งหมดที่เคยแคชไว้ และส่วน Creation จะคิดเฉพาะ Turn ใหม่ล่าสุดเท่านั้น ในระดับองค์กร Usage API จะรายงานข้อมูลแยกย่อยแบบเดียวกัน และ Console จะพล็อตแสดง Cache Rate รายชั่วโมงให้ดู"
+        },
+        {
+          "type": "paragraph",
+          "text": "Caching ส่งผลกระทบต่อต้นทุนมากที่สุดใน Agent Loops เนื่องจากทุก Turn ต้องส่ง System Prompt, Tool Definitions และประวัติ Turn ก่อนหน้าทั้งหมดซ้ำ ทำให้ต้นทุนขยายตัวแบบก้าวกระโดดตามจำนวน Turn กำลังสอง (O(N²)) จากผลการวัดของ Anthropic การเปิดใช้ Caching ช่วยลดต้นทุนใน Agent Loop ได้ถึง 2.7 ถึง 5.3 เท่า บน Traffic ใช้งานจริงตลอดทั้งวัน Agent Loops มีค่ามัธยฐานของ Cache Read สูงถึง 84% ของ Input ทั้งหมด และกลุ่ม Top 10% ทำได้สูงถึง 94% ขึ้นไป หาก Hit Rate ต่ำกว่า 80% มักบ่งชี้ว่ามีสิ่งผิดปกติที่ทำให้ Cache หลุด (Cache Miss) สาเหตุพบบ่อยคือ มี Timestamp แทรกอยู่ก่อน Breakpoint, การประกาศ Tool Definitions เปลี่ยนไส้ในระหว่าง Turn, หรือการเว้นช่วงระหว่าง Request นานเกินระยะเวลา TTL"
+        }
+      ]
+    },
+    {
+      "heading": "Practise it for real",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สังเกต Prompt Prefix ที่เปลี่ยนสถานะจาก Cache Write ไปเป็น Cache Hit และ Cache Miss ในฟิลด์ Usage"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55624",
+      "question": "ทีมการเงินต้องการสร้าง Cost Model รายเดือนสำหรับบริการสรุปความภายในองค์กรที่ขับเคลื่อนด้วย Claude โดยพวกเขาทราบค่าเฉลี่ยของ Input Tokens ต่อ Call, ค่าเฉลี่ยของ Output Tokens ต่อ Call และปริมาณ Call ทั้งหมดแล้ว แต่ทีมวิศวกรรมกำลังมีแผนจะเปิดใช้งาน Prompt Caching สำหรับ Instruction Block ที่ใช้ร่วมกัน Cost Model ดังกล่าวควรนำฟิลด์ Usage ใดจาก API Response มารวมคำนวณ เพื่อให้ได้ต้นทุนเฉลี่ย (Blended Cost) ที่ถูกต้องและแม่นยำเมื่อระบบ Caching เริ่มทำงาน?",
+      "options": [
+        "input_tokens, cache_creation_input_tokens, cache_read_input_tokens และ output_tokens โดยนำเรตราคาต่อ Token ของแต่ละฟิลด์มาคำนวณ เนื่องจากแต่ละฟิลด์คิดราคาแตกต่างกัน",
+        "ใช้เฉพาะผลรวมของ input_tokens รวมกับ output_tokens เนื่องจาก Caching ไม่ได้เปลี่ยนรูปแบบการแสดงผลของฟิลด์ Usage หลังจาก Request ประมวลผลเสร็จสิ้น",
+        "ใช้เฉพาะ output_tokens เนื่องจาก Input Segment ที่ผ่านการ Cache แล้วจะให้บริการแก่ลูกค้าฟรีโดยไม่มีค่าใช้จ่าย จึงไม่จำเป็นต้องนำมาใส่ใน Cost Model",
+        "ใช้ input_tokens และ output_tokens เฉลี่ยตลอดทั้งเดือน โดยไม่ต้องสนใจ cache_creation_input_tokens และ cache_read_input_tokens เนื่องจากเป็นฟิลด์สำหรับ Diagnostic ภายในที่ไม่เกี่ยวข้องกับการเรียกเก็บเงิน"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55625",
+      "question": "Voice Assistant ที่ให้ความสำคัญกับ Latency จำเป็นต้องพึ่งพา System Prompt ขนาดใหญ่ที่ถูก Cache ไว้เพื่อรักษา Response Time ให้ต่ำอยู่เสมอ ฝ่ายผลิตภัณฑ์ต้องการการันตีว่า Cache จะ 'Warm' พร้อมใช้งานอยู่ตลอดเวลาทันทีที่ผู้ใช้เริ่มพูด แม้จะผ่านช่วงเวลาที่ไม่มี Traffic เลยก็ตาม โดยไม่ต้องรอให้มี Request จริงจากผู้ใช้มาทริกเกอร์การเขียน Cache เทคนิคใดสามารถจัดการปัญหานี้ได้โดยตรง?",
+      "options": [
+        "ส่ง Request เป็นระยะ (Periodic Request) โดยกำหนด max_tokens: 0 พร้อมแนบ Cached Prefix และ cache_control Breakpoint เพื่อทำการ Refresh Cache ก่อนที่จะหมดอายุ ทำให้ Cache อยู่ในสถานะ Warm เสมอเมื่อมี Traffic จริงเข้ามา",
+        "เพิ่มค่าพารามิเตอร์ temperature ของโมเดล เพื่อให้เนื้อหาที่ถูก Cache ถูกเก็บไว้ใน Memory นานขึ้นระหว่างแต่ละ Request",
+        "เปิดใช้งาน Extended Thinking ในทุกๆ Request เพื่อให้ Claude ทำการ Pre-load System Prompt ลงใน Persistent Cache ที่ไม่มีวันหมดอายุโดยอัตโนมัติ",
+        "กำหนด stream เป็น true ในทุก Request เนื่องจาก Streaming Response จะต่ออายุ TTL ของ Cache Entry ใดๆ ที่ถูกเรียกใช้ระหว่าง Request นั้นโดยอัตโนมัติ"
+      ],
+      "explanation": ""
+    }
+  ]
+}

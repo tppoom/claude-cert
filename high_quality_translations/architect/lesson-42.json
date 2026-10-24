@@ -1,0 +1,325 @@
+{
+  "title": "การทำ Discovery และรวบรวม Requirements เชิงโครงสร้างสำหรับโซลูชัน Claude",
+  "objectives": [
+    "ดำเนิน Discovery Session เพื่อเก็บข้อมูลผู้ใช้ ความต้องการ User Experience และ Constraints พร้อมทั้งประเมินความสามารถ Latency และ Budget เพื่อใช้เลือกโมเดล",
+    "แปลงผล Discovery เป็นการเลือกโมเดลเริ่มต้นที่สมเหตุสมผล พร้อมกำหนดแนวทาง Upgrade และ Optimization ในอนาคต",
+    "เขียน Success Criteria ตามหลัก SMART ที่ครอบคลุมด้าน Quality, Latency, Cost และ Safety",
+    "เลือกใช้เทคนิคที่เหมาะสม (Blind spot pass, Prototype, Interview, Reference, Sample-data review) เพื่อค้นหา Requirements แฝงก่อนเริ่ม Implement",
+    "เขียน Acceptance Tests ก่อนเริ่มโค้ด พร้อมสืบหาต้นตอของ Failure ย้อนกลับตาม Description Chain ได้"
+  ],
+  "key_concept": "Testable requirement — Requirement ที่ระบุไว้อย่างชัดเจนและวัดผลได้ จนคนนอกโปรเจกต์สามารถตรวจสอบระบบเพื่อฟันธงได้ทันทีว่า Pass หรือ Fail โดยเป้าหมายของ Discovery แต่ละขั้นตอนคือการเปลี่ยน Request ที่คลุมเครือให้กลายเป็น Requirement ลักษณะนี้",
+  "sections": [
+    {
+      "heading": "1. The discovery brief: users, needs, experience, constraints",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Structured Discovery คือขั้นตอนที่ต้องทำก่อนเริ่มออกแบบระบบ เพื่อรวบรวมข้อเท็จจริงสำคัญเกี่ยวกับกลุ่มผู้ใช้และข้อจำกัดต่างๆ สำหรับใช้ตรวจสอบทุกการตัดสินใจในภายหลัง คำขอประเภท \"คนไข้ต้องการเช็กเวลารอก่อนเดินทางมา\" เป็นเพียงจุดเริ่มต้นของการพูดคุย ไม่ใช่ Requirement ที่แท้จริง หากต้องการเปลี่ยนให้เป็น Brief ต้องตอบคำถาม 4 ข้อนี้ให้ชัดเจน:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Users: ระบุให้เจาะจงว่าเป็นคนไข้กลุ่มไหน เจ้าหน้าที่แผนกใด และมีใครเกี่ยวข้องกับระบบอีกบ้าง\n- Needs: ผลลัพธ์ (Outcome) ที่ต้องการจริงๆ คืออะไร ซึ่งมักไม่ใช่ฟีเจอร์ที่ขอมาในตอนแรก\n- Experience: ประสบการณ์ใช้งานที่ดีควรเป็นอย่างไร ให้เน้นอธิบาย Flow การใช้งานมากกว่าตัวฟีเจอร์\n- Constraints: ข้อจำกัดด้านงบประมาณ, ทักษะทางเทคนิคของทีม Maintainer, อุปกรณ์ที่ผู้ใช้เข้าถึงได้ และข้อกำหนดด้าน Privacy"
+        },
+        {
+          "type": "paragraph",
+          "text": "Process Map คือเทคนิค Discovery ที่ช่วยให้ Brief สะท้อนความเป็นจริง แนวคิดเรื่อง [เริ่มจาก Business Process ไม่ใช่เลือก Model ก่อน](lesson:1.1) จะถูกนำมาใช้จริงที่นี่ โดยแตก Need ของผู้ใช้ออกเป็นขั้นตอน ระบุ Stakeholder ในแต่ละจุด แล้วจึงพิจารณาว่า AI ควรเข้ามามีบทบาทในระดับใด ซึ่งแบ่งได้เป็น 3 บทบาท: Automation (AI ทำงาน แล้วมนุษย์ตรวจ), Augmentation (มนุษย์และ AI ร่วมกันทำ) และ Agency (AI ดำเนินการเองอย่างอิสระภายในขอบเขตที่กำหนด) กระบวนการนี้จะได้ตารางที่ตัดสินใจเรื่อง AI แยกเป็นรายแถว การตั้งคำถามเหมารวมทั้งระบบว่า \"เราควรใช้ AI ไหม?\" จะทำให้ข้ามการตัดสินใจทีละขั้นตอนที่จำเป็นไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "นอกจากนี้ มีอีก 3 คำถามสำคัญที่ต้องตอบใน Session แรกเสมอ เพราะไม่สามารถแนะนำ Model ได้เลยหากขาดคำตอบเหล่านี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Capabilities: Model ต้องมีฟีเจอร์หรือความสามารถเฉพาะด้านใดบ้างเพื่อตอบโจทย์ลูกค้า\n- Speed: Application ของลูกค้าต้องการ Latency หรือความเร็วในการตอบสนองระดับใด\n- Cost: งบประมาณสำหรับการ Development และ Production Usage อยู่ที่เท่าไร"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทุกคำตอบต้องมาจาก Workload จริงของลูกค้า ข้อมูลทั่วๆ ไป เช่น จำนวนพนักงาน IT, Social Media ที่ทีม Marketing ใช้ หรือเวอร์ชันของ Internal Ticketing Tool ไม่ส่งผลต่อ 3 ปัจจัยนี้ และไม่ได้ช่วยบอกว่า Model ต้องทำอะไร เร็วแค่ไหน หรือมีค่าใช้จ่ายเท่าไร"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ปัจจัยที่ต้องกำหนดก่อนแนะนำ Model ไม่ใช่ข้อมูลทั่วไปขององค์กร (เช่น ขนาดทีม IT หรือเครื่องมือภายใน แม้จะฟังดูเหมือนการตรวจสอบที่รอบคอบ) แต่ต้องเลือก Capabilities, Speed (Response Speed) และ Budget สำหรับ Development และ Production เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "2. From discovery findings to a starting model",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ผลลัพธ์จาก Discovery จะชี้ไปยังหนึ่งในสองแนวทางเริ่มต้น (ดูรายละเอียด Model Trade-offs เพิ่มเติมได้ที่ [selecting Claude models on trade-offs](lesson:2.1)) ทักษะสำคัญคือการอ่าน Brief ให้ออกว่าชี้ไปยังแนวทางใดตั้งแต่แรก"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทั้งสองแนวทางสามารถปรับค่า Effort เพิ่มเติมได้ โดย Effort เป็น Per-request Setting ที่ควบคุมปริมาณ Reasoning ที่ Model ใช้ก่อนส่งคำตอบ การตั้งค่าระดับสูงขึ้นจะช่วยเพิ่มความฉลาด แต่แลกมาด้วย Latency และ Token Cost ที่เพิ่มขึ้น ส่วนระดับต่ำจะตอบสนองไวกว่าและประหยัดกว่าแต่ Think น้อยลง นี่คือเหตุผลว่าทำไม Deepest Reasoning จึงเหมาะกับโจทย์ยากๆ แต่สิ้นเปลืองโดยเปล่าประโยชน์สำหรับ Task จัดหมวดหมู่ทั่วไป (Simple Triage)"
+        },
+        {
+          "type": "table",
+          "caption": "Two starting paths and the discovery findings that select each",
+          "headers": [
+            "Path",
+            "Discovery shows",
+            "How it proceeds"
+          ],
+          "rows": [
+            [
+              "Fast and cost-effective first, e.g. Claude Haiku 4.5",
+              "ข้อจำกัดด้าน Latency สูง, เน้นคุม Cost, งานทั่วไปที่มี Volume มหาศาล, หรือการทำ Early Prototyping",
+              "เริ่มด้วย Model นี้ ทดสอบกับ Use Case จริงให้ถี่ถ้วน เทียบกับ Requirement แล้วค่อย Upgrade เมื่อพบ Capability Gaps ที่เจาะจงเท่านั้น"
+            ],
+            [
+              "Capability first, e.g. Claude Opus 4.8",
+              "Complex Reasoning, งานวิจัย/วิทยาศาสตร์, การทำความเข้าใจบริบทซับซ้อน, ความแม่นยำสำคัญกว่า Cost, Advanced Coding และงาน Agentic ที่มี Autonomy สูง",
+              "เริ่ม Implement ด้วยตัวที่เก่งที่สุด Optimize ตัว Prompt ทำ Evaluation แล้วค่อยปรับลด Effort หรือ Downgrade Model ในภายหลังเพื่อเพิ่ม Efficiency"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Haiku 4.5 เหมาะกับแนวทางแรกเพราะออกแบบมาสำหรับ Interactive Applications และ High-volume Processing ตัวอย่างเช่น งาน Support Desk ที่ต้อง Triage ทิคเก็ตสั้นๆ 50,000 ใบต่อวัน โดยตั้งเป้า Latency ระดับ Sub-second การเริ่มจากตรงนี้และทดสอบกับตัวอย่างทิคเก็ตจริงจะตอบโจทย์ได้ครบทั้งหมด การเลือกเปิด Max Reasoning ในทุก Request หรือเลือก Model เพียงเพราะ Context Window ใหญ่ เป็นการแก้ปัญหาที่ลูกค้าไม่ได้ร้องขอ เนื่องจาก Context Window ไม่ได้อยู่ในเกณฑ์หลัก 3 ข้อ และ Prompt สั้นๆ สำหรับงาน Triage ก็ไม่จำเป็นต้องใช้ Context ขนาดใหญ่"
+        },
+        {
+          "type": "paragraph",
+          "text": "ส่วนแนวทางที่สองจะเหมาะกับ Brief ที่ตรงกันข้าม เช่น ทีมวิจัยที่ต้องการสังเคราะห์เอกสารแบบ Multi-step Synthesis โดยระบุว่า Accuracy สำคัญกว่า Cost และต้องการ Long-running Agent ที่สามารถวาง Plan การทำงานได้เอง ในเคสนี้ ข้อเสนอที่เน้นเรื่องลด Cost (เช่น การลดสเปก Model, ลดค่า Effort หรือเปลี่ยนไปใช้ Batch Pipeline) ล้วนขัดกับ Requirement หลัก แม้การจูน Effort จะทำได้จริง แต่ควรทำในภายหลังบน Model ที่เลือกแล้ว หลังเห็นผล Evals แน่ชัด ทั้งนี้ ไม่ว่าจะเลือกแนวทางใด การตัดสินใจขั้นสุดท้ายต้องยืนยันด้วยการทำ Test บน Prompt และชุดข้อมูลจริงของลูกค้าเสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Discovery ไม่จำเป็นต้องเริ่มด้วย Model ที่เก่งที่สุดและตั้งค่า Max Reasoning เสมอไปเพื่อให้มั่นใจว่า Quality ไม่ใช่คอขวด หากผล Discovery ระบุว่ามีข้อจำกัดเรื่อง Latency, มี Volume งานสูง และ Budget จำกัด ให้เริ่มต้นจาก Model ที่เร็วและ Cost-effective ก่อน ทำการ Test แล้วจึง Upgrade เมื่อเจาะจงพบ Capability Gap เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. การเขียนเกณฑ์ความสำเร็จที่วัดผลได้ (Measurable Success Criteria)",
+      "items": [
+        {
+          "type": "exam_trap",
+          "text": "Predict First: \"Model ต้อง classify sentiment ได้ดี\" ลองเขียน Requirement นี้ใหม่ให้มีโอกาส Fail ได้ — คิดว่าต้องกำหนดอะไรเพิ่มที่ของเดิมปล่อยให้คลุมเครือ?"
+        },
+        {
+          "type": "paragraph",
+          "text": "Success Criteria ที่ดีต้อง Specific (เจาะจง), Measurable (วัดผลได้), Achievable (ทำได้จริง) และ Relevant (ตอบโจทย์งานจริง) โดย Specific คือระบุเป้าหมายชัดเจน เช่น ระบุว่า \"accurate sentiment classification\" แทนที่จะใช้คำกว้างๆ ว่า \"good performance\" ส่วน Measurable คือต้องมีตัวเลขเชิงปริมาณหรือ Qualitative scale ที่นิยามชัดเจนและวัดผลได้สม่ำเสมอ ขณะที่ Achievable หมายถึงเป้าหมายต้องอิงจาก Benchmark, ผลการทดลองก่อนหน้า, งานวิจัย หรือความเห็นผู้เชี่ยวชาญ ไม่ตั้งเป้าเกินขีดความสามารถของ Frontier Models ยุคปัจจุบัน และ Relevant คือเกณฑ์ต้องสอดคล้องกับ Use Case จริง เช่น ความแม่นยำของการ Citation อาจจำเป็นสูงสุดใน Medical App แต่น้ำหนักน้อยมากใน Chatbot ทั่วไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "เรื่อง Safety ก็ต้องวัดผลได้เช่นกัน คำว่า \"Output ต้องปลอดภัย\" เป็นเกณฑ์ที่ไม่มีวัน Fail ได้ในเชิงการทดสอบ แต่ถ้าเปลี่ยนเป็น \"ต้องมี Output ถูกตรวจจับ Toxicity โดย Content Filter ไม่เกิน 0.1% จากการทดสอบ 10,000 ครั้ง\" แบบนี้ถึงจะ Fail และวัดผลได้จริง ด้าน Quality ก็เช่นกัน: จาก \"classify sentiments ได้ดี\" ต้องเปลี่ยนเป็น \"ทำ F1 score ได้อย่างน้อย 0.85 บน Held-out dataset ที่เป็น Twitter posts 10,000 รายการ ซึ่งดีขึ้น 5% เมื่อเทียบกับ Baseline ปัจจุบัน\""
+        },
+        {
+          "type": "paragraph",
+          "text": "การใช้ Metric เดียวแทบไม่เคยพอ เช่น Triage Model ทำ Accuracy ได้ตามเป้า แต่ใช้เวลาตอบ 3 วินาที หรือผลาญงบจนเกิน Budget ก็ถือว่าล้มเหลวสำหรับ User ส่วนใหญ่จึงจำเป็นต้องวัดผลหลายมิติพร้อมกัน โดยมี Threshold ชัดเจนในแต่ละด้าน:"
+        },
+        {
+          "type": "table",
+          "caption": "ตัวอย่างการเปลี่ยน Requirement ที่คลุมเครือให้เป็น Criteria หลายมิติที่วัดผลได้",
+          "headers": [
+            "มิติ (Dimension)",
+            "แบบคลุมเครือ (Vague)",
+            "แบบวัดผลได้จริง (Measurable)"
+          ],
+          "rows": [
+            [
+              "Quality",
+              "Classify sentiment ได้ดี",
+              "F1 score อย่างน้อย 0.85 บน Held-out set ของ Twitter posts 10,000 รายการ"
+            ],
+            [
+              "Safety",
+              "Output ต้องปลอดภัย",
+              "99.5% ของ Output ต้อง Non-toxic"
+            ],
+            [
+              "Error severity",
+              "ต้องมี Error ร้ายแรงน้อย",
+              "90% ของ Error ที่พบต้องเป็นเพียงความไม่สะดวก (Inconvenience) ไม่ใช่ความผิดพลาดขั้นร้ายแรง (Egregious error) โดยนิยามคำศัพท์ทั้งสองอย่างชัดเจน"
+            ],
+            [
+              "Latency",
+              "ต้องเร็ว",
+              "Response Time ที่ 95th Percentile (p95) < 200ms"
+            ],
+            [
+              "Cost",
+              "ราคาจับต้องได้",
+              "มี Budget รองรับชัดเจน โดยคำนวณจาก Cost per API call, Model size และ Usage frequency"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Threshold ของ Latency ต้องมาจากการทำ Discovery จริง ไม่ใช่การเดาตามสัญชาตญาณ Response Time ที่ยอมรับได้ขึ้นอยู่กับ Real-time requirements ของระบบและความคาดหวังของ User ซึ่ง Chat widget ย่อมต้องการ Latency คนละระดับกับการรัน Batch report ข้ามคืน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ตั้งเป้า Accuracy เพียงตัวเดียวถือเป็น Success Criterion ที่สมบูรณ์แล้วใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: การประเมิน Model ในงานจริงจำเป็นต้องวัดหลายมิติร่วมกันเสมอ ทั้ง Quality, Safety, Latency และ Cost โดยแต่ละมิติต้องมี Measurable Threshold ของตัวเอง"
+        }
+      ]
+    },
+    {
+      "heading": "4. การดึง Requirement แฝงออกมาให้ชัดก่อนเริ่ม Implement (Surfacing Unknown Requirements)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เทคนิคในส่วนนี้ทำร่วมกับ Claude ในฐานะ Coding Agent ที่ช่วยออกแบบ Solution ก่อนจะเริ่มแตะ Code จริง Claude สามารถค้นหาใน Codebase และอินเทอร์เน็ตได้อย่างรวดเร็ว จึงช่วยค้นหาจุดที่คุณมองไม่เห็นได้เร็วกว่าการคิดคนเดียว Requirement บางอย่างถามตรงๆ ไม่ได้ เพราะไม่มีใครรู้ว่าจะบอกอย่างไร โดย Unknown Unknowns คือสิ่งที่คุณไม่รู้แม้กระทั่งว่าจะต้องตั้งคำถามว่าอะไร เมื่ออยู่ใน Domain ที่ไม่คุ้นเคย คุณอาจไม่รู้ว่าผลลัพธ์ที่ดีหน้าตาเป็นอย่างไร มีวิธีไหนเคยลองทำมาแล้ว หรือมีกับดักอะไรต้องเลี่ยง ส่วน Unknown Knowns คือสิ่งที่คนจะนึกออกหรือตัดสินใจได้ก็ต่อเมื่อได้เห็นของจริงเท่านั้น เช่น Layout หรือ Visual Style ทั้งสองแบบนี้คุ้มค่าที่สุดหากค้นพบก่อนเริ่ม Implement เพราะการแก้ Feature หรือ Spec เพียงเล็กน้อยสามารถเปลี่ยนรูปทรงของโค้ดไปอย่างสิ้นเชิง และสำหรับ Coding Agent การตามแก้หรือ Revert โค้ดที่เริ่มไปแล้วทำได้ยากกว่ามาก"
+        },
+        {
+          "type": "table",
+          "caption": "เทคนิคเปิดเผยสิ่งที่ไม่รู้ พร้อมประเภท Requirement ที่จะค้นพบ",
+          "headers": [
+            "Technique",
+            "สิ่งที่ช่วยค้นพบ (What it exposes)",
+            "ตัวอย่าง Prompt / Request"
+          ],
+          "rows": [
+            [
+              "Blind spot pass",
+              "Unknown unknowns ในส่วนที่ไม่คุ้นเคย",
+              "สั่งให้ Claude วิเคราะห์และระบุ Unknown unknowns ของ Auth modules ก่อนจะเพิ่ม Provider ตัวใหม่"
+            ],
+            [
+              "Prototype or mock",
+              "Unknown knowns ที่จะนึกออกก็ต่อเมื่อได้เห็นของจริง",
+              "สร้าง HTML ไฟล์เดียวที่ Mock ส่วน Toolbar ด้วย Mock Data ก่อนเริ่มต่อ Wire เข้า Logic จริง"
+            ],
+            [
+              "Several directions at once",
+              "Preference หรือความต้องการที่ไม่มีใครอธิบายออกมาเป็นคำพูดได้",
+              "สร้าง Dashboard Design 4 แบบที่ต่างกันสุดขั้ว เพื่อให้ทีมดูแล้วบอกความรู้สึกตอบกลับมา"
+            ],
+            [
+              "Interview",
+              "ความคลุมเครือ (Ambiguity) ที่อาจกระทบต่อการ Design ระบบ",
+              "ให้ถามทีละคำถาม โดยโฟกัสคำตอบที่อาจเปลี่ยน Architecture ของระบบก่อน"
+            ],
+            [
+              "Reference",
+              "Behavior หรือพฤติกรรมของระบบที่บรรยายเป็นคำพูดยาก",
+              "ชี้เป้าไปยัง Source Code ที่มี Implementation พฤติกรรมแบบที่เราต้องการอยู่แล้ว"
+            ],
+            [
+              "Implementation plan review",
+              "การตัดสินใจจุดที่มีโอกาสเปลี่ยนสูงที่สุด",
+              "ทำ Plan ที่เน้น Data Models, Type Interfaces และ UX Flows มารีวิวก่อนเริ่มเขียนโค้ด"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Prototype และ Mock ในทางปฏิบัติก็คือ Spikes นั่นเอง แต่ละชิ้นคือ Build เล็กๆ แบบ Throwaway ที่สร้างมาเพื่อตอบโจทย์คำถามเดียว เช่น Layout นี้เวิร์กไหม โดยยังไม่ต้องผูก Backend Route หรือจัดการ State ใหม่ ส่วนการทำ Interview ก็ทำหน้าที่คล้ายกันสำหรับ Spoken Requirements ซึ่งจะได้ผลดีที่สุดเมื่อคุณใส่ Context ให้ Claude ทราบว่าโปรเจกต์อยู่จุดไหน และกำชับให้ Claude เจาะลึกเฉพาะส่วนที่ซับซ้อน แทนที่จะเสียเวลาถามเรื่องพื้นฐานทั่วไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "การตรวจดู Sample Data จะช่วยเปิดเผยสิ่งที่ Interview ตกหล่นไป Input ในโลกความเป็นจริงมักมาในรูปแบบที่ไม่มีใครพูดถึงในห้องประชุม เช่น ข้อมูลที่ตกหล่นหรือไม่ตรงโจทย์, ข้อความที่ยาวผิดปกติ, Input ที่ไม่มีคุณภาพหรือแฝง Toxicity รวมถึงเคสที่มีความกำกวมจนแม้แต่มนุษย์ก็ยังตัดสินใจไม่ตรงกัน การขอ Production Input ตัวอย่างจากลูกค้าตั้งแต่เนิ่นๆ จะทำให้เคสเหล่านี้ถูกนำมาคิดใน Requirement ตั้งแต่แรก แทนที่จะหลุดไปโผล่ให้เห็นครั้งแรกตอนขึ้น Production"
+        }
+      ]
+    },
+    {
+      "heading": "5. กำหนด Acceptance tests ก่อนเริ่มเขียน Code",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเขียน Acceptance tests ก่อนลงมือ Implement ช่วยสร้าง Definition of Done ร่วมกันระหว่างคุณ, ลูกค้า และ Claude โดยทั่วไป 5-7 ข้อก็เพียงพอแล้ว แต่ละข้อต้องชัดเจนและจับต้องได้จนคนนอกสามารถตัดสินได้ทันทีว่า Pass หรือ Fail เช่น ข้อความอย่าง \"ระบบต้องใช้งานง่าย\" ถือว่าไม่ผ่านเกณฑ์ แต่ถ้าเป็น \"ผู้ป่วยที่ใช้สมาร์ตโฟนทั่วไปสามารถดูเวลารอรับบริการปัจจุบันได้ภายใน 30 วินาทีโดยไม่ต้องสร้างบัญชี\" แบบนี้ถือว่าผ่าน เพราะระบุทั้งกลุ่ม User, อุปกรณ์, กำหนดเวลา และข้อจำกัดที่ได้มาจากขั้นตอน Discovery brief ไว้อย่างครบถ้วน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ร่างแรกมักเขียนขึ้นเพื่อให้มนุษย์เป็นคนประเมิน ให้ Rewrite ใหม่เพื่อให้กลายเป็นสิ่งที่ Code สามารถตรวจ Pass หรือ Fail ได้จริง พร้อมระบุ Edge cases เพิ่มเข้าไปด้วย สำหรับตัวอย่างคลินิก Edge cases จะครอบคลุมถึงกรณีที่คลินิกปิดทำการ, ระบบไม่มีข้อมูล หรือเวลารอรับบริการเป็น 0"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับระบบที่สร้างด้วย Agent แนวคิดนี้จะขยายสเกลไปสู่ระดับ Feature list โดยระบบอย่าง Long-running harness จะใช้ Multi-agent build ที่แบ่งหน้าที่ให้ Agent ตัวหนึ่งเขียน Feature list และ Agent ตัวถัดๆ ไปทำหน้าที่ Implement ตัว Initializer agent จะเริ่มทำงานก่อนเพื่อแตก Prompt เริ่มต้นของ User ออกเป็นไฟล์ Feature requirements ที่ละเอียดและครอบคลุม ในตัวอย่างการสร้างระบบโคลน claude.ai ของ Harness นั้นมี Feature มากกว่า 200 รายการ ซึ่งทั้งหมดจะถูกมาร์กสถานะเริ่มต้นเป็น Fail จากนั้น Coding agents จะไล่ Implement ทีละฟีเจอร์และได้รับอนุญาตให้เปลี่ยนได้เฉพาะฟิลด์ passes เท่านั้น พร้อมมีคำสั่งห้ามลบหรือแก้ไข Test โดยเด็ดขาด เพื่อป้องกันการซ่อนฟังก์ชันที่ตกหล่นหรือมี Bug"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ลองนำไปประยุกต์ใช้กับงานจริง: ลองเลือก Requirement จากโปรเจกต์ล่าสุดที่ดูเหมือนไม่มีทาง Fail มาหนึ่งข้อ แล้วตั้งคำถามว่า คนนอกจะต้องเห็นอะไรถึงจะตัดสินว่ามัน Fail?"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Acceptance tests ควรเขียนหลังสร้าง Build แรกเสร็จ เพื่อให้สะท้อนสิ่งที่มีการ Build จริง — ในความเป็นจริง Acceptance tests ต้องเขียนก่อนเริ่มเขียน Code เสมอ เพราะมันคือ Definition of Done ร่วมกันที่เป็นเกณฑ์วัดความสำเร็จของ Build"
+        }
+      ]
+    },
+    {
+      "heading": "6. The Description Chain: จากคำพูดของ User สู่ Instruction ของ Claude",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "The Description Chain คือการแกะรอยทุก Requirement ผ่าน 4 ข้อต่อ: คำพูดของ User เอง, Product requirement, Technical spec และสุดท้ายคือ Instruction ที่ส่งให้ Claude การทำ Prompt engineering เป็นเพียงข้อต่อสุดท้ายเท่านั้น Developer จะต้องทำหน้าที่แปลความในทุกๆ ขั้นตอน และแต่ละขั้นตอนต้องอาศัยการตัดสินใจเชิงเทคนิคที่ขั้นตอนก่อนหน้าไม่ได้ระบุไว้ นอกจากนี้ Chain ยังมีข้อจำกัดที่ตายตัวคือ Claude ไม่สามารถรับรู้สิ่งที่ User ไม่ได้พูดออกมาได้"
+        },
+        {
+          "type": "table",
+          "caption": "ข้อต่อของ The Description Chain และการตัดสินใจที่ Developer ต้องใส่เข้าไปในแต่ละขั้น",
+          "headers": [
+            "Link",
+            "What it holds",
+            "Judgement the builder makes"
+          ],
+          "rows": [
+            [
+              "User voice",
+              "ความต้องการตามที่ User บอกเล่า",
+              "ระบุว่าคือ User กลุ่มไหน, ต้องการผลลัพธ์อะไร และประสบการณ์ใช้งานเป็นอย่างไร"
+            ],
+            [
+              "Requirement",
+              "ย่อหน้าที่ระบุเกณฑ์วัดผลได้ชัดเจน 1 ย่อหน้า",
+              "แปลงคำคุณศัพท์ทุกคำให้เป็นการตัดสินใจที่มีเหตุผลรองรับ เช่น คำว่า \"เร็ว\" ต้องระบุว่าเร็วแค่ไหน"
+            ],
+            [
+              "Technical spec",
+              "องค์ประกอบต่างๆ และรูปแบบการสื่อสารระหว่างกัน",
+              "ทักท้วงและตัดแนวทางที่ละเมิดหรือไม่สอดคล้องกับข้อจำกัดออกไป"
+            ],
+            [
+              "AI instruction",
+              "ข้อจำกัด, Tech stack ที่เลือกใช้ และชุด Tests",
+              "สิ่งที่ต้องบอก Claude เพื่อแปลง Spec ให้กลายเป็น Code ที่ใช้งานได้จริง"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Description chain ไม่ได้เป็นแค่ลำดับขั้นตอนการเขียนเท่านั้น แต่ยังเป็นเครื่องมือ Diagnostic อีกด้วย หาก Code รันผ่านแต่ Product ไม่ตอบโจทย์ นั่นแปลว่าเกิดความผิดพลาดในกระบวนการ Description และจุดที่ต้องเข้าไปแก้คือข้อต่อที่พัง ไม่ใช่การไปแก้ Prompt การเขียน Test ถือเป็นรูปแบบการ Describe ที่แม่นยำที่สุด จึงเป็นสัญญาณตรวจจับที่ดี หาก Test ผ่านแต่ User ไม่พอใจ แปลว่า Test นั้น Encode เจตนาผิดตั้งแต่แรก จุดที่พังจึงอยู่ต้นน้ำ (Upstream) ระหว่างคำพูดของ User กับ Requirement"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ถ้า Tests ทั้งหมดผ่าน แปลว่า Requirement ได้รับการตอบสนองอย่างสมบูรณ์แล้ว — ในความเป็นจริง หาก Tests ผ่านแต่ User ยังไม่พอใจ แสดงว่า Tests นั้นสื่อสารเจตนาผิดพลาด การแก้ไขต้องทำที่ต้นน้ำ (Upstream) ภายใน Chain ไม่ใช่แก้ที่ Code"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56971",
+      "question": "Solutions Architect กำลังทำ Discovery Session ครั้งแรกกับลูกค้ารายใหม่ก่อนที่จะแนะนำโมเดล Claude รุ่นใดรุ่นหนึ่ง ตามแนวทางการเลือกโมเดล (Model-selection guidance) ของ Anthropic ปัจจัยใดบ้างที่ Architect ควรกำหนดให้เป็นเกณฑ์สำคัญ (Key criteria) ในระหว่างเซสชันนี้?",
+      "options": [
+        "ขีดความสามารถเฉพาะ (Capabilities) ที่โมเดลต้องมีเพื่อตอบโจทย์ความต้องการของลูกค้า",
+        "ความเร็วในการตอบสนอง (Latency) ที่โมเดลต้องทำได้ภายในแอปพลิเคชันของลูกค้า",
+        "งบประมาณ (Budget) ที่ลูกค้ามีสำหรับการพัฒนาและการใช้งานในระดับ Production",
+        "จำนวนพนักงานที่แน่นอนซึ่งทำงานอยู่ในแผนก IT ของลูกค้า ณ ปัจจุบัน",
+        "แพลตฟอร์ม Social Media ใดบ้างที่ลูกค้าใช้สำหรับการทำการตลาดกับลูกค้า",
+        "เลขเวอร์ชันของซอฟต์แวร์ระบบ Ticketing ภายในของลูกค้า"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56969",
+      "question": "ในระหว่าง Discovery Call ทีม Customer Support แจ้งว่าต้องการทำ Routing คำร้องขอคัดแยก Ticket (Ticket-triage requests) ข้อความสั้นๆ จำนวน 50,000 รายการต่อวัน, ต้องการการตอบสนองที่เร็วกว่าวินาที (Sub-second responses) เพื่อให้ลูกค้ารอคอยในแชทน้อยที่สุด, และมีงบประมาณรายปีที่จำกัดสำหรับช่วง Pilot แนวทางการเลือกโมเดลใดสอดคล้องกับข้อกำหนดจากการ Discovery นี้มากที่สุด?",
+      "options": [
+        "เริ่มต้น Implementation ด้วย Claude Haiku 4.5, ทดสอบ Triage Prompts กับตัวอย่าง Ticket จริงบน Production, และอัปเกรดโมเดลเฉพาะเมื่อไม่สามารถทำความแม่นยำได้ตามเกณฑ์ที่กำหนดเท่านั้น",
+        "เริ่มต้น Implementation ด้วย Claude Opus 4.8 โดยตั้งค่า Effort เป็น xhigh เนื่องจากงานคัดแยก Ticket ต้องใช้ Reasoning ขั้นสูงสุดเพื่อคุณภาพการ Support ระดับมืออาชีพ",
+        "เริ่มต้น Implementation ด้วย Claude Sonnet 5 พร้อมกำหนดค่า Extended Thinking ในทุก Request เนื่องจากจำเป็นต้องใช้ Frontier Intelligence แม้กับ Triage Prompts สั้นๆ",
+        "เริ่มต้น Implementation ด้วย Claude Fable 5 ผ่าน Project Glasswing เนื่องจาก Context Window ขนาด 1M Token จะช่วยลดจำนวน Request ที่ต้องใช้ต่อวันลงได้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56970",
+      "question": "ทีมวิจัยเภสัชกรรมระบุ Requirement จากการ Discovery: งานสังเคราะห์วรรณกรรมทางวิทยาศาสตร์แบบหลายขั้นตอน (Multi-step literature synthesis) จากเอกสารวิจัยหลายฉบับ โดยที่ความแม่นยำ (Accuracy) สำคัญกว่าต้นทุนค่าตอบสนอง (Response cost) และ Workflow จะทำงานในรูปแบบ Agent อิสระสูง (High-autonomy agent) ที่วางแผนขั้นตอนการทำงานได้เองในระยะยาว แนวทางการเลือกโมเดลใดเหมาะสมกับ Requirement เหล่านี้มากที่สุด?",
+      "options": [
+        "เริ่มต้นด้วย Claude Opus 4.8 เนื่องจาก Complex Reasoning และงาน Agentic ขั้นสูงถือเป็นจุดแข็งสำหรับงาน High-autonomy ที่เน้นความแม่นยำอย่างยิ่งยวด",
+        "เริ่มต้นด้วย Claude Haiku 4.5 เนื่องจากต้นทุนต่อ Token ที่ต่ำช่วยให้ทีมสามารถรันการสังเคราะห์ได้หลายรอบมากขึ้นภายใต้งบประมาณการวิจัยเดิม",
+        "เริ่มต้นด้วย Claude Sonnet 5 ที่ปรับลดระดับ Effort ลง เนื่องจากระบุไว้ว่าการลด Effort เป็นวิธีที่แนะนำสำหรับการลดต้นทุนรวมของโปรเจกต์",
+        "เริ่มต้นใช้งานด้วย Batch API กับโมเดลใดก็ได้ที่มี เนื่องจาก Asynchronous Processing เป็นแนวทางหลักที่ Anthropic แนะนำในการเพิ่มความแม่นยำของงานสังเคราะห์"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+{
+  "title": "สถาปัตยกรรม Agent แบบ End-to-end: Loop, การรัน Tool และ Feedback",
+  "objectives": [
+    "ทำความเข้าใจ Flow ของ Agent loop ตั้งแต่ประกอบ Input จนถึงผลลัพธ์สุดท้าย พร้อมระบุ Stop condition",
+    "แยกระหว่าง Tool ที่โค้ดฝั่งเราเป็นผู้รัน กับที่ Anthropic รัน พร้อมผลกระทบต่อ Loop",
+    "เลือกใช้อย่างเหมาะสมใน Processing stage ระหว่าง Tool, MCP connection หรือโมเดลที่ฉลาดขึ้น",
+    "ออกแบบ Feedback loop ด้วย Tool results, Hooks และ Graded outcomes เพื่อให้ระบบแก้ไขข้อผิดพลาดได้เอง"
+  ],
+  "key_concept": "The agent loop — หัวใจหลักของทุกระบบบน Claude: เริ่มจากประกอบ Input, Claude ตอบกลับด้วยข้อความหรือ Tool calls, ระบบรัน Tool แล้วส่งผลลัพธ์กลับไปให้ Claude วนซ้ำจนกว่า Claude จะส่งคำตอบสุดท้ายโดยไม่มี Tool calls จึงสิ้นสุดกระบวนการ",
+  "sections": [
+    {
+      "heading": "1. The agent loop from input to output",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Architecture ที่ใช้ Claude ไม่ว่าจะเป็นแค่การเรียก Tool ครั้งเดียว ไปจนถึง Coding Agent ที่ทำงานต่อเนื่องหลายชั่วโมง ต่างรันอยู่บน Cycle เดียวกัน การทำความเข้าใจ Cycle นี้ให้ชัดเจนคือก้าวแรกที่จะกำหนด Design ส่วนที่เหลือทั้งหมด: แหล่งที่มาของ Input, สิ่งที่ถูกประมวลผลระหว่าง Run, สิ่งที่นับว่าเป็น Output และจุดที่รับ Feedback วนกลับเข้ามา"
+        },
+        {
+          "type": "paragraph",
+          "text": "Input ไม่ได้มีแค่ข้อความของผู้ใช้เท่านั้น ทุกครั้งที่เรียก Claude ตัวโมเดลจะมองเห็นทั้ง Prompt, System Prompt, Tool Definitions และ Conversation History ทั้งหมด ดังนั้นการตัดสินใจระดับ Design ในแต่ละ Turn จึงรวมถึง: การเลือก Tool ที่จะเปิดให้ใช้, คำสั่งที่ส่งให้โมเดล และขนาดของ History ที่ต้องส่งไป สำหรับ Agent SDK จะเริ่มต้น Run ด้วย SystemMessage ที่มี subtype เป็น init ซึ่งใช้เก็บ Session Metadata"
+        },
+        {
+          "type": "paragraph",
+          "text": "การประมวลผลจะเกิดขึ้นเป็น Turn โดย Claude จะประเมิน State ปัจจุบันแล้วตอบกลับมาเป็น Text, Tool Calls (หนึ่งคำสั่งขึ้นไป) หรือทั้งคู่ จากนั้นฝั่ง Application จะรัน Tool แล้วส่งผลลัพธ์กลับไปให้ Claude ตัดสินใจในสเต็ปถัดไป วงรอบ evaluate-then-execute ครบหนึ่งครั้งนี้นับเป็น 1 Turn และ Agent อาจต้องใช้เวลาหลาย Turns กว่าจะทำงานเสร็จสิ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Output จะเกิดขึ้นเมื่อ Claude ตอบกลับมาโดยไม่มี Tool Calls ใดๆ ใน Agent SDK ข้อความสุดท้ายนี้จะส่งมาเป็น AssistantMessage ตามด้วย ResultMessage ที่เก็บ Final Text, Token Usage, Cost และ Session ID ทั้งนี้จำเป็นต้องตรวจสอบ subtype ของ ResultMessage ด้วยเสมอ เพราะการ Run อาจจบลงเพราะติด Limit ไม่ใช่เพราะงานสำเร็จ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่าง Case จริง: งานแก้ Auth Test ที่พัง ใน Turn 1 Claude สั่งรัน npm test ผ่าน Bash แล้วได้ผลลัพธ์ Failed 3 จุด ใน Turn 2 โมเดลอ่าน auth.ts และ auth.test.ts ใน Turn 3 ทำการ Edit ไฟล์ auth.ts และสั่งรัน Test ซ้ำจนผ่านหมดทั้ง 3 จุด ใน Turn สุดท้ายไม่มีการเรียก Tool Call แต่ส่งเพียงข้อความ \"Fixed the auth bug, all three tests pass now.\" ลำดับขั้นตอนเหล่านี้ไม่ได้ถูก Hardcode ไว้ล่วงหน้า แต่ Claude เลือกแต่ละ Action ตามผลลัพธ์ที่ได้รับจากสเต็ปก่อนหน้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากใช้ raw Messages API คุณต้อง Implement ลูปนี้เองด้วย while loop ที่เช็ก stop_reason: ถ้าเหตุผลคือ tool_use ให้รัน Tool ที่ขอมา เพิ่ม tool_result blocks เข้าไปใน Conversation แล้วส่งกลับไปใหม่ หากเป็น stop_reason อื่น ลูปจะสิ้นสุดลง และ Application จะต้องจัดการตามแต่ละเคส"
+        },
+        {
+          "type": "table",
+          "caption": "การจัดการของ Application ตามค่า stop_reason",
+          "headers": [
+            "stop_reason",
+            "ความหมาย",
+            "สิ่งที่ Code ต้องทำต่อไป"
+          ],
+          "rows": [
+            [
+              "tool_use",
+              "Claude ต้องการให้รัน Tool อย่างน้อย 1 รายการ",
+              "รัน Tool เหล่านั้น ส่ง tool_result blocks กลับไป แล้วเรียก API อีกครั้ง"
+            ],
+            [
+              "end_turn",
+              "Claude ให้คำตอบสุดท้ายแล้ว",
+              "ออกจากลูปและส่งมอบ Output"
+            ],
+            [
+              "max_tokens, stop_sequence, refusal",
+              "Claude หยุดทำงานด้วยเหตุผลอื่น",
+              "ออกจากลูปและ Handle แต่ละเคสอย่างชัดเจน"
+            ],
+            [
+              "pause_turn",
+              "Server-side tool loop ชนเพดาน Iteration Cap ทั้งที่งานยังไม่เสร็จ",
+              "ส่ง Conversation กลับไปอีกครั้ง รวมถึง Response ที่ติด Pause เพื่อทำงานต่อ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "อีกเรื่องสำคัญคือการเลือกว่าใครจะเป็นคนคุม Loop: Messages API เหมาะสำหรับ Custom Agent Loops ที่ต้องการ Fine-grained Control สูง ส่วน Claude Managed Agents จะมี Runtime และ Harness สำเร็จรูปให้ ไม่ต้องสร้าง Loop, Tool Execution หรือจัดการ Runtime เอง เหมาะกับงานแบบ Asynchronous และรันเป็นเวลานาน"
+        }
+      ]
+    },
+    {
+      "heading": "2. Who executes tools: client tools versus server tools",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude ไม่เคยรัน Tool ด้วยตัวเอง ตัวโมเดลเพียงแค่ส่ง Structured Request ออกมา จากนั้นระบบภายนอกจะเป็นผู้ Execute และส่ง Result กลับเข้าสู่ Conversation คำถามเชิงสถาปัตยกรรมหลักสำหรับ Tool จึงเป็นการระบุว่า Code ทำงานที่ไหน เพราะเป็นตัวกำหนดขอบเขตความรับผิดชอบของ Application ของคุณ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tools แบ่งออกเป็น 3 กลุ่ม: User-defined client tools รองรับงาน Tool Use ส่วนใหญ่ โดยคุณเป็นผู้เขียน Schema, รันโค้ด และส่ง Result กลับไป Claude จะเห็นแค่ Schema และ Result แต่ไม่เคยเห็น Implementation ภายใน, Anthropic-schema client tools (memory, bash, text_editor, computer, browser) รันบนโค้ดฝั่ง Application ของคุณเช่นเดียวกัน แต่ต่างกันตรงที่ Claude ถูก Fine-tune มากับ Signatures เหล่านี้โดยเฉพาะ จึงเรียกใช้งานได้แม่นยำและ Recover จาก Error ได้ดีกว่า Custom Tool ทั่วไป, Server tools (web_search, web_fetch, code_execution, tool_search) รันบน Infrastructure ของ Anthropic คุณเพียงแค่เปิดใช้งานใน Request และไม่ต้องสร้าง tool_result เอง"
+        },
+        {
+          "type": "table",
+          "caption": "ตำแหน่งของ Tool แต่ละประเภทในเชิง Architecture",
+          "headers": [
+            "ประเภท Tool",
+            "ใครเป็นผู้ Execute",
+            "หน้าที่ของ Loop ฝั่งคุณ"
+          ],
+          "rows": [
+            [
+              "User-defined client tool",
+              "Application ของคุณ",
+              "รัน Operation, ส่ง tool_result กลับไป และขับเคลื่อน Loop"
+            ],
+            [
+              "Anthropic-schema client tool (bash, text_editor, computer…)",
+              "Application ของคุณ",
+              "ทำงานเหมือนกับข้อแรก แต่ Claude เรียกใช้ได้แม่นยำกว่าเพราะเทรน Schema มาโดยเฉพาะ"
+            ],
+            [
+              "Server tool (web_search, web_fetch, code_execution, tool_search)",
+              "Anthropic",
+              "เปิดใช้งานและอ่าน Result; ส่ง Request ซ้ำเมื่อพบ pause_turn"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Client tools ทำให้เกิด Network Round-trip ในทุกๆ Call เพราะโมเดลรันโค้ดเองไม่ได้ จึงต้องร้องขอให้คุณ Execute แล้วรอรับผลลัพธ์กลับไป ในทางกลับกัน Server tools จะสลับบทบาทกัน โดย 1 Request สามารถทริกเกอร์การ Search หรือรัน Code หลายรอบภายใน Loop ของ Anthropic เองได้เลย และ Response ที่ส่งกลับมาจะมี server_tool_use blocks ที่ประมวลผลเสร็จแล้ว ฝั่ง Application จึงแค่อ่านคำตอบเป็นหลัก"
+        },
+        {
+          "type": "paragraph",
+          "text": "Server-side loop มี 2 จุดที่ต้อง Design รองรับ: ประการแรก คือมี Iteration Cap ซึ่งหากชน Limit จะได้ค่า stop_reason เป็น pause_turn แทนที่จะเป็น end_turn แปลว่างานยังไม่เสร็จ ให้ส่ง Conversation ทั้งหมดรวมถึง Response ที่ Pause นั้นกลับไป เพื่อให้โมเดลทำงานต่อจากจุดเดิม ประการที่สอง หาก Claude เรียกทั้ง Server Tool และ Client Tool พร้อมกันแบบ Parallel Response จะได้ stop_reason เป็น tool_use พร้อม server_tool_use block ที่ยังไม่มี Result โดย API จะรัน Server Tool ให้ก็ต่อเมื่อคุณส่ง Client Tool Results กลับไปแล้วเท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Anthropic เป็นผู้กำหนด bash, text_editor และ computer tools แสดงว่า Anthropic เป็นผู้รันเครื่องมือเหล่านี้? (ทำไมถึงผิด): ไม่จริง: เครื่องมือเหล่านี้เป็น Anthropic-schema client tools แม้ Anthropic จะกำหนด Schema มาให้ แต่ Application ของคุณต้องเป็นผู้ Execute โค้ดและส่ง tool_result กลับไปเอง เครื่องมือที่รันบนฝั่ง Anthropic มีเพียง web_search, web_fetch, code_execution และ tool_search เท่านั้น | Response ที่ได้ stop_reason เป็น pause_turn ถือว่าทำงานเสร็จสมบูรณ์และนำไปแสดงให้ผู้ใช้ได้เลย? (ทำไมถึงผิด): ไม่จริง: pause_turn หมายถึง Server-side loop ชนเพดาน Iteration Cap ในขณะที่งานยังค้างอยู่ Application ต้องส่ง Conversation รวมถึง Response ที่ติด Pause นั้นกลับไปอีกครั้ง เพื่อให้โมเดลทำงานต่อจนเสร็จ"
+        }
+      ]
+    },
+    {
+      "heading": "3. เมื่อไหร่ที่ควรนำ Tool เข้ามาไว้ในการออกแบบ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Tool ที่เพิ่มเข้ามาจะสร้าง Round Trip เสมอ ดังนั้นควรใส่เข้ามาเฉพาะงานที่ลำพัง Text output ทำไม่ได้เท่านั้น โดยการใช้ Tool จะเหมาะกับ 4 กรณีนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Actions ที่มี Side effects เช่น การส่งอีเมลหรือ Update ข้อมูลในระบบ แม้ Model จะอธิบายสิ่งเหล่านี้ได้ แต่มีเพียง Tool เท่านั้นที่ลงมือทำจริงได้\n- ดึงข้อมูลภายนอกหรือข้อมูลที่เป็นปัจจุบัน เช่น ราคาล่าสุด หรือข้อมูลใน Database\n- Output ที่ต้องมี Fixed structure แน่นอน โดยมี Schema บังคับฟิลด์ต่างๆ\n- การเรียกใช้งานระบบเดิมที่มีอยู่ เช่น Internal APIs, Databases และ Filesystems"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดสังเกต Design smell: หากคุณต้องเขียน Regex เพื่อแกะผลการตัดสินใจออกมาจาก Model output นั่นเป็นสัญญาณชัดเจนว่าการตัดสินใจนั้นควรทำผ่าน Tool call ในทางกลับกัน งานประเภท Summarization, Translation และการตอบคำถามทั่วไป (Q&A) ไม่จำเป็นต้องใช้ Tool เลย และหากการประมวลผลนั้นเรียบง่าย Latency ที่เสียไปกับการเรียก Tool อาจสูงกว่าตัวงานที่ทำด้วยซ้ำ"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อต้อง Integrate เข้ากับหลายระบบ คำถามคือ: แต่ละระบบจำเป็นต้องเขียน Execution code แยกเองทั้งหมดหรือไม่? หาก Agent ต้องอ่าน Wiki, Query ฐานข้อมูล Ticket และส่งข้อความเข้า Chat คุณอาจสร้างเป็น Client tool แยก 3 ตัว แล้วให้ Loop คอยเช็ก `stop_reason` เพื่อเรียก Handler ของแต่ละตัว ซึ่งแปลว่าคุณต้องสร้างและดูแลถึง 3 Integrations แต่หากเชื่อมต่อผ่าน MCP servers แทน แต่ละระบบจะถูกเปิดใช้งานผ่าน Standardized protocol เดียวกัน โดย Claude ยังคงเป็นผู้ตัดสินใจว่าจะเรียกใช้ Tool ไหนตามเดิม เช่น Managed Agents จะประกาศ MCP servers ไว้ที่ตัว Agent แล้วส่ง Credentials ให้เมื่อสร้างแต่ละ Session (เปรียบเทียบ MCP กับ Protocols อื่นๆ ในหัวข้อ [connection protocols](lesson:3.7))"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทางลัด 2 แบบที่ล้มเหลวด้วยเหตุผลต่างกัน: การแปะเนื้อหา Wiki, Database และ Chat ทั้งหมดลงใน System Prompt จะทำให้ Claude ได้รับเพียงข้อมูลเก่า (Stale data) และไม่สามารถ Take action ได้ เช่น ไม่สามารถส่งข้อความตอบกลับหรือมองเห็น Ticket ที่เพิ่งอัปเดตไปเมื่อนาทีที่แล้ว ส่วนการสร้าง Decision tree แบบ Precomputed เพื่อยิง API แบบคงที่โดยไม่ผ่าน Model ก็เป็นการตัดหัวใจสำคัญของ Agent loop ทิ้งไป นั่นคือความสามารถของ Model ในการเลือก Step ถัดไปจากผลลัพธ์ของ Step ก่อนหน้า"
+        }
+      ]
+    },
+    {
+      "heading": "4. การเลือกขนาด Model ใน Processing stage (Sizing)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Model ที่ทำหน้าที่ประมวลผลคือปัจจัยหลักที่กำหนด Cost และ Latency ของทั้งระบบ การเลือกใช้ Model จึงเป็นการตัดสินใจระดับ Architecture หลักการพื้นฐานคือ \"เริ่มจากเล็ก แล้วค่อยขยับเมื่อจำเป็น\" (Start small and earn the upgrade) ให้เริ่มจาก Model ที่เร็วและประหยัดอย่าง Haiku ทดสอบกับ Input จริง แล้วค่อยขยับไปใช้ Model ที่ฉลาดขึ้นเฉพาะจุดที่ผลการทดสอบชี้ชัดว่ามี Capability gap (ดูรายละเอียด Model trade-offs ในหัวข้อ [model selection](lesson:2.1))"
+        },
+        {
+          "type": "paragraph",
+          "text": "ยกตัวอย่าง Pipeline จัดการ Ticket ที่มีเพดาน Cost ต่อ Ticket อย่างเข้มงวด: การส่งทุก Ticket ผ่าน Model ขนาดใหญ่ที่สุดพร้อม Maximum effort จะทำให้คุณจ่ายแพงเกินจำเป็นให้กับ Capability ที่ Ticket ส่วนใหญ่ไม่ได้ใช้ ระบบ Agentic มักยอมแลก Latency และ Cost เพื่อ Task performance ที่ดีขึ้น แต่การแลกนี้ต้องมีเหตุผลรองรับ ไม่ใช่ตั้งสมมติฐานขึ้นเอง การสุ่มเลือก Model สำหรับแต่ละ Ticket แม้จะเกลี่ย Cost ได้ แต่ Quality จะเอาแน่เอานอนไม่ได้ และระบบจะไม่รู้เลยว่า Ticket ไหนกันแน่ที่ต้องการ Model ใหญ่ ส่วนการเปลี่ยนจาก Claude ไปใช้ Classifier ที่ Train แยกต่างหาก ก็จะสูญเสียความสามารถด้าน Reasoning ในการจัดการ Edge cases ที่งานนี้ต้องการ แนวทางที่เวิร์กที่สุดคือการ Benchmark ด้วย Model เล็กบน Ticket จริงก่อน แล้วค่อย Route เฉพาะเคสที่ยากขึ้นไปยัง Model ที่ใหญ่กว่า"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): การเลือกใช้ Model ฉลาดที่สุดไว้ก่อน (Over-provisioning intelligence) เป็นทางเลือกที่ปลอดภัย ไม่จริง: ถือเป็น Design error ในข้อสอบ เมื่อโจทย์กำหนดให้มีทั้ง Cost ceiling ควบคู่กับ Quality requirement คำตอบที่ถูกต้องคือต้องเริ่มต้นจาก Model ที่ถูกกว่า เบนช์มาร์กวัดผลกับ Input จริง และจะ Escalate ไปใช้ Model ที่ใหญ่ขึ้นก็ต่อเมื่อมีหลักฐานเชิงประจักษ์ว่าประสิทธิภาพไม่เพียงพอเท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "5. Feedback loops สำหรับแก้ไขการทำงานระหว่าง Run",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ระบบจะสามารถแก้ไขข้อผิดพลาดระหว่าง Run ได้ ก็ต่อเมื่อมี Feedback จาก Environment ส่งกลับเข้ามาใน Loop ซึ่งมีจุดออกแบบ Feedback ทั้งหมด 3 ระดับ โดยแต่ละระดับจะมีโครงสร้างที่รัดกุมขึ้นเรื่อยๆ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tool results คือช่องทาง Feedback ขั้นพื้นฐาน เช่นในเคส auth-bug ผลลัพธ์จากการรัน `npm test` ครั้งแรกทำให้ Claude รู้ว่าต้องไปอ่านไฟล์ไหน และการรันครั้งที่สองช่วยยืนยันการแก้บั๊ก ดังนั้นควรออกแบบ Tools ให้ส่ง Checkable facts ที่ตรวจสอบได้เสมอ เช่น Test results, Validator errors หรือ Schema failures เพื่อให้ Claude นำไปประมวลผลต่อใน Turn ถัดไป เพราะ Tool ที่ตอบกลับแค่คำว่า \"done\" จะไม่ให้ข้อมูลที่เป็นประโยชน์ต่อการแก้ไขงานเลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "Hooks เปลี่ยน Feedback ให้กลายเป็น Code ที่รันแน่นอนในทุก Turn ไม่ว่า Model จะตัดสินใจอย่างไร โดย Agent SDK อนุญาตให้ Hooks เข้าไป Intercept, ดัดแปลง หรือบล็อก Tool call ก่อนทำงาน (`PreToolUse`) รวมถึงยิง Callback หลัง Tool ทำงานเสร็จ (`PostToolUse`) แต่ละ `HookMatcher` จะจับคู่ Matcher pattern เช่น `Write|Edit` เข้ากับลิสต์ของ Callbacks ตัวอย่างเช่น หากต้องการบันทึก Audit log ทุกครั้งที่ Agent แก้ไขไฟล์ ให้ลงทะเบียน `PostToolUse` Hook คู่กับ `Edit|Write` แล้วใช้ Callback ทำการ Append log การสั่งใน System Prompt ว่า \"อย่าลืมบันทึกการแก้ไขนะ\" ต้องพึ่งพาการปฏิบัติตามของ Model ทุกรอบใน Long-running session ส่วนการเขียนสคริปต์ภายนอกมา Polling filesystem ก็ทำได้แค่เดาว่าเกิดอะไรขึ้น และการให้ User กดยืนยันทุกครั้งก็เป็นเพียง Human approval gate ไม่ใช่ Audit log"
+        },
+        {
+          "type": "paragraph",
+          "text": "Graded outcomes ช่วยปิด Loop ในระดับ Deliverable ทั้งชิ้น ไม่ใช่แค่ราย Tool call ใน Claude Managed Agents คุณสามารถกำหนด Outcome ได้ผ่าน Description of done และ Rubric จากนั้น Harness จะสร้าง Grader ขึ้นมาตรวจสอบ Artifact เทียบกับ Rubric ในแยก Context Window ต่างหาก เพื่อป้องกันไม่ให้ Bias จากการตัดสินใจของ Agent เข้ามารบกวน คำอธิบายของ Grader ว่าเกณฑ์ข้อใดผ่านหรือไม่ผ่านจะถูกส่งกลับไปให้ Agent ใช้ปรับปรุงใน Iteration ถัดไป นี่คือการนำ [Evaluator-Optimizer pattern](lesson:1.3) มาติดตั้งลงใน Harness โดยตรง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Grader จะมีประสิทธิภาพได้ขึ้นอยู่กับ Rubric มันจะให้คะแนนแยกตามเกณฑ์แต่ละข้อ ดังนั้นข้อความอย่าง \"ข้อมูลดูดีแล้ว\" จะให้ผลลัพธ์ที่คลุมเครือ (Noisy verdicts) ในขณะที่ \"ไฟล์ CSV ต้องมีคอลัมน์ price ที่มีค่าเป็นตัวเลข\" จะให้ผลประเมินที่ชัดเจน นอกจากนี้ Iteration cap ยังทำหน้าที่เป็น Stop condition ของ Loop หากไม่มีตัวนี้ Rubric ที่ Agent แก้ไขเท่าไรก็ไม่ผ่านจะทำให้เกิด Infinite loop ที่ Agent วนแก้งานไม่รู้จบ"
+        },
+        {
+          "type": "table",
+          "caption": "การควบคุม Control flow ของ Loop ตามผลการประเมิน Outcome",
+          "headers": [
+            "result",
+            "สิ่งที่เกิดขึ้นถัดไป"
+          ],
+          "rows": [
+            [
+              "satisfied",
+              "Session เปลี่ยนสถานะเป็น idle"
+            ],
+            [
+              "needs_revision",
+              "Agent เริ่มต้น Iteration cycle รอบใหม่พร้อม Feedback จาก Grader"
+            ],
+            [
+              "max_iterations_reached",
+              "รัน Turn สุดท้ายเพื่อตอบรับ (Acknowledgment) จากนั้นเปลี่ยนเป็น idle โดยไม่มีการประเมินต่อ"
+            ],
+            [
+              "failed",
+              "Session เปลี่ยนเป็น idle เนื่องจาก Rubric ไม่ตรงกับ Deliverables ที่ส่ง"
+            ],
+            [
+              "interrupted",
+              "Session ถูกขัดจังหวะ (Interrupted) ขณะที่ Outcome กำลังทำงาน"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "ลองนำไปปรับใช้: สำรวจ Agent ที่คุณเคยสร้างหรือวางแผนจะพัฒนา มีส่วน Checks ใดบ้างที่ยังพึ่งพาให้ Model คอยจำคำสั่งใน Prompt และส่วนใดที่ควรเปลี่ยนไปใช้ Tool result, Hook หรือ Rubric criterion แทน?"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การสั่งผ่าน System Prompt เพียงพอแล้วที่จะทำให้ Agent บันทึก Log การแก้ไขไฟล์ทุกครั้งในการรันระยะยาว เพราะคำสั่งใน Prompt ต้องพึ่งพา Model ปฏิบัติตามทุก Turn ซึ่งเสี่ยงหลุดได้ง่าย ในขณะที่ Hook คือ Code ที่ผูกติดกับ Loop ซึ่งจะถูก Execute เสมอเมื่อมี Tool call ที่ตรงเงื่อนไขโดยไม่ขึ้นกับการตัดสินใจของ Model\n\nคำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ใน Outcome loop ตัว Main Agent จะตรวจและให้คะแนนงานของตัวเอง เพราะ Harness จะสร้าง Grader แยกต่างหากและทำงานบน Context Window แยกกัน เพื่อไม่ให้การตัดสินใจหรือสมมติฐานเดิมของ Agent ส่งผลกระทบต่อผลการประเมิน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56570",
+      "question": "Architect กำลังสร้าง Agent ที่ต้องอ่านหน้า internal wiki, คิวรีฐานข้อมูล ticketing และโพสต์ตอบกลับไปยังเครื่องมือแชท ทีมงานต้องการหลีกเลี่ยงการเขียนและดูแล Custom Tool-Execution Code สำหรับแต่ละระบบที่เชื่อมต่อ และต้องการให้ Agent ตัดสินใจเรียกใช้แต่ละระบบได้เองโดยอิสระ ตัวเลือกสถาปัตยกรรม (Architecture Choice) ใดตอบโจทย์ได้ดีที่สุด?",
+      "options": [
+        "เชื่อมต่อ Agent เข้ากับ MCP servers สำหรับ wiki, database และ chat tool เพื่อให้แต่ละระบบเปิดใช้งานผ่าน Standardized Protocol เดียวกัน",
+        "ทำ Manual Tool Loop ด้วย Client SDK โดยให้ Application Code ตรวจสอบ stop_reason แล้วส่งต่อไปยัง Hand-Written Handlers",
+        "ใส่เนื้อหาของ wiki, database และ chat ลงใน System Prompt โดยตรงในทุกๆ Request เพื่อที่จะได้ไม่ต้องเรียกใช้ Tool ตอน Runtime",
+        "คำนวณ Static Decision Tree ล่วงหน้าเพื่อแมปทุก Request ที่เป็นไปได้เข้ากับลำดับของ API Calls แบบตายตัว โดยให้แอปพลิเคชันทำงานโดยไม่ต้องพึ่งพา Model"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56569",
+      "question": "ทีมงานกำลังออกแบบ Processing Stage ของสถาปัตยกรรม Customer-Support โดยมี Support Tickets เข้ามาอย่างต่อเนื่องและต้องผ่านการคัดแยก (Triage) ด้วยการใช้ Reasoning ที่แม่นยำกับเคสขอบ (Edge Cases) แต่ทีมมีเพดานต้นทุนต่อตั๋ว (Per-Ticket Cost Ceiling) ที่เข้มงวด และต้องการหลีกเลี่ยงการใช้ Model Intelligence เกินความจำเป็น (Over-provisioning) แนวทางใดเหมาะสมที่สุดสำหรับขั้นตอน Input-to-Processing Handoff ของสถาปัตยกรรมนี้?",
+      "options": [
+        "เริ่มต้นทำ Triage ด้วย Claude Haiku 4.5 ทำ Benchmark เทียบกับตั๋วจริง และจะ Route ไปยังโมเดลที่ฉลาดกว่าเมื่อพบ Capability Gap เท่านั้น",
+        "Route ทุก Ticket ไปที่ Claude Opus 4.8 โดยใช้ Maximum Effort เพื่อให้มั่นใจว่าความแม่นยำในการ Triage จะไม่เป็นคอขวดของ Downstream Stage ใดๆ เลย",
+        "สลับการใช้งานระหว่าง Haiku และ Opus แบบสุ่มในแต่ละ Ticket เพื่อเฉลี่ยต้นทุนโดยที่ยังรักษาความแม่นยำในระดับที่ยอมรับได้",
+        "Fine-tune ตัว Classifier แยกต่างหากภายนอก Claude และใช้งานตัวนี้เพียงอย่างเดียว เพื่อไม่ให้เกิด Model Inference Cost ต่อ Ticket"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56571",
+      "question": "Production Agent ที่สร้างขึ้นด้วย Claude Agent SDK ต้องรันงาน Coding อัตโนมัติเป็นเวลานานหลายชั่วโมง สถาปัตยกรรมนี้ต้องการ Feedback Loop ที่สามารถเขียน Audit-Log Entry ลง Disk ได้โดยอัตโนมัติทุกครั้งที่ Agent แก้ไข (Edit) หรือเขียน (Write) ไฟล์ โดยไม่ต้องคอยระบุข้อความสั่ง Model ในทุก Prompt กลไกใดที่ Architect ควรเลือกใช้?",
+      "options": [
+        "ลงทะเบียน PostToolUse hook ที่จับคู่กับ Edit และ Write tools โดยให้รัน Callback เพื่อ Append Audit Entry ต่อท้ายหลังจากการเรียกใช้งานแต่ละครั้ง",
+        "เพิ่มคำสั่งหนึ่งบรรทัดลงใน System Prompt เพื่อขอให้ Claude จำไว้ว่าต้อง Log ทุกการเปลี่ยนแปลงไฟล์ที่ทำในระหว่าง Session",
+        "ทำ Polling ตรวจสอบ Filesystem ทุกๆ สองสามวินาทีจาก Process แยกต่างหาก แล้ว Diff กับสถานะก่อนหน้าเพื่อดูว่าไฟล์ไหนมีการเปลี่ยนแปลง",
+        "กำหนดให้ผู้ใช้ต้อง Confirm และ Log การแก้ไขแต่ละครั้งแบบ Manual ผ่าน AskUserQuestion tool ก่อนที่จะนำการเปลี่ยนแปลงไปใช้"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+{
+  "title": "ข้อผิดพลาดของ Claude Code, การ Retry อัตโนมัติ และการกู้คืน Session",
+  "objectives": [
+    "จำแนกประเภทข้อความ Error ของ Claude Code เพื่อกำหนดแนวทางจัดการที่ถูกต้อง",
+    "ประเมินได้ว่า Failure รูปแบบใดที่ Claude Code สามารถ Retry เองได้ หรือต้องให้คุณเข้าไปแทรกแซง",
+    "กู้คืน Session จากปัญหา Autocompact Thrashing โดยไม่สูญเสียบริบทการตรวจสอบเดิม",
+    "ปลดบล็อก Refusal พร้อมตรวจจับและแก้ไข Agent ที่ค้างหรือติด Loop ใน Multi-agent Session"
+  ],
+  "key_concept": "",
+  "sections": [
+    {
+      "heading": "1. แยกประเภท Error ก่อนลงมือแก้",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อความ Error ของ Claude Code มักระบุชัดเจนว่าเป็น Error ประเภทไหน ซึ่งประเภทของ Error จะเป็นตัวกำหนด Action ถัดไปของคุณ หมวดหมู่หลักๆ ได้แก่ Server errors, Usage limits, Authentication, Network, Request errors, Command-line errors, Plugin errors และ Tool errors การจำแนกประเภทก่อนจะช่วยป้องกันความผิดพลาดที่เปลืองเวลาที่สุด เช่น การพยายาม Retry สิ่งที่ไม่มีวันสำเร็จ หรือการนั่งแก้ Prompt ทั้งที่จริงๆ ปัญหาเกิดจากระบบล่ม (Outage)"
+        },
+        {
+          "type": "table",
+          "caption": "ประเภทของ Error, ตัวอย่างข้อความ และความหมายของแต่ละประเภท",
+          "headers": [
+            "Category",
+            "Example message",
+            "What it tells you"
+          ],
+          "rows": [
+            [
+              "Server errors",
+              "API Error: Repeated 529 Overloaded errors",
+              "ปัญหาเกิดจากฝั่ง Anthropic ส่วนใหญ่เป็นอาการชั่วคราว (Transient)"
+            ],
+            [
+              "Usage limits",
+              "You've hit your session limit",
+              "Quota หรือ Spend cap เต็ม การ Retry จะไม่ช่วยจนกว่ารอบการใช้งานจะรีเซ็ต"
+            ],
+            [
+              "Authentication",
+              "Not logged in · Please run /login",
+              "Credentials ขาดหายหรือหมดอายุ ข้อความจะระบุวิธีแก้ไว้แล้ว"
+            ],
+            [
+              "Network",
+              "Unable to connect to API",
+              "การเชื่อมต่อระหว่างคุณกับ API ขาดหาย: เช็ก Connectivity, Proxy หรือ Certificates"
+            ],
+            [
+              "Request errors",
+              "Context limit reached · /compact or /clear to continue",
+              "ตัว Request ต้องได้รับการแก้ไขก่อนจึงจะส่งผ่านได้"
+            ],
+            [
+              "Command-line errors",
+              "--bg and --print conflict",
+              "เรียกใช้งาน Claude Code ไม่ถูกต้อง ให้แก้ไข Flags"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "HTTP status codes ด้านหลังก็ใช้หลักการแยกประเภทเดียวกัน: 529 overloaded_error หมายถึง API รองรับโหลดไม่ไหวชั่วคราว, 429 rate_limit_error อาจหมายถึงการติด Rate limit หรือ Spend cap ชนเพดาน, 400 invalid_request_error หมายถึง Format หรือเนื้อหาของ Request ไม่ถูกต้อง หากปัญหายังคงอยู่และจำเป็นต้องติดต่อฝ่าย Support ให้แนบ Request ID ที่ระบุมาใน Error ไปด้วยเสมอ เพราะทุก Response จาก API จะมีค่านี้กำกับอยู่"
+        }
+      ]
+    },
+    {
+      "heading": "2. สิ่งที่ Claude Code ทำการ Retry ให้อัตโนมัติ และสิ่งที่ไม่ Retry",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code จะ Retry เฉพาะความผิดพลาดแบบชั่วคราว (Transient) ที่เกิดขึ้นก่อนจะมี Output ที่ใช้งานได้ส่งกลับมาเท่านั้น โดย Server errors, Overloaded responses และ Request timeouts ที่เกิดขึ้นก่อน Response จะเริ่ม Stream จะถูก Retry พร้อม Backoff อัตโนมัติ รวมถึงกรณี Connection หลุด (เช่น เครื่องคอมพิวเตอร์เข้าสู่ Sleep mode) และ Rate limit แบบชั่วคราว (Temporary 429) ด้วย หากเห็นข้อความว่า 'Waiting for API response · will retry in' แสดงว่าระบบกำลัง Retry อยู่ ให้รอตามรอบและไม่จำเป็นต้องเข้าไปขัดจังหวะ"
+        },
+        {
+          "type": "paragraph",
+          "text": "การ Retry บางกรณีถูกจำกัดเพดานไว้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Stalled stream: Response stream ที่ค้างก่อนจะมีเนื้อหาใดๆ เข้ามา จะถูก Abort และเริ่ม Stream ใหม่อีกสูงสุด 1 ครั้ง\n- Error after thinking: Server error ที่เกิดขึ้นหลังจาก Claude ทำกระบวนการ Thinking เสร็จ แต่ยังไม่ทันเริ่มส่ง Text หรือ Tool call จะถูก Retry สูงสุด 2 ครั้ง\n- Content filter: Response ที่ถูกสกัดโดย Output content filter จะถูกส่งซ้ำอีก 1 ครั้ง หากถูกบล็อกซ้ำเป็นครั้งที่สองจะแสดงข้อความ 'Output blocked by content filtering policy'"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Error ใดๆ ที่ต้องอาศัย Action หรือการแก้ไขจากคุณ ระบบจะไม่ Retry ให้ เช่น 429 ที่เกิดจาก Spend cap จะไม่มี Header retry-after ส่งมา และจะ Fail ต่อเนื่องจนกว่าจะได้รับสิทธิ์เข้าถึงใหม่ ส่วน Authentication และ Request errors จะระบุคำสั่งแก้ไว้ในตัว เช่น /login, /compact หรือ /clear ซึ่งการนั่งรอเฉยๆ จะไม่ช่วยแก้ปัญหาทั้งสองประเภทนี้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Claude Code ไม่ได้ Retry ทุกกรณีของ 429 ระบบจะ Retry เฉพาะ Throttles ชั่วคราวเท่านั้น หากเป็น 429 จาก Spend cap เต็ม จะยังคง Fail ต่อไปจนกว่าจะมีการปลดล็อกสิทธิ์ใช้งาน การรอเฉยๆ จะไม่ช่วยอะไร"
+        }
+      ]
+    },
+    {
+      "heading": "3. การแก้ปัญหา Context Pressure และ Autocompact Thrashing",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Compaction คือการสรุป History ช่วงก่อนหน้าเพื่อคืนพื้นที่ว่างใน Context Window (ศึกษากลไกเชิงลึกได้ที่ [Compaction (server-side and client-side SDK)](lesson:2.4)) แต่ Compaction อาจติด Loop ล้มเหลวได้ หากทำแล้ว Context ยังเต็มขีดจำกัดทันทีต่อเนื่องกัน 3 ครั้ง Claude Code จะหยุดทำงานพร้อมแจ้งเตือน \"Autocompact is thrashing\" แทนที่จะยิง API calls ทิ้งอย่างไร้ประโยชน์ Error นี้ส่งสัญญาณชัดเจนว่า ต้นเหตุที่ทำให้ Context ล้นยังคงค้างอยู่ใน Conversation การฝืนกด Compacting ซ้ำหรือ Retry ย่อมไม่ช่วยอะไร"
+        },
+        {
+          "type": "paragraph",
+          "text": "วิธีแก้คือตัดไฟแต่ต้นลมเพื่อไม่ให้ Context กลับมาเต็มซ้ำ เช่น กรณีอ่านไฟล์ Log ขนาด 40,000 บรรทัดรวดเดียว โดยให้แก้ตามลำดับดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. สั่ง Claude ให้อ่านไฟล์ขนาดใหญ่ทีละส่วน (Chunks) เช่น กำหนดช่วง Line Range หรือระบุเฉพาะฟังก์ชัน 2. รัน /compact พร้อมระบุ Focus เพื่อตัด Large Output ทิ้ง เช่น /compact keep only the plan and the diff 3. ย้ายงานประมวลผลไฟล์ใหญ่ไปให้ Subagent จัดการ เพื่อแยกไปรันในอีก Context Window หนึ่ง 4. ใช้คำสั่ง /clear เป็นทางเลือกสุดท้าย เฉพาะเมื่อไม่ต้องการ Context ก่อนหน้าแล้วเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "แต่ละทางเลือกมี Trade-off ต่างกัน: การใช้ /compact แบบระบุ Focus จะเก็บเฉพาะสิ่งที่คุณระบุ ส่วนข้อมูลอื่นเช่น สมมติฐานก่อนหน้านี้จะเหลือเพียงบทสรุปคร่าวๆ ขณะที่ /clear จะล้างทั้ง Conversation ซึ่งไม่คุ้มค่าหากอยู่ในช่วงสืบสวนปัญหาที่ต้องพึ่งพา Reasoning ก่อนหน้า หลังจากกู้คืนระบบได้แล้ว ให้ตรวจสอบด้วย /context หากแถว Messages กินพื้นที่มากสุด แสดงว่ามี Output บางอย่างเติมเข้ามาจนเต็มอีกครั้ง แต่หากแถวอื่นๆ รวมกันใหญ่กว่า แปลว่าสิ่งที่โหลดตอน Startup กินพื้นที่มากเกินไปจนเหลือที่ว่างน้อย ให้ลดขนาดลง ทั้งนี้ /compact อาจแจ้งเตือน \"Not enough messages to compact.\" แม้ว่า Context จะเต็มก็ตาม หากเกิดจากการ Paste ข้อความขนาดใหญ่เพียงครั้งเดียว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Autocompact thrashing แปลว่าระบบแค่ต้องการรอบ Compaction เพิ่ม ให้กด Retry ไปเรื่อยๆ จนกว่าไฟล์ใหญ่จะใส่พอ เพราะ Claude Code ตั้งใจหยุดทำงานเมื่อพบว่า Context กลับมาเต็มทันทีหลัง Compaction ติดกัน 3 ครั้ง ทางแก้คือต้องจัดการที่ Input ซึ่งทำให้เกิดปัญหา เช่น อ่านไฟล์เป็น Chunks, ใช้ /compact แบบระบุ Focus หรือส่งงานต่อให้ Subagent แทน"
+        }
+      ]
+    },
+    {
+      "heading": "4. การกู้คืน Session ที่ติดปัญหา Refusal",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เมื่อเกิด Refusal ตัว Conversation จะถูกบล็อกตั้งแต่ Turn ที่ทริกเกอร์เป็นต้นไป (ศึกษาสาเหตุที่โมเดลปฏิเสธได้ที่ [built-in safety classifiers and refusal fallback](lesson:5.1)) การกู้คืนทำได้โดยย้อนกลับไปยังจุดก่อนหน้า Turn นั้น ด้วยการกด Esc 2 ครั้ง หรือรัน /rewind เพื่อกลับไปยัง Checkpoint ก่อนหน้า แล้วทำการ Rephrase ข้อความหรือเปลี่ยนแนวทางการ Prompt ใหม่ แต่หากระบุไม่ได้ว่า Turn ไหนเป็นสาเหตุ ให้ใช้ /clear เพื่อเริ่ม Conversation ใหม่ใน Project เดิม โดย History เดิมจะยังคงบันทึกอยู่บน Disk และเรียกใช้งานต่อได้ผ่าน /resume"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับการรันแบบ Headless จะต้องใช้วิธีอื่น เนื่องจากคำสั่ง rewind ไม่สามารถใช้งานได้ภายใต้แฟล็ก -p ให้แก้ไขโดย Retry ด้วย Rephrased Prompt ใน Session ใหม่โดยไม่ต้องใส่ --continue นอกจากนี้ Policy Checks อาจแตกต่างกันไปตามแต่ละโมเดล การสลับไปใช้แฟล็ก --model จึงช่วยแก้ปัญหาได้ในบางกรณี ทั้งนี้ ตัวการกระตุ้น Refusal อาจซ่อนอยู่ใน Customization ไม่ใช่ที่ Prompt ของคุณ หากข้อความระบุ Details: [reasoning_extraction] ให้ตรวจสอบว่ามี Instruction ที่สั่งให้ Claude แสดงกระบวนการ Reasoning ออกมาตรงๆ หรือไม่ ซึ่งอาจฝังอยู่ใน CLAUDE.md, Skills หรือ MCP Tool Descriptions หากต้องการยืนยัน ให้ลองยิง Prompt เดิมใน Session ผ่าน claude --safe-mode และหลังจากแก้ Customization เรียบร้อยแล้ว ให้เริ่ม Session ใหม่อีกครั้ง"
+        }
+      ]
+    },
+    {
+      "heading": "5. การระบุ Agent ที่ติดขัด (Stuck) หรือติด Loop ใน Multi-Agent Session",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เมื่อ Multi-Agent Session หยุดนิ่งหรือไม่คืบหน้า สิ่งแรกที่ต้องทำคือตรวจสอบว่า Agent ตัวไหนค้างอยู่ก่อนที่จะตัดสินใจดำเนินการใดๆ Claude Code จะแท็กแต่ละ OTEL span ของ `claude_code.tool` ด้วย `agent_id` และ `parent_agent_id` โดย Spans ของ Background Subagents จะซ้อนอยู่ใต้ Agent tool span ที่เป็นตัวเรียกใช้งาน ให้ไล่ตาม ID เหล่านี้ลงไปตามโครงสร้าง Tree: Agent ตัวที่ Span ยังคงเปิดค้างอยู่ (stays open) หรือเรียก Tool ซ้ำๆ เดิมไม่รู้จบ คือตัวที่กำลัง Stuck หรือติด Loop"
+        },
+        {
+          "type": "paragraph",
+          "text": "แม้ไม่มี Tracing Backend ก็ตรวจสอบโครงสร้าง Tree ได้ด้วยคำสั่ง `/agents` ซึ่งจะแสดง Nested Subagent Tree ขณะกระจายงาน พร้อมจำนวน Descendant ในแต่ละแถวและ Path ย้อนกลับไปยัง Main Agent ทั้งนี้เพื่อป้องกันปัญหา Runaway Nesting ระบบจึงจำกัดความลึกของ Subagent Chain สูงสุดไว้ที่ 5 ระดับ (5 levels deep) เมื่อพบ Agent ที่มีปัญหาแล้ว สามารถกด Ctrl+C เพื่อพยายาม Cancel การทำงานปัจจุบัน หาก Session ไม่ตอบสนอง ให้ปิด Terminal แล้ว Restart ใหม่"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): เมื่อ `/agents` tree แสดงว่ามี Subagent ตัวหนึ่งที่จำนวน descendant เพิ่มขึ้นเรื่อยๆ ขณะที่ตัวอื่นทำงานเสร็จหมดแล้ว ควรรีบกดยกเลิกทันที? ไม่จริง: ก่อนกดยกเลิก ให้ตรวจสอบ spans ของ Subagent ตัวนั้นก่อน โดยดูว่า Spans ค้างเปิดอยู่ (`claude_code.tool` span stays open) หรือกำลังเรียก Tool เดิมวนซ้ำๆ เพื่อยืนยันว่าติด Infinite Loop/Stuck จริง หรือเป็นเพียง Task ขนาดใหญ่ที่ต้องแตก Subagents ทำงานคู่ขนานกันตามปกติ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57065",
+      "question": "ระหว่างเซสชันการดีบักที่ยาวนาน Claude Code แจ้งเตือนข้อผิดพลาดว่า \"Autocompact is thrashing: the context refilled to the limit...\" ทันทีหลังจาก automatic compaction เสร็จสิ้น และหยุดการ retry โดยก่อนหน้านี้ทีมงานได้สั่งให้ Claude อ่านไฟล์ production log ทั้งหมดจำนวน 40,000 บรรทัดเพื่อหาสาเหตุของระบบล่ม (outage) วิธีใดเป็นวิธีที่มีประสิทธิภาพมากที่สุดในการกู้คืนเซสชันและดำเนินการตรวจสอบต่อ?",
+      "options": [
+        "เพิ่มค่า CLAUDE_CODE_MAX_RETRIES เพื่อให้ Claude Code พยายามทำ compaction ซ้ำต่อไปเรื่อยๆ จนกระทั่งโหลดไฟล์ log ทั้งหมดได้สำเร็จ",
+        "สั่งให้ Claude อ่านไฟล์ log ทีละส่วนย่อยๆ เช่น ระบุช่วงบรรทัด (line range) ที่เจาะจง หรือมอบหมาย (delegate) การวิเคราะห์นี้ให้กับ subagent แทน",
+        "ตั้งค่า DISABLE_AUTO_COMPACT เพื่อให้ Claude Code หยุดการสรุป history และเก็บ output ของ log ทั้งหมดไว้ใช้อ้างอิง",
+        "รันคำสั่ง /clear เพื่อล้างการสนทนาทิ้งทั้งหมด จากนั้นคัดลอกเฉพาะข้อความ error บรรทัดสุดท้ายจากไฟล์ log ไปวางในเซสชันใหม่"
+      ],
+      "explanation": ""
+    }
+  ]
+}

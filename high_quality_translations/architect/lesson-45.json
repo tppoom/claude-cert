@@ -1,0 +1,208 @@
+{
+  "title": "การจัดทำเอกสาร Architecture สำหรับโซลูชันบน Claude",
+  "objectives": [
+    "ระบุ Components, Data Flows, Models, Tools และ Boundaries ที่ต้องระบุไว้ใน Architecture Description ให้ครบถ้วนชัดเจน",
+    "เสนอแนะสภาพแวดล้อมที่เหมาะสมในการรัน Agent (Agent SDK ใน Process ของตนเอง หรือ Managed Agents) พร้อมแนวทางการเชื่อมต่อ Tools",
+    "บันทึกเหตุผลเบื้องหลังของแต่ละ Architectural Layer เพื่อป้องกันไม่ให้ทีมอื่นตัดทิ้งหรือสร้างซ้ำซ้อนในภายหลัง",
+    "กำหนดแนวทางปรับ Configuration, Error-Handling และ Deployment เพื่อยกระดับจาก Prototype สู่ Production Service"
+  ],
+  "key_concept": "Architecture Description — เอกสารที่ระบุโครงสร้างหลักของโซลูชันบน Claude, รูปแบบการสื่อสารระหว่างส่วนประกอบ, Model และ Tools ที่แต่ละส่วนเลือกใช้ ตลอดจน System Boundaries ควบคู่ไปกับเหตุผลเบื้องหลังของแต่ละองค์ประกอบ เพื่อให้นักพัฒนาสามารถ Implement และดูแลระบบต่อได้ทันทีโดยไม่ต้องเสียเวลาแกะรอยจาก Prototype",
+  "sections": [
+    {
+      "heading": "1. องค์ประกอบสำคัญที่ Architecture Description ต้องระบุให้ชัดเจน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เป้าหมายของ Architecture Description คือการตอบคำถามทางเทคนิคที่ Engineer ต้องรู้ก่อนเริ่มเขียนโค้ด: มี Components อะไรบ้าง? Request เดินทางระหว่างระบบอย่างไร? แต่ละ Call ใช้ Model ตัวไหน? Model มี Tools อะไรให้เรียกใช้บ้าง? และ Boundaries ระหว่างสิ่งที่รันบน Process ของเรากับรันบนระบบภายนอกอยู่ตรงไหน? หาก Diagram มีแค่กล่องสี่เหลี่ยมเชื่อมกันแต่ไม่ระบุ Model หรือ Tools ประจำ Component สุดท้าย Engineer ก็ต้องกลับไปแกะจาก Prototype เองอยู่ดี"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่าง Customer Support Agent แสดงให้เห็นชัดเจนว่าทำไมต้องระบุรายละเอียดเหล่านี้: เมื่อระบบขยายใหญ่ขึ้น ดีไซน์ที่นิยมใช้คือส่งทุก Query ไปยัง Intent Classifier ก่อน แล้ว Classifier จะ Route เข้าสู่ Specialized Conversation ที่มี Tools และ System Prompt เฉพาะทางของตัวเอง ประโยคเดียวนี้ครอบคลุมทั้ง Component (Classifier), Data Flow (Query → Classifier → Conversation), Model Call ในแต่ละ Step และ Tool Set ของแต่ละ Conversation ซึ่ง Engineer ต้องมีสเปกเหล่านี้ระบุไว้อย่างครบถ้วน"
+        },
+        {
+          "type": "table",
+          "caption": "5 สิ่งสำคัญที่ต้องระบุในสเปก (อ้างอิงจากตัวอย่าง Support Agent)",
+          "headers": [
+            "Element",
+            "สิ่งที่ Document ต้องระบุ",
+            "ตัวอย่างในเคส Support Agent"
+          ],
+          "rows": [
+            [
+              "Components",
+              "แต่ละ Service และหน้าที่ที่รับผิดชอบ",
+              "Intent classifier, Specialized conversations, API wrapper, Web interface"
+            ],
+            [
+              "Data flows",
+              "การเดินทางของ Request แบบ End-to-End",
+              "Customer query → Classifier → Specialized conversation → Streamed reply ผ่าน Server-Sent Events"
+            ],
+            [
+              "Models",
+              "Call ไหนที่เรียก Claude และ 1 Request ต้องเรียกกี่ครั้ง",
+              "Classifier มีการเรียก Claude เพิ่มอีก 1 Call ก่อนที่ Conversation หลักจะเริ่มทำงาน"
+            ],
+            [
+              "Tools",
+              "Tools ที่แต่ละ Component มีสิทธิ์เรียกใช้งาน",
+              "แต่ละ Specialized conversation จะมีชุด Tools และ System Prompts แยกเฉพาะของตัวเอง"
+            ],
+            [
+              "Boundaries",
+              "ส่วนที่ทีมต้อง Operate เอง เทียบกับส่วนที่ External API จัดการให้",
+              "HTTP Service ที่ทีมรันเอง เทียบกับ Claude API ภายนอกที่ระบบเรียกไปหา"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "2. Agent Loop รันอยู่ที่ไหน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Agent แล้ว Boundary ที่สำคัญที่สุดคือ Process ที่ Agent Loop ใช้รัน ทั้ง Claude Agent SDK และ Managed Agents ต่างใช้คอนเซปต์เดียวกัน (Agents, Tools, Sessions) แต่รันกันคนละที่: SDK จะรันใน Process ที่คุณ Operate เอง ส่วน Managed Agents จะรันบน Infrastructure ของ Anthropic คุณจึงจำเป็นต้องระบุตัวเลือกนี้ให้ชัดใน Architecture Document เพราะการตัดสินใจนี้กำหนดว่าใครเป็นผู้ถือ Filesystem, ใครเป็นคน Execute Tools และข้อมูลที่ต้องส่งผ่าน Network คืออะไรบ้าง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ยกตัวอย่างเช่น Platform Team ที่ต้องการให้ Agent รันบน Server ภายในองค์กร 100%, ทำงานบน Git Checkouts ในเครื่อง และเรียกใช้ In-process Functions เป็น Tools เคสนี้ทีมควร Embed Agent SDK เป็น Library เข้ามาใน Service เลย เพราะฟังก์ชันที่ติด @tool จะถูก SDK ทำ Dispatch ให้อัตโนมัติ อีกทั้ง Built-in Tools ก็จะทำงานบน Local Filesystem ตรงๆ โดยไม่มีข้อมูลหลุดออกนอก Process แต่ Managed Agents จะไม่ตอบโจทย์นี้ทันที เพราะ Anthropic เป็นโฮสต์ดูแล Sandbox และ Custom Tools จะถูกแปลงเป็น `agent.custom_tool_use` Events ที่ Client ต้องคอย Handle ตอบกลับมา แม้ว่าการเขียน Custom Tool Loop ครอบ Messages API เองจะทำได้ แต่ก็กลายเป็นการ Re-implement ระบบ Dispatch ที่ SDK มีให้พร้อมใช้อยู่แล้วโดยไม่จำเป็น"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบ Agent SDK กับ Managed Agents สำหรับบันทึกใน Architecture Document",
+          "headers": [
+            "Concern",
+            "Agent SDK",
+            "Managed Agents"
+          ],
+          "rows": [
+            [
+              "Where it runs",
+              "Process ที่คุณ Operate เอง",
+              "Infrastructure ของ Anthropic"
+            ],
+            [
+              "Agent configuration",
+              "สร้างผ่าน ClaudeAgentOptions(...) ใหม่ในแต่ละ Run",
+              "สร้างผ่าน client.beta.agents.create(...) ครั้งเดียว มีการ Persist และ Versioning ให้บน Server-side"
+            ],
+            [
+              "Custom tools",
+              "ฟังก์ชันที่ระบุด้วย @tool และถูก Dispatch อัตโนมัติโดย SDK",
+              "ประกาศไว้ที่ Agent โดยฝั่ง Client จะต้องคอย Handle อีเวนต์ agent.custom_tool_use เอง"
+            ],
+            [
+              "Built-in tools",
+              "รันบน Process และ Filesystem ในเครื่องของคุณ",
+              "รันอยู่ภายใน Sandbox ที่ Anthropic ดูแลให้"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "Managed Agents ถือว่ารัน Agent บน Infrastructure ของเราเอง เพราะ Service ของเราเป็นตัวควบคุม? (ทำไมถึงผิด): ไม่จริง: Managed Agents รันตัว Agent และ Sandbox บน Infrastructure ของ Anthropic ทั้งหมด มีเพียง Claude Agent SDK เท่านั้นที่รัน Loop และ Tools ภายใน Process ที่เรา Operate เอง"
+        }
+      ]
+    },
+    {
+      "heading": "3. บันทึกวิธีการเชื่อมต่อของ Tools (Documenting how tools connect)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "แนวทางการ Implementation ต้องระบุวิธีที่ Agent จะเชื่อมต่อไปยัง External Systems ต่างๆ ได้อย่างชัดเจน สำหรับ Claude Code คำตอบมาตรฐานคือการใช้ MCP Server โดยเอกสารควรระบุคำสั่งที่ใช้ Register อย่างแม่นยำ MCP Server คือหัวใจที่ช่วยให้ Claude Code ทำงานร่วมกับ Issue Trackers, Monitoring Tools และ Databases ได้ สำหรับเกณฑ์การเลือก Integration Mechanism มีกล่าวถึงใน [connection protocols](lesson:3.7) ส่วนหัวข้อนี้จะโฟกัสที่การบันทึกค่าคอนฟิกที่เลือก เพื่อให้ Developer คนอื่นนำไป Setup ต่อได้ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "ต้องระบุ Transport ให้ชัดเจน เพราะเป็นตัวกำหนดว่าใครจะเป็นผู้รัน Server หากเป็น Hosted Server (รันภายนอก) จะเชื่อมต่อผ่าน URL โดยระบุ `--transport http` แต่ถ้าเป็น Local Server จะเป็นโปรแกรมที่ Agent สั่งเปิดเองบนเครื่อง ซึ่งไม่ต้องใส่ Flag Transport ใดๆ เพราะ Default ของ Local Server คือ `stdio` อยู่แล้ว ตัวอย่างเช่น หากมี Open-source Connector สำหรับ Confluence หรือ Jira ที่ Agent ต้องเรียกเปิดเอง ให้บันทึกไว้ว่าเป็น stdio MCP Server การเขียนโค้ดเรียก API ใหม่ขึ้นมาเป็น Custom Tool ใน Agent เองถือเป็นการสูญเปล่าและละทิ้ง Connector ที่มีอยู่แล้วโดยไม่จำเป็น"
+        },
+        {
+          "type": "paragraph",
+          "text": "นอกจากนี้ต้องระบุ Scope ที่เลือกด้วย: `local` จะจำกัด Server ไว้สำหรับ Developer คนเดียวใน Project เดียว, `user` จะแชร์ Server ให้ Developer คนนั้นข้ามทุก Project, และ `project` จะเขียนคอนฟิกลงไฟล์ `.mcp.json` ที่ Root ของ Repository ทำให้ทุกคนที่ Clone Repo ไปได้ Server เดียวกันทั้งหมด โดยแนวทางปฏิบัติสำหรับการทำงานเป็นทีมส่วนใหญ่ต้องกำหนด Scope เป็น `project`"
+        }
+      ]
+    },
+    {
+      "heading": "4. บันทึกการเลือก Model (Recording the model choice)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Model Call ใน Architecture ต้องระบุชื่อ Model พร้อมเหตุผลประกอบเสมอ เพื่อให้ย้อนกลับมาทบทวนในอนาคตได้ว่าการตัดสินใจนั้นยังเหมาะสมอยู่หรือไม่ (เกณฑ์การ Trade-off มีกล่าวใน [Model trade-offs](lesson:2.1)) เช่น งาน Ticket-triage Classifier ที่มี Volume สูง มีข้อจำกัดเรื่อง Latency และ Cost อย่างเข้มงวด แต่ยังต้องการการให้เหตุผล (Reasoning) ที่ดี คำแนะนำคือเลือก Claude Haiku 4.5 ซึ่ง Anthropic ออกแบบมาให้เหมาะกับงาน Real-time, High-volume และ Cost-sensitive ที่ยังต้องใช้ Reasoning สูง โดย Haiku เป็น Model Class ที่เร็วที่สุดและประหยัดที่สุด ส่วน Opus ออกแบบมาสำหรับงาน Enterprise ระดับ Reasoning-intensive ซึ่งเกินความจำเป็นสำหรับงาน Classification ราย Ticket"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเพิ่ม Effort Level ช่วยประหยัดเงินหรือลดเวลา? (ทำไมถึงผิด): ไม่จริง: Effort เป็นการ Trade-off ระหว่างความละเอียด (Thoroughness) กับประสิทธิภาพ (Efficiency) การตั้งค่า Effort ให้สูงขึ้นเป็นการซื้อความละเอียดรอบคอบของคำตอบ หากเป้าหมายคือการลด Latency และ Cost ให้เลือก Model Class ที่เล็กลง เช่น Haiku แทนที่จะไปเร่ง Effort ขึ้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเพิ่ม Effort Level เป็นวิธีมาตรฐานในการลด Latency และ Cost สำหรับงาน High-volume? (ทำไมถึงผิด): ไม่จริง: Effort แลกความละเอียดกับประสิทธิภาพ การเพิ่ม Effort ทำให้ Agent คิดละเอียดและประมวลผลนานขึ้น หากต้องการควบคุม Cost และ Latency สำหรับงานปริมาณมาก ควรเลือก Model Class ที่เล็กลงอย่าง Haiku"
+        }
+      ]
+    },
+    {
+      "heading": "5. บันทึกเหตุผลการมีอยู่ของแต่ละ Layer (Recording why each layer exists)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Layer ที่เพิ่มเข้ามาต้องบันทึกเหตุผลลงในเอกสาร พร้อมระบุว่าได้ลองใช้วิธีที่ประหยัด (Cheaper options) ใดไปแล้วบ้าง หากไม่มีบันทึกนี้ ทีมที่มารับช่วงต่ออาจเห็น Intent Classifier, Prompt Chain และชุด Tools โดยไม่รู้ว่าส่วนไหนจำเป็นจริงๆ พวกเขาอาจเผลอลบ Classifier ทิ้งเพราะคิดว่าเปลือง API Call โดยไม่จำเป็น จนทำให้ Routing พังเมื่อเจองานที่หลากหลาย หรืออาจเผลอสร้าง Router ซ้ำซ้อนขึ้นมาอีกตัวเพราะไม่รู้ว่ามีตัวเดิมอยู่แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างการออกแบบ Support-Agent แสดงให้เห็นรูปแบบบันทึกที่ดี โดยลำดับขั้นตอนที่แนะนำก่อนจะเพิ่ม Layer คือ: เริ่มจากการปรับ Prompt ให้มีประสิทธิภาพสูงสุดก่อน จากนั้นค่อยลองเพิ่ม Tools หรือทำ Prompt Chains และจะเพิ่ม Classifier เป็นตัวเลือกสุดท้ายเมื่อ Bot ต้องรับมือกับ Task ที่หลากหลายและแตกต่างกันมากๆ เท่านั้น เพราะ Classifier แลกมาด้วย Latency และ Extra Call ไปยัง Claude ข้อเท็จจริงและ Trade-off เหล่านี้ต้องถูกบันทึกไว้อย่างชัดเจน"
+        }
+      ]
+    },
+    {
+      "heading": "6. เปลี่ยนจาก Prototype ไปเป็น Deployable Service",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prototype มีหน้าที่แค่พิสูจน์ว่าไอเดียใช้งานได้ แต่ Service คือระบบที่ Engineer คนอื่นสามารถ Deploy, Config และดูแลให้รันต่อได้จริง ในเคส Support-Agent อาจเริ่มต้นจาก Python Functions บน Streamlit แต่ระบบ Real-time Chatbot สำหรับ Production จำเป็นต้องเปลี่ยนมาใช้ API Service ซึ่งมี 3 ส่วนสำคัญที่ต้องปรับเปลี่ยน: วิธีการ Serve โค้ด, การทำ Configuration และการจัดการ Error Handling"
+        },
+        {
+          "type": "paragraph",
+          "text": "ด้านการ Serving ให้ Wrap Core Function ด้วย HTTP Framework เช่น FastAPI หรือ Flask พร้อมรองรับ Stream Responses ผ่าน Server-Sent Events (SSE), ทำ Caching เพื่อลด API Calls ที่ไม่จำเป็น และจัดการ Conversation Context ให้ต่อเนื่องเมื่อ User กลับเข้ามาใหม่ ส่วนด้าน Configuration ต้องระบุขั้นตอน Setup ตั้งแต่ Clone Repo ใหม่ทั้งหมด เช่น การ Copy ไฟล์ .env.example ไปเป็น .env ซึ่งจำเป็นต่อการรัน Test และ Dev Server นอกจากนี้ Network Routing ก็นับเป็น Configuration เช่นกัน เช่น การตั้งค่า HTTPS_PROXY สำหรับ Corporate Proxy หรือการใช้ ANTHROPIC_BASE_URL เพื่อยิงผ่าน LLM Gateway สำหรับ Track Usage, คุม Rate Limits หรือจัดการ Budget จากส่วนกลาง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Error Handling มักเป็นจุดที่ Prototype ละเลยมากที่สุด ใน Messages API ทุก Response จะส่งค่า `stop_reason` กลับมาเสมอเพื่อบอกสาเหตุที่หยุดการ Generate ซึ่ง Tool Loop ต้องอ่านค่านี้: `end_turn` หมายถึง Model ตอบจบตามปกติ แต่ `refusal` คือค่าที่ต่างออกไป และ Service ต้องเขียน Branch Logic ดักไว้ ไม่ใช่เหมาเอาว่า Response ใช้งานได้ทั้งหมด นอกจากนี้ต้องแยกแยะ Transient Failure (ที่ Retry ได้) ออกจาก Configuration Error ให้ชัดเจน ตัวอย่างเช่น บน Claude Haiku 4.5 การตั้งค่าทั้ง `temperature` และ `top_p` พร้อมกันจะส่งผลให้ได้ Error 400 ทันที ซึ่งการ Retry จะไม่มีวันสำเร็จ ปิดท้ายด้วยกฎเหล็กของการ Deployment: ต้องทดสอบบน Development Environment ให้ผ่านก่อนขึ้น Production เสมอ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57029",
+      "question": "ทีม Platform กำลังจัดทำเอกสาร Architecture สำหรับ Production Agent ตัวใหม่ ที่ต้องทำงานบน Infrastructure ของตนเองทั้งหมด โดยสามารถจัดการไฟล์และ Git Repositories ที่ Checkout อยู่บนเซิร์ฟเวอร์ได้โดยตรง รวมถึงเรียกใช้ Custom In-process Functions เป็น Tools แนวทางการ Implement ข้อใดที่เอกสาร Architecture ควรแนะนำ?",
+      "options": [
+        "ใช้ Client SDK ในการส่ง Prompts ไปยัง Messages API โดยตรง และ Implement Custom Tool-execution Loop ขึ้นมาเองเพื่ออ่านไฟล์และเรียกคำสั่ง Git",
+        "ใช้ Agent SDK เป็น Library ฝัง (Embedded) ไว้ใน Service เพื่อให้ Agent Loop, Filesystem Access และ Custom Tools ทั้งหมดทำงานอยู่ภายใน Process ของทีมเอง",
+        "ใช้ Managed Agents เพื่อให้ Anthropic เป็นผู้ดูแล Sandbox และ Session Infrastructure ในขณะที่ Service แลกเปลี่ยน Events ผ่าน REST Interface",
+        "ใช้ MCP Connector เพื่อ Expose การทำงานของ Git ในรูปแบบ Remote MCP Server ที่ Messages API สามารถเรียกใช้ได้โดยตรง โดยไม่ต้องมี Local Agent Loop หรือ Filesystem Access ทำงานอยู่"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57030",
+      "question": "คู่มือการ Implement จำเป็นต้องอธิบายวิธีให้ Claude Code เข้าถึงข้อมูลบน Confluence และ Jira ของบริษัท โดยใช้ Open-source Connector ที่มีอยู่ ซึ่งต้องถูกเรียกทำงานแบบ Locally โดย Process ของ Agent แทนที่จะโฮสต์เป็น Network Service คู่มือดังกล่าวควรระบุ Pattern ใด?",
+      "options": [
+        "Deploy MCP Server ที่ Expose การทำงานของ Confluence และ Jira เป็น Tools และ Config ให้ Agent สั่งรันขึ้นมาแบบ Locally ผ่าน stdio",
+        "ฝัง (Embed) การเรียก API ของ Confluence และ Jira เป็น Client-side Tools ภายใน Process ของ Agent โดย Bypass MCP Server และ Transport ที่มีอยู่เดิม",
+        "Config ให้ Messages API เรียก REST Endpoints ของ Confluence และ Jira โดยตรงผ่าน Extended Thinking Blocks",
+        "ครอบ Confluence และ Jira ด้วยขั้นตอน Upload ของ Files API เพื่อ Refresh Context ของ Agent ตามเวลาที่กำหนด (Fixed Schedule)"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57031",
+      "question": "Support-tooling Architect กำลังเขียนแนวทางการ Implement สำหรับ Service คัดแยก Ticket (Ticket Triage) ที่มีปริมาณ Request สูง (High-volume) ซึ่งต้องใช้การ Reasoning ในระดับที่ดี แต่ต้องควบคุม Latency และ Cost ให้อยู่ในงบจำกัด คำแนะนำเรื่อง Model ข้อใดที่เอกสารควรระบุ?",
+      "options": [
+        "แนะนำ Claude Haiku 4.5 โดยระบุว่ามีความสามารถด้าน Reasoning ใกล้เคียงระดับ Frontier ในราคาที่คุ้มค่าที่สุด เหมาะสำหรับงาน Classification ที่มีปริมาณสูงและต้องการ Latency ต่ำ",
+        "แนะนำ Claude Opus 4.8 โดยระบุว่ามีความโดดเด่นในงาน Complex Agentic Coding และ Enterprise Engineering ซึ่งตอบโจทย์งาน Ticket Triage สเกลใหญ่ได้ดีที่สุด",
+        "แนะนำ Claude Sonnet 5 ที่ Config ค่า Effort Level เป็น xhigh เพราะการเพิ่มค่า Effort เป็นวิธีมาตรฐานในการลด Latency และ Cost สำหรับงาน High-volume",
+        "แนะนำ Claude Opus 4.8 ที่เปิดใช้งาน Fast Mode เพราะ Fast Mode เปิดให้บริการทั่วไป (GA) แล้ว และช่วยตัดค่าใช้จ่ายส่วนเกิน (Cost Premium) สำหรับ Production Traffic ออกไปได้"
+      ],
+      "explanation": ""
+    }
+  ]
+}

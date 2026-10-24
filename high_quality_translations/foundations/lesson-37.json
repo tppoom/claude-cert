@@ -1,0 +1,225 @@
+{
+  "title": "Hook Events, Matchers และ Handler Types ใน Claude Code",
+  "objectives": [
+    "ระบุ Hook Events ที่ถูกเรียกในแต่ละ Tool Call, แต่ละ Turn และแต่ละ Session",
+    "แยกแยะว่า Hook Event ใดสามารถยับยั้ง Action ได้ และ Event ใดทำได้เพียงสังเกตการณ์ (Observe) ย้อนหลัง",
+    "เขียน Matcher โดยใช้ชื่อแบบตรงตัวหรือ Regular Expressions เพื่อเจาะจง Tools ที่ต้องการ",
+    "เลือก Handler Type และตำแหน่งการตั้งค่า (Settings Location) ที่เหมาะสมสำหรับ Guardrail Hook"
+  ],
+  "key_concept": "Hook ในฐานะ Deterministic Control Point — Hook คือ Handler ที่ลงทะเบียนไว้กับ Lifecycle Event ซึ่ง Claude Code จะเรียกทำงานทุกครั้งที่เกิด Event นั้นเสมอ โดยไม่ขึ้นกับเจตนาของ Model นอกจากนี้ Hook ที่ทำงานก่อนที่ Action จะมีผลยังสามารถปฏิเสธ (Refuse) Action นั้นได้ ทำให้ Policy ที่กำหนดไว้กลายเป็นการตรวจสอบที่ทำงานอย่างแน่นอนทุกครั้ง",
+  "sections": [
+    {
+      "heading": "1. Hooks: เลเยอร์ที่ทำงานทุกครั้งที่มี Tool Call",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt เช่น \"ห้ามรัน rm -rf เด็ดขาด\" เป็นเพียงคำสั่งที่ Claude นำไปพิจารณา แต่ Hook คือสิ่งที่ Claude Code จะ execute จริงตามโค้ดเสมอ โดยคุณสามารถผูก Handler เข้ากับ Lifecycle Event เพื่อให้ทำงานทุกครั้งที่ Event นั้นถูกทริกเกอร์ ไม่ว่าโมเดลจะตัดสินใจอย่างไรก็ตาม และในบรรดาแนวทางการป้องกันทั้งหมด Hook จัดว่าไม่อาศัยการปฏิบัติตามคำสั่งของโมเดลแม้แต่น้อย เพราะมันจะดักรันทุก Tool Call เสมอ แม้กระทั่งคำสั่งที่เกิดจากการโดน Prompt Injection ก็ตาม"
+        },
+        {
+          "type": "paragraph",
+          "text": "Hook Events ถูกทริกเกอร์ด้วย 3 ความถี่ที่แตกต่างกัน: SessionStart และ SessionEnd ทำงานครั้งเดียวต่อหนึ่ง Session, UserPromptSubmit, Stop และ StopFailure ทำงานครั้งเดียวต่อหนึ่ง Turn, ส่วน PreToolUse และ PostToolUse จะทำงานครอบรอบทุก Tool Call ภายใน Agentic Loop (ยกเว้น EndConversation ที่จะข้ามทั้งคู่) ทั้งนี้ระบบ Guardrails จะโฟกัสคู่ Pre/Post Tool Call เป็นหลัก เพราะเป็นจุดที่ Agent ใช้แก้ไขไฟล์, รัน Shell Command และยิงเรียก External Services"
+        },
+        {
+          "type": "paragraph",
+          "text": "กลไกของ Hook ไม่ได้จำกัดอยู่แค่การสั่งบล็อก (Blocking) เท่านั้น แต่ยังสามารถใช้ Log ทุกคำสั่ง Bash ลง Audit File, ดักรอให้คนกด Approve ก่อนแก้ Database หรือแม้แต่ Rewrite ค่า Input ของ Tool ก่อนรันจริง โดย Handler ทั้งหมดนี้คือโค้ดที่คุณเขียนเองและฝังไว้ที่จุดคงที่ของ Loop"
+        }
+      ]
+    },
+    {
+      "heading": "2. Hook Events ใดบ้างที่สามารถยับยั้ง Action ได้",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ความสามารถในการสั่งบล็อกขึ้นอยู่กับ Timing — Hook จะหยุด Action ได้ก็ต่อเมื่อ Event นั้นทริกเกอร์ \"ก่อน\" ที่ Action จะมีผลจริง: PreToolUse ทำงานก่อน Tool ถูก Execute จึงสามารถยกเลิก Call ได้, UserPromptSubmit ทำงานก่อน Claude จะประมวลผล Prompt การบล็อกตรงนี้จึงทำให้ Prompt ส่งไปไม่ถึง Claude, UserPromptExpansion สามารถยับยั้งคำสั่งไม่ให้ขยายเป็น Prompt ได้ และ PreModelSwitch สามารถ Veto คำขอเปลี่ยนโมเดลได้ ในทางกลับกัน PostToolUse และ PostToolUseFailure จะทำงานหลังจาก Tool ทำงานสำเร็จหรือล้มเหลวไปแล้ว จึงเหมาะกับการทำ Audit, Lint หรือรายงานผลกลับไปยัง Claude เท่านั้น ไม่สามารถป้องกันความเสียหายได้ทัน"
+        },
+        {
+          "type": "table",
+          "caption": "ผลลัพธ์ของ exit code 2 บน Events ทั่วไป",
+          "headers": [
+            "Hook event",
+            "บล็อกได้หรือไม่?",
+            "ผลลัพธ์เมื่อส่ง exit 2"
+          ],
+          "rows": [
+            [
+              "PreToolUse",
+              "ได้",
+              "บล็อก Tool Call ไม่ให้ทำงาน"
+            ],
+            [
+              "UserPromptSubmit",
+              "ได้",
+              "บล็อก Prompt ทำให้ส่งไปไม่ถึง Claude"
+            ],
+            [
+              "UserPromptExpansion",
+              "ได้",
+              "บล็อกการ Expansion"
+            ],
+            [
+              "Stop",
+              "ได้",
+              "ยับยั้งไม่ให้ Claude หยุดทำงาน และให้ดำเนิน Conversation ต่อไป"
+            ],
+            [
+              "ConfigChange",
+              "ได้",
+              "บล็อกไม่ให้การเปลี่ยนแปลง Configuration มีผล (ยกเว้น policy_settings)"
+            ],
+            [
+              "PostToolUse",
+              "ไม่ได้",
+              "ส่ง stderr กลับไปให้ Claude โดยที่ Tool ได้รันไปเรียบร้อยแล้ว"
+            ],
+            [
+              "PermissionRequest",
+              "ไม่ได้",
+              "ไม่รองรับ exit code 2 ต้องส่ง Deny ผ่าน Decision Object แทน"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "คำว่า \"บล็อก\" ไม่ได้แปลว่า \"ปฏิเสธ Action ที่อันตราย\" เสมอไป สำหรับ Stop และ SubagentStop การสั่งบล็อกจะบังคับให้ Claude ทำงานต่อ เช่น ใช้ดักไม่ให้จบ Turn จนกว่า Test จะผ่าน ไม่ใช่การป้องกันระบบ ในทางกลับกัน PermissionRequest มักเป็นจุดที่หลายคนเข้าใจผิด แม้จะทริกเกอร์ตอน Tool Call ต้องการสิทธิ์ Approval แต่ Event นี้ไม่สนใจ exit code 2 ดังนั้นหาก Hook ต้องการปฏิเสธ จะต้องส่งคำตอบผ่าน Decision Object ในรูปแบบ JSON Output เท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การใช้ PostToolUse hook ส่ง exit code 2 จะช่วยหยุดคำสั่งที่สร้างความเสียหายได้ เพราะ PostToolUse ทำงานหลังจาก Tool รันสำเร็จไปแล้ว การส่ง exit 2 ทำได้เพียงส่ง stderr กลับไปให้ Claude เท่านั้น หากต้องการป้องกันจริงต้องดักที่ PreToolUse | คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การส่ง exit code 2 จาก PermissionRequest hook จะเป็นการปฏิเสธ Permission เพราะ PermissionRequest จะไม่สนใจ exit code 2 หากต้องการ Deny สิทธิ์ จะต้องส่งผ่าน decision property ใน JSON Output ของ Hook เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. การกำหนดเป้าหมายของ Hook ด้วย Matchers และเงื่อนไข if",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การตั้งค่า Hook แบ่งออกเป็น 3 ระดับ: เลือก Event, กำหนด Matcher เพื่อกรองจังหวะที่ Hook จะทำงาน และระบุ Handler อย่างน้อยหนึ่งตัวที่จะรันเมื่อ Matcher ตรงเงื่อนไข สำหรับ Tool Events (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, PermissionDenied) ค่า Matcher จะถูกนำไปเทียบกับชื่อ Tool ส่วน Event อื่นๆ จะกรองจากฟิลด์อื่น เช่น SessionStart กรองจากวิธีที่ Session เริ่มต้นขึ้น, PreCompact กรองจากประเภท Compaction ว่าเป็นแบบ Manual หรือ Auto ขณะที่ UserPromptSubmit, Stop, PostToolBatch และ Event อื่นๆ บางตัวไม่รองรับ Matcher และจะ Trigger ทุกครั้งที่เกิด Event"
+        },
+        {
+          "type": "paragraph",
+          "text": "วิธีที่ระบบอ่าน Matcher String ขึ้นอยู่กับตัวอักษรที่ใช้: หากใช้ *, String ว่าง หรือไม่ใส่ Matcher เลย จะถือว่า Match ทั้งหมด หากเป็น String ที่ประกอบด้วยตัวอักษร, ตัวเลข, _, -, ช่องว่าง, จุลภาค (,) และ | เท่านั้น ระบบจะมองเป็นชื่อแบบตรงตัว (Exact Name) หรือรายการชื่อแบบตรงตัว เช่น Edit|Write จะ Match เฉพาะ Tool สองตัวนี้เท่านั้น แต่หากมีตัวอักษรอื่นนอกเหนือจากนี้ สตริงทั้งหมดจะกลายเป็น JavaScript Regular Expression แบบ Unanchored ทันที ดังนั้น ^Notebook จึง Match ทุก Tool ที่ชื่อขึ้นต้นด้วย Notebook และ mcp__memory__.* จะ Match ทุก Tool บน Memory MCP Server โดย Tool ของ MCP จะตั้งชื่อตามรูปแบบ mcp__<server>__<action> การใช้ Regex จึงเป็นวิธีมาตรฐานในการครอบคลุม Tool ทั้งหมดของ Server"
+        },
+        {
+          "type": "paragraph",
+          "text": "Matcher ตรวจสอบได้เฉพาะชื่อ Tool เท่านั้น หากต้องการจำกัดขอบเขตของ Hook ให้แคบลง ให้ใส่เงื่อนไข if ให้กับ Handler โดยเขียนด้วย Syntax เดียวกับ Permission Rule เช่น Bash(rm *) ซึ่งจะทำให้ Handler ทำงานเฉพาะกับการเรียกคำสั่งที่มี Argument ตรงตามเงื่อนไขเท่านั้น ช่วยแก้ปัญหา Script ที่เดิมต้องรันทุกครั้งที่มีการเรียก Bash เพื่อ Parse และ Dismiss คำสั่งที่ไม่เกี่ยวข้อง ให้รันเฉพาะคำสั่งที่ต้องการตรวจสอบจริงๆ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Edit|Write คือ Regular Expression จึง Match Tool อื่นๆ ที่แค่มีคำว่า Edit หรือ Write อยู่ในชื่อด้วย? (ทำไมถึงผิด): ไม่จริง: Matcher ที่ประกอบด้วยตัวอักษร, ตัวเลข, _, -, ช่องว่าง, จุลภาค และ | จะถูกประมวลผลเป็นรายการชื่อแบบตรงตัว (Exact Names) เท่านั้น จะเปลี่ยนเป็น Regular Expression ก็ต่อเมื่อมีตัวอักษรพิเศษอื่นนอกเหนือจากกลุ่มนี้"
+        }
+      ]
+    },
+    {
+      "heading": "4. Handler Types และตำแหน่งจัดเก็บ Hook Configuration",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ฟิลด์ type ของ Handler กำหนดประเภทของโค้ดที่จะใช้ตัดสินใจ Guardrail ที่เน้น Pattern Matching กับ Command String เหมาะที่สุดกับ Command Handler ซึ่งเป็น Script ที่รับ Event JSON เข้ามาแล้วตอบกลับผลลัพธ์ผ่าน Exit Code หรือ stdout ส่วน Handler ประเภทอื่นจะส่ง Event ไปยัง Service ภายนอก, MCP Tool หรือส่งให้ Model ประเมิน"
+        },
+        {
+          "type": "table",
+          "caption": "Handler ทั้ง 5 รูปแบบ",
+          "headers": [
+            "type",
+            "การทำงานของ Handler"
+          ],
+          "rows": [
+            [
+              "command",
+              "รัน Command หรือ Script ในเครื่องที่รับ Event Data เข้าไปประมวลผล"
+            ],
+            [
+              "http",
+              "ส่ง POST Request พร้อม Event Data ไปยัง URL ปลายทาง"
+            ],
+            [
+              "mcp_tool",
+              "เรียกใช้ Tool บน MCP Server ที่ตั้งค่าไว้"
+            ],
+            [
+              "prompt",
+              "ประเมินผลด้วย LLM แบบ Single-turn"
+            ],
+            [
+              "agent",
+              "ตรวจสอบแบบ Multi-turn พร้อมสิทธิ์การเรียกใช้ Tool (เป็นฟีเจอร์ Experimental และอาจเปลี่ยนแปลงได้)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "หากต้องการกฎที่แน่นอน (Hard Rule) ควรเลือกใช้ Command Handler เพราะให้ผลลัพธ์แบบเดิมเสมอเมื่อ Input เหมือนเดิม ส่วน Prompt และ Agent Handler จะใช้การตัดสินใจของ Model ซึ่งเหมาะกับ Policy ที่มีความยืดหยุ่นหรือกำกวมเกินกว่าจะเขียนด้วย Regex สำหรับ HTTP Handler ทางผู้ดูแลระบบสามารถจำกัดสิทธิ์ได้ โดยหากมีการกำหนด allowedHttpHookUrls ที่ Settings ระดับใดก็ตาม จะอนุญาตให้รันได้เฉพาะ Hook URLs ที่อยู่ใน Merged Allowlist เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "ไฟล์ที่ใช้บันทึก Hook จะเป็นตัวกำหนดขอบเขตการป้องกัน: Guardrail ใน ~/.claude/settings.json จะครอบคลุมทุกโปรเจกต์ของคุณบนเครื่อง แต่ไม่มีผลกับผู้อื่น หากใส่ใน .claude/settings.json การตั้งค่าจะถูก Commit เข้า Git Repository ทำให้ทุกคนที่ Clone Repo ได้รับผลไปด้วย ส่วน .claude/settings.local.json จะถูก Gitignore ไว้ จึงเป็นค่าเฉพาะตัว สำหรับ Managed Policy Settings จะมีผลทั่วทั้งองค์กรและควบคุมโดย Administrator นอกจากนี้ Hook ยังสามารถติดตั้งผ่าน Plugin หรือประกาศไว้ใน Frontmatter ของ Skill หรือ Subagent เพื่อจำกัด Scope ให้ทำงานเฉพาะตอนที่ Component นั้นๆ Active อยู่ได้"
+        },
+        {
+          "type": "table",
+          "caption": "ตำแหน่งจัดเก็บ Hook Configuration",
+          "headers": [
+            "Location",
+            "Scope",
+            "Shareable"
+          ],
+          "rows": [
+            [
+              "~/.claude/settings.json",
+              "ทุกโปรเจกต์ของคุณ",
+              "ไม่แชร์ (เฉพาะเครื่องของคุณ)"
+            ],
+            [
+              ".claude/settings.json",
+              "โปรเจกต์เดียว",
+              "แชร์ได้ (สามารถ Commit ลง Git Repo)"
+            ],
+            [
+              ".claude/settings.local.json",
+              "โปรเจกต์เดียว",
+              "ไม่แชร์ (ถูก Gitignore เมื่อ Claude Code บันทึกค่าลงไฟล์นี้)"
+            ],
+            [
+              "Managed policy settings",
+              "ระดับองค์กร (Organization-wide)",
+              "แชร์ได้ (ควบคุมโดย Admin)"
+            ],
+            [
+              "Plugin hooks/hooks.json",
+              "เมื่อ Plugin เปิดใช้งาน",
+              "แชร์ได้ (แพ็กรวมไปกับ Plugin)"
+            ],
+            [
+              "Subagent frontmatter",
+              "ระหว่างที่ Subagent นั้นกำลังรัน",
+              "แชร์ได้ (กำหนดไว้ในไฟล์ของ Subagent)"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55717",
+      "question": "ทีมแพลตฟอร์มต้องการป้องกันไม่ให้ Claude Code รันคำสั่ง `rm -rf` กับ path ในระบบ production ไม่ว่าโมเดลจะตัดสินใจอย่างไรก็ตาม ควรใช้ hook event ใดเพื่อรับประกันว่าคำสั่งนี้จะไม่ถูก execute อย่างแน่นอน?",
+      "options": [
+        "PreToolUse เพราะจะทำงานก่อนที่ tool call จะ execute และสามารถปฏิเสธ (deny) คำสั่งได้",
+        "PostToolUse เพราะจะทำงานหลังจากคำสั่งรันเสร็จแล้ว และสามารถ roll back ผลลัพธ์กลับมาได้",
+        "Stop เพราะจะทำงานเมื่อ Claude ตอบกลับเสร็จสิ้น และสามารถ flag ลงใน transcript ได้",
+        "Notification เพราะจะทำงานเมื่อ Claude Code ส่งข้อความสถานะเกี่ยวกับคำสั่งนั้น"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55718",
+      "question": "Security engineer เขียน command-hook script สำหรับ PreToolUse เพื่อตรวจสอบ `tool_input.command` โดยเมื่อตรวจพบ dangerous pattern จะพิมพ์คำอธิบายออกทาง stderr และจบการทำงานโดยไม่ส่ง JSON ใดๆ ออกมา exit code ใดที่ทำให้ Claude Code บล็อก tool call นั้น พร้อมส่งข้อความจาก stderr ดังกล่าวกลับไป?",
+      "options": [
+        "Exit code 2 ซึ่งถือเป็น blocking error และจะส่ง stderr ป้อนกลับไปให้ Claude",
+        "Exit code 0 ซึ่งอนุญาตให้ tool call ดำเนินการต่อไปเสมอ ไม่ว่าจะมี stderr หรือไม่ก็ตาม",
+        "Exit code 1 ซึ่งสงวนไว้เฉพาะสำหรับกรณี malformed JSON output เท่านั้น",
+        "Nonzero exit code ใดก็ได้ เนื่องจาก Claude Code จะถือว่าค่า nonzero ทั้งหมดเป็น blocking แบบเดียวกัน"
+      ],
+      "explanation": ""
+    }
+  ]
+}

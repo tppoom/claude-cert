@@ -1,0 +1,134 @@
+{
+  "title": "MCP Server Primitives: Tools, Resources และ Prompts",
+  "objectives": [
+    "อธิบายบทบาทของ Host, Client และ Server ในสถาปัตยกรรม MCP",
+    "อธิบายการประกาศ Capability เพื่อให้ Server แสดงฟีเจอร์ที่รองรับ",
+    "สร้าง Tool พร้อมกำหนด inputSchema ที่ถูกต้อง และส่งผลลัพธ์กลับแบบ Text หรือ Structured Data",
+    "เปิดใช้งาน Resources และ Resource Templates พร้อมจัดการความปลอดภัยให้กับ file:// Resources",
+    "สร้าง Parameterised Prompts และส่งคืน Error Codes ที่ถูกต้อง",
+    "เลือกใช้ Communication Patterns ระหว่าง stdio กับ Streamable HTTP พร้อมจัดการ stdout ของ stdio Server ให้ Clean"
+  ],
+  "key_concept": "MCP Server Primitives — MCP Server คือโปรแกรมขนาดเล็กที่ออกแบบมาเฉพาะทางเพื่อส่งมอบ 3 ขีดความสามารถหลักแก่ Host Application ได้แก่ Tools ที่โมเดลเรียกใช้ได้, Resources สำหรับป้อน Context และ Prompts ที่ทำหน้าที่เป็น Reusable Message Templates โดยที่ Host ยังคงเป็นผู้ควบคุมทิศทางการสนทนาทั้งหมด และ Server ทำหน้าที่เพียงตอบกลับตามคำขอที่ได้รับเท่านั้น",
+  "sections": [
+    {
+      "heading": "1. Host, client, and server",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สถาปัตยกรรม MCP แบ่งออกเป็น 3 บทบาทหลักที่ต้องแยกให้ออก: 1) Host คือแอปพลิเคชันหลักที่ผู้ใช้ทำงานด้วย (เช่น Claude Code หรือ Custom Agent ของคุณ) ทำหน้าที่สร้างและจัดการ Client instances, บังคับใช้ Security Policies/Consent, จัดการสิทธิ์ (Authorization) และเชื่อมโยงการทำงานร่วมกับ LLM 2) Client จะรันอยู่ภายใน Host โดย 1 Client instance จะเชื่อมต่อกับ 1 Server เสมอ มีหน้าที่แนบ Protocol Version และ Capabilities ไปกับทุก Request, จัดการ Route ข้อความแบบ 2 ทิศทาง และแยกแต่ละ Server ไม่ให้ยุ่งเกี่ยวกัน (Isolation) 3) Server คือตัวที่ Provide เครื่องมือ (Tools), ข้อมูล (Resources) และ Templates (Prompts) ซึ่งสามารถรันเป็น Local Process หรือ Remote Service ก็ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "หลักการออกแบบ (Design Principles) ตามข้อกำหนดของ MCP ในการแบ่งบทบาทนี้คือ: Server ควรสร้างง่ายที่สุด เพราะหน้าที่ Orchestration ที่ซับซ้อนยกให้ Host จัดการ; แต่ละ Server ต้อง Composable เพื่อรวมหลายๆ Server ที่โฟกัสเฉพาะทางเข้าด้วยกันได้; และ Server ต้องไม่สามารถอ่านประวัติ Conversation ทั้งหมด หรือสอดส่อง Server ตัวอื่นได้ โดย Server จะได้รับเฉพาะ Context ที่จำเป็นเท่านั้น ส่วน Full Conversation History จะอยู่กับ Host ตลอดเวลา"
+        }
+      ]
+    },
+    {
+      "heading": "2. Declaring capabilities",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Features ใน MCP ทำงานผ่านการตกลง (Negotiated) ร่วมกัน ไม่มีการทึกทักเอาเอง ฝั่ง Server ต้องประกาศ Capabilities เช่น Tools Support, Resource Subscriptions และ Prompt Templates ขณะที่ฝั่ง Client จะประกาศ Capabilities ของตนเอง เช่น Sampling และ Elicitation จากนั้นทั้งสองฝั่งต้องยึดตามสิ่งที่ประกาศไว้ตลอด Session ในทางปฏิบัติ ฟีเจอร์ใดๆ ที่ Server สร้าง Handler รองรับไว้ จะต้องถูกระบุใน Capabilities ด้วยเสมอ หาก Server มี Tool Handler แต่ไม่ประกาศ Tools ใน Capabilities ฝั่ง Client จะไม่สามารถเรียกใช้ Tool นั้นได้เลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อตั้งค่า `listChanged: true` Server กำลังรับปากว่าจะส่งการแจ้งเตือน `notifications/tools/list_changed` เมื่อชุด Tools มีการเปลี่ยนแปลง เพื่อให้ Client รับรู้และเรียก Fetch รายการ Tools ใหม่อีกครั้ง สำหรับ Resources และ Prompts ก็ใช้รูปแบบเดียวกันภายใต้ Capability Keys ของตนเอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "แค่ Implement Handler ก็เพียงพอให้ Client เรียกใช้ฟีเจอร์ได้แล้ว Capability Declaration เป็นแค่ Optional? (ทำไมถึงผิด): ไม่จริง: Features ของ Server ต้องประกาศใน Capabilities เสมอ และการเรียกใช้ Tool ต้องมีการประกาศ tools capability อย่างชัดเจน มิเช่นนั้น Client จะเรียกใช้งานไม่ได้ | stdio Server สามารถ Print Debug ออก stdout ได้ เพราะ Client จะ Ignore Text ที่ไม่รู้จักทิ้งไปเอง? (ทำไมถึงผิด): ไม่จริง: stdout ถูกใช้ส่ง MCP Protocol (JSON-RPC) โดยเฉพาะ ข้อความใดๆ ที่ไม่ใช่ Valid MCP Message จะทำให้ Stream เสียหายทันที การ Log ต้องส่งไปที่ stderr เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Capabilities กำหนดว่า Server ให้บริการอะไร ส่วน Communication Pattern กำหนดว่าข้อความถูกรับส่งอย่างไร ซึ่งทั้งสองส่วนเป็นอิสระต่อกัน รูปแบบแรกคือ `stdio` ใช้สำหรับ Local Server โดย Client จะ Spawn Server เป็น Child Process ตัว Server จะอ่าน JSON-RPC Messages ผ่าน `stdin` และส่ง JSON-RPC Messages ผ่าน `stdout` แต่ละ Message คือ 1 Request, Notification หรือ Response แยกบรรทัดด้วย Newlines และห้ามมี Newlines ภายในตัว Message เด็ดขาด ตัวอย่างเช่น Claude Code เชื่อมต่อด้วยคำสั่ง `claude mcp add --transport stdio airtable -- npx -y airtable-mcp-server` (คำสั่งหลัง `--` คือ Process ที่ถูก Spawn) หรือใน SDK จะใช้ `StdioServerTransport`"
+        },
+        {
+          "type": "paragraph",
+          "text": "เนื่องจาก `stdout` ถูกสงวนไว้สำหรับ Protocol โดยเฉพาะ stdio Server จึงห้าม Print ข้อความอื่นใดลงไปอย่างเด็ดขาด และ Client ก็ห้ามส่งข้อความที่ไม่ใช่ Valid MCP Message เข้า `stdin` เช่นกัน หากมี `print` หรือ `console.log` แปลกปลอมหลุดเข้าไปจะทำให้ Stream เสียหาย (Corrupted) ให้ Log ผ่าน `stderr` แทน ซึ่งข้อกำหนดของ MCP อนุญาตให้ใช้สำหรับทุกประเภทการ Log ฝั่ง Client อาจดักอ่าน, ส่งต่อ หรือข้าม Log นั้นได้ และจะไม่ทึกทักว่า `stderr` คือ Error ส่วนขั้นตอน Shutdown ฝั่ง Client จะปิด Input Stream ของ Child Process แล้วรอให้ Server Exit หาก Server ไม่ยอมปิดในเวลาที่เหมาะสม Client จะทำการ Force Terminate ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "รูปแบบที่สองคือ Streamable HTTP ใช้สำหรับ Remote Server โดย Server จะเป็น Standalone Service ที่เปิด HTTP Endpoint เดี่ยวรองรับ POST และ Client จะส่งทุก JSON-RPC Request หรือ Notification เป็นแต่ละ POST Call ฝั่ง Server จะตอบกลับเป็น JSON Object ตัวเดียวหรือ SSE Stream ก็ได้ ใน Claude Code สามารถเพิ่มผ่านคำสั่ง `claude mcp add --transport http <name> <url>` (รวมถึงรองรับ `sse` และ `ws` WebSocket แบบเดิมในการคอนฟิก) ทั้งสองรูปแบบ Client จะเป็นฝ่ายเริ่ม Connect และ Server เป็นผู้ตอบกลับ ข้อแตกต่างหลักคือ Client เป็นตัว Spawn Process เอง (stdio) หรือเชื่อมต่อไปยัง Service ที่รันอยู่แล้ว (HTTP)"
+        }
+      ]
+    },
+    {
+      "heading": "3. Tools: ฟังก์ชันที่โมเดลสามารถเรียกใช้ได้ (Model-Callable Functions)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "โครงสร้างนิยาม Tool ประกอบด้วย: name ที่ไม่ซ้ำกัน, display title (optional), description, inputSchema, outputSchema (optional), ตลอดจน annotations และ icons (optional) โดย name ต้องมีความยาว 1–128 ตัวอักษร, เป็น case-sensitive, ใช้ได้เฉพาะตัวอักษร ASCII, ตัวเลข, _, -, . และต้องไม่ซ้ำกันภายใน server เดียวกัน ตัวอย่างชื่อที่ถูกต้อง เช่น getUser, DATA_EXPORT_v2 และ admin.tools.list"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากไม่ได้ระบุฟิลด์ $schema ค่า inputSchema จะตั้งต้นเป็น JSON Schema 2020-12 สำหรับ Tool ที่ไม่มี parameters แนะนำให้กำหนด schema เป็น { \"type\": \"object\", \"additionalProperties\": false } ฝั่ง Client จะค้นหา Tools ผ่าน tools/list (รองรับ pagination ด้วย cursor) และสั่งรันผ่าน tools/call โดยส่ง name และ arguments ผลลัพธ์ที่ได้จะส่งกลับผ่าน content array ซึ่งบรรจุข้อมูลได้ทั้ง text, image, audio, resource_link หรือ embedded resource พร้อมกับแฟล็ก isError ทั้งนี้ หากมีการประกาศ outputSchema ทาง server ต้องส่งกลับ structuredContent ที่ถูกต้องตาม schema ดังกล่าวด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "บาง Tools มีการสร้าง state เพื่อให้ call ถัดๆ ไปอ้างอิงผ่าน handle ได้ (เช่น create_basket ที่ return basket_id) สำหรับกรณีนี้ ควรกำหนด retention policy ให้ชัดเจนใน description ของ Tool นั้น และเมื่อมีการเรียกใช้ด้วย handle ที่หมดอายุหรือไม่ถูกต้อง ให้ return กลับเป็น tool execution error เพื่อเปิดโอกาสให้โมเดล recovery ได้ ส่วนฝั่ง Host นั้น spec กำหนดให้มี Human-in-the-loop โดย UI ควรแสดง Tools ที่เชื่อมต่ออยู่ แสดงสถานะเมื่อ Tool ถูกเรียกใช้งาน และขอ confirmation จากผู้ใช้ก่อน execute เสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Tool ที่ไม่มี parameters สามารถกำหนด inputSchema เป็น null หรือละเว้นไม่ต้องใส่ได้ เพราะ inputSchema ต้องเป็น valid JSON Schema object เสมอ โดยรูปแบบที่แนะนำคือ object type ที่มี additionalProperties: false"
+        }
+      ]
+    },
+    {
+      "heading": "4. Resources: Context ที่ระบุตำแหน่งด้วย URI",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Resource คือข้อมูลที่ระบุตำแหน่งด้วย uri โดยมี name และฟิลด์เสริม (optional) เช่น title, description, mimeType, size และ icons ฝั่ง Client สามารถเรียกดูรายการผ่าน resources/list และดึงข้อมูลผ่าน resources/read ซึ่งแต่ละ item ใน contents ที่ส่งกลับมาจะเป็น text หรือ base64 blob data สำหรับการเข้าถึงแบบรับ parameter จะใช้ resources/templates/list ซึ่งคืนค่ากลับมาเป็น URI templates เช่น file:///{path} นอกจากนี้ยังมี Annotations ที่ช่วยบอก Client ถึงวิธีใช้งาน ได้แก่ audience (user และ/หรือ assistant), priority (0.0 ถึง 1.0) และ lastModified"
+        },
+        {
+          "type": "paragraph",
+          "text": "Capabilities ของ resources มี 2 แฟล็กทางเลือก ได้แก่ listChanged (Server จะส่ง notification เมื่อรายการ resources มีการเปลี่ยนแปลง) และ subscribe (รองรับการแจ้งเตือน update สำหรับแต่ละ resource ที่ร้องขอผ่าน subscriptions/listen) ด้านความปลอดภัยเป็นหน้าที่ของ Server ที่ต้อง validate resource URI ทุกครั้ง, encode ข้อมูล binary อย่างถูกต้อง, บังคับใช้ Access Control กับ sensitive resources และ sanitize file paths เมื่อให้บริการ resources แบบ file:// ทั้งนี้ หากไม่พบ resource ให้ Server return error code -32602 พร้อมแนบ URI ใน data"
+        }
+      ]
+    },
+    {
+      "heading": "5. Prompts: Reusable Message Templates",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt คือ Template ข้อความที่มีการตั้งชื่อระบุไว้ พร้อมรองรับ Arguments เสริม (ซึ่งแต่ละตัวจะมี Name, Description และ Flag กำหนด Required) โดย Client จะค้นหารายการ Prompts ผ่าน `prompts/list` และเรียกใช้งานเพื่อกรอกข้อมูลผ่าน `prompts/get` จากนั้น Server จะส่งรายการ Messages กลับมา โดยแต่ละ Message จะกำหนด Role เป็น `user` หรือ `assistant` และมี Content เป็น Text, Image, Audio, Resource Link หรือ Embedded Resource"
+        },
+        {
+          "type": "paragraph",
+          "text": "Server ควร Validate Prompt Arguments ก่อนนำไปประมวลผลเสมอ หากไม่พบ Prompt Name หรือขาด Required Argument จะ Return Error Code `-32602` (Invalid params) และหากเกิด Internal Error จะ Return `-32603` ตารางด้านล่างนี้สรุปเปรียบเทียบความแตกต่างของ Server Primitives ทั้ง 3 รูปแบบ"
+        },
+        {
+          "type": "table",
+          "caption": "ตารางเปรียบเทียบ Server Primitives ทั้งสามรูปแบบ",
+          "headers": [
+            "Primitive",
+            "Discover (การค้นหา)",
+            "Use (การเรียกใช้งาน)",
+            "Change notification (การแจ้งเตือนเมื่อมีการเปลี่ยนแปลง)"
+          ],
+          "rows": [
+            [
+              "Tools",
+              "tools/list",
+              "tools/call",
+              "notifications/tools/list_changed"
+            ],
+            [
+              "Resources",
+              "resources/list, resources/templates/list",
+              "resources/read",
+              "notifications/resources/list_changed, notifications/resources/updated"
+            ],
+            [
+              "Prompts",
+              "prompts/list",
+              "prompts/get",
+              "notifications/prompts/list_changed"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "questions": []
+}

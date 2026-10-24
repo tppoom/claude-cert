@@ -1,0 +1,196 @@
+{
+  "title": "Claude Code Hooks, Shared Skills และ CI Automation",
+  "objectives": [
+    "เลือก Hook Event และ Decision เพื่อบังคับใช้กฎแบบ Deterministic แทนการพึ่งพา Model ให้ปฏิบัติตาม",
+    "จัดเก็บ Hooks, Skills และ CLAUDE.md ลงใน Repository เพื่อให้ทุก Developer Session เริ่มต้นด้วย Tooling ชุดเดียวกัน",
+    "เชื่อมต่อ Claude เข้ากับระบบภายนอก เช่น Database ผ่าน MCP Server แทนการเขียน Custom Glue Code",
+    "รัน Claude Code แบบ Non-interactive (ไม่ต้องพิมพ์เอง) ด้วย `claude -p`, GitHub Actions และ Agent SDK"
+  ],
+  "key_concept": "การควบคุมพฤติกรรมของ Claude Code แบบ Deterministic ด้วย Hooks, การแชร์ Environment และ Tooling ผ่าน Repository, และการทำ Automated Workflows ใน CI/CD",
+  "sections": [
+    {
+      "heading": "1. Hooks: จัดการคำสั่งแบบอัตโนมัติทุกครั้งที่เกิด Event",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อความทั้งหมดที่คุณเขียนลงใน Prompt หรือ CLAUDE.md เป็นเพียงแค่ Guidance เท่านั้น ตัวโมเดลจะอ่านและพยายามทำตาม แต่ยังขึ้นอยู่กับการตัดสินใจของโมเดลในแต่ละครั้ง ต่างจาก Hook ที่ไม่ได้ขึ้นกับการตัดสินใจของโมเดลเลย เพราะ Hook คือ Shell command ที่ Claude Code สั่งรันทุกครั้งที่เกิด Event ที่กำหนด ไม่ว่าโมเดลจะตัดสินใจอย่างไรก็ตาม ควรใช้ Hook เมื่อต้องการบังคับใช้กฎที่ต้องทำ 100% เสมอ เช่น การจัด Format ทุกครั้งหลังแก้ไขโค้ด, การรัน Linter ก่อนจบ Turn หรือการดักจับคำสั่งอันตราย (Destructive commands) ไม่ให้ถูกรันโดยเด็ดขาด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Hook ประกอบด้วย 3 ส่วนสำคัญ ได้แก่ Event (ตัวกำหนดจังหวะที่ Hook จะทำงาน), Matcher (ตัวกรองเฉพาะ Tool ที่ต้องการ เช่น Bash หรือ Edit|Write) และ Handler (คำสั่ง Shell script ที่จะสั่งรัน) โดย Event มีความสำคัญที่สุด เพราะเป็นตัวกำหนดขอบเขตความสามารถและสิ่งที่ Hook นั้นทำได้:"
+        },
+        {
+          "type": "table",
+          "caption": "Hook events ที่ใช้งานบ่อยและขอบเขตการทำงาน",
+          "headers": [
+            "Event",
+            "When it fires",
+            "Typical use"
+          ],
+          "rows": [
+            [
+              "PreToolUse",
+              "เกิดก่อนที่ Tool call จะรันจริง และสามารถ Block คำสั่งได้",
+              "ปฏิเสธคำสั่ง Bash ที่เป็นอันตราย หรือบล็อกการแก้ไขไฟล์ที่ได้รับการคุ้มครอง (Protected files)"
+            ],
+            [
+              "PostToolUse",
+              "เกิดหลังจากการเรียกใช้ Tool สำเร็จเรียบร้อย",
+              "สั่งรัน Code formatter กับไฟล์ที่ Claude เพิ่งแก้ไขเสร็จทันที"
+            ],
+            [
+              "Stop",
+              "เกิดเมื่อ Claude ทำการตอบกลับเสร็จสิ้น",
+              "บล็อกไม่ให้จบรอบ Turn จนกว่าผลการตรวจสอบ (Check) จะผ่านทั้งหมด"
+            ],
+            [
+              "SessionStart",
+              "เกิดเมื่อ Session เริ่มต้นขึ้นใหม่หรือถูก Resume กลับมา",
+              "ใส่ Context หรือ Reminder ที่สำคัญกลับเข้ามาใหม่ เช่น หลังจากการทำ Compaction"
+            ],
+            [
+              "Notification",
+              "เกิดเมื่อ Claude Code ส่ง Notification",
+              "แสดงผล Desktop alert เตือนเมื่อ Claude ต้องการความสนใจจาก Developer"
+            ],
+            [
+              "Setup",
+              "เกิดตอนใช้แฟล็ก --init-only หรือ --init หรือ --maintenance ใน -p mode",
+              "ใช้เตรียมความพร้อมสภาพแวดล้อม (One-time preparation) ใน CI หรือ Scripts ต่างๆ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "หากต้องการดักและระงับคำสั่งก่อนที่จะถูกรัน ให้ใช้ PreToolUse ร่วมกับ Matcher เป็น Bash โดย Hook จะได้รับข้อมูล Tool call ในรูปแบบ JSON เช่น { \"tool_name\": \"Bash\", \"tool_input\": { \"command\": \"rm -rf /tmp/build\" } } จากนั้น Script ของคุณจะตรวจสอบคำสั่งดังกล่าว หากพบว่าเป็นคำสั่งที่ไม่อนุญาต ก็จะส่งค่า Deny decision เพื่อระงับการทำงานทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อเปรียบเทียบวิธีการบังคับใช้กฎอย่าง \"ห้าม rm -rf นอก Working directory\" จะเห็นความแตกต่างชัดเจน: หากสั่งผ่าน CLAUDE.md ก็ยังขึ้นอยู่กับการตัดสินใจของโมเดลว่าจะทำตามหรือไม่, หากใช้ Plan mode ก็จะบล็อกการแก้ไขไฟล์ Source code ทั้งหมด ซึ่งขัดขวางการทำงานปกติแทนที่จะเจาะจงบล็อกเฉพาะคำสั่งอันตราย, ส่วนการส่ง Bash call ไปให้ Subagent ที่ถูกจำกัดสิทธิ์ ก็ยังคงให้โมเดลเป็นผู้ตัดสินใจอยู่ดี มีเพียง PreToolUse hook เท่านั้นที่สามารถบังคับใช้กฎได้อย่างเข้มงวดและเหมือนเดิมทุกครั้งอย่างแท้จริง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Hooks สามารถแชร์ใช้งานร่วมกันได้ทั้งทีมโดยกำหนดค่าไว้ใน .claude/settings.json ซึ่งจะผูกการตั้งค่านี้ไว้กับโปรเจกต์และ Commit ลง Repo ได้โดยตรง ทำให้นักพัฒนาทุกคนที่ Clone โปรเจกต์ได้รับ Hooks เดียวกันทั้งหมด ตัวอย่างเช่น การใช้ PostToolUse hook ร่วมกับ Matcher Edit|Write ที่รันคำสั่ง jq -r '.tool_input.file_path' | xargs npx prettier --write เพื่อจัด Format ทุกไฟล์ที่ Claude แก้ไข หรือใช้ SessionStart hook ร่วมกับ Matcher compact เพื่อโหลด Context และ Reminder ที่สำคัญกลับเข้ามาใหม่หลังจากระบบทำ Compaction สรุปเนื้อหา Session ไปแล้ว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การระบุคำสั่งที่ชัดเจนลงใน CLAUDE.md เพียงพอต่อการรับประกันว่า Claude จะไม่รันคำสั่งอันตรายอย่างแน่นอน เหตุผลทางเทคนิค: CLAUDE.md เป็นเพียง Context ที่โมเดลอาจจะทำตามหรือไม่ก็ได้ ขณะที่ PreToolUse hook จะทำงานก่อนที่ Tool จะเริ่มรันจริง และสามารถบล็อกคำสั่งได้ทันทีโดยไม่ขึ้นกับการตัดสินใจของโมเดล"
+        }
+      ]
+    },
+    {
+      "heading": "2. Skills และ MCP Servers: การสร้างชุดเครื่องมือร่วมกันสำหรับทีม",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Session ของ Developer ทุกคนจะเริ่มต้นขึ้นจากชุดไฟล์ที่ถูก Commit ไว้ใน Repo เดียวกัน โดยมี [CLAUDE.md as implementation guidance](lesson:6.4) สำหรับเก็บ Conventions ของโปรเจกต์ ควบคู่ไปกับ Hooks ที่คอยบังคับใช้กฎ และ Skills ที่ใช้แพ็กขั้นตอนการทำงานซ้ำๆ (Repeatable procedures) เข้าด้วยกัน เครื่องมือทั้งสามส่วนนี้ทำให้ทั้งทีมทำงานบน Workflow เดียวกันได้อย่างราบรื่น โดยที่นักพัฒนาไม่ต้องตั้งค่าคอนฟิกเองในเครื่อง"
+        },
+        {
+          "type": "paragraph",
+          "text": "[Agent Skills (SKILL.md)](lesson:2.5) คือชุดคำสั่งและ Prompt package ที่นำกลับมาใช้ใหม่ได้ เมื่อ Commit ลง Repo ก็จะกลายเป็น Prompt library ของทีม ตัวอย่างเช่น นักพัฒนาสามารถรันขั้นตอนการทำงานผ่านคำสั่ง /fix-issue 1234 ซึ่งทำให้ขั้นตอนของทุกคนในทีมดำเนินไปตาม 8 สเต็ปมาตรฐานเดียวกันทั้งหมด ตั้งแต่การอ่าน Issue, แก้ไขโค้ด, รัน Test, เช็ก Lint, Commit จนถึงการเปิด PR"
+        },
+        {
+          "type": "paragraph",
+          "text": "MCP Server คือช่องทางหลักที่ Claude ใช้เชื่อมต่อกับระบบภายนอก หากทีมต้องการให้ Claude ส่ง Query ไปยัง PostgreSQL Database ในระหว่าง Session วิธีการที่ถูกต้องคือการตั้งค่า MCP Server สำหรับ Database นั้นขึ้นมา โดย Server จะเปิดเผยชุด Tools ออกมา และ Claude จะค้นหาเครื่องมือเหล่านั้นผ่านโปรโตคอลได้เอง ทำให้ทีมไม่ต้องเขียนโค้ดสำหรับรัน Tool ขึ้นมาเอง ส่วนแนวทางอื่นๆ มีข้อจำกัดที่ผิดวัตถุประสงค์: PreToolUse hook ทำได้เพียงตอบสนองต่อ Tool call ที่กำลังเกิดขึ้นแต่ไม่ได้สร้าง Tool ใหม่ให้ Claude, การเปิดสิทธิ์ Bash แบบไม่จำกัดขัดต่อ Best practice ในการจำกัดสิทธิ์เฉพาะ Tool ที่ปลอดภัย, และการใช้ Subagent ที่มี Schema อยู่ใน Prompt จะทำให้รู้แค่โครงสร้าง Database แต่ไม่มีทางส่ง Query ไปยังฐานข้อมูลจริงได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "จากตัวอย่าง มีการตั้งค่า 2 จุดที่ช่วยจำกัดขอบเขตการทำงานของ Claude ได้แก่ allowedTools ที่ระบุ Tool เดียวที่อนุญาตให้รันได้คือ mcp__postgres__execute_sql และในฝั่ง Server config เองมีการกำหนด readonly = true เพื่อให้ปฏิเสธคำสั่งประเภท Write ทันทีแม้ว่า Claude จะพยายามเรียกใช้ก็ตาม ซึ่งวิธีนี้ทำให้ Access control ถูกควบคุมอยู่ที่ระดับ Integration ไม่ใช่พึ่งพาแค่ Prompt"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: หากต้องการให้ Claude ส่ง Query ไปยัง Database ให้เขียน Hook เพื่อสั่งรัน SQL ทุกครั้งที่ Claude ร้องขอข้อมูล เหตุผลทางเทคนิค: Hook ทำงานเพื่อตอบสนองต่อ Event ใน Lifecycle ของ Claude Code เท่านั้น ไม่สามารถเพิ่ม Tool ใหม่ให้ Claude ได้ ทางออกที่ถูกต้องคือการใช้ MCP Server ในการเปิดเผย Database tools เพื่อให้ Claude สามารถค้นพบและเรียกใช้งานคำสั่งได้โดยตรง"
+        }
+      ]
+    },
+    {
+      "heading": "3. การรัน Claude Code ใน Scripts และ CI",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code ทำงานแบบไม่ต้องมีคนนั่งเฝ้าหน้าคีย์บอร์ดได้ โดยใช้คำสั่ง claude -p เพื่อส่ง Prompt รับผลลัพธ์ผ่าน standard output และ pipe ข้อมูลเข้าไปได้โดยตรง เช่น git log --oneline -20 | claude -p \"summarize these recent commits\" ซึ่งนำไปใช้ได้กับทั้ง Shell Script, Cron Job หรือขั้นตอนใน CI ทั้งนี้ Setup hook event จะช่วยจัดการเตรียมสภาพแวดล้อมแบบ one-time สำหรับการรันเหล่านี้ โดยจะทำงานเมื่อมีแฟล็ก --init หรือ --maintenance ในโหมด -p"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ GitHub มี Claude Code GitHub Action ให้ใช้งานใน CI Pipeline ได้ทันที เพียงรัน /install-github-app จาก Claude Code ระบบจะติดตั้ง GitHub App เพิ่ม Secret สำหรับ Authentication และเปิด Pull Request พร้อมไฟล์ Workflow ให้โดยอัตโนมัติ ซึ่ง Workflow ทำงานได้ 2 โหมด: โหมดไม่ใส่ Prompt input จะรอการเมนชัน @claude ใน Issue หรือ PR แล้วโพสต์ Progress ตอบกลับเป็นคอมเมนต์ ส่วนโหมดที่ระบุ Prompt input นั้น Claude จะรันทันทีเมื่อ Trigger ทำงาน โดยผลลัพธ์จะถูกบันทึกลง Workflow Run Log (เว้นแต่จะระบุใน Prompt ให้โพสต์ผลลัพธ์ออกมา)"
+        },
+        {
+          "type": "paragraph",
+          "text": "Skill library ของทีมสามารถนำมาใช้บน CI ได้เช่นกัน เพียงใส่ actions/checkout ไว้ก่อน Step ของ Claude เพื่อดึงไฟล์ใน .claude/skills/ มาไว้บน Runner จากนั้นส่ง /skill-name เป็น Prompt ทำให้ได้การทำงานตาม Procedure เดียวกันทั้งบนเครื่อง Local และ CI นอกจากนี้ หากต้องการจำกัด Tools ที่อนุญาตให้ใช้ใน CI สามารถส่งแฟล็กผ่าน claude_args ได้ เช่น ระบุ --allowedTools เพื่อกำหนดเฉพาะ Tool ที่ Job นั้นมีสิทธิ์เรียกใช้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การรันแบบ Unattended มี Guardrails ในตัว: ใน Event ระดับ Issue และ Pull Request ผู้ทริกเกอร์จะต้องมีสิทธิ์ Write Access ใน Repository ส่วน Bot Actors จะถูกบล็อกทั้งหมด เว้นแต่จะมีชื่ออยู่ใน allowed_bots เพื่อป้องกันไม่ให้ Bot ทริกเกอร์ Claude จนเกิด Loop สำหรับระบบ Automation ภายนอก GitHub Actions สามารถพัฒนาต่อยอดด้วย Claude Agent SDK ซึ่งเป็นรากฐานของ GitHub Action และหากต้องการแค่ระบบช่วยรีวิวโค้ด Code Review จะตรวจสอบทุก PR ให้อัตโนมัติโดยไม่ต้องเขียน Workflow เอง"
+        },
+        {
+          "type": "table",
+          "caption": "ตัวเลือกสภาพแวดล้อมในการรันงานของ Claude แบบ Scheduled หรือ Event-driven",
+          "headers": [
+            "Option",
+            "Where it runs",
+            "Best for"
+          ],
+          "rows": [
+            [
+              "Routines",
+              "Cloud ดูแลโดย Anthropic เป็นค่าเริ่มต้น",
+              "งานที่ต้องรันแม้ปิดคอมพิวเตอร์ไปแล้ว หรือทริกเกอร์จาก API calls และ GitHub events"
+            ],
+            [
+              "Desktop scheduled tasks",
+              "เครื่องของคุณ ผ่าน Desktop App",
+              "งานที่ต้องเข้าถึง Local files, Tools หรือ Uncommitted changes"
+            ],
+            [
+              "GitHub Actions",
+              "CI pipeline ของคุณ",
+              "Repo events เช่น เมื่อมีการเปิด PR หรือ Cron schedules ที่ตั้งค่าไว้คู่กับ Workflow config"
+            ],
+            [
+              "/loop",
+              "CLI session ปัจจุบัน",
+              "งาน Polling เร็วๆ ระหว่างที่เปิด Session ค้างไว้"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Workflow ที่มีการกำหนด Prompt input จะยังต้องรอให้มีคนคอมเมนต์ @claude ก่อน Claude ถึงจะเริ่มทำงาน ความเป็นจริงคือ เมื่อ Workflow มีการระบุ Prompt ไว้อยู่แล้ว Claude จะรันทันทีตาม Trigger โดยไม่ต้องรอการเมนชัน และผลลัพธ์จะถูกส่งไปยัง Run Log เป็นค่าเริ่มต้น"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เพิ่ม Formatting Hook และ Blocking Hook อย่างละหนึ่งตัวลงในโปรเจกต์ จากนั้นทดลองรัน Claude Code ในโหมด Headless"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57053",
+      "question": "ทีมแพลตฟอร์มต้องการให้ Claude Code บล็อกการเรียกใช้ Bash tool ที่มีคำสั่ง rm -rf ซึ่งกำหนดเป้าหมายไปยัง path นอก working directory โดยอัตโนมัติ โดยไม่หวังพึ่งให้โมเดลตัดสินใจหลีกเลี่ยงเอง พวกเขาควรกำหนดค่ากลไกใด?",
+      "options": [
+        "กำหนดค่า PreToolUse hook ให้ตรวจสอบ input ของ Bash tool และส่งกลับการตัดสินใจปฏิเสธ (deny decision) ก่อนที่คำสั่งจะทำงาน",
+        "ตั้งค่า default permission mode เป็น plan mode เพื่อให้ Claude เสนอการเปลี่ยนแปลงโดยไม่รันคำสั่งใดๆ",
+        "เพิ่มคำสั่งใน CLAUDE.md เพื่อบอก Claude ว่าห้ามรันคำสั่งลบข้อมูลที่เป็นอันตรายนอก project directory",
+        "สร้าง subagent ที่จำกัดสิทธิ์การเข้าถึง tool แล้วสั่งให้ main agent มอบหมายการเรียกใช้ Bash ทั้งหมดไปยัง subagent นั้น"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57056",
+      "question": "ทีมต้องการให้ Claude Code สามารถ query ฐานข้อมูล PostgreSQL ภายในได้โดยตรงระหว่าง session โดยที่ทีมไม่ต้องเขียนโค้ดสำหรับ tool execution ขึ้นมาเอง แนวทางใดสอดคล้องกับรูปแบบการ integration ของ Model Context Protocol?",
+      "options": [
+        "กำหนดค่า MCP server สำหรับฐานข้อมูล และปล่อยให้ Claude ค้นพบ tools ต่างๆ ผ่านตัว protocol",
+        "เขียน PreToolUse hook เพื่อรัน SQL queries ทุกครั้งที่ Claude ร้องขอการเข้าถึงฐานข้อมูล",
+        "ให้สิทธิ์ Bash tool แบบไม่จำกัด เพื่อให้ Claude สามารถเรียกใช้ command-line client ของฐานข้อมูลได้โดยตรง",
+        "สร้าง subagent ที่มี system prompt บรรจุ database schema และตัวอย่าง query เอาไว้"
+      ],
+      "explanation": ""
+    }
+  ]
+}

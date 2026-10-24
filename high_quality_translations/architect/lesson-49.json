@@ -1,0 +1,200 @@
+{
+  "title": "Managed Policy สำหรับ Claude Code: การ Delivery, Locks และ Model Pins",
+  "objectives": [
+    "เลือก Delivery Mechanism สำหรับ Managed Settings และเข้าใจรอบการ Re-read ของแต่ละวิธี",
+    "อธิบายการแก้ข้อขัดแย้งของ Managed Sources ด้วย First-wins และ Merge พร้อมใช้ /status ตรวจสอบ Source ที่ถูกนำมาใช้งาน",
+    "ล็อก Permission Rules, MCP Servers, Plugins และ Hooks ให้ใช้เฉพาะชุดที่ผ่านการ Approve จากส่วนกลาง",
+    "กำหนด Pin สำหรับ Provider, Models และช่วงเวอร์ชันของ Claude Code ที่ทีมสามารถใช้งานได้"
+  ],
+  "key_concept": "การควบคุมและบังคับใช้นโยบาย (Governance & Policy Enforcement) ส่วนกลางบน Claude Code ผ่าน Managed Settings, Access Locks และ Configuration Pinning",
+  "sections": [
+    {
+      "heading": "1. การส่งมอบ Managed Settings ไปยังทุกเครื่อง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Managed Settings คือ Scope การตั้งค่าที่มีลำดับความสำคัญสูงสุด สิ่งที่ Developer เขียนไว้ในไฟล์ของตัวเองจะไม่สามารถ Override ค่าเหล่านี้ได้ จึงเป็นที่เดียวที่ใช้บังคับ Organization Policy ตัว Policy เป็นเอกสาร JSON ที่ใช้ Keys เดียวกันกับ Settings File ทั่วไป ส่วนที่ท้าทายคือการกระจายไปยังทุกเครื่องและดูแลให้เป็นปัจจุบันอยู่เสมอ"
+        },
+        {
+          "type": "table",
+          "caption": "กลไกการส่งมอบเรียงตาม Priority จากสูงไปต่ำ และรอบเวลาที่ Claude Code โหลดซ้ำ",
+          "headers": [
+            "Mechanism",
+            "How you deliver it",
+            "When Claude Code reads it",
+            "Priority"
+          ],
+          "rows": [
+            [
+              "Server-managed",
+              "claude.ai admin console หรือ Self-hosted Claude apps gateway",
+              "ดึงค่าเมื่อ Startup และ Polling ทุกชั่วโมง",
+              "Highest"
+            ],
+            [
+              "MDM or OS-level policy",
+              "macOS com.anthropic.claudecode profile หรือ HKLM\\SOFTWARE\\Policies\\ClaudeCode ผ่าน Jamf, Intune หรือ Group Policy",
+              "อ่านค่าเมื่อ Startup และตรวจเช็กการเปลี่ยนแปลงทุก 30 นาที",
+              "High"
+            ],
+            [
+              "File-based",
+              "managed-settings.json ใน /Library/Application Support/ClaudeCode/, /etc/claude-code/ หรือ C:\\Program Files\\ClaudeCode\\",
+              "อ่านค่าเมื่อ Startup และโหลดใหม่ทันทีเมื่อไฟล์เปลี่ยนแปลง",
+              "Medium"
+            ],
+            [
+              "Windows user registry",
+              "HKCU\\SOFTWARE\\Policies\\ClaudeCode",
+              "ตรวจเช็กทุก 30 นาที และใช้งานเฉพาะเมื่อไม่มี Admin Document ระดับที่สูงกว่า",
+              "Lowest"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เลือกใช้งานตามโครงสร้างพื้นฐานที่มีอยู่: Server-managed Settings ช่วยให้ claude.ai Organization มีจุดจัดการ Policy ศูนย์กลางที่เดียวโดยไม่ต้องแตะอุปกรณ์, MDM เหมาะสำหรับเครื่อง Fleet ที่จัดการผ่าน Jamf หรือ Intune อยู่แล้ว, ส่วน File-based เหมาะสำหรับ Linux Hosts, เครื่องที่ไม่ได้ลง MDM และ Custom OS Images ที่สร้างเอง ทั้งนี้บนเครื่อง Developer ไม่ว่าจะเป็น Terminal, IDE Extensions หรือ Agent SDK Sessions ต่างก็อ่านค่าจาก Source เหล่านี้ทั้งหมด โดยตัว SDK จะยังคงอ่าน Managed Settings เสมอ แม้ว่า settingSources จะถูกตั้งค่าให้ Exclude ไฟล์ระดับ User, Project หรือ Local ไปแล้วก็ตาม"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อควรระวัง 2 ประเด็นที่พบบ่อย: ประการแรก Cloud Sessions บนสภาพแวดล้อมที่ Anthropic เป็นโฮสต์จะไม่สามารถเข้าถึง MDM Profile หรือไฟล์ในเครื่องได้ จึงต้องรับ Policy ผ่าน Server-managed Settings เท่านั้น ประการที่สอง Server-managed Settings จะถูกดึงมาใช้เฉพาะเมื่อ Session ทำการ Authenticate ตรงกับ Anthropic API หรือผ่าน Gateway Login เท่านั้น หาก Developer ชี้ไปใช้ Provider อื่น หรือตั้งค่า ANTHROPIC_BASE_URL ไปที่อื่น จะไม่ได้รับ Settings นี้เลย ซึ่งเครื่องกลุ่มนี้จำเป็นต้องควบคุมผ่าน MDM หรือไฟล์แทน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Server-managed Settings จาก claude.ai Console จะส่งไปถึง Developer ทุกคนไม่ว่าจะใช้ Provider ใดก็ตาม เพราะ Remote Settings จะถูก Fetch เฉพาะเมื่อ Session มีการ Authenticate โดยตรงกับ Anthropic API หรือล็อกอินผ่าน Gateway เท่านั้น หากชี้ไปที่ Provider อื่น Claude Code จะข้ามไปอ่านค่าจาก Source ถัดไปทันที"
+        }
+      ]
+    },
+    {
+      "heading": "2. การจัดการเมื่อ Managed Sources ขัดแย้งกัน: first-wins, merge และคำสั่ง /status",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "โดย Default ตัว Managed Sources จะไม่ถูกนำมารวมกัน แต่จะทำงานแบบ First-wins โดย Claude Code จะไล่ตามลำดับความสำคัญ (Remote -> MDM -> Files -> HKCU) และเลือกใช้ Source แรกสุดที่มี Policy Key อยู่ จากนั้นจะข้าม Source ลำดับต่ำกว่าทั้งหมดโดยไม่มีการแจ้งเตือน ทั้งนี้หาก Source ใดกำหนดไว้เฉพาะ 2 Control Keys ได้แก่ wslInheritsWindowsSettings และ managedSourcesBehavior จะไม่นับว่าเป็นการส่งมอบ Policy และ Claude Code จะข้ามไปอ่าน Source ถัดไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใช้คำสั่ง /status เพื่อตรวจสอบว่ามี Source ไหนถูกข้ามไปบ้าง คำสั่งนี้จะแสดงทั้ง Source ที่ Claude Code ใช้งานจริงและ Source ที่ถูกข้าม หากพบว่า Deny Rule ที่ตั้งไว้ผ่าน MDM ใช้งานไม่ได้ การรัน /status มักจะชี้ให้เห็นว่ามี Server-managed Policy ที่ Priority สูงกว่าถูกนำมาใช้แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การกำหนด managedSourcesBehavior เป็น merge (รองรับใน Claude Code v2.1.242 ขึ้นไป) จะสั่งให้นำ Admin Source ทั้งหมดที่มี Policy Key มาทำงานร่วมกัน โดย Key ทั่วไปจะยึดค่าจาก Source ลำดับสูงกว่า, ข้อมูลประเภท List จะทำการ Union รวมกัน และ Policy การ Lock จะยึดค่าที่เข้มงวดที่สุด ทั้งนี้มีบาง Key ที่จะถูกอ่านจากทุก Admin Source เสมอแม้อยู่ในโหมด First-wins เช่น deniedMcpServers ส่วนใน File-based Source นั้นไฟล์ managed-settings.d/*.json และ managed-settings.json จะถูก Merge กันเสมอ โดยไฟล์ลำดับหลังจะทับค่าเดี่ยว, List จะรวมกันแบบ Deduplicate และ Block ที่ซ้อนกันอย่าง env จะ Merge ทีละ Key"
+        },
+        {
+          "type": "paragraph",
+          "text": "Timing ของการ Rollout เป็นเรื่องสำคัญ การเปลี่ยนแปลงส่วนใหญ่จะมีผลกับ Running Sessions ตามรอบเวลาในตาราง แต่การเปลี่ยนผ่าน Server-managed ไปยังค่าที่ต้องขอ Approval เช่น Hook หรือ env Variables จะต้องรอให้ Developer กดยอมรับ Dialog ก่อนเสมอ นอกจากนี้ยังมีบาง Keys เช่น requiredMinimumVersion ที่จะมีผลเมื่อเริ่ม Session ถัดไปเท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: เมื่อ Organization กำหนดทั้ง Server-managed Settings และไฟล์ managed-settings.json ตัว Claude Code จะทำการ Merge ข้อมูลทั้งสองเข้าด้วยกัน เพราะโดย Default เป็นพฤติกรรมแบบ First-wins ซึ่งจะเลือกใช้เฉพาะ Source ลำดับสูงสุดที่มี Policy Key เท่านั้น และจะข้าม Source อื่นๆ โดยไม่แจ้งเตือน (สามารถตรวจสอบได้ผ่าน /status) หากต้องการให้รวมข้อมูลกัน จำเป็นต้องตั้งค่า managedSourcesBehavior ให้เป็น merge อย่างชัดเจน"
+        }
+      ]
+    },
+    {
+      "heading": "3. การล็อก Permissions, MCP Servers, Plugins และ Hooks",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "แม้ว่า Managed Deny Rule จะถูก Override ไม่ได้ แต่โดย Default แล้ว Developer ยังสามารถเพิ่ม Allow Rules ของตัวเองสำหรับสิ่งที่ Policy ไม่ได้ Deny ไว้ได้ การใช้ Locks จึงเข้ามาปิดช่องโหว่นี้ โดย Lock แต่ละตัวจะสั่งให้ Claude Code ละเว้น Configuration ทั้งหมดจาก User และ Project โดย Lock ที่สำคัญที่สุดสำหรับ Permissions คือ allowManagedPermissionRulesOnly ซึ่งกำหนดให้ Managed Settings เป็นแหล่งเดียวในการอ่าน Permission Rules หากเปิดใช้ คอนฟิกใดๆ ที่ Developer เขียนไว้ในเครื่องตัวเองจะไม่สามารถผ่อนคลาย (Loosen) Policy ลงได้เลย"
+        },
+        {
+          "type": "table",
+          "caption": "Managed Lock Keys และสิ่งที่แต่ละตัวควบคุม",
+          "headers": [
+            "Key",
+            "What it locks"
+          ],
+          "rows": [
+            [
+              "allowManagedPermissionRulesOnly",
+              "กำหนดให้ Managed Settings เป็นแหล่งเดียวในการอ่าน Allow, Ask และ Deny Rules"
+            ],
+            [
+              "permissions.disableBypassPermissionsMode",
+              "ปิดการใช้งาน --dangerously-skip-permissions โดยไม่แตะต้อง Rule อื่นๆ"
+            ],
+            [
+              "allowedMcpServers, deniedMcpServers, allowManagedMcpServersOnly",
+              "ควบคุมว่า MCP Servers ใดบ้างที่ User สามารถเพิ่มหรือเชื่อมต่อได้"
+            ],
+            [
+              "managedMcpServers or a deployed managed-mcp.json",
+              "ชุด MCP Servers ถาวรที่ Deploy ให้กับ User ทุกคน"
+            ],
+            [
+              "strictKnownMarketplaces, blockedMarketplaces, disableSideloadFlags",
+              "ควบคุม Marketplace Sources ที่ User สามารถเพิ่มและติดตั้ง Plugins ได้ รวมถึงปิด CLI Flags ที่ใช้ Sideload Plugins สำหรับการรันแบบครั้งเดียว"
+            ],
+            [
+              "strictPluginOnlyCustomization",
+              "บังคับให้ Skills, Agents, Hooks และ MCP Servers ต้องมาจาก Plugins หรือ Managed Settings เท่านั้น"
+            ],
+            [
+              "allowManagedHooksOnly, allowedHttpHookUrls",
+              "ควบคุม Hooks ที่สามารถรันได้ และ URLs ที่ HTTP Hooks ได้รับอนุญาตให้เรียกใช้"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Keys เหล่านี้อาจฟังดูคล้ายกัน แต่ไม่สามารถใช้แทนกันได้: disableBypassPermissionsMode ปิดเพียง Bypass Mode เท่านั้น แต่ยังปล่อยให้ Allow Rules ของ User ทำงานตามปกติ, allowManagedMcpServersOnly ล็อกเฉพาะ Allowlist ของ MCP ไม่ใช่ Tool Permissions, strictKnownMarketplaces จำกัดแหล่งที่มาของ Plugins ดังนั้นจึงต้องเลือก Key ให้ตรงกับความเสี่ยงที่ต้องการปิด ทั้งนี้ Managed Policy เดียวกันยังสามารถกำหนด Mode เริ่มต้นของ Session ผ่าน permissions.defaultMode และสามารถปิด Auto Mode ได้ด้วย permissions.disableAutoMode ดูรายละเอียดการรีวิวของมนุษย์ในแต่ละ Mode ได้ที่ [Permission modes: how much the human reviews](lesson:5.3)"
+        },
+        {
+          "type": "paragraph",
+          "text": "MCP Lock มีพฤติกรรมตามหลัก First-wins ที่ต่างออกไป: หาก Admin Source ใดก็ตามตั้งค่า allowManagedMcpServersOnly เป็น true ตัว Lock จะเปิดทำงานทันที จากนั้น Allowlist จะถูกดึงมาจาก Admin Source ที่มีลำดับ Priority สูงสุดที่กำหนด List เอาไว้ แต่หากไม่มี Admin Source ใดส่ง List มาเลย Server ทุกตัวที่ไม่ติด Denylist จะสามารถโหลดได้ทั้งหมด ดังนั้น การสั่ง Lock โดยไม่ได้ส่ง List ไปด้วย จึงให้ความปลอดภัยต่ำกว่าที่คิด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้งค่า disableBypassPermissionsMode จะป้องกันไม่ให้ Developer ผ่อนคลาย Managed Permission Rules ได้? (ทำไมถึงผิด): ไม่จริง: Key นี้ทำหน้าที่เพียงปิดการใช้งาน Bypass Mode เท่านั้น หากต้องการบังคับให้ Managed Settings เป็นแหล่งเดียวสำหรับ Allow, Ask และ Deny Rules ต้องใช้ allowManagedPermissionRulesOnly"
+        }
+      ]
+    },
+    {
+      "heading": "4. การล็อก Provider, Models และ Versions",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Provider เป็นส่วนแรกที่ต้องกำหนด เพราะเป็นตัวกำหนดวิธีการ Authenticate ของ Developer และระบบ Billing แนะนำให้ใช้ Claude for Teams หรือ Enterprise เป็นค่าเริ่มต้น สำหรับทีมที่เน้น API-first หรือ Pay-as-you-go จะเหมาะกับ Console ส่วน Bedrock, Google Cloud's Agent Platform และ Foundry ช่วยให้ทีมใช้ Cloud Compliance Controls และระบบ Billing เดิมที่มีอยู่ได้ เมื่อเลือกแล้ว คีย์ allowedProviders (ตั้งแต่ v2.1.285 ขึ้นไป) จะปฏิเสธทุก Session ที่ใช้ Provider นอก List โดยตรวจสอบตั้งแต่ Startup, Login และทุก API Call ถัดไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "การกำหนด model ใน Managed Settings เป็นเพียงการเลือก Model เริ่มต้นของ Session เท่านั้น ไม่ใช่การล็อก หากต้องการจำกัด Model ให้ใช้ availableModels ซึ่งจะไป Filter ตัวเลือกใน Model Picker และเพิ่ม enforceAvailableModels เพื่อบังคับให้ Model เริ่มต้นที่ระบบเลือกให้อัตโนมัติ (Auto-selected Default) ต้องอยู่ภายใต้ List นั้นด้วย ทั้งนี้ availableModels ข้าม Managed Sources จะไม่มีการ Merge กัน List จาก Source ที่มีผลจะถูกใช้แบบเต็มชุด และ maxEffortLevel จะใช้จำกัดระดับ Effort โดยค่า Cap ที่ต่ำที่สุดจากบรรดา Admin Sources จะเป็นตัวชนะ"
+        },
+        {
+          "type": "paragraph",
+          "text": "การตรึง Version (Version Pins) มีความเข้มงวด 2 ระดับ: minimumVersion จะป้องกันไม่ให้ Auto-update ติดตั้งเวอร์ชันต่ำกว่าเกณฑ์ขั้นต่ำขององค์กร ซึ่งป้องกันได้เฉพาะ Downgrade เท่านั้น ในขณะที่ requiredMinimumVersion และ requiredMaximumVersion จะปฏิเสธการเริ่มใช้งาน Claude Code ทันทีหากอยู่นอกช่วงที่กำหนด อย่างไรก็ตาม ตัวล็อกเหล่านี้จะไม่ Kill Session ที่กำลังรันอยู่ ดังนั้น Terminal ที่เปิดค้างไว้หลายสัปดาห์อาจยังเป็นเวอร์ชันเก่ากว่าที่มีการ Rollout ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การควบคุม Spend จะใช้งานควบคู่กับ Pins เหล่านี้ (กลไกทั่วไปดูได้ที่ [Rate limits and spend caps](lesson:6.3)) สำหรับทีม Claude Code การตั้งค่า Spend และ Rate Limits จะจัดการผ่าน Organization Settings บน Teams หรือ Enterprise, ตั้งเป็น Workspace Limits บน Console หรือควบคุมผ่าน Cloud Budget Controls และ Gateway พร้อม Per-user Limits บน Cloud 3rd-party ส่วนการดู Metrics การใช้งาน สามารถใช้ OpenTelemetry Export ซึ่งรองรับทุก Provider หรือดูผ่าน Analytics Dashboard ได้โดยตรง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้งค่า model ใน Managed Settings จะล็อกให้ Developer ทุกคนต้องใช้ Model นั้นเสมอ? (ทำไมถึงผิด): ไม่จริง: การตั้งค่า model เป็นเพียงการกำหนดค่าเริ่มต้นเมื่อเปิด Session เท่านั้น หากต้องการจำกัดการเข้าถึง Model ต้องใช้ availableModels ร่วมกับ enforceAvailableModels เพื่อล็อกค่าเริ่มต้นอย่างสมบูรณ์"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Deploy ตัว Managed Policy แบบไฟล์บนเครื่อง Linux แล้วตรวจสอบว่า Claude Code บังคับใช้นโยบายดังกล่าวจริง"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57044",
+      "question": "Owner ขององค์กรต้องการรับประกันว่าเฉพาะกฎการกำหนดสิทธิ์ (permission rules) ที่กำหนดจากศูนย์กลางโดยทีม Security เท่านั้นที่จะมีผลบังคับใช้กับ developer ทุกคน เพื่อป้องกันไม่ให้นักพัฒนาแก้ไขการตั้งค่าของตนเองเพื่อผ่อนปรนข้อจำกัดลงได้ การตั้งค่าแบบ managed setting ข้อใดตอบโจทย์นี้?",
+      "options": [
+        "ตั้งค่า allowManagedMcpServersOnly เป็น true เนื่องจากคีย์นี้ใช้ควบคุม allowlist ของ MCP server ไม่ใช่ permission rules ทั่วไป",
+        "ตั้งค่า allowManagedPermissionRulesOnly เป็น true เพื่อไม่ให้ user settings และ project settings สามารถกำหนดกฎ allow, ask หรือ deny ได้อีกต่อไป",
+        "ตั้งค่า disableBypassPermissionsMode เป็น disable ซึ่งทำได้เพียงบล็อกไม่ให้เรียกใช้โหมด bypassPermissions เท่านั้น",
+        "ตั้งค่า strictKnownMarketplaces เป็นรายการที่กำหนดแน่นอน ซึ่งจำกัดเฉพาะแหล่งที่มาของการติดตั้งปลั๊กอิน (plugin installation sources) ไม่ใช่สิทธิ์การใช้งานเครื่องมือ (tool permissions)"
+      ],
+      "explanation": ""
+    }
+  ]
+}

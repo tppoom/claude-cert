@@ -1,0 +1,186 @@
+{
+  "title": "การตั้งค่าโปรเจกต์ใน Claude Code: CLAUDE.md, Rules, Auto Memory และ settings.json",
+  "objectives": [
+    "กำหนด Instruction ใน CLAUDE.md ตาม Scope ที่ถูกต้อง: managed, user, project หรือ local",
+    "Bootstrap repository ด้วยคำสั่ง /init และจำกัด Scope ของ Instruction ตามประเภทไฟล์ด้วย .claude/rules/",
+    "แยกความแตกต่างระหว่าง CLAUDE.md กับ Auto Memory พร้อมตั้งค่าหรือปิดใช้งาน Auto Memory ได้",
+    "เลือก Scope ของ settings.json ให้เหมาะสม และเข้าใจลำดับความสำคัญ (Precedence) เมื่อมีการตั้งค่าซ้ำกันในหลายระดับ"
+  ],
+  "key_concept": "Layered persistent context — Claude Code เริ่มต้นทุก Session จากไฟล์บน Disk เสมอ ไม่ได้ดึงมาจาก Chat ก่อนหน้า โดยคุณสามารถกำหนด Instruction ผ่านไฟล์ CLAUDE.md ใน Scope ต่างๆ และ Claude จะบันทึก Context เพิ่มเติมผ่าน Auto Memory จากนั้น settings.json จะเป็นตัวกำหนดสิทธิ์และขอบเขตการทำงานของเครื่องมือ",
+  "sections": [
+    {
+      "heading": "1. ลำดับชั้นของ CLAUDE.md (The CLAUDE.md hierarchy)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ไฟล์ CLAUDE.md ใช้เก็บชุดคำสั่งที่คุณเขียนขึ้น และจะถูกโหลดเข้าสู่ทุก Session โดยอัตโนมัติ จุดสำคัญคือการเลือกตำแหน่งวางไฟล์ ซึ่งแบ่งออกเป็น 4 Scopes โดยพิจารณาจาก: ใครควรเข้าถึงคำสั่งนี้บ้าง และควร Commit เข้า Git หรือไม่"
+        },
+        {
+          "type": "table",
+          "caption": "4 Scopes ของ CLAUDE.md",
+          "headers": [
+            "Scope",
+            "Location",
+            "Shared with"
+          ],
+          "rows": [
+            [
+              "Managed policy",
+              "/Library/Application Support/ClaudeCode/CLAUDE.md (macOS), /etc/claude-code/CLAUDE.md (Linux and WSL)",
+              "ผู้ใช้ทุกคนในองค์กร"
+            ],
+            [
+              "User instructions",
+              "~/.claude/CLAUDE.md",
+              "เฉพาะตัวคุณ (ใช้ได้กับทุกโปรเจกต์)"
+            ],
+            [
+              "Project instructions",
+              "./CLAUDE.md or ./.claude/CLAUDE.md",
+              "ทุกคนในทีมผ่าน Source Control"
+            ],
+            [
+              "Local instructions",
+              "./CLAUDE.local.md",
+              "เฉพาะตัวคุณ (ในโปรเจกต์ปัจจุบัน)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "CLAUDE.local.md เหมาะสำหรับการตั้งค่าส่วนตัวเฉพาะโปรเจกต์ เช่น Sandbox URLs และควรเพิ่มไว้ใน .gitignore ส่วน Project file คือไฟล์ที่แชร์กับทีม กรณีที่ Repository มีไฟล์ AGENTS.md ตัว Claude จะอ่านไฟล์นี้ก็ต่อเมื่อไม่มี CLAUDE.md, .claude/CLAUDE.md หรือ CLAUDE.local.md อยู่ใน Working Directory หรือโฟลเดอร์แม่ขึ้นไปเลย (ทั้งนี้ User-level และ Managed CLAUDE.md จะไม่มีผลต่อเงื่อนไขนี้)"
+        },
+        {
+          "type": "paragraph",
+          "text": "ควรเขียนคำสั่งให้เจาะจง เช่น 'Use 2-space indentation' มีประสิทธิภาพมากกว่า 'Format code properly' ควรรักษาความยาวไฟล์ให้อยู่ในระดับไม่เกิน 200 บรรทัด และจัดกลุ่มกฎที่เกี่ยวข้องกันด้วย Headers หากมีคำสั่งที่ขัดแย้งกัน Claude อาจเลือกทำตามคำสั่งใดคำสั่งหนึ่ง แม้ว่าจะสามารถแยกไฟล์ขนาดยาวด้วย @path imports ได้ แต่ไม่ได้ช่วยประหยัด Context เพราะไฟล์ที่ Import เข้ามาจะถูกโหลดตั้งแต่เริ่มต้น Launch เช่นกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "มี Built-in Slash Commands สองตัวที่ช่วยตรวจสอบเมื่อ Claude ไม่ปฏิบัติตามคำสั่ง: /context ใช้ลิสต์ดู Memory Files ที่ถูกโหลดจริง และ /memory ใช้เปิดไฟล์เหล่านั้นขึ้นมาแก้ไข"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การแยกเนื้อหาบางส่วนของ CLAUDE.md ออกเป็นไฟล์ย่อยแล้วใช้ @import จะช่วยประหยัด Context? (ทำไมถึงผิด): ไม่จริง: ไฟล์ที่ถูก Import จะถูกโหลดเข้ามาตอน Launch Session เช่นกัน จึงมีค่าเท่ากับการรวมไฟล์เดียวและกิน Context เท่าเดิม หากต้องการประหยัด Context ให้ใช้ Path-scoped Rules แทน"
+        }
+      ]
+    },
+    {
+      "heading": "2. การ Initialize Repository ด้วย /init และ Path-scoped Rules",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Repository ใหม่ ไม่จำเป็นต้องเขียน CLAUDE.md ขึ้นมาเองทั้งหมด เพียงรันคำสั่ง /init ตัว Claude จะเข้าไปสำรวจ Codebase แล้วร่างไฟล์ CLAUDE.md ให้เบื้องต้น ซึ่งครอบคลุมทั้งคำสั่ง Build/Test, โครงสร้างโปรเจกต์ และ Conventions ต่างๆ ที่ตรวจพบ โดยดราฟต์นี้เป็นเพียงจุดเริ่มต้น คุณควร Review ตรวจสอบ ลบส่วนที่ไม่ถูกต้องออก แล้วค่อย Commit เข้า Git เพื่อแชร์กับทีม"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อโปรเจกต์มีขนาดใหญ่ขึ้น คำสั่งบางอย่างอาจจำเป็นเฉพาะกับบางส่วนของโค้ดเท่านั้น แนะนำให้แยกไปไว้ใน Rules ซึ่งเป็น Markdown files ภายใต้โฟลเดอร์ .claude/rules/ โดย Rule ที่ระบุฟิลด์ paths ใน Frontmatter จะโหลดเฉพาะเมื่อ Claude ต้องทำงานกับไฟล์ที่ตรงกับ Glob Patterns ที่กำหนด ทำให้ Conventions ของ API ไม่เข้ามาเปลือง Context ขณะที่ Claude กำลังแก้ไขไฟล์ CSS นอกจากนี้ คุณยังสามารถเก็บ Personal Rules ไว้ที่ ~/.claude/rules/ ได้ด้วยเช่นกัน"
+        }
+      ]
+    },
+    {
+      "heading": "3. Agent Memory: Auto Memory ควบคู่กับ CLAUDE.md",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "CLAUDE.md เก็บสิ่งที่คุณบอก Claude ส่วน Auto Memory เก็บสิ่งที่ Claude เรียนรู้ โดยระบบจะจดบันทึกเองเมื่อคุณแก้ไขข้อผิดพลาดหรือยืนยันแนวทางที่ใช้ได้ผล ทั้งสองระบบแตกต่างกันทั้งคนเขียน ข้อมูลที่เก็บ และปริมาณที่ถูกโหลดเข้า Context"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบ CLAUDE.md กับ Auto Memory",
+          "headers": [
+            "Aspect",
+            "CLAUDE.md files",
+            "Auto memory"
+          ],
+          "rows": [
+            [
+              "Who writes it",
+              "คุณ (Developer)",
+              "Claude"
+            ],
+            [
+              "Contains",
+              "Instructions และ Rules",
+              "สิ่งที่ได้เรียนรู้ (Learnings) และ Patterns"
+            ],
+            [
+              "Scope",
+              "Project, User หรือ Organization",
+              "ระดับ Repository (แชร์ร่วมกันข้าม Worktrees)"
+            ],
+            [
+              "Loaded into",
+              "ทุก Session",
+              "ทุก Session (เฉพาะ 200 บรรทัดแรก หรือ 25KB)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Memory ถูกจัดเก็บไว้ที่ ~/.claude/projects/<project>/memory/ โดยมี Index ไฟล์ชื่อ MEMORY.md คอยชี้ไปยังไฟล์ Memory ย่อย แต่ละ Memory มี 4 ประเภท ได้แก่ user (Role และ Preferences ของคุณ), feedback (การแก้ไขจุดผิดพลาดและแนวทางที่ยืนยันว่าเวิร์ก), project (งานที่กำลังทำและ Decision ต่างๆ ที่ไม่อาจเห็นได้จาก Code), หรือ reference (แหล่งอ้างอิงข้อมูลภายนอก) คุณสามารถควบคุมผ่าน Settings โดยใช้ autoMemoryDirectory เพื่อย้ายโฟลเดอร์ และ autoMemoryEnabled เพื่อปิดการใช้งานฟีเจอร์นี้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ทุกสิ่งที่ Auto Memory บันทึกไว้จะถูกโหลดเข้า New Session ทั้งหมดเสมอ? (ทำไมถึงผิด): ไม่จริง: ตอนเริ่ม Session ระบบจะโหลดเฉพาะส่วนต้นของ Memory Index เท่านั้น โดยจำกัดที่ 200 บรรทัดแรก หรือ 25KB"
+        }
+      ]
+    },
+    {
+      "heading": "4. settings.json Scopes และลำดับ Precedence",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "CLAUDE.md กำหนดสิ่งที่ Claude ควรทำ ส่วน settings.json ควบคุมสิ่งที่ Claude Code อนุญาตและการตั้งค่าการทำงาน เช่น Permissions, Hooks, Plugins, Environment Variables และ Model โดยไฟล์ Settings แบ่งออกเป็น 4 Scopes เหมือน CLAUDE.md แต่ Local Scope จะมีพฤติกรรมใน Git ที่แตกต่างกัน"
+        },
+        {
+          "type": "table",
+          "caption": "settings.json Scopes",
+          "headers": [
+            "Scope",
+            "File",
+            "Use it for"
+          ],
+          "rows": [
+            [
+              "User",
+              "~/.claude/settings.json",
+              "Preferences ส่วนตัวที่ใช้ร่วมกันทุก Project"
+            ],
+            [
+              "Shared project",
+              ".claude/settings.json",
+              "Permissions ของทีม, Hooks, Plugins, Env Vars (ต้อง Commit เข้า Git)"
+            ],
+            [
+              "Project local",
+              ".claude/settings.local.json",
+              "Overrides ส่วนตัวเฉพาะ Project นั้น (ไม่ Commit เข้า Git / Ignored)"
+            ],
+            [
+              "Managed",
+              "managed-settings.json และ Managed Sources อื่นๆ",
+              "Security และ Compliance Policy ของระดับ Organization"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "หากมีการตั้งค่า Key ซ้ำกันในหลายระดับ Scope ที่มีลำดับสูงกว่าจะชนะเสมอ ลำดับความสำคัญ (Precedence) คือ Managed Settings > Command-line Arguments > Project Local > Shared Project > User โดย Flag --settings จะส่งค่า JSON สำหรับใช้งานใน Session เดียวและมีสิทธิ์เหนือกว่าไฟล์ของคุณทั้งหมด แต่ไม่มีการตั้งค่าใด Override ค่าของ Managed Settings ได้ นอกจากนี้ Claude Code จะสร้าง .claude/settings.local.json ให้เองโดยอัตโนมัติเมื่อคุณเลือก Standing Approval บน Permission Prompt และจะไม่ถูกรวมเข้า Git Commits ทั้งนี้หาก ~/.claude.json ไม่สามารถ Parse ได้ การสั่งรันแบบ -p จะ Print Error แล้ว Exit ทันที"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55478",
+      "question": "นักพัฒนาต้องการอ้างถึง path ของคู่มือ git workflow ในไฟล์ CLAUDE.md ของโปรเจกต์ โดยไม่ต้องการให้ระบบดึงเนื้อหาของไฟล์นั้นเข้ามาใน context ของทุก session พวกเขาจึงเขียน `` `@docs/git-instructions.md` `` โดยครอบด้วย backtick ไว้ในย่อหน้า เมื่อ Claude Code ทำการ parse ไฟล์ CLAUDE.md นี้ตอนเริ่มต้น session จะเกิดอะไรขึ้น?",
+      "options": [
+        "Claude Code จะมองว่า path ที่ครอบด้วย backtick เป็นเพียงข้อความทั่วไป (literal text) และข้ามการ import ไป เนื่องจากขั้นตอนการ parse import จะข้าม code spans และ fenced code blocks",
+        "Claude Code ยังคง import ไฟล์เข้ามา เนื่องจาก syntax การ import ด้วย `@` จะถูกประมวลผลก่อนขั้นตอนการ parse Markdown code span ที่ตัด backtick ออก",
+        "Claude Code จะแจ้งเตือน parse error และปฏิเสธการโหลดส่วนที่เหลือของไฟล์ CLAUDE.md ทั้งหมด จนกว่าการอ้างอิงที่มี backtick กำกวมนี้จะถูกลบออก",
+        "Claude Code จะ import ไฟล์เข้ามาแต่จะตัดเหลือเฉพาะย่อหน้าแรกเท่านั้น เนื่องจากระบบจะมองว่าการอ้างอิงที่ครอบด้วย backtick เป็นการ import แบบพรีวิวบางส่วน (partial-preview)"
+      ],
+      "explanation": ""
+    }
+  ]
+}

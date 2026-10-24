@@ -1,0 +1,230 @@
+{
+  "title": "การทำ A/B Testing กับ Prompts: Baselines, Segments และ Versioned Rollout",
+  "objectives": [
+    "กำหนด Baseline และเป้าหมายเชิงตัวเลขก่อนเทียบผลลัพธ์จากการเปลี่ยน Prompt หรือ Model",
+    "รันการเปรียบเทียบแบบ Offline อย่างเป็นธรรมบน Held-out Eval Set พร้อมเลือก Grader ที่เหมาะกับงาน",
+    "ประเมินความคุ้มค่าของการทำ Live A/B Test รวมถึงขอบเขตและข้อจำกัดของผลลัพธ์",
+    "วิเคราะห์ผลลัพธ์แยกตาม Segment เพื่อตรวจจับ Regressions ที่ Aggregate Score ซ่อนไว้",
+    "ใช้ Pinned Versions สำหรับ Canary, Promote และ Rollback การเปลี่ยนแปลงของ Prompts"
+  ],
+  "key_concept": "Baseline comparison — การเปลี่ยนแปลงจะนับเป็นการปรับปรุงก็ต่อเมื่อชนะเวอร์ชัน Production ปัจจุบันบนตัววัดเดียวกัน หากไม่มีการวัดผล การแก้ Prompt ก็เป็นเพียงการเดา Baseline คือเวอร์ชันที่ใช้ต่อหากการเปลี่ยนแปลงล้มเหลว ส่วน Target คือระดับผลลัพธ์ที่เวอร์ชันใหม่ต้องเอาชนะให้ได้",
+  "sections": [
+    {
+      "heading": "1. กำหนด Baselines และ Targets ก่อนเริ่มปรับแก้ระบบเสมอ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การปรับปรุงระบบแบบ Iterative คือกระบวนการที่เป็น Loop: ปรับแก้ทีละจุด วัดผลเทียบกับของเดิมที่มีอยู่ แล้วตัดสินใจว่าจะใช้ต่อหรือยกเลิก โดย \"ของเดิมที่มีอยู่\" คือ Baseline ซึ่งมักหมายถึง Prompt, Model หรือ Configuration ที่รันอยู่บน Production ในปัจจุบัน Candidate จะถือว่าดีขึ้นได้ก็ต่อเมื่อทำคะแนนชนะ Baseline ตามเกณฑ์ที่กำหนดไว้ล่วงหน้าเท่านั้น ความรู้สึกส่วนตัวของคนเขียนว่า \"ดูดีขึ้น\" ไม่สามารถนำมานับได้ ซึ่งแนวทางของ Anthropic ระบุชัดเจนว่า A/B testing เป็นวิธีเชิงปริมาณที่ใช้วัดผลเปรียบเทียบกับ Baseline Model หรือเวอร์ชันก่อนหน้าโดยตรง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Target จะเปลี่ยนผลการเปรียบเทียบให้เป็นการตัดสินใจที่ชัดเจน ตัวอย่างการทำ Sentiment Classification ในแนวทาง Success Criteria ของ Anthropic ไม่ได้หยุดอยู่แค่ \"ต้องได้ F1 อย่างน้อย 0.85\" แต่ยังระบุด้วยว่าตัวเลขนี้ต้องดีขึ้นกว่า Baseline เดิม 5% ทุก Target ต้องอิงกับความเป็นจริง เช่น Industry Benchmarks, ผลการทดลองก่อนหน้า, AI Research หรือ Expert Knowledge ซึ่งผลการทดลองก่อนหน้าก็ถือเป็น Baseline ในตัว การตั้งเกณฑ์ไว้ล่วงหน้าก่อนรันการเปรียบเทียบจะช่วยป้องกันไม่ให้เราเลื่อนขยับเป้าหมายตามตัวเลขที่เพิ่งเห็น การเลือก Metrics ที่จะใช้วัดผลเป็นทักษะสำคัญที่ครอบคลุมอยู่ใน [defining evaluation metrics](lesson:4.1) แต่หัวใจหลักตรงนี้คือ ทุก Metric ที่เราจะนำมา Iterate ต้องมีทั้งจุดเริ่มต้น (Starting Value) และเส้นชัย (Target)"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อมี Baseline แล้ว ต้นทุนการทดสอบจะลดลงอย่างมาก Eval Suite ที่รันเทียบกับ Production จะบันทึก Latency, Token Usage, Cost per Task และ Error Rates บนชุดคำถามคงที่ไว้ Candidate รุ่นถัดไปทั้งหมดจะถูกนำมาเทียบกับสถิตินี้ หากทีมไม่มี Baseline ก็จะติดอยู่ใน Reactive Loop: รอให้เกิดปัญหาก่อนแล้วค่อยตามแก้เป็นรายกรณี และไม่สามารถแยกแยะได้ว่าสิ่งที่เกิดขึ้นคือ Regression จริงๆ หรือเป็นเพียง Noise"
+        }
+      ]
+    },
+    {
+      "heading": "2. การเปรียบเทียบแบบ Offline บน Held-out Eval Set",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "วิธีเปรียบเทียบที่ยุติธรรมและรวดเร็วที่สุดคือการทำ Offline Eval โดยการนำ Baseline และ Candidate มารันบน Held-out, Labelled Set ชุดเดียวกัน แล้วให้ Grader เดียวกันตัดเกรด วิธีนี้จะไม่กระทบกับผู้ใช้จริง รันซ้ำได้เรื่อยๆ และเสร็จสิ้นภายในไม่กี่นาที การสร้าง Dataset ดังกล่าวจะอยู่ในหัวข้อ [evaluation dataset design](lesson:4.2) โดยสิ่งที่ต้องโฟกัสในการเปรียบเทียบมี 2 อย่างคือ Grader ที่ใช้ และจำนวน Test Cases"
+        },
+        {
+          "type": "paragraph",
+          "text": "ควรเลือก Grader ที่มีความเป็นปรวิสัย (Objective) มากที่สุดเท่าที่ Task จะอำนวย เช่น Ticket Classifier ที่จำแนกประเภท Urgent, Normal หรือ Low ซึ่งเป็น Categorical Task ชัดเจน เกณฑ์ที่ถูกต้องคือ Exact Match เทียบกับ Ground Truth ที่มนุษย์ติด Label ไว้ โดยตรวจว่า Output ตรงกับ Label ที่กำหนดไว้ล่วงหน้าหรือไม่หลัง Normalize Whitespace และตัวพิมพ์เล็ก-ใหญ่แล้ว การให้ Claude ประเมิน Confidence Score ของตัวเองไม่สามารถนำมาใช้วัดผลได้ เพราะความมั่นใจไม่ใช่ความถูกต้อง และไม่มีการนำไปเทียบกับ Ground Truth ส่วนการให้เพื่อนร่วมงาน 2 คนมาช่วยอ่านแล้วโหวตว่าเวอร์ชันไหน \"รู้สึก\" แม่นยำกว่านั้น ทั้งช้ากว่าและมีความเป็นปรวิสัยน้อยกว่าการวัดผลด้วย Score บนคำตอบชุดเดียวกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Open-ended Output จำเป็นต้องใช้ Score ที่ต่างออกไป เมื่อเปรียบเทียบ Summarisation Prompt กับ Reference Summary ที่เขียนโดยมนุษย์ การใช้ Exact Match จะล้มเหลวเกือบทั้งหมด เพราะสรุปความที่ดีสองฉบับมักใช้คำไม่เหมือนกัน ROUGE-L จะให้คะแนน Candidate จาก Longest Common Subsequence ที่แชร์ร่วมกับ Reference สรุปความที่คงข้อมูลสำคัญของ Reference ไว้ตามลำดับจะได้คะแนนสูง และสามารถแทร็กค่า F1 ข้ามแต่ละ Prompt Variant ได้อย่างครอบคลุม ทั้งนี้ Latency เป็นเกณฑ์ด้าน Operational ที่แยกต่างหาก เวอร์ชันที่ตอบเร็วกว่าไม่ได้แปลว่าจะสรุปเนื้อหาได้ดีกว่าเสมอไป"
+        },
+        {
+          "type": "table",
+          "caption": "การจับคู่ Score สำหรับเปรียบเทียบให้เหมาะกับ Task",
+          "headers": [
+            "Task output",
+            "Score to compare variants on",
+            "Why"
+          ],
+          "rows": [
+            [
+              "Categorical label (sentiment, ticket priority)",
+              "Exact match against human-labelled answers",
+              "ชัดเจน ไม่มีกำกวม และต้นทุนต่ำในการรันซ้ำกับทุก Candidate"
+            ],
+            [
+              "Free-text summary with a reference summary",
+              "ROUGE-L F1 against the reference",
+              "ให้คะแนนการคงข้อมูลสำคัญตามลำดับของ Reference ซึ่ง Exact Match ทำไม่ได้"
+            ],
+            [
+              "Response speed",
+              "Response time (ms)",
+              "เป็นเกณฑ์ด้าน Operational ที่ควรวัดควบคู่กับคุณภาพ ไม่ใช่ใช้วัดแทนคุณภาพ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ปริมาณสำคัญกว่าความประณีตแบบ Hand-crafted กฎของ Anthropic คือ การมีชุดคำถามจำนวนมากที่ตรวจด้วย Automated Grading (แม้ Signal จะดรอปลงเล็กน้อย) มีประโยชน์มากกว่าการมีชุดคำถามน้อยข้อที่ตรวจอย่างประณีตด้วยคน เหตุผลคือเรื่องต้นทุน การเขียนโจทย์คือ One-time Cost แต่การตรวจให้คะแนนต้องจ่ายทุกครั้งที่รัน Eval ซ้ำ และการทำ Iteration จำเป็นต้องรันซ้ำอยู่ตลอดเวลา หากใช้ชุดทดสอบ 80 ข้อที่ต้องให้คนมาตรวจซ้ำทุกครั้งหลังแก้ Prompt กระบวนการจะช้าลงอย่างมาก การใช้ชุดคำถามหลักร้อยข้อที่รัน Automated Grading จะให้ผลการเปรียบเทียบที่สม่ำเสมอทุกครั้งโดยไม่ต้องเสียแรงเพิ่ม"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Prompt เวอร์ชันที่ Claude ให้ค่าเฉลี่ย Confidence Score สูงกว่า คือเวอร์ชันที่มีความแม่นยำมากกว่า เพราะ Confidence ไม่ได้ถูกตรวจสอบเทียบกับ Ground Truth สำหรับ Categorical Task ทั้งสองเวอร์ชันต้องวัดผลบน Labelled Set เดียวกันด้วย Exact Match เทียบกับ Label ที่ถูกต้อง | คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Eval Set ขนาดเล็กที่ Label และตรวจด้วยคนอย่างประณีต น่าเชื่อถือกว่า Dataset ขนาดใหญ่ที่ตรวจด้วย Automated Grading เพราะแนวทางของ Anthropic ให้ความสำคัญกับปริมาณ (Volume) Dataset ขนาดใหญ่ที่ใช้ Automated Grading รองรับการรันเปรียบเทียบซ้ำๆ ได้ทันที ขณะที่การตรวจด้วยคนมีต้นทุนเวลาที่ต้องจ่ายใหม่ทุกครั้งที่รัน"
+        }
+      ]
+    },
+    {
+      "heading": "3. การควบคุมตัวแปรให้เปรียบเทียบได้อย่างเป็นธรรม (Keeping the comparison fair)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเปรียบเทียบจะ Fair ก็ต่อเมื่อตัวแปรที่คุณต้องการทดสอบเป็นเพียงสิ่งเดียวที่เปลี่ยนไป ตัวอย่างเช่น การ Audit prompt ของทีม Support Desk ที่ Anthropic โดยสร้าง System Prompt 6 แบบขึ้นมาจาก Base Prompt สะอาดตัวเดียวกัน แล้วเพิ่มเข้าไปทีละ Pattern (เช่น \"verify twice\" หรือ \"be maximally thorough\") จากนั้นนำทั้ง 6 แบบไปรันบนชุดคำถามเดิม 44 Tickets พร้อมใช้ Deterministic Grading การแยกทดสอบทีละ Pattern ทำให้รู้ Impact ของแต่ละจุดอย่างชัดเจน: การตัด \"verify twice\" ออกช่วยลด Cost ต่อ Ticket ลงได้ถึง 1 ใน 3 ส่วนการลบ Rules ที่ขัดแย้งกันและ Hand-rolled Scratchpad ออก ช่วยกู้ Accuracy กลับคืนมาได้ 7 ถึง 11 Points หาก Deploy การแก้ไขทั้ง 6 จุดไปพร้อมกัน คุณจะเห็นแค่ผลรวมลัพธ์สุดท้าย แต่ไม่รู้เลยว่าจุดไหนดีจุดไหนพัง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: หากรัน Prompt, Model และชุดคำถาม 25 ข้อเดิม 3 ครั้งด้วย Exact-match Grading แล้วได้คะแนน 6, 7 และ 7 ข้อ การที่ Candidate Variant ทำคะแนนได้ดีกว่า Baseline แค่ 1 ข้อในการรันเพียงรอบเดียว ไม่ได้พิสูจน์ว่ามันดีกว่าจริง เพราะความแตกต่างเพียง 1 ข้อนั้นยังอยู่ภายในค่าความแปรปรวน (Variance/Spread) ตามธรรมชาติของ Baseline เอง จึงอาจเป็นแค่ Noise"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Repeated Runs คือหัวใจสำคัญของการเปรียบเทียบที่ Fair เพราะ Configuration เดียวกันไม่ได้ให้คะแนนเท่ากันทุกรอบเสมอไป ใน Benchmark ชุดเดียวกัน การรัน Claude Sonnet 5 ซ้ำกัน 3 ครั้งตอบถูก 6, 7 และ 7 จาก 25 ข้อ ซึ่งผลต่างเพียง 1 ข้อจาก Single Run นั้นจัดว่าอยู่ในระดับ Variance ปกติ ในรายงาน Prompt Audit จึงระบุผลลัพธ์โดยคำนึงถึงจุดนี้เสมอ: เช่น Accuracy Gain ของ Opus 5 มีช่วง 95% Confidence Interval อยู่ที่ 3 ถึง 8 Points ขณะที่ความต่างของ Sonnet ถูกสรุปว่าเป็นเพียง Noise ดังนั้นก่อนจะสรุปว่า Candidate ดีกว่า Baseline ต้องมั่นใจก่อนว่า Margin ที่เพิ่มขึ้นนั้นกว้างกว่า Baseline Variation ของตัวมันเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "จง Pin ทุกอย่างให้คงที่ ยกเว้นตัวแปรที่ต้องการทดสอบ นั่นหมายถึงต้องใช้ Eval Set เดิม, Grader เดิม, Model และ Effort Setting เดิม รวมถึงต้องระบุ Prompt Version อย่างเจาะจง ใน Managed Agents การส่งแค่ Bare Agent ID ระบบจะเรียก Version ล่าสุดมาใช้เสมอ แต่การส่ง Object ที่ระบุ Version ชัดเจนจะช่วย Pin Session นั้นไว้กับ Version ที่แน่นอน ซึ่งจำเป็นอย่างยิ่งต่อ Controlled Comparison และหากตัวแปรที่ต้องการทดสอบคือตัว Model เอง ให้ใช้ Prompts และ Data ชุดจริงของระบบคุณไปรันกับ Candidate Model แต่ละตัว แทนที่จะพึ่งพาแค่คะแนน General Benchmarks"
+        }
+      ]
+    },
+    {
+      "heading": "4. จังหวะที่ควรทำ Live A/B Test",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Live A/B Test คือการ Split Traffic จริงระหว่าง Baseline กับ Candidate เพื่อวัดพฤติกรรมจริงของผู้ใช้ วิธีนี้สามารถวัดสิ่งที่ Offline Eval ทั่วไปวัดไม่ได้ เช่น Retention และ Task Completion Rate โดยการสุ่ม Split จะช่วยควบคุมปัจจัยแทรกซ้อน (Confounds) ได้เป็นอย่างดี ซึ่ง Task Completion Rate ถือเป็นหนึ่งใน Implicit User Feedback สำคัญตามเกณฑ์วัดผลของ Anthropic แต่ข้อแลกเปลี่ยนคือต้องใช้เวลาและมีความเสี่ยง: การเก็บข้อมูลให้ได้ Statistical Significance ต้องใช้เวลาเป็นวันหรือสัปดาห์ ต้องมี Traffic ที่มากพอ และ Candidate Version จะถูกปล่อยให้ผู้ใช้จริงสัมผัสแล้ว"
+        },
+        {
+          "type": "table",
+          "caption": "Offline Evals และ Live A/B Tests ตอบโจทย์คำถามที่ต่างกัน",
+          "headers": [
+            "Method",
+            "Strength",
+            "Limitation"
+          ],
+          "rows": [
+            [
+              "Automated offline eval",
+              "รวดเร็ว ทำซ้ำได้ 100% ไม่กระทบผู้ใช้ รันได้ในทุก Commit",
+              "อาจสร้างความมั่นใจผิดๆ หากข้อมูลทดสอบไม่สอดคล้องกับพฤติกรรมการใช้งานจริง"
+            ],
+            [
+              "Live A/B test",
+              "วัดผลลัพธ์จากผู้ใช้จริง และควบคุมปัจจัยแทรกซ้อนได้ดี",
+              "ใช้เวลานานกว่าจะได้ผลที่มีนัยสำคัญทางสถิติ ต้องพึ่งพาปริมาณ Traffic และทดสอบได้เฉพาะ Change ที่ Deploy แล้วเท่านั้น"
+            ],
+            [
+              "Production monitoring",
+              "ดักจับปัญหาที่ Synthetic Evals มองข้ามไปได้",
+              "เป็นแบบเชิงรับ (Reactive): ปัญหาหลุดไปถึงผู้ใช้ก่อนที่คุณจะตรวจพบ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ลำดับขั้นตอนควรเริ่มจากตารางข้างต้น: Automated Evals คือแนวป้องกันด่านแรกในทุก Commit และการอัปเกรด Model ส่วน A/B Testing มีไว้ Validate การเปลี่ยนแปลงที่มีนัยสำคัญเมื่อมี Traffic เพียงพอ โดยไม่มีอันไหนมาใช้แทนกันได้ทั้งหมด การปล่อย Prompt ใหม่ให้กับ Traffic 100% แล้วคอยดู Proxy Metric เช่น Ticket Resolution Time ไม่ถือเป็น A/B Test เพราะการไม่มี Control Group จะทำให้ไม่สามารถยืนยันได้ว่า Metric ที่เปลี่ยนไปเกิดจาก Prompt จริงหรือไม่ นอกจากนี้ ผลลัพธ์จาก A/B Test จะบอกเหตุผลได้น้อยว่า *ทำไม* Metric ถึงขยับ จึงควรทำควบคู่กับ Transcript Review เมื่อ Variant ชนะหรือแพ้อย่างผิดคาด ส่วน Production Monitoring แบบต่อเนื่องนั้นถือเป็นอีกกระบวนการแยกต่างหาก ซึ่งอธิบายไว้ใน [monitoring with logging and observability](lesson:4.6)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ที่เชื่อว่า Live A/B Test คือวิธีที่เร็วที่สุดในการพิสูจน์ว่า Prompt เวอร์ชันใหม่ดีกว่าหรือไม่ เพราะ Live A/B Test ต้องใช้เวลาหลายวันหรือหลายสัปดาห์กว่าจะได้ผลที่มีนัยสำคัญทางสถิติ (Statistical Significance) และต้องมี Traffic มากพอ แนวทางที่ถูกต้องคือใช้ Offline Eval บน Held-out Set เป็น Fast First Check ก่อน แล้วจึงใช้ A/B Test มา Validate การเปลี่ยนแปลงครั้งสำคัญ"
+        }
+      ]
+    },
+    {
+      "heading": "5. การอ่านผลลัพธ์แยกตาม Segment (Reading results per segment)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "คะแนนรวม (Aggregate score) เป็นเพียงค่าเฉลี่ย และค่าเฉลี่ยมักซ่อนจุดที่ประสิทธิภาพตกลงไป โมเดลเวอร์ชันใหม่อาจได้คะแนนสูงขึ้นใน Segment ที่เราตั้งใจปรับปรุง แต่กลับแย่ลงใน Segment ข้างเคียง โดยที่คะแนนรวมทั้งหมดยังคงเพิ่มขึ้นได้ ในโลกความเป็นจริง Task มีความหลากหลายและต้องประเมินด้วยเกณฑ์หลายด้านพร้อมกันเสมอ ดังนั้นควรวัดผลเปรียบเทียบแยกย่อยตามหมวดหมู่ (Category), ประเภทของ Input, หรือตามทีม ควบคู่ไปกับภาพรวมเสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น การปรับแต่งที่มุ่งเน้นไปที่เคส API Tickets แต่ทีมที่ได้รับผลกระทบกลับเป็น Billing ในชุดทดสอบ 20 เคสนี้ อาการ Regression ปรากฏให้เห็นในคะแนนรวมที่ลดลงจาก 19 เหลือ 17 แต่ลองนึกภาพว่าถ้านำ Rule เดียวกันนี้ไปรันบนชุดข้อมูลที่มี API Tickets เคย Route ผิดพลาดจำนวนมาก Rule นี้จะแก้เคสเหล่านั้นได้ ทำให้คะแนนรวมพุ่งสูงขึ้น จนกลบผลงานที่ร่วงลงของ Billing ไปจนมิด การดูผลแยกรายทีม (Per-team view) จึงช่วยตรวจจับปัญหานี้ได้ในทุกสถานการณ์ เช่นเดียวกับการ Audit งาน Support Desk ที่ค่าเฉลี่ยระบุว่า Accuracy สูงขึ้น แต่การ Breakdown ดูตาม Pattern เท่านั้นที่ชี้ชัดได้ว่าการแก้ไขจุดใดเป็นตัวการที่แท้จริง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "นำไปปรับใช้จริง: ลองเลือก Prompt ที่เพิ่งแก้ไขล่าสุดมาหนึ่งตัว หากต้องเปรียบเทียบผลครั้งต่อไป คุณจะแบ่งย่อย Segment ของ Input ตามอะไร (ประเภทลูกค้า, ภาษา, หมวดหมู่ Ticket, ความยาว Input) และ Segment ใดที่ตรงกับเคสเป้าหมายของการแก้ไขมากที่สุด?"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ถ้าคะแนนภาพรวมของเวอร์ชันใหม่ดีเท่าเดิมหรือดีขึ้น แสดงว่าปลอดภัยที่จะ Promote ขึ้น Production? (ทำไมถึงผิด): ไม่จริง: การปรับแต่งที่เล็งผลใน Segment หนึ่ง อาจแอบดึง Accuracy ของอีก Segment หนึ่งให้ลดลงได้เงียบๆ เช่น Routing rule กว้างๆ สำหรับ API tickets อาจทำให้ Accuracy ของฝั่ง Billing ลดลงไปครึ่งหนึ่ง ในขณะที่ทีมอื่นยังคงได้ 5/5 เต็ม"
+        }
+      ]
+    },
+    {
+      "heading": "6. การ Promote, Canary และ Roll back แยกตาม Version",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเปรียบเทียบ Candidate กับ Baseline จะปลอดภัยก็ต่อเมื่อทั้งสองเวอร์ชันสามารถอ้างอิงผ่าน Version number ได้เท่านั้น มิเช่นนั้น Baseline จะถูกเขียนทับทันทีที่คุณส่งการเปลี่ยนแปลงขึ้นไป ระบบ Managed Agents จัดการให้ Prompt เป็น Server-side resource โดยทุกการเรียก `agents.update` จะสร้าง Immutable version ใหม่ขึ้นมา และแต่ละ Session สามารถเลือกระบุ Version number ที่จะรันได้ เวอร์ชัน 1 จะยังคงอยู่แม้เวอร์ชัน 2 ถูกสร้างขึ้นแล้ว ทำให้สามารถนำมาเทียบเคียงหรือย้อนกลับไปใช้ได้เสมอ โดยเรียกดูประวัติเวอร์ชันทั้งหมดได้จาก `client.beta.agents.versions.list(AGENT_ID)`"
+        },
+        {
+          "type": "paragraph",
+          "text": "กลยุทธ์ 3 รูปแบบ จัดการได้ง่ายๆ เพียงเปลี่ยนการอ้างอิง Version number:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Canary: ส่ง Traffic บางส่วนไปยังเวอร์ชันใหม่เพื่อประเมินผลก่อน Promote เต็มรูปแบบ โดยใช้ Version number ทำหน้าที่เสมือน Feature Flag\n- Promote: อัปเดต Config ที่ระบุว่า Production Caller ต้องส่ง Version ไหน ซึ่งตัว Config change นี้เองคือจุดที่ต้องผ่านกระบวนการ Review\n- Roll back: สั่งให้ Caller สลับกลับไปส่ง Version number เดิม ไม่ต้อง Deploy ระบบใหม่ และเวอร์ชันที่มี Regression ก็ยังคงอยู่บน Server เพื่อนำไป Iterate ต่อได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความปลอดภัยของทั้ง 3 รูปแบบขึ้นอยู่กับการที่ Production Caller ต้องระบุ Version ให้ชัดเจน (Explicit Version Pinning) เนื่องจาก `agents.update` ไม่มี Approval workflow ในตัว และ API Key ใดๆ ใน Workspace ก็สามารถเรียกได้ หาก Caller ส่งเพียง Agent ID ลอยๆ (Bare Agent ID) ตัว Session ถัดไปจะดึง Prompt ล่าสุดไปใช้ทันที ทำให้ v2 ที่ยังไม่ผ่านการ Review หลุดขึ้น Production โดยตรง แต่หากทำ Explicit Pinning ใครก็สามารถสร้าง v2, v3 หรือ v10 สำหรับการทดลองได้โดยไม่มี Traffic จริงหลุดเข้าไป เลข Version ที่ Pin ไว้จึงกลายเป็น Change-control gate ไปในตัว ในเคสตัวอย่าง Routing การแก้ปัญหา Billing regression ทำได้ทันทีโดยการ Re-pin กลับไปที่เวอร์ชัน 1 ทำให้ Accuracy ของ Billing กลับมาเป็น 4/5 ในขณะที่ v2 ยังคงเปิดไว้ให้แก้ไขต่อได้ก่อนจะส่ง v3 ไปทดสอบเทียบผลอีกครั้ง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "จุดเน้นข้อสอบ: การสร้าง Version คือการทดลอง (Exploration) แต่การเปลี่ยน Version ที่ Production Pin ไว้คือการ Release หากมีโจทย์ถามถึงวิธีทำให้การแก้ Prompt สามารถย้อนกลับ (Reversible) ได้โดยไม่ต้อง Redeploy คำตอบคือ: การทำ Explicit Version Pinning ควบคู่กับการ Review การแก้ Pin ไม่ใช่การไปแก้ Prompt ทับที่เดิม (In-place)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Production Caller สามารถเรียกใช้ Bare Agent ID ได้อย่างปลอดภัย เพราะการอัปเดต Prompt ย่อมผ่านการ Review มาก่อนแล้ว? (ทำไมถึงผิด): ไม่จริง: `agents.update` ไม่มีระบบ Approval workflow ในตัว และ Caller ที่เรียกด้วย Bare ID จะถูกดึงเวอร์ชันล่าสุดไปใช้ใน Session ถัดไปทันที การทำ Explicit Version Pinning เท่านั้นที่จะช่วยซ่อนเวอร์ชันใหม่ไม่ให้กระทบ Production จนกว่าจะได้รับการ Promote"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56873",
+      "question": "ทีมคัดแยก Support Ticket มีชุด Eval แบบจัดหมวดหมู่ (Urgent/Normal/Low พร้อม Ground Truth ที่มนุษย์กำกับไว้) เพื่อใช้เปรียบเทียบ Prompt เวอร์ชันต่างๆ ของ Claude ก่อนที่จะนำ Prompt เวอร์ชันปรับปรุงขึ้น Production ทีมต้องการวิธีที่เร็วและเป็นกลาง (Objective) ที่สุดในการยืนยันว่า Prompt ใหม่มีประสิทธิภาพดีกว่า Prompt บน Production เดิม ทีมควรใช้วิธีใด?",
+      "options": [
+        "รันทั้งสองเวอร์ชันของ Prompt บน Held-out Labeled Set ชุดเดียวกัน แล้วเปรียบเทียบ Exact-Match Accuracy กับ Ground-Truth Category Labels",
+        "ให้เจ้าหน้าที่ Support 2 คนสุ่มอ่านตัวอย่างผลลัพธ์จากแต่ละเวอร์ชันแบบแยกกัน แล้วโหวตว่าเวอร์ชันใดให้ความรู้สึกว่าแม่นยำกว่า",
+        "ให้ Claude ประเมิน Confidence Score ของตัวเองในแต่ละการจำแนกประเภทเป็นสเกล 1-5 และถือว่าเวอร์ชันที่มีคะแนนเฉลี่ยสูงกว่าคือเวอร์ชันที่ดีกว่า",
+        "Deploy Prompt เวอร์ชันปรับปรุงไปยัง Traffic ทั้งหมดทันที แล้ว Monitor เวลาที่ใช้ในการปิด Ticket (Resolution Time) เพื่อเป็นตัวชี้วัดแทนคุณภาพการจำแนกประเภท"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56874",
+      "question": "ทีมงาน Documentation กำลังพัฒนา Prompt สำหรับสรุปบทความ โดยมีบทความ 250 บทความคู่กับ Reference Summary ที่เขียนโดยมนุษย์ และต้องการคะแนนแบบอัตโนมัติ (Automated Score) ที่ให้คะแนนสรุปความตามการคงข้อมูลสำคัญจาก Reference ไว้อย่างครบถ้วนในลำดับที่ใกล้เคียงกัน เพื่อนำมาเปรียบเทียบ Prompt Variants ในระดับสเกลระหว่างการพัฒนา วิธีการประเมินผล (Eval Method) ใดตอบโจทย์นี้ได้ดีที่สุด?",
+      "options": [
+        "คำนวณคะแนนของ Candidate Summary เทียบกับ Reference โดยใช้ ROUGE-L และติดตาม F1 Score ข้ามแต่ละ Prompt Variant",
+        "คำนวณ Exact String Match ระหว่าง Candidate Summary กับ Reference Summary ของแต่ละบทความ",
+        "เรียกใช้ Claude เพิ่มอีก Call เพื่อตอบเพียง Yes/No ว่าสรุปความนั้นมีการระบุข้อมูลสุขภาพที่มีการคุ้มครอง (Protected Health Information) หรือไม่",
+        "วัด Wall-Clock Latency ของแต่ละ Prompt Variant แล้วเลือกเวอร์ชันที่ตอบกลับได้เร็วที่สุด"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56878",
+      "question": "Data Science Lead กำลังออกแบบ Eval Suite เพื่อเปรียบเทียบ Prompt Candidates ก่อนทำ A/B Test โดยมีเพื่อนร่วมทีมเสนอว่าควรใช้เวลาที่มีจำกัดในการ Hand-label ข้อมูล 80 ตัวอย่างที่ตรวจสอบอย่างละเอียด ดีกว่าการสร้าง Automated Grader บนชุดข้อมูลที่ใหญ่กว่า หากปฏิบัติตามแนวทางที่แนะนำเกี่ยวกับ Eval Volume เทียบกับ Grading Quality ทาง Lead ควรตอบกลับอย่างไร?",
+      "options": [
+        "เลือกใช้ชุดข้อมูลขนาดใหญ่ที่ตรวจด้วย Automated Grader แม้ Signal ต่อตัวอย่างจะต่ำกว่าเล็กน้อย เพราะจำนวนคำถามที่มากกว่าด้วย Automated Grading มักให้ผลดีกว่าข้อมูลคุณภาพสูงจำนวนน้อยที่ตรวจด้วยมือ",
+        "เห็นด้วยกับเพื่อนร่วมทีม เพราะตัวอย่างที่ Hand-label ให้ผลการเปรียบเทียบที่น่าเชื่อถือกว่าเสมอไม่ว่า Sample Size จะมีขนาดเท่าใดก็ตาม",
+        "ลดขนาด Eval เหลือเพียง 10 ตัวอย่าง เพื่อให้คนในทีมทุกคนสามารถ Manual Review ทุกเคสได้ก่อนการเปลี่ยน Prompt แต่ละครั้ง",
+        "ข้ามการสร้าง Test Set ไปเลย แล้วเปรียบเทียบ Prompt แต่ละเวอร์ชันจากความรู้สึกส่วนตัว (Subjective Impressions) ของสมาชิกในทีมแทน"
+      ],
+      "explanation": ""
+    }
+  ]
+}

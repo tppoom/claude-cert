@@ -1,0 +1,185 @@
+{
+  "title": "การรัน Claude Code: Skills, Subagents, Sessions, Headless และ Auto Mode",
+  "objectives": [
+    "สร้าง Custom Slash Command ในรูปแบบ Skill และระบุลำดับการทำงานเมื่อเกิด Name Collision",
+    "กำหนด Subagent ใน .claude/agents/ พร้อมระบุ Initial Context ที่ใช้เริ่มต้น",
+    "ทำงานต่อ (Continue), กู้คืน (Resume) และสลับ Sessions",
+    "รัน Claude Code แบบ Headless ด้วยแฟล็ก -p พร้อม Stream ผลลัพธ์ในรูปแบบ stream-json",
+    "กำหนด Permission Mode เริ่มต้นและตั้งค่า Hard Boundaries อย่างรัดกุมเมื่อใช้ Auto Mode"
+  ],
+  "key_concept": "การควบคุมและขยายขีดความสามารถของ Claude Code ผ่าน Skills, Subagents, Session Management ตลอดจนการรันแบบ Headless และการตั้งค่าความปลอดภัยใน Auto Mode",
+  "sections": [
+    {
+      "heading": "1. Skills, Commands และ Built-in vs Custom Slash Commands",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code มาพร้อม Built-in Slash Commands เช่น /init, /memory, /context, /config, /model, /effort และ /resume รวมถึง Bundled Skills อย่าง /run และ /verify นอกจากนี้คุณยังสามารถสร้าง Custom Slash Commands ของตัวเองในรูปแบบ Skills ได้ โดย Skill จะเป็นโฟลเดอร์ที่บรรจุไฟล์ SKILL.md วางไว้ที่ ~/.claude/skills/ สำหรับ Personal Use หรือที่ .claude/skills/ เพื่อแชร์กับ Project Claude จะ Execute เมื่อคุณพิมพ์เรียกชื่อคำสั่ง หรือ Trigger อัตโนมัติเมื่อ Prompt ตรงกับ Description ของ Skill นั้น ทั้งนี้ ไฟล์ Markdown เดี่ยวใน .claude/commands/ เป็นฟอร์แมต Commands แบบเดิมที่ยังใช้งานได้อยู่ แต่แนะนำให้ใช้ Skills มากกว่าเพราะสามารถใส่ Supporting Files เสริมได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ลำดับ Priority หากมีชื่อซ้ำกัน: Enterprise Skill จะชนะ Personal Skill และ Personal Skill จะชนะ Project Skill ส่วน Skill จะชนะไฟล์ใน .claude/commands/ ที่ชื่อเดียวกันเสมอ หาก Skill ของคุณชื่อซ้ำกับ Bundled Command จะถือว่าถูก Override แทนที่คำสั่งนั้น แต่จะไม่ทับ Aliases ของคำสั่งเดิม สำหรับ Plugin Skills จะมีการใส่ Namespace เป็น /plugin-name:skill-name จึงไม่มีปัญหาชื่อชนกัน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ไฟล์ใน .claude/commands/ ไม่ได้หยุดทำงานหลังจากมี Skills เข้ามา เพราะไฟล์ Command รูปแบบเก่ายังคงทำงานได้ปกติ เพียงแต่แนะนำให้ใช้ Skills สำหรับการพัฒนาใหม่ และหากมีชื่อซ้ำกัน Skill จะมีลำดับความสำคัญสูงกว่าเสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "2. Agents: Built-in และ Custom Subagents",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Subagent ทำงานเฉพาะทางแยก Context เป็นของตัวเอง เพื่อป้องกันไม่ให้การ Exploration เปลือง Context ใน Main Conversation ตัว Built-in Types ได้แก่ Explore และ Plan ซึ่งเป็น Read-only Research Agents สำหรับค้นคว้าข้อมูล และ General-purpose ที่เข้าถึงทุก Tools ของ Subagents และสามารถแก้ไขโค้ดได้ หากต้องการสร้าง Custom Subagent ให้เพิ่มไฟล์ Markdown พร้อม Frontmatter ไปที่ .claude/agents/ สำหรับ Project นั้นๆ หรือ ~/.claude/agents/ สำหรับใช้งานข้ามทุก Projects"
+        },
+        {
+          "type": "table",
+          "caption": "ตำแหน่งที่อยู่ของ Subagent Definitions เรียงจาก Priority สูงสุดไปต่ำสุด",
+          "headers": [
+            "Location",
+            "Scope",
+            "Priority"
+          ],
+          "rows": [
+            [
+              "Managed settings",
+              "Organization-wide (ระดับองค์กร)",
+              "1 (สูงสุด)"
+            ],
+            [
+              "--agents CLI flag",
+              "Current session (เฉพาะ Session ปัจจุบัน)",
+              "2"
+            ],
+            [
+              ".claude/agents/",
+              "Current project (เฉพาะ Project ปัจจุบัน)",
+              "3"
+            ],
+            [
+              "~/.claude/agents/",
+              "All your projects (ทุก Projects ของ User)",
+              "4"
+            ],
+            [
+              "Plugin's agents/ directory",
+              "Where plugin is enabled (ตำแหน่งที่เปิดใช้ Plugin)",
+              "5 (ต่ำสุด)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Required fields ใน Frontmatter มีเพียง name และ description เท่านั้น ส่วน Fields อื่นๆ มีไว้สำหรับกำหนดค่าเริ่มต้น โดย Default จะโหลดไฟล์ User, Project และ Local CLAUDE.md เข้ามา หากต้องการข้ามให้ตั้งค่า omitClaudeMd เป็น true สำหรับฟิลด์ skills จะทำการ Inject เนื้อหาทั้งหมดของ Skill นั้นตอน Startup และฟิลด์ memory จะเปิดให้ Subagent มี Persistent Memory แยกเฉพาะตัวตาม Scope (user, project หรือ local) เพื่อให้สามารถเรียนรู้ข้าม Sessions ได้ นอกจากนี้ยังมีฟิลด์ permissionMode, model, tools และ isolation: worktree เพื่อควบคุมการทำงานอย่างสมบูรณ์"
+        }
+      ]
+    },
+    {
+      "heading": "3. Session management",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุกบทสนทนาจะถูกบันทึกเป็น Session อัตโนมัติและสามารถกลับมาทำต่อได้เสมอ เมื่อ Resume Session กลับมา Context ประวัติทั้งหมดจะถูกโหลดกลับมาครบถ้วน ทั้ง Tool calls และผลลัพธ์ รวมถึงยังคงใช้ Model เดิมของ Session นั้นตามปกติ"
+        },
+        {
+          "type": "table",
+          "caption": "Session commands",
+          "headers": [
+            "Command",
+            "What it does"
+          ],
+          "rows": [
+            [
+              "claude --continue",
+              "เปิดบทสนทนาล่าสุดในไดเรกทอรีปัจจุบันขึ้นมาทำต่อทันที"
+            ],
+            [
+              "claude --resume",
+              "เปิดหน้าจอ Session picker ให้เลือก Session ที่ต้องการ"
+            ],
+            [
+              "claude --resume <name>",
+              "Resume เข้าสู่ Session ตามชื่อที่ระบุโดยตรง"
+            ],
+            [
+              "claude --from-pr <number>",
+              "เปิด Session picker โดยฟิลเตอร์เฉพาะ Session ที่ผูกกับ Pull Request นั้นๆ"
+            ],
+            [
+              "/resume",
+              "สลับไปคุยบทสนทนาอื่นจากภายใน Active session ที่เปิดอยู่"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "4. Headless mode and streaming output",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Flag `-p` ใช้รัน Claude Code แบบ Headless โดยไม่มี Interactive session ระบบจะพิมพ์ผลลัพธ์และ Exit ทันที ซึ่งเหมาะสำหรับใช้งานใน Script และ CI/CD คุณสามารถ Pipe input เข้ามาและ Redirect output ออกไปได้ ใช้ `--allowedTools` เพื่อ Pre-approve tools ล่วงหน้า ทำให้การรันไม่หยุดรอ Permission prompt ใช้ `--bare` เพื่อรันโดยไม่โหลด Local configuration และสามารถใช้ Flags เช่น `--settings`, `--agents` และ `--mcp-config` เพื่อส่ง Configuration เข้าไปแบบ Explicit ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Flag `--output-format` รองรับ 3 รูปแบบ: `text` (ค่า Default), `json` สำหรับคืนผลลัพธ์เป็น Structured JSON ที่มี Result, Session ID และ Metadata (สามารถระบุ `--json-schema` เพิ่มเติมเพื่อกำหนดรูปแบบ Output ได้) และ `stream-json` สำหรับ Streaming mode ที่จะส่ง Events ออกมาเป็น Newline-delimited JSON แบบ Real-time โดยเพิ่ม `--include-partial-messages` ได้หากต้องการรับ Text deltas ขนาดสตรีมออกมา"
+        }
+      ]
+    },
+    {
+      "heading": "5. Permission modes และ Auto mode",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Permission mode กำหนดความถี่ที่ Claude Code จะหยุดถามเพื่อขออนุมัติก่อนลงมือทำ โดยมีโหมดต่างๆ ได้แก่ default, acceptEdits, plan, auto, dontAsk และ bypassPermissions ซึ่งใน Auto mode จะมี Classifier คอยอนุมัติหรือบล็อกแต่ละ Action แทนการถามผู้ใช้ คุณสามารถเริ่ม Session ด้วยโหมดที่ต้องการผ่าน Flag หรือกำหนด permissions.defaultMode ในไฟล์ Settings"
+        },
+        {
+          "type": "paragraph",
+          "text": "ด้วยเหตุนี้ การ Commit ไฟล์ระดับโปรเจกต์จึงไม่สามารถเปิด Auto mode ให้กับเพื่อนร่วมทีมได้ แต่ defaultMode ที่ตั้งค่าไว้ใน ~/.claude/settings.json หรือใน Managed Settings จะมีผลใช้งาน สำหรับการรันเฉพาะ Session เดียว ให้ส่งโหมดผ่าน Flag เช่น claude --permission-mode default"
+        },
+        {
+          "type": "paragraph",
+          "text": "Auto mode ไม่ได้มาแทนที่ Permission Rules โดยกฎ permissions.deny จะบล็อก Action นั้นทันทีก่อนจะส่งไปเช็กกับ Classifier ส่วนกฎ permissions.ask ก็จะถามยืนยันเสมอโดยที่ Classifier ไม่สามารถ Auto-approve ข้ามได้ นอกจากนี้ ข้อห้ามที่พิมพ์บอกแค่ใน Chat เช่น 'อย่าเพิ่ง Push จนกว่าจะ Review' อาจหลุดหายไปได้เมื่อเกิด Context Compaction ดังนั้น หากต้องการข้อจำกัดที่มีผลแน่นอน ต้องเขียนเป็น Rules เสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การ Commit defaultMode: auto ใน .claude/settings.json จะทำให้ Terminal session ของเพื่อนร่วมทีมทุกคนเริ่มทำงานใน Auto mode? (ทำไมถึงผิด): ไม่จริง: Terminal sessions จะยอมรับค่า defaultMode ระดับโปรเจกต์ ยกเว้น auto และ bypassPermissions ที่ถูกยกเว้นไว้เพื่อความปลอดภัย"
+        }
+      ]
+    },
+    {
+      "heading": "Practise it for real",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สร้าง Personal Skill และทดลองเรียกใช้งานทั้งสองแบบ: ผ่าน Slash Command และผ่าน Plain Request"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55479",
+      "question": "ตลอดระยะเวลาหลายเดือน Claude ได้บันทึกข้อมูลจำนวนมากลงใน Auto Memory ของโปรเจกต์ จนทำให้ไฟล์ `MEMORY.md` มีขนาดยาวถึง 340 บรรทัด ในขณะที่ไฟล์หัวข้อย่อยเฉพาะเรื่องอย่าง `debugging.md` และ `api-conventions.md` ในไดเรกทอรีเดียวกันไม่มีการแก้ไข เมื่อเริ่ม Session ใหม่ในโปรเจกต์นี้ ข้อมูลส่วนใดจะถูกโหลดเข้า Context โดยอัตโนมัติตอนเริ่มต้น Session?",
+      "options": [
+        "โหลดเฉพาะ 200 บรรทัดแรก (หรือขนาดไม่เกิน 25KB แล้วแต่อย่างใดจะถึงก่อน) ของ `MEMORY.md` เท่านั้น ส่วนไฟล์หัวข้อย่อยจะถูกโหลดภายหลังเมื่อ Claude ใช้ File Tools เรียกอ่านตามความต้องการ (On Demand)",
+        "โหลดไฟล์ `MEMORY.md` ทั้งหมด 340 บรรทัด พร้อมกับทุกไฟล์หัวข้อย่อยในไดเรกทอรี Memory เนื่องจาก Auto Memory ถูกออกแบบมาให้โหลดข้อมูลทั้งหมดอย่างละเอียดเมื่อเริ่มต้น Session",
+        "ไม่มีข้อมูลใดจาก Auto Memory ถูกโหลดอัตโนมัติ Claude จะต้องรันคำสั่ง `/memory` เองอย่างชัดเจนใน Session เสียก่อน บันทึกเหล่านั้นจึงจะพร้อมใช้งาน",
+        "โหลด 200 บรรทัดสุดท้ายของ `MEMORY.md` ตามหลักการที่ว่าบันทึกล่าสุดที่เพิ่งเพิ่มเข้ามามีความเกี่ยวข้องกับ Session ปัจจุบันมากที่สุด"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55480",
+      "question": "องค์กรได้กำหนด Deny Rule สำหรับ `Bash(curl *)` ผ่าน Managed Settings เพื่อไม่ให้นักพัฒนาคนใดสามารถ Override ได้ ต่อมาในไฟล์ `.claude/settings.json` ของโปรเจกต์ได้กำหนด Allow Rule สำหรับ `Bash(curl *)` เพิ่มเข้ามาเพื่อให้ CI Pipeline สามารถดึง Build Artifacts ได้ หากนักพัฒนาที่ทำงานบนเครื่อง Local รันคำสั่ง `curl` ผ่าน Interactive Session จะเกิดผลลัพธ์อย่างไร?",
+      "options": [
+        "คำสั่งยังคงถูก Block เนื่องจาก Managed Settings อยู่ในลำดับความสำคัญสูงสุด (Precedence Order) และไม่สามารถถูก Override ด้วย Project, Local หรือ User Settings ได้",
+        "คำสั่งทำงานได้สำเร็จ เนื่องจาก Permission Rules จะทำการ Merge ข้าม Scope และ Allow Rule ระดับ Project จะถูกนำมารวมกับ Managed Rule เพื่ออนุญาตสำหรับกรณีเฉพาะนี้",
+        "ระบบจะแสดง Prompt ถามนักพัฒนาเพื่อขออนุมัติแบบ One-time Approval เนื่องจากเมื่อเกิด Allow Rule และ Deny Rule ขัดแย้งกันข้าม Scope ระบบจะ Fallback ไปเป็นการถามผ่าน Interactive Prompt เสมอ",
+        "คำสั่งทำงานได้สำเร็จ เนื่องจาก Project Settings ถูกอ่านทีหลัง Managed Settings และ Scope ที่ถูกโหลดล่าสุดจะชนะเมื่อเกิด Rule Conflict"
+      ],
+      "explanation": ""
+    }
+  ]
+}

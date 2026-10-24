@@ -1,0 +1,132 @@
+{
+  "title": "PreToolUse Guardrails: Exit Codes และการจัดการ Permissions",
+  "objectives": [
+    "อ่านค่า Tool Name และ Arguments ที่ส่งเข้ามายัง PreToolUse Hook",
+    "ระงับการเรียก Tool ด้วย Exit Code 2 พร้อมทำความเข้าใจการทำงานของ Exit Code 0 และรหัสอื่นๆ",
+    "ส่งคืนผลการตัดสินใจแบบ Deny, Ask หรือ Allow พร้อมเข้าใจข้อจำกัดของ Allow",
+    "พัฒนา Guardrail รูปแบบเดียวกันผ่าน Agent SDK Callback"
+  ],
+  "key_concept": "การควบคุมความปลอดภัยก่อนรัน Tool (PreToolUse) ด้วย Hook Exit Codes, Permission Decisions (Deny/Ask/Allow) และ Agent SDK Callbacks",
+  "sections": [
+    {
+      "heading": "1. ข้อมูลที่ PreToolUse Hook ได้รับ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "PreToolUse hook จะทำงานก่อนที่ Tool call จะถูก execute และเป็น Hook event ตัวเดียวที่สามารถสั่งยกเลิก (cancel) การเรียก Tool ได้ จึงเหมาะอย่างยิ่งสำหรับการทำ Guardrail ป้องกันคำสั่งอันตราย (destructive actions) เมื่อ event นี้ถูก trigger ตัว handler จะได้รับ payload เป็น JSON โดยมี shared fields พื้นฐานอย่าง session_id, cwd และ hook_event_name ตามด้วย tool_name และ tool_input ซึ่งเป็น arguments ที่ Claude ส่งมา เช่น หากเป็น Bash คำสั่ง shell จะอยู่ใน tool_input.command หรือหากเป็น File tools path ปลายทางจะอยู่ใน tool_input.file_path"
+        },
+        {
+          "type": "paragraph",
+          "text": "Guardrail ที่ดีควรตรวจสอบที่ arguments จริงเหล่านี้ ไม่ใช่ดูจาก intent หรือคำอธิบายที่โมเดลบอก เช่น การเขียน script ดึง tool_input.command ด้วย jq แล้ว grep หาคำสั่ง 'drop table' จะสามารถดักจับคำสั่งอันตรายได้เสมอ ไม่ว่าคำสั่งนั้นจะมาจากการที่ user สั่งตรงๆ หรือเกิดจาก Prompt Injection ที่แฝงมาในหน้าเว็บที่ถูกดึงมาก็ตาม"
+        }
+      ]
+    },
+    {
+      "heading": "2. การบล็อกคำสั่งด้วย Exit Code",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "วิธีทำ Guardrail ที่ง่ายที่สุดคือการตอบกลับด้วย Exit code เพียงอย่างเดียว โดย Exit 2 จะทำการบล็อก Tool call ทันที และข้อความใดๆ ที่ script พ่นออกทาง stderr จะถูกส่งกลับไปเป็น feedback ให้ Claude เพื่อให้ Claude ปรับเปลี่ยนวิธีแก้ปัญหาแทนที่จะพยายามรันคำสั่งเดิมซ้ำๆ ส่วน Exit 0 หมายถึงไม่มีข้อคัดค้าน และปล่อยให้ Tool call ดำเนินการต่อไปยัง Permission checks ตามปกติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "สิ่งที่พึงระวังคือ Exit code อื่นๆ อาจทำให้ Guardrail ล้มเหลวเงียบๆ ได้ หาก script จบด้วย code อื่น Claude Code จะตรวจสอบ stdout: ถ้า stdout เป็น JSON ที่ผ่าน schema validation ผลลัพธ์จะขึ้นอยู่กับ JSON นั้นและ Exit code จะถูกเพิกเฉย แต่ถ้า stdout เป็น plain text หรือว่างเปล่า Tool call จะยังคงทำงานต่อไป โดยใน transcript จะบันทึกเป็นเพียง non-blocking hook error เท่านั้น เช่น หาก script crash ด้วย Exit 1 เพราะไม่มี jq คำสั่งจะไม่ถูกบล็อก ดังนั้น Guardrail ที่ปลอดภัยต้องตั้งใจสั่ง Exit 2 explicitly เมื่อตรวจพบปัญหา อย่าหวังพึ่งพาการ crash ของ script"
+        },
+        {
+          "type": "table",
+          "caption": "วิธีที่ Claude Code ตีความ Exit Code ของ PreToolUse Hook",
+          "headers": [
+            "Exit code",
+            "ผลลัพธ์ของ Tool Call"
+          ],
+          "rows": [
+            [
+              "0",
+              "ไม่มีข้อคัดค้าน; ส่งต่อไปประเมินตาม Permission Flow ปกติ"
+            ],
+            [
+              "2",
+              "ถูกบล็อก (Blocked); ข้อความใน stderr จะถูกส่งเป็น feedback ให้ Claude"
+            ],
+            [
+              "Other, with valid JSON on stdout",
+              "เพิกเฉยต่อ Exit code; ตัดสินจาก payload JSON ใน stdout เท่านั้น"
+            ],
+            [
+              "Other, with plain text or empty stdout",
+              "ทำงานต่อไปตามปกติ โดยถือเป็น Non-blocking error"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "PreToolUse hook ที่ return exit 0 ถือเป็นการอนุมัติ (approve) ให้ tool call ทำงานได้ทันทีใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: Exit 0 หมายถึง hook ไม่มีข้อคัดค้านเท่านั้น คำสั่งยังต้องผ่านการตัดสินจาก Permission flow ปกติ และอาจยังต้องรอการกดยืนยัน (prompt) จาก user อยู่ดี"
+        }
+      ]
+    },
+    {
+      "heading": "3. Structured decisions: deny, ask และ allow",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Exit code บอกได้แค่ \"block\" หรือ \"no objection\" เท่านั้น แต่ JSON output สื่อสารได้ละเอียดกว่า โดย PreToolUse hook จะ print ออบเจกต์ hookSpecificOutput ที่มีค่า permissionDecision ได้ 3 รูปแบบ: deny จะยกเลิก call และส่ง permissionDecisionReason กลับไปให้ Claude, ask จะแสดง prompt ถามสิทธิ์กับ user ตามปกติ, ส่วน allow จะข้าม interactive prompt ไปทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "ask เข้ามาแก้ข้อจำกัดของ exit code เช่น กรณีทีม Operations ต้องการให้ทุก database-write MCP tool call ต้องผ่านการยืนยันจากมนุษย์ก่อนเสมอ PreToolUse hook ที่ใช้ matcher อย่าง mcp__db__.* จะ return ask สำหรับคำสั่ง write เพื่อให้ user เห็น prompt และเมื่อ user กดอนุมัติ tool ก็จะทำงานตามปกติ หากใช้ deny บล็อกไปเลย การทำงานจะถูกตัดทิ้งทันที ซึ่งไม่ตรงกับความต้องการของทีม"
+        },
+        {
+          "type": "paragraph",
+          "text": "allow ให้สิทธิ์น้อยกว่าที่คิด เพราะมันทำหน้าที่เพียงแค่ข้าม interactive prompt เท่านั้น โดย deny และ ask rules ยังคงมีผลบังคับใช้ตามปกติ รวมถึง deny lists ระดับ enterprise ด้วยเช่นกัน คำสั่งอย่าง rm หรือ rmdir ที่ชี้ไปยัง critical path จะไม่มีทางถูกอนุมัติผ่าน allow rule หรือ hook allow ได้เลย ในทางกลับกัน การสั่ง block มีผลเด็ดขาดกว่า: hook จะถูก evaluate ก่อนการตรวจสอบ permission mode เสมอ ดังนั้น deny จาก hook จึงยังคงบล็อก tool ได้ แม้ session จะรันอยู่ในโหมด bypassPermissions ก็ตาม"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: exit 0 คือ allow (ความจริง: exit 0 หมายถึง \"no objection\" เท่านั้น ไม่ใช่ structured decision), และการ match decision ที่ถูกต้องตามโจทย์คือ: สั่งห้ามรันเด็ดขาด = deny, รันหลังจากมนุษย์กดอนุมัติ = ask, ข้าม prompt แต่ยังคงเคารพ deny rules ทุกข้อ = allow"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Hook ที่ return ค่า permissionDecision เป็น allow จะสามารถอนุมัติได้ทุกอย่าง รวมถึงคำสั่ง rm บน critical path (เหตุผล: allow ทำหน้าที่แค่ข้าม prompt เท่านั้น แต่ deny และ ask rules ยังคงมีผลบังคับใช้ตามปกติ ซึ่งคำสั่ง rm และ rmdir บน critical path จะไม่มีทางถูก approve ด้วย allow ของ hook ได้เลย)"
+        }
+      ]
+    },
+    {
+      "heading": "4. Guardrail เดียวกันบน Agent SDK",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Agent SDK ตัว hooks จะเป็น callback functions ที่ส่งผ่าน options ของ agent แทนการตั้งค่าใน settings file โดย hooks option จะ map ชื่อ event เช่น PreToolUse เข้ากับ list ของ matchers ซึ่งแต่ละ matcher จะประกอบด้วย pattern และ callbacks ที่ต้องรัน โดย pattern จะใช้กฎเดียวกันกับ matcher ใน settings files และ MCP tools ยังคงใช้รูปแบบการตั้งชื่อเป็น mcp__<server>__<action>"
+        },
+        {
+          "type": "paragraph",
+          "text": "Callback จะส่งผลลัพธ์ผ่าน return value แทนการ exit ด้วย code โดยจะได้รับ input data (tool_name, tool_input และ shared fields), tool use ID ที่เชื่อม PreToolUse event เข้ากับ PostToolUse ที่คู่กัน และ context argument หากต้องการปฏิเสธ call ให้ return โครงสร้าง hookSpecificOutput แบบเดียวกับที่ command hook print ออกมา แต่ถ้าต้องการให้ call ทำงานต่อ ให้ return เป็น empty object ทั้งนี้ หาก callback ทำงานช้าจนเกิน timeout จะใช้หลักการ fail-closed คือสั่งบล็อก tool call ทันที ด้านการรองรับภาษา PreToolUse และ PostToolUse ใช้งานได้ทั้ง Python และ TypeScript แต่บาง event เช่น SessionStart รองรับเฉพาะ TypeScript เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Top-level fields เช่น systemMessage (สำหรับแสดงข้อความถึง user) และ continue สามารถส่งได้ในทุก event แต่บาง event อาจละเลยหรือไม่ส่งต่อค่าเหล่านี้ไปยัง UI ดังนั้นหากข้อความอธิบายของ guardrail ไม่แสดงผลบน UI ให้ตรวจสอบเอกสารของ event นั้นๆ ในหน้า hooks ก่อนเริ่มค้นหา bug ภายใน callback"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ติดตั้ง PreToolUse Hook ในระดับโปรเจกต์เพื่อปฏิเสธคำสั่ง rm -rf แล้วทดสอบดูการบล็อกคำสั่งจริง"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55719",
+      "question": "ทีมงานได้ตั้งค่า PreToolUse hook ที่ส่งคืน exit code 0 พร้อมกับ JSON ต่อไปนี้ผ่าน stdout: `{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"deny\", \"permissionDecisionReason\": \"Writing to /etc is not allowed\"}}` จะเกิดอะไรขึ้นกับ tool call ที่กำลังรอดำเนินการอยู่?",
+      "options": [
+        "Tool call จะถูกบล็อก และเหตุผลจะถูกส่งกลับไปให้ Claude เพื่อให้สามารถปรับขั้นตอนถัดไปได้",
+        "Tool call ยังคงทำงานต่อไป เพราะ exit code 0 ถือเป็นการอนุมัติเสมอโดยไม่สนใจ JSON payload",
+        "Claude Code จะเพิกเฉยต่อ JSON ดังกล่าว และแสดง prompt ถามผู้ใช้เพื่อให้อนุมัติหรือปฏิเสธ call นั้นแบบ interactive",
+        "Hook output จะถูกละทิ้ง เนื่องจาก permissionDecision จะมีผลก็ต่อเมื่อ exit code เป็น 2 เท่านั้น"
+      ],
+      "explanation": ""
+    }
+  ]
+}

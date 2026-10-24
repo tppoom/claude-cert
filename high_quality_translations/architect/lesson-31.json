@@ -1,0 +1,242 @@
+{
+  "title": "OpenTelemetry สำหรับ Claude Code และ Agent SDK: Signals, Traces และ Content Gates",
+  "objectives": [
+    "เชื่อมต่อ Metrics, Log Events และ Traces จาก Claude Code หรือ Agent SDK ไปยัง OTLP Collector พร้อมอธิบายสาเหตุที่การเปิด Telemetry เพียงอย่างเดียวไม่ส่งข้อมูลออกไป",
+    "เลือกประเภท Backend ให้เหมาะกับแต่ละ Signal และควบคุม Metric Attributes เช่น session.id เพื่อจัดการ Cardinality",
+    "วิเคราะห์ Trace เพื่อระบุจุดที่ใช้เวลาและ Tokens ในการประมวลผล รวมถึง Subagent Spans",
+    "ระบุข้อมูลที่ Telemetry ปกปิด (Redact) เป็นค่าเริ่มต้น และ Environment Variable ที่ใช้เปิดเผย Prompts, Responses, รายละเอียด Tool, Tool Output หรือ Raw API Bodies"
+  ],
+  "key_concept": "Opt-in OpenTelemetry Signals ทั้ง 3 แบบ — Claude Code และ Agent SDK ส่ง 3 Signals แยกกัน ได้แก่ Metrics (Counters), Log Events (Structured Record รายเหตุการณ์) และ Traces (Timed Spans) โดยแต่ละ Signal จะมี Exporter Variable แยกกัน หาก Signal ใดไม่มี Exporter ข้อมูลจะไม่ถูกส่งออกจาก Process ไม่ว่าจะเปิดใช้งานส่วนอื่นไว้ก็ตาม",
+  "sections": [
+    {
+      "heading": "1. Metrics, log events และ traces ตอบคำถามคนละด้าน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การทำ Monitoring ให้ Agent ในระดับ Production สรุปได้เป็น 3 คำถามหลัก: เราใช้งานไปเท่าไรและมีค่าใช้จ่ายเท่าไร? เกิดอะไรขึ้นบ้างในแต่ละ Request? และการรันรอบนี้เสียเวลาไปกับส่วนไหนมากที่สุด? ทั้ง Claude Code และ Agent SDK ตอบโจทย์เหล่านี้ผ่านสัญญาณ OpenTelemetry 3 รูปแบบ ซึ่งแต่ละตัวมี Exporter แยกของตัวเอง: Metrics เป็น Counter สำหรับนับ Tokens, ต้นทุน, Sessions, จำนวนบรรทัดโค้ด และการตัดสินใจเรียก Tool เหมาะกับการดูผลรวมและ Rate ต่างๆ; Log events เป็น Structured Record ที่บันทึกแต่ละ Prompt, API Request, API Error และผลลัพธ์ของ Tool จึงตอบคำถามว่า \"เกิดอะไรขึ้น\"; ส่วน Traces เป็น Spans สำหรับแต่ละ Interaction, Model Request, Tool Call และ Hook ซึ่งแสดงให้เห็นว่าเวลาหมดไปกับขั้นตอนใด"
+        },
+        {
+          "type": "table",
+          "caption": "แต่ละสัญญาณ, วิธีเปิดใช้งาน และ Backends ที่เหมาะสม",
+          "headers": [
+            "Signal",
+            "Enable with",
+            "Suited backends"
+          ],
+          "rows": [
+            [
+              "Metrics",
+              "OTEL_METRICS_EXPORTER (otlp, prometheus, console, none)",
+              "Time series databases สำหรับคำนวณ Rate และทำ Aggregated metrics; Columnar stores สำหรับรัน Query ซับซ้อนและวิเคราะห์แบบ Unique-user"
+            ],
+            [
+              "Log events",
+              "OTEL_LOGS_EXPORTER (otlp, console, none)",
+              "Log aggregation systems สำหรับ Full-text search และวิเคราะห์ Log; Columnar stores สำหรับวิเคราะห์ Structured event"
+            ],
+            [
+              "Traces (beta)",
+              "OTEL_TRACES_EXPORTER ร่วมกับ CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1",
+              "Distributed tracing systems สำหรับดู Span visualization, Request waterfalls และวิเคราะห์ Latency"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "แพลตฟอร์ม Observability ที่ครบวงจรรองรับได้ทั้ง 3 สัญญาณ ซึ่งจำเป็นอย่างยิ่งเมื่อต้องทำ Correlate ข้อมูลร่วมกัน เช่น การกระโดดจากจุดที่ Cost พุ่งสูงผิดปกติบน Metric ไปตรวจดู Events และ Spans ต้นตอที่อยู่เบื้องหลังได้ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Export ต้องเปิดสวิตช์หลายตัว ซึ่งอาจทำให้ CI rollout ล้มเหลวแบบเงียบๆ (Silent failure) ได้ง่าย: การตั้งค่า CLAUDE_CODE_ENABLE_TELEMETRY=1 เป็นเพียงการเปิดใช้ Collection แต่ไม่ได้เลือก Exporter หากไม่กำหนด Exporter ของ Metrics หรือ Logs ข้อมูลก็จะไม่ถูกส่งไปยัง Collector แต่อย่างใด และหากเลือก otlp จำเป็นต้องระบุ Protocol ด้วยเสมอ เนื่องจาก Claude Code ไม่มี Default OTLP protocol รวมทั้งต้องระบุ Endpoint ให้ครบถ้วน ส่วน OTEL_EXPORTER_OTLP_HEADERS ใช้ส่ง Credential ตามที่ Collector ต้องการ ซึ่งไม่ใช่ Anthropic API key สำหรับ CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1 จำเป็นเฉพาะการทำ Traces เท่านั้น (Metrics และ Log events ไม่ต้องใช้) ขณะที่ Console exporter มีไว้เพื่อ Debug เท่านั้น ไม่ใช่สิ่งที่ต้องตั้งค่าล่วงหน้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agent SDK ใช้งาน Environment Variables ชุดเดียวกัน ใน Production ควรกำหนดไว้ที่ Process environment เพื่อให้ทุกการเรียก query() ดึงค่าไปใช้ได้ทันทีโดยไม่ต้องแก้โค้ด แต่หากต้องการให้ Agent แต่ละตัวใน Process เดียวกันส่ง Telemetry แยกกัน ให้ส่งค่าผ่าน ClaudeAgentOptions.env ต่อรอบการเรียกแทน ทั้งนี้ Option ดังกล่าวทำงานต่างกันในแต่ละ SDK: ใน Python ค่า env จะถูก Merge ทับ Inherited environment เดิม แต่ใน TypeScript จะเป็นการ Replace แทนที่ Environment เดิมทั้งหมด ดังนั้นต้อง Spread process.env เข้าไปด้วย มิฉะนั้นจะสูญเสีย PATH และ API key สำหรับ Interval เริ่มต้นของ Metrics อยู่ที่ 60 วินาที และ Logs อยู่ที่ 5 วินาที แนะนำให้ปรับเวลาให้สั้นลงตอน Debug และคืนค่าเดิมเมื่อขึ้น Production"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้งค่า CLAUDE_CODE_ENABLE_TELEMETRY=1 เพียงพอแล้วที่จะทำให้ Claude Code เริ่มส่งข้อมูลไปยัง Collector ของทีม? (ทำไมถึงผิด): ไม่จริง: ตัวแปรนี้ทำหน้าที่เพียงเปิดใช้งาน Collection เท่านั้น แต่ละ Signal ยังต้องกำหนด Exporter แยกต่างหาก (OTEL_METRICS_EXPORTER, OTEL_LOGS_EXPORTER หรือ OTEL_TRACES_EXPORTER ร่วมกับ Beta flag) และสำหรับ OTLP Exporter ยังจำเป็นต้องระบุ Protocol และ Endpoint ด้วยเสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "2. การควบคุมข้อมูลที่ Metrics บันทึก",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ต้นทุน Metric บน Backend ส่วนใหญ่ขึ้นอยู่กับ Cardinality: เพราะทุกชุดค่า Attribute ที่แตกต่างกันจะถูกแยกเป็น Time series ของตัวเอง ยิ่งเมื่อเจอ CLI sessions ที่มีอายุสั้น ปัญหายิ่งรุนแรงขึ้น เนื่องจาก session.id ถูกแนบมากับ Metric datapoints เป็นค่าเริ่มต้น ส่งผลให้ CI jobs 1,000 รันสร้าง Series แยกกันถึง 1,000 ชุดสำหรับ Counter ตัวเดียวกัน วิธีแก้คือการตัด Attribute นั้นทิ้ง ไม่ใช่การเปลี่ยนความถี่ในการ Flush การตั้งค่า OTEL_METRICS_INCLUDE_SESSION_ID=false จะลบ session.id (รวมถึง ccr.session.id บน Cloud sessions) ออก โดยยังคง Attribute อื่นๆ บน Datapoint ไว้ ทำให้การวิเคราะห์ Breakdown มิติอื่นๆ ยังทำงานได้ปกติ การเพิ่มค่า OTEL_METRIC_EXPORT_INTERVAL ให้ยาวนานขึ้นเป็นเพียงการส่ง Series เดิมด้วยความถี่ที่น้อยลงเท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "สวิตช์เปิด-ปิด Metric Attribute และค่าเริ่มต้น",
+          "headers": [
+            "Variable",
+            "Adds",
+            "Default"
+          ],
+          "rows": [
+            [
+              "OTEL_METRICS_INCLUDE_SESSION_ID",
+              "session.id และ ccr.session.id บน Cloud sessions",
+              "true"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_ACCOUNT_UUID",
+              "user.account_uuid และ user.account_id",
+              "true"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES",
+              "Keys ต่างๆ จาก OTEL_RESOURCE_ATTRIBUTES บน Metric datapoints",
+              "true"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_VERSION",
+              "app.version",
+              "false"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_ENTRYPOINT",
+              "app.entrypoint",
+              "false"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ในทางกลับกัน การทำ Attribution สำหรับ Agent SDK service สามารถกำหนด OTEL_SERVICE_NAME (เช่น support-triage-agent) และ OTEL_RESOURCE_ATTRIBUTES เช่น deployment.environment=production, enduser.id หรือ tenant.id เพื่อจำแนกการใช้งานตาม Deployment หรือตามลูกค้ารายตัวได้ อย่างไรก็ตาม ทุก Resource attribute ก็นับเป็น Dimension หนึ่ง ดังนั้นการระบุ Per-user ID จึงเพิ่มภาระต้นทุน Cardinality เช่นเดียวกับ Session ID ทั้งนี้ Metric จะ Export ด้วย Delta temporality เป็นค่าเริ่มต้น ให้ตั้งค่า OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative หาก Backend ปลายทางรองรับแบบ Cumulative"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเพิ่มค่า OTEL_METRIC_EXPORT_INTERVAL ช่วยลดจำนวน Time series ที่บันทึกลงใน Metrics backend? (ทำไมถึงผิด): ไม่จริง: การปรับ Interval มีผลแค่ควบคุมความถี่ในการ Flush ข้อมูลของแต่ละ Series เท่านั้น แต่ Cardinality เกิดจาก Attributes ซึ่งค่า session.id ถูกเปิดไว้เป็นค่าเริ่มต้น วิธีแก้ที่ถูกต้องคือตั้งค่า OTEL_METRICS_INCLUDE_SESSION_ID=false เพื่อตัด Attribute นั้นออก"
+        }
+      ]
+    },
+    {
+      "heading": "3. การอ่าน Trace: ลำดับ Spans ข้าม Run และ Subagents",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Trace จะแปลง 1 Turn ของ Agent Loop ให้อยู่ในโครงสร้างแบบ Tree โดยมี Root span คือ claude_code.interaction ซึ่งครอบคลุมตั้งแต่รับ Prompt เข้ามาจนถึงตอบกลับ ภายในนั้นแต่ละการเรียก Claude API จะถูกบันทึกเป็น claude_code.llm_request span และการเรียกใช้งาน Tool แต่ละครั้งจะเป็น claude_code.tool span ทั้งนี้ Tool span จะแตก Child ย่อยออกเป็น 2 ส่วน: claude_code.tool.blocked_on_user (ช่วงเวลารอ User อนุมัติ Permission) และ claude_code.tool.execution (ช่วงเวลาทำงานจริงของ Tool) การแยกย่อยจุดนี้คือสิ่งแรกที่ต้องเช็กเมื่อพบว่า Turn ทำงานช้า หาก Wait span นาน แปลว่าเป็นจังหวะรอคนกดยืนยัน Prompt ไม่ใช่ว่า Tool ทำงานช้า สำหรับ Subagent คือ Agent ย่อยที่แยกออกมาและถูก Spawn จาก Session หลัก โดยมี Model requests และ Tool calls เป็นของตัวเอง ซึ่งจะถูกริเริ่มผ่านการเรียก Tool ชื่อ Agent ดังนั้น llm_request และ Tool spans ทั้งหมดของ Subagent จะฝังอยู่ใต้ Span ของ Agent tool นั้นๆ"
+        },
+        {
+          "type": "table",
+          "caption": "Attributes ของ claude_code.llm_request ที่ระบุเวลา ปริมาณ Token และ Agent ต้นทาง",
+          "headers": [
+            "Attribute",
+            "คำอธิบาย"
+          ],
+          "rows": [
+            [
+              "duration_ms / ttft_ms",
+              "ระยะเวลาจริงตาม Wall-clock รวมจังหวะ Retries / เวลาที่ใช้จนได้ Token แรก (Time to first token)"
+            ],
+            [
+              "attempt, error_class",
+              "จำนวนรอบที่ Attempt ทั้งหมด; ระบุประเภท Error สั้นๆ เช่น api_timeout หรือ server_overload"
+            ],
+            [
+              "input_tokens, output_tokens",
+              "จำนวน Token; โดย input_tokens จะไม่นับรวมค่า Prompt-cache ที่ Read และ Write"
+            ],
+            [
+              "cache_read_tokens, cache_creation_tokens",
+              "จำนวน Token ที่ Read จากและ Write เข้าสู่ Prompt cache"
+            ],
+            [
+              "agent_id, parent_agent_id",
+              "Subagent ตัวไหนที่ยิง Request และมี Agent ตัวไหนเป็นผู้ Spawn ขึ้นมา; ทั้งสองฟิลด์นี้จะไม่มีใน Session หลัก"
+            ],
+            [
+              "query_source_safe",
+              "ชื่อระบุต้นทางของ Request เช่น repl_main_thread หรือ agent.builtin.general-purpose"
+            ],
+            [
+              "stop_reason",
+              "สาเหตุการหยุด เช่น end_turn, tool_use, max_tokens, refusal ฯลฯ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "หากต้องการตรวจสอบว่าจุดใดกิน Resource หนักสุดใน Multi-agent run ให้จัดกลุ่ม llm_request spans ตาม agent_id แล้วคำนวณผลรวมของ Token attributes และหากต้องการขนาด Input ทั้งหมด ให้นำ cache_read_tokens ไปบวกเพิ่มกับ input_tokens เสมอ เพราะค่า input_tokens ปกติจะไม่รวม Cache reads นอกจากนี้ หากพบค่า attempt สูงคู่กับ duration_ms ที่ยาวนาน มักเกิดจากฝั่ง Retries มากกว่า Model ช้า ส่วน stop_reason = max_tokens หมายถึง Output ถูกตัดจบ สำหรับ Hook spans (claude_code.hook) จะครอบคลุมการรัน Hook แต่ละตัว และจะแสดงเฉพาะเมื่อเปิด Detailed beta tracing (ENABLE_BETA_TRACING_DETAILED=1 ควบคู่กับ BETA_TRACING_ENDPOINT) เท่านั้น ซึ่งโหมดนี้จะเปลี่ยนเส้นทางส่ง Telemetry ด้วย: Claude Code จะ Export Logs และ Traces ไปที่ BETA_TRACING_ENDPOINT แทน Exporters เดิม ทำให้ข้อมูลอาจหยุดส่งไปยัง Collector ปกติที่คุณตั้งค่าไว้"
+        }
+      ]
+    },
+    {
+      "heading": "4. Telemetry Content Gates: Redacted เป็นค่าเริ่มต้น",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ตามค่า Default แล้ว Telemetry จะบันทึกเฉพาะโครงสร้างการทำงาน (Shape) ไม่บันทึกเนื้อหา (Content) โดย Prompts จะถูกลดทอนเหลือแค่ความยาว และ attribute user_prompt บน Interaction span จะแสดงเป็น <REDACTED> ส่วน Responses ของ Assistant ก็จะถูกเก็บเฉพาะความยาวเช่นกัน สำหรับ Tool arguments, Tool output และเนื้อหาไฟล์ดิบจะถูกคัดออกทั้งหมด เนื้อหาแต่ละประเภทจะมี Gate ควบคุมแยกกัน และ Gate เหล่านี้จะส่ง Data ไปยัง Endpoint ที่คุณตั้งค่าไว้เท่านั้น ไม่เคยส่งกลับไปที่ Anthropic แต่อย่างไรก็ตาม เมื่อเปิด Gate ใดๆ Collector ที่คุณรันอยู่จะเริ่มได้รับ Source code และ Secrets ทันที นอกจากนี้มี 1 ฟิลด์ที่หลุดออกมาโดยไม่มี Gate กั้น คือเมื่อใช้ OAuth ค่า user.email จะปรากฏใน Telemetry attributes เสมอ ดังนั้นให้กรองออกที่ Backend ของคุณหากกังวลเรื่องนี้"
+        },
+        {
+          "type": "table",
+          "caption": "Content Gates เรียงลำดับจากขอบเขตแคบที่สุดไปกว้างที่สุด",
+          "headers": [
+            "Variable",
+            "ข้อมูลที่จะถูกเปิดเผย"
+          ],
+          "rows": [
+            [
+              "OTEL_LOG_USER_PROMPTS=1",
+              "ข้อความ Prompt ใน Events user_prompt (ทั้งฟิลด์ prompt และ prompt_text) รวมถึงบน claude_code.interaction span"
+            ],
+            [
+              "OTEL_LOG_ASSISTANT_RESPONSES=1",
+              "ข้อความ Response ใน Events assistant_response; หากไม่ได้ตั้งค่าไว้ จะ Inherit ค่าตาม OTEL_LOG_USER_PROMPTS"
+            ],
+            [
+              "OTEL_LOG_TOOL_DETAILS=1",
+              "Parameters และ Input ของ Tool: คำสั่ง Bash, File paths, URLs, ชื่อ MCP server และ Tool, ชื่อ Skill; แสดงชื่อจริงใน Cost และ Token counters"
+            ],
+            [
+              "OTEL_LOG_TOOL_CONTENT=1",
+              "Span event ชื่อ tool.output ซึ่งมีเนื้อหาไฟล์, Output จาก Bash และผลลัพธ์จาก MCP/WebFetch/WebSearch; ต้องเปิดใช้งาน Tracing ร่วมด้วย"
+            ],
+            [
+              "OTEL_LOG_RAW_API_BODIES",
+              "JSON เต็มของ Request และ Response จาก Messages API รวมถึงประวัติ Conversation ทั้งหมด; กำหนด 1 สำหรับเก็บแบบ Inline หรือกำหนด file:<dir> เพื่อบันทึก Body ฉบับเต็มลง Disk โดยไม่ Truncate"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "มี 2 จุดสำคัญที่มักมองข้ามเมื่อทำ Redaction rules ข้อแรก การ Mask ข้อความ Prompt ใน Collector จะต้องครอบคลุมทั้งคีย์ prompt และ prompt_text ข้อสอง ภายใต้ Detailed beta tracing ตัว llm_request span จะเก็บ Model output ไว้ใน response.model_output ซึ่ง attribute นี้จะขึ้นอยู่กับ Flag ของ OTEL_LOG_USER_PROMPTS ไม่ได้ขึ้นกับ Gate ของ Responses ส่วน Raw API bodies ถือเป็น Gate ที่กว้างที่สุด การเปิดตัวนี้จะถือว่ายินยอมเปิดเผยข้อมูลทุกอย่างที่ Prompt, Tool-detail และ Tool-content gates ครอบคลุม สำหรับ Content แบบ Inline จะถูกตัดทอน (Truncate) ที่ความยาว CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH ซึ่งมี Default อยู่ที่ 61,440 UTF-16 code units (60 KB) เพื่อให้พอดีกับ Backend ที่จำกัดขนาด Attribute ไว้ที่ 64 KB"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Managed Settings กับ Developer-set ค่าไหนชนะในระดับ Endpoint vs Exporter selector? (ทำไมถึงผิด): ไม่จริง: ค่าของ Developer ไม่ได้แพ้เสมอไปในทุกระดับ โดยเมื่อ Managed settings กำหนด OTEL_EXPORTER_OTLP_ENDPOINT ทาง Claude Code จะลบล้าง Per-signal endpoints ที่ Developer กำหนดทิ้งทั้งหมด ทำให้ Endpoint ของ Developer ไม่มีทางชนะ แต่ตัว Exporter selectors จะไม่ถูกลบและยังคงลำดับ Precedence ปกติแบบ Per-key ส่งผลให้ Developer ยังสามารถสลับ Signal ไปใช้ none หรือ console เองได้ เว้นแต่ว่าจะไประบุ Selectors ไว้ใน Managed settings ด้วย"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเปิด OTEL_LOG_USER_PROMPTS จะ Export เฉพาะ Prompts เท่านั้น ส่วน Responses จะยังคงถูก Redacted ไว้เสมอ? (ทำไมถึงผิด): ไม่จริง: เนื่องจาก Assistant responses gate จะ Inherit ค่ามาจาก Prompts gate โดยอัตโนมัติหากไม่ได้ตั้งค่าไว้ หากต้องการ Export เฉพาะ Prompts โดยไม่เอา Responses จะต้องตั้งค่า OTEL_LOG_ASSISTANT_RESPONSES=0 กำกับไว้ด้วยเสมอ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56897",
+      "question": "Platform engineer ได้ตั้งค่า CLAUDE_CODE_ENABLE_TELEMETRY=1 บน CI runner ทุกเครื่อง แต่ OTLP collector ของทีมกลับไม่เคยได้รับ spans, metrics หรือ logs จาก Claude Code jobs เลย โดยที่ไม่มีการตั้งค่า telemetry variables อื่นๆ เพิ่มเติม สาเหตุที่เป็นไปได้มากที่สุดที่ข้อมูลสูญหายคืออะไร?",
+      "options": [
+        "Collector ปฏิเสธทุกสัญญาณจนกว่าจะตั้งค่า CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1 ด้วย ไม่ว่าจะเลือก exporters ใดก็ตาม",
+        "Telemetry ถูกเปิดใช้งานแล้วแต่ยังไม่ได้เลือก exporter ทำให้ OTEL_METRICS_EXPORTER และ OTEL_LOGS_EXPORTER มีค่าเริ่มต้นเป็นไม่มีการ export ข้อมูลเลย",
+        "CLI จะส่ง telemetry ก็ต่อเมื่อมีการตั้งค่า console exporter เป็น local fallback เริ่มต้นไว้ก่อนเท่านั้น",
+        "ต้อง export Admin API key ขององค์กรผ่าน OTEL_EXPORTER_OTLP_HEADERS ก่อน CLI จึงจะเริ่มส่งสัญญาณใดๆ ออกมา"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56902",
+      "question": "ค่าใช้จ่ายของ metrics backend พุ่งสูงขึ้นเนื่องจาก time series ทุกชุดที่ถูกส่งออกไปมี session.id ที่ไม่ซ้ำกัน ทำให้เกิดปัญหา cardinality แตกกระจายจาก CLI sessions ที่มีอายุสั้นนับพันรายการ แต่ทีมยังคงต้องการข้อมูลยอดรวม cost และ token แยกตาม model อยู่ การเปลี่ยนแปลงข้อใดช่วยแก้ปัญหา cardinality ได้โดยไม่สูญเสียการแจกแจงตาม model?",
+      "options": [
+        "ตั้งค่า OTEL_METRICS_INCLUDE_SESSION_ID=false เพื่อตัด session.id ออกจาก metrics ที่ export โดยที่ยังคง attributes อื่นๆ เช่น model ไว้",
+        "ปิดการใช้งาน metrics exporter ไปเลย แล้วค่อยมาคำนวณยอดรวม cost และ token ย้อนหลังผ่าน Usage and Cost Admin API",
+        "เพิ่มค่า OTEL_METRIC_EXPORT_INTERVAL เพื่อลดความถี่ในการ flush metrics ซึ่งจะช่วยลดจำนวน unique series ที่ถูกสร้างขึ้น",
+        "เปลี่ยนพารามิเตอร์ bucket_width ของ Usage API จาก 1h เป็น 1d เพื่อให้ Admin API ทำการ aggregate ข้อมูล sessions ก่อนส่งไปยัง metrics backend"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "title": "การมอนิเตอร์ระดับองค์กร: API Traces, รายงานการใช้งานและค่าใช้จ่าย, Audit Events",
+  "objectives": [
+    "กำหนดปลายทาง OpenTelemetry สำหรับ Claude API และผูก spans ให้อยู่ใต้ traces ของแอปพลิเคชัน",
+    "ตรวจสอบปริมาณการใช้งาน (Usage) และแจกแจงค่าใช้จ่ายของเซสชัน Managed Agents",
+    "ดึงข้อมูลจาก Usage & Cost Admin API ด้วยระดับความละเอียด (Granularity) และความถี่ในการ Poll ที่ตอบโจทย์การมอนิเตอร์",
+    "ระบุข้อมูลที่ Claude Code Analytics Dashboard และกิจกรรม Compliance บันทึกไว้ พร้อมส่งต่อ Log Events ไปยัง SIEM"
+  ],
+  "key_concept": "",
+  "sections": [
+    {
+      "heading": "1. Tracing Messages API requests and Managed Agents sessions",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code และ Agent SDK ส่งออก OpenTelemetry metrics, log events และ traces จาก process ฝั่ง client ซึ่งครอบคลุมแค่ client รายตัว การมอนิเตอร์ทั้งองค์กรต้องใช้ telemetry เพิ่มเติมอีก 4 streams: spans จากตัว Claude API เอง, usage และ cost ของแต่ละ Managed Agents session, รายงาน usage และ cost ระดับองค์กร, และ audit records สำหรับ adoption หน้านี้จะอธิบายแต่ละส่วนตามลำดับ สำหรับ Managed Agents session คือการรัน Agent บน Claude Platform ซึ่งมี threads, tools และตัวเลข usage สรุปแยกของตัวเอง ตรวจสอบได้ผ่าน Claude Console"
+        },
+        {
+          "type": "paragraph",
+          "text": "Telemetry ฝั่ง Client จะสิ้นสุดแค่ขอบเขต process ของคุณ แต่ Claude API สามารถ emit spans ของตัวเองได้โดยตรง—ทั้ง model requests และ tool calls บน Messages API และ Managed Agents sessions โดยไม่ต้องแก้โค้ดเลย เพียงแค่เพิ่ม destination: ซึ่งต้องเป็น OTLP/HTTP endpoint ที่รับ protobuf ผ่าน HTTPS บนพอร์ต 443 พร้อม auth headers เฉพาะ Admin ขององค์กรเท่านั้นที่เพิ่มหรือแก้ไข destinations ได้ ขอบเขต destination เลือกได้เป็น All workspaces, Selected ones หรือ All except a list ส่วน content mode เลือกระหว่าง Metadata only หรือ Full content (ใช้แนวคิด opt-in แบบเดียวกับ Claude Code ที่จะ redact prompt, response และ tool content เป็นค่า default และจะบันทึกเมื่อเปิดใช้งานเท่านั้น)"
+        },
+        {
+          "type": "paragraph",
+          "text": "ห้ามใส่ /v1/traces ต่อท้าย endpoint URL เพราะ API จะเติมให้อัตโนมัติ เมื่อบันทึกแล้ว ให้กด Test จากเมนู destination และตรวจหา span ชื่อ anthropic.test ส่วน spans ที่ใช้งานจริงจะถูกส่งมาภายใต้ service.name = claude-platform ทั้งนี้หากรัน Collector เอง OTLP/HTTP receiver ปกติจะ listen ที่พอร์ต 4318 เป็นค่า default คุณต้องคอนฟิกใหม่ให้เป็น HTTPS บนพอร์ต 443 หรือตั้ง reverse proxy ไว้ข้างหน้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "API spans เริ่มต้น trace ของตัวเองเป็นค่า default หากต้องการ nest มันไว้ใต้ spans ของ application คุณ ให้เรียก SDK จากภายใน span ของคุณเอง โดย SDK จะแนบ W3C traceparent header ไปด้วย และ sampler ของคุณจะเป็นตัวควบคุม flag sampled หาก flag นี้ปิดอยู่ (off) API จะไม่ emit span ใดๆ สำหรับ request นั้น นอกจากนี้ context propagation ยังส่งต่อไปยัง MCP servers ที่ต่อผ่าน MCP connector ได้ด้วย โดยจะได้รับ traceparent ใน params._meta เพื่อใช้สร้าง spans เชื่อมต่อกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การส่งข้อมูลเป็นแบบ at least once และ best effort จึงอาจมี duplicate spans เกิดขึ้นได้ ให้ทำ deduplicate โดยใช้ trace ID ร่วมกับ span ID และ spans ที่ตกหล่นจะไม่มีการส่งซ้ำ คอลัมน์ Delivery ใน Console จะแสดงสถานะ Healthy, Failing, No data หรือ Disabled โดย API จะสั่ง disable destination ทันทีหากตอบกลับด้วย 3xx redirect, resolve ได้ private/non-public IP หรือส่งไม่ผ่านต่อเนื่องกันนาน 24 ชั่วโมง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ทุก Messages API request ที่ส่งไปยัง workspace ที่ตั้ง destination ไว้จะสร้าง spans เสมอ? (ทำไมถึงผิด): ไม่จริง: หาก traceparent header ตั้งค่า sampled flag เป็น off ตัว API จะไม่ emit ทั้ง request span และ child spans ใต้ request นั้น อีกทั้งการส่งข้อมูลเป็นแบบ best effort จึงอาจมี span ตกหล่นสูญหายได้"
+        }
+      ]
+    },
+    {
+      "heading": "2. Usage and cost of a Managed Agents session",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Managed Agents แต่ละ session จะรายงาน consumption ของตัวเอง โดยฟิลด์ usage ใน session object จะเก็บ token counts สะสม, cache reads/writes, server tool requests, active_seconds และ list_cost ซึ่ง session หนึ่งอาจรันได้หลาย threads (เช่น 1 thread ต่อ agent ในโหมด multiagent) โดย session viewer ใน Console จะแสดง 1 timeline lane ต่อ 1 thread พร้อม transcript และแท็บ Tools ที่แสดงจำนวน failure กับ median duration สำหรับ active_seconds คือระยะเวลารวมที่มีอย่างน้อยหนึ่ง thread กำลังรันอยู่ (threads ที่รันซ้อนทับกันจะนับเวลาแค่ครั้งเดียว) ค่า running-time cost จะคิดราคาตาม duration นี้ แม้ว่าแต่ละ thread จะรายงาน list_cost ของตัวเอง แต่ต้นทุนระดับ thread จะปัดเศษแยกกันและไม่รวม running-time cost ดังนั้นค่า cost ในระดับ session จึงเป็นตัวเลขที่ถูกต้องและเป็นทางการที่สุด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Event session.usage จะส่ง snapshot ค่าสะสมแบบเดียวกันผ่าน session stream ทำให้ไม่ต้องคอย poll ข้อมูล โดยจะถูก emit ตอน idle transitions เท่านั้น ไม่ได้ส่งตามรอบเวลา (timer): คือส่งทันทีก่อนที่ session จะเข้าสู่สถานะ idle และเมื่อ thread หยุดชั่วคราว (pause) เมื่อถึง session budget ดังนั้นระหว่างที่รันยาวๆ คุณจะไม่เห็นตัวเลข usage อัปเดตจนกว่าจะถึงจังหวะดังกล่าว นี่คือเหตุผลว่าทำไมการทำ spend cap โดยดักดู usage แล้วสั่งหยุด session เองถึงใช้ไม่ได้ผล เพราะกว่าจะสั่งหยุด เงินก็ถูกใช้ไปแล้ว วิธีที่ถูกต้องคือใช้ session budget ซึ่งเป็นการตั้งเพดานดอลลาร์บน list_cost โดย platform จะคำนวณ consumption ตลอดเวลาและ pause แต่ละ thread ก่อนเริ่ม model request ถัดไปทันทีที่ถึงลิมิต การ enforce จึงไม่ขึ้นอยู่กับว่าโค้ดของคุณจะดักจับได้ทันหรือไม่"
+        }
+      ]
+    },
+    {
+      "heading": "3. Usage & Cost Admin API: ดู Trend การใช้งานระดับทั้งองค์กร",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Usage & Cost Admin API ใช้ตอบคำถามภาพรวมระดับองค์กร เช่น ปริมาณ Token แยกตาม Model, Workspace, API Key หรือ Service Tier ในแต่ละช่วงเวลา รวมถึงยอด Spend รายวัน โดยเรียกใช้งานผ่าน Admin API Key ผลลัพธ์จะถูกจัดกลุ่มเป็น Time Buckets ตามค่า `bucket_width` ซึ่งกำหนด Granularity ของข้อมูล แต่ละระดับความละเอียดจะมีค่า Default และ Maximum Limit (จำนวน Buckets สูงสุดต่อ 1 Request) ต่างกัน สำหรับ Cost Endpoint จะรองรับเฉพาะ Bucket แบบรายวัน (Daily) เท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "ตัวเลือก bucket_width สำหรับ Messages Usage Report",
+          "headers": [
+            "bucket_width",
+            "Default limit",
+            "Maximum limit",
+            "เหมาะสำหรับ"
+          ],
+          "rows": [
+            [
+              "1m",
+              "60 buckets",
+              "1440 buckets",
+              "เฝ้าระวัง Incident และตรวจจับ Spike ระดับนาที"
+            ],
+            [
+              "1h",
+              "24 buckets",
+              "168 buckets",
+              "ดูข้อมูลย้อนหลัง 1 สัปดาห์แบบรายชั่วโมง"
+            ],
+            [
+              "1d",
+              "7 buckets",
+              "31 buckets",
+              "ดู Monthly Trends และทำ Chargebacks"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "`bucket_width` กำหนดระดับ Granularity ของข้อมูล ไม่ใช่ความถี่ในการ Refresh ข้อมูล Usage และ Cost มักจะพร้อมให้ดึงภายในประมาณ 5 นาทีหลังจาก Request ทำงานเสร็จสิ้น ดังนั้นสำหรับการ Monitor Incident ให้ใช้ `1m` Buckets ปรับ `limit` สูงกว่าค่า Default (60) หากต้องการดูช่วงเวลายาวขึ้น และ Poll ประมาณนาทีละครั้ง การยิง Request ถี่ๆ ชั่วคราว (Short Bursts) ทำได้เฉพาะตอนทำ Pagination สำหรับ Dashboard ที่มีคนเปิดดูพร้อมกันจำนวนมาก ควร Cache Response ไว้ แทนที่จะเรียก API ซ้ำทุกครั้งที่โหลดหน้าเว็บ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Polling Usage API ทุกๆ ไม่กี่วินาที ช่วยให้เห็น Token Spikes แบบ Real-time กว่าการ Poll นาทีละครั้ง? (ทำไมถึงผิด): ไม่จริง: Data จะถูกประมวลผลพร้อมให้ดึงภายในประมาณ 5 นาทีหลังจาก Request ทำงานเสร็จสิ้น และ API รองรับอัตราการ Poll ต่อเนื่องสูงสุดที่ 1 ครั้งต่อนาที การ Poll ถี่กว่านั้นจะได้เพียง Data Buckets เดิมซ้ำๆ"
+        }
+      ]
+    },
+    {
+      "heading": "4. Adoption Analytics, Audit Events และการ Route ไปยัง SIEM",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Spend Data บอกค่าใช้จ่ายของ Claude Code ส่วน Adoption Data บอกว่าทีมใช้งานจริงหรือไม่ Dashboard ของ Claude Code Analytics แสดง Usage Metrics สำคัญ เช่น Lines of Code Accepted, Suggestion Accept Rate รวมถึง Daily Active Users และ Sessions สำหรับแพ็กเกจ Teams และ Enterprise จะมี Contribution Metrics ผ่าน GitHub Integration เพิ่มเข้ามา เช่น Merged PRs ที่มีโค้ดจาก Claude Code พร้อมทั้ง Leaderboard และการ Export ไฟล์ CSV ในระดับ API Organisations แดชบอร์ดจะอยู่บน Claude Console พร้อมฟีเจอร์ Spend Tracking และ Team Insights"
+        },
+        {
+          "type": "paragraph",
+          "text": "Action ของ Admin จะถูกแยกออกมาเป็นอีก Stream ผ่าน Compliance Activities Endpoint เพื่อใช้ Query เหตุการณ์สำคัญ เช่น การสร้างหรือ Archive Workspace, การเพิ่มหรือลบสมาชิก, การสร้างหรือกำหนด RBAC Custom Roles, การปรับแก้ Spend Limits และการเปิด-ปิด Zero Data Retention Override นอกจากนี้ยังบันทึกกิจกรรมประเภท Read ด้วย เช่น การเปิดดู Claude Code Usage Report หรือ Messages Usage Report จะถูกบันทึกเป็น Activity เสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Activity ระดับ User ของ Claude Code สามารถส่งต่อไปยัง Retention Store เช่น SIEM ผ่าน Logs Exporter โดยต้อง Config ผ่าน Managed Settings ซึ่งเป็น Policy ที่ Admin บังคับใช้ทั่วทั้งองค์กร หาก Managed Settings มีการกำหนด Endpoint หรือ Credential ไว้ Claude Code จะ Override ลบ Per-signal Endpoints ที่ Developer เคยตั้งค่าไว้ทิ้งทันที เพื่อป้องกันไม่ให้ Developer ส่ง Log แยกไปยัง Collector อื่น ตัวแปรสำคัญ 3 ตัวที่ต้องรู้: `CLAUDE_CODE_ENABLE_TELEMETRY=1` ใช้เปิดการเก็บ Telemetry (หากไม่เปิด จะไม่มีการ Export ใดๆ ทั้งสิ้น), `OTEL_LOGS_EXPORTER=otlp` ใช้ส่ง Log Events ไปยัง OTLP Endpoint (หากไม่ระบุหรือเป็น `none` จะปิดการส่ง), และ `OTEL_LOG_TOOL_DETAILS=1` เป็น Opt-in (Default คือปิด) ใช้สำหรับแนบคำสั่ง Bash, ชื่อ MCP Server และ Tool Names ที่ถูกรันลงไปใน Tool Events จากเดิมที่ไม่มีการบันทึก Arguments เหล่านี้"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56905",
+      "question": "ระหว่างเกิด Incident ขึ้น วิศวกร on-call ต้องการตรวจสอบการพุ่งสูงขึ้นของ token consumption ทั้งองค์กรแบบ near real-time โดยตรวจจับความผิดปกติประมาณนาทีละหนึ่งครั้ง การตั้งค่า Usage API ข้อใดตรงกับความต้องการในการมอนิเตอร์นี้ภายใต้ข้อจำกัดเรื่อง granularity ตาม documented?",
+      "options": [
+        "กำหนด bucket_width=1m ปรับ limit เพิ่มจากค่า default 60 buckets ได้สูงสุดถึง 1440 buckets ตามต้องการ และ poll ข้อมูลประมาณนาทีละครั้ง",
+        "กำหนด bucket_width=1d พร้อม limit ค่า default ที่ 7 buckets เนื่องจาก daily granularity เพียงพอต่อการตรวจจับ spikes ในระดับนาทีย้อนหลังได้",
+        "กำหนด bucket_width=1h พร้อม maximum limit ที่ 168 buckets เนื่องจาก hourly buckets จะอัปเดตให้อัตโนมัติทุก ๆ 60 วินาที",
+        "กำหนด bucket_width=1m แต่ให้ poll ทุก 5 วินาทีเพื่อตรวจจับ spikes ทันทีที่เกิดขึ้น เนื่องจาก polling ที่ถี่ขึ้นจะช่วยเพิ่ม data freshness"
+      ],
+      "explanation": ""
+    }
+  ]
+}

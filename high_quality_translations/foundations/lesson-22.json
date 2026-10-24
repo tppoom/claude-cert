@@ -1,0 +1,194 @@
+{
+  "title": "การเรียกใช้ Claude API ผ่าน REST: Endpoints, Headers และ SDKs",
+  "objectives": [
+    "ระบุ Endpoints หลักของ Claude API พร้อม HTTP Methods ที่เกี่ยวข้อง",
+    "ระบุ Headers ที่จำเป็นสำหรับ Raw HTTP Request และ Headers ที่ Client SDKs จัดการให้อัตโนมัติ",
+    "ทำความเข้าใจ HTTP Response Contract: Header `request-id`, โครงสร้าง Error JSON และข้อจำกัดขนาด Request",
+    "จับคู่ SDK Methods กับ REST Endpoints ที่ครอบอยู่ พร้อมตั้งค่า Built-in Retries และ Pagination โดยไม่ต้องเขียนขึ้นใหม่"
+  ],
+  "key_concept": "Claude API คือ REST พื้นฐาน — ทุกฟีเจอร์ของ Claude API คือ HTTPS Request ไปยัง Path ภายใต้ api.anthropic.com พร้อม Headers และ JSON Body ตามที่กำหนด โดย Client SDKs ไม่ได้มาแทนที่ Contract ดังกล่าว แต่ช่วยสร้าง Request และ Parse Response ให้อัตโนมัติ",
+  "sections": [
+    {
+      "heading": "1. Endpoints ภายใต้ Base URL เดียว",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Feature ของ Claude API ทำงานอยู่ภายใต้ Base URL เดียวกันคือ https://api.anthropic.com โดย Path จะตั้งชื่อตามหน้าที่การทำงาน Traffic ส่วนใหญ่จะวิ่งไปที่ POST /v1/messages ขณะที่งานอื่นๆ จะมี Endpoint เฉพาะของตัวเอง เช่น การนับ Token ก่อนส่ง Prompt, การส่ง Batch ขนาดใหญ่แบบ Asynchronous, การดึงรายชื่อ Model ที่ใช้งานได้ หรือการ Upload ไฟล์เก็บไว้ล่วงหน้าเพื่อให้ Request อื่นๆ อ้างอิง สำหรับการเชื่อมต่อแบบ Raw HTTP นั้น URL และ HTTP Method จะเป็นตัวระบุ Operation ส่วน Parameters จะส่งผ่าน JSON Body"
+        },
+        {
+          "type": "table",
+          "caption": "Claude API Endpoints ระดับ General Availability (GA) และหน้าที่การทำงาน",
+          "headers": [
+            "API",
+            "Method and path",
+            "Purpose"
+          ],
+          "rows": [
+            [
+              "Messages API",
+              "POST /v1/messages",
+              "ส่งข้อความโต้ตอบกับ Claude ในลักษณะ Conversational"
+            ],
+            [
+              "Message Batches API",
+              "POST /v1/messages/batches",
+              "ประมวลผล Messages Request จำนวนมากแบบ Asynchronous"
+            ],
+            [
+              "Token Counting API",
+              "POST /v1/messages/count_tokens",
+              "นับจำนวน Tokens ของ Message ก่อนส่งจริง"
+            ],
+            [
+              "Models API",
+              "GET /v1/models",
+              "ดึงรายชื่อและรายละเอียดของ Claude Models ที่ใช้งานได้"
+            ],
+            [
+              "Files API",
+              "POST /v1/files, GET /v1/files",
+              "Upload และจัดการไฟล์สำหรับใช้งานร่วมกันในหลาย API Calls"
+            ],
+            [
+              "Skills API",
+              "POST /v1/skills, GET /v1/skills",
+              "สร้างและจัดการ Custom Agent Skills"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Agents, Sessions และ Environments APIs ซึ่งใช้ขับเคลื่อน Claude Managed Agents ปัจจุบันยังอยู่ในสถานะ Beta และวางตัวอยู่คู่ขนานกับชุด APIs หลัก สำหรับ Endpoint ประเภท List เช่น GET /v1/models จะคืนผลลัพธ์แบบแบ่งหน้า (Pagination) โดยส่ง Limit และ Page Cursor เข้าไป ใน Response จะได้ Array ของ Data พร้อมกับ Cursor ชื่อ next_page ซึ่งจะมีค่าเป็น null เมื่อถึงหน้าสุดท้าย"
+        }
+      ]
+    },
+    {
+      "heading": "2. Headers บังคับสำหรับการเรียกใช้งานแบบ Raw HTTP",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "หาก Request ขาด Header ที่ถูกต้อง แม้ Request Body จะถูกต้องทั้งหมด ระบบก็จะปฏิเสธ Request ทันที การต่อตรงแบบ Direct Integration (เช่น เขียน cURL Script, ใช้ภาษาที่ไม่มี Official SDK หรือใช้ HTTP Client ที่เขียนขึ้นเอง) จำเป็นต้องส่ง 3 ค่านี้ในทุก Call เสมอ: 1) Credentials ซึ่งปกติคือ API Key จาก Console ส่งผ่าน x-api-key 2) anthropic-version ที่ระบุวันที่มีผลบังคับใช้ เช่น 2023-06-01 3) content-type: application/json หากขาด anthropic-version ไป Request จะล้มเหลวทันทีแม้ API Key จะถูกต้อง Header นี้มีไว้เพื่อ Pin พฤติกรรมของ API ให้ตรงกับโค้ดที่เขียนไว้ ตามรายละเอียดใน [API versions and feature classifications (beta vs GA)](lesson:2.2)"
+        },
+        {
+          "type": "table",
+          "caption": "Request Headers สำหรับ Claude API",
+          "headers": [
+            "Header",
+            "Value",
+            "Required"
+          ],
+          "rows": [
+            [
+              "x-api-key",
+              "API Key จาก Console",
+              "Yes (ยกเว้นกรณีที่กำหนด Authorization)"
+            ],
+            [
+              "Authorization",
+              "Bearer <token>: ใช้ API Key หรือ Access Token จาก Workload Identity Federation",
+              "Yes (ยกเว้นกรณีที่กำหนด x-api-key)"
+            ],
+            [
+              "anthropic-version",
+              "API Version เช่น 2023-06-01",
+              "Yes"
+            ],
+            [
+              "content-type",
+              "application/json",
+              "Yes"
+            ],
+            [
+              "anthropic-workspace-id",
+              "ID ของ Workspace ที่ Request นั้นทำงานอยู่",
+              "Required เมื่อใช้ Multi-workspace API Key"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "คุณสามารถส่ง Credential ผ่าน Authorization: Bearer <token> แทนการใช้ x-api-key ได้ ซึ่งรูปแบบ Bearer นี้ยังเป็นวิธีส่ง Token แบบ Short-lived จาก Workload Identity Federation อีกด้วย ในขณะที่ x-api-key ยังคงรองรับเป็น Legacy Fallback ทั้งนี้ ในโจทย์ข้อสอบจะยังเน้นชุด Header มาตรฐานเดิมเป็นหลัก: x-api-key, anthropic-version และ content-type"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อเปลี่ยนจากการยิง Raw HTTP Call มาใช้ SDK บรรดา Headers เหล่านี้จะถูกยกไปจัดการในระดับ Client Configuration แทน คุณเพียงส่ง Credentials ให้ Client แค่ครั้งเดียวตอน Initialize แล้วตัดโค้ดที่ต้อง Set Headers 3 ตัวนี้ทิ้งไปจากทุก Call Site เหลือไว้เฉพาะ anthropic-workspace-id ในกรณีที่ API Key ครอบคลุมหลาย Workspace หากโค้ดที่ Migrate แล้วยังคง Set anthropic-version เองแบบ Manual จะถือเป็นการเขียนโค้ดซ้ำซ้อนในสิ่งที่ SDK จัดการให้อยู่แล้ว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเรียก Raw HTTP ส่งแค่ API Key กับ Content-Type แบบ JSON ก็พอ ส่วน API Version ตัว Model จะเป็นคนกำหนดเอง? (ทำไมถึงผิด): ไม่จริง: anthropic-version เป็น Header บังคับที่ต้องส่งในทุก Request หากขาดไป Request จะถูก Reject ทันที ที่เราไม่ค่อยเห็นใน SDK เพราะตัว SDK ทำการ Inject ทั้ง Authentication, Content-Type และ anthropic-version ให้อัตโนมัติ"
+        }
+      ]
+    },
+    {
+      "heading": "3. สิ่งที่ Client SDKs เพิ่มเข้ามาเหนือ REST API",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Official SDKs ยิง REST API เหมือนกับการเขียนเชื่อมต่อเองโดยตรง แต่ช่วยจัดการงานซ้ำซ้อนให้ทั้งหมด โดย Anthropic มี Client SDKs สำหรับ Python, TypeScript, C#, Go, Java, PHP และ Ruby ซึ่งแต่ละตัวมีความสามารถดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- ส่ง Header สำหรับ Authentication, anthropic-version และ content-type ให้อัตโนมัติ\n- มี Typed Request และ Response Objects ให้ใช้งานแทน Raw Dictionaries\n- มี Built-in Logic จัดการ Retry สำหรับ Transient Failures พร้อมแปลงเป็น Typed Exceptions\n- รองรับ Streaming ในตัว\n- จัดการ Request Timeouts และ Connection Pooling ให้โดยอัตโนมัติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Default Settings บางอย่างมีความสำคัญมากในทางปฏิบัติ เช่น Python Client จะอ่าน `ANTHROPIC_API_KEY` จาก Environment Variables ให้อัตโนมัติหากไม่ได้ส่ง Key เข้าไปตรงๆ และมีให้เลือกใช้ทั้งแบบ Sync (`Anthropic`) และ Async (`AsyncAnthropic`) ส่วน TypeScript SDK สามารถรันได้บน Node.js, Deno, Bun และ Edge Runtimes แต่จะบล็อกไม่ให้รันบน Web Browser โดยตรง เว้นแต่จะระบุ `dangerouslyAllowBrowser: true` เพื่อป้องกันไม่ให้ Secret Key รั่วไหลไปยัง End Users ฝั่ง Client"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทุก Method ใน SDK เป็น Thin Wrapper ครอบแต่ละ Endpoint โดยตรง ทำให้ Developer ที่เข้าใจ REST API สามารถใช้งานได้ทันที เช่น `client.messages.create` แมปกับ `POST /v1/messages`, `client.messages.batches.create` แมปกับ `POST /v1/messages/batches` และ Token Counting ก็เป็น Method ภายใต้ออบเจกต์ Messages เดียวกันที่แมปกับ `POST /v1/messages/count_tokens` โดยชื่อ Parameters ทั้งหมดจะตรงกับใน REST API ทำให้สามารถแปลง JSON Body จาก cURL Script มาเป็น Keyword Arguments ได้แทบจะฟิลด์ต่อฟิลด์"
+        },
+        {
+          "type": "paragraph",
+          "text": "Retries และ Pagination เป็นงานพื้นฐานที่ SDK จัดการแทนเรา ซึ่งเป็นเพียง Config ให้ปรับแต่ง ไม่ต้องเขียน Code เอง Client จะ Retry ข้อผิดพลาดประเภท Connection Errors, Rate Limits และ 5xx ให้อัตโนมัติ 2 ครั้งตามค่า Default พร้อมทำ Exponential Backoff และปฏิบัติตาม Header `retry-after` หาก API ส่งกลับมา โดยสามารถปรับแต่งหรือปิดการทำงานนี้ได้ผ่านการตั้งค่า `max_retries` บน Client ทั้งนี้ การเขียน Retry Loop ครอบ SDK Call อีกชั้นจะกลายเป็นการคูณจำนวน Attempts กับตัว Built-in จึงควรตั้งค่า `max_retries` ให้สอดคล้องกับเลเยอร์ที่คุณต้องการให้เป็นผู้รับผิดชอบ"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ List Endpoints ตัว Auto-paginating Iterator ของ SDK จะตาม `next_page` ให้อัตโนมัติ ทำให้เขียน `for` Loop วนอ่านผลลัพธ์ทั้งหมดได้โดยไม่ต้องจัดการ Cursor ด้วยตัวเอง ซึ่งรองรับเฉพาะการเลื่อนไปข้างหน้า (Forward) หากต้องการย้อนกลับ (Backward) จำเป็นต้องอ่าน `prev_page` จาก Response แล้วส่งกลับเข้าไปเป็น `page` Parameter ด้วยตนเอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เมื่อใช้ SDK แล้ว ไม่จำเป็นต้องจัดการ Header ใดๆ ด้วยตัวเองอีกต่อไป? (ทำไมถึงผิด): ไม่จริง: SDK ช่วยจัดการ Header ด้าน Authentication, Version และ Content-Type ให้อัตโนมัติก็จริง แต่ `anthropic-workspace-id` ขึ้นอยู่กับเงื่อนไขของ API Key แต่ละตัว หาก Key นั้นจำเป็นต้องระบุ Workspace ID คุณยังคงต้องส่งค่านั้นเข้าไปเอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Client SDKs เป็นตัวควบคุม Agent Loop, Tools Execution และ Runtime? (ทำไมถึงผิด): ไม่จริง: Client SDKs เป็น Low-level Libraries ที่ทำหน้าที่เพียงส่ง Request และรับ Response ทีละครั้งเท่านั้น ส่วน Agent Loop, Tool Execution และ Runtime จะอยู่ในระดับเลเยอร์ที่สูงกว่า ซึ่งจัดการโดย Claude Code, Claude Agent SDK และ Claude Managed Agents"
+        }
+      ]
+    },
+    {
+      "heading": "4. ข้อตกลงฝั่ง Response: Request IDs, Errors และข้อจำกัดเรื่องขนาด",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "HTTP Contract ยังครอบคลุมถึง Response ที่ส่งกลับมาด้วย ทุก Response จะมี Header `request-id` แนบมาเสมอ (เช่น `req_018EeWyXxfu5pfWkrYcMdjWG`) ซึ่งเป็น ID อ้างอิงที่ทีม Support ใช้ในการตรวจสอบ นอกจากนี้ Response ยังระบุ Organization และ Workspace ที่ผูกกับ Credential นั้นผ่าน Header `anthropic-organization-id` และ `anthropic-workspace-id` โดย Python และ TypeScript SDKs จะ Expose ID นี้ออกมาเป็น `_request_id` บน Response Object หากต้องการอ่าน Header อื่นๆ เพิ่มเติม ให้เรียกใช้งานผ่าน `with_raw_response`"
+        },
+        {
+          "type": "paragraph",
+          "text": "กรณีเกิด Failure ระบบจะส่ง Response กลับมาเป็น JSON ในโครงสร้างมาตรฐานเดียวกันทั้งหมด โดยมี Top-level Type เป็น `error` ภายในมี Machine-readable `type` และ Human-readable `message` พร้อมทั้งใส่ `request_id` ซ้ำใน Error Body เพื่อให้สามารถแกะรอย Log ของการ Call ได้ทันที (สำหรับรายละเอียดว่า Status Code ใดควร Retry สามารถดูเพิ่มเติมได้ที่ [API error types and recovery](lesson:4.1)) หัวใจสำคัญคือทุก Failure จะมี Schema รูปแบบนี้เสมอ และ SDK จะแปลงเป็น Typed Exceptions (เช่น `anthropic.NotFoundError`) ให้อัตโนมัติ ไม่ต้องมานั่งแกะ Raw JSON เอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Request Bodies มีการจำกัดขนาดตามแต่ละ Endpoint โดย Messages และ Token Counting รองรับสูงสุด 32 MB, Message Batches รองรับได้สูงสุด 256 MB และ Files API รองรับได้สูงสุด 500 MB หากขนาด Request เกินขีดจำกัดจะถูกปฏิเสธทันทีด้วย Status `413 request_too_large` ก่อนที่จะส่งถึง API Server หากแอปพลิเคชันของคุณจำเป็นต้องแนบไฟล์เอกสารขนาดใหญ่ลงใน Messages Request โดยตรง อาจทำให้ติด Limit นี้ได้ จึงแนะนำให้อัปโหลดผ่าน Files API แทน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Error Responses ของแต่ละ Endpoint มีรูปแบบต่างกัน Client จึงต้องใช้ String-matching เช็กข้อความเพื่อแยกแยะประเภท Error? (ทำไมถึงผิด): ไม่จริง: ทุก Error Response ใช้โครงสร้าง JSON มาตรฐานเดียวกันที่มี Typed Error Object ชัดเจน อีกทั้ง SDK ยังยก Typed Exceptions ขึ้นมาให้โดยตรง ทำให้สามารถใช้คำสั่งดักจับ (Catch) ข้อยกเว้นตาม Type ได้ทันทีโดยไม่ต้องตรวจเช็ก String ใน Message"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55559",
+      "question": "Frontend engineer กำลังสร้าง SSE parser ขึ้นมาเองสำหรับการ streaming คำตอบจาก Messages API โดยต้องการทราบว่าเมื่อใดจึงจะถือว่า content block หนึ่งได้รับข้อมูลครบถ้วนสมบูรณ์แล้ว และสามารถข้ามไปประมวลผลบล็อกถัดไปได้อย่างปลอดภัย เหตุการณ์ (event) ใดที่ส่งสัญญาณบ่งบอกว่า content block หนึ่ง ๆ (ระบุตาม index) จะไม่ได้รับ delta event เพิ่มเติมอีก?",
+      "options": [
+        "content_block_stop",
+        "message_delta",
+        "content_block_start",
+        "message_stop"
+      ],
+      "explanation": ""
+    }
+  ]
+}

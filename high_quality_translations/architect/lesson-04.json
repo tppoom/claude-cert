@@ -1,0 +1,173 @@
+{
+  "title": "การออกแบบ Multi-agent: จังหวะที่ควรแยกงานและวิธีบรีฟ Subagents",
+  "objectives": [
+    "ประเมินว่างานจำเป็นต้องใช้หลาย Agent หรือไม่ โดยระบุเหตุผลชัดเจนพร้อม Token cost ที่เพิ่มขึ้น",
+    "อธิบายกลไกที่ Coordinator มอบหมายงานให้ Subagents แบบแยก Context และรับกลับเฉพาะผลลัพธ์ที่สรุปแล้ว",
+    "กำหนดขอบเขต Agent จาก Context แทนการแบ่งตาม Role",
+    "เขียน Subagent brief ที่สมบูรณ์ในตัวเอง ครอบคลุม Objective, Output format, Tool list และ Boundaries"
+  ],
+  "key_concept": "Isolated subagent context — Subagent ทำงานใน Conversation ของตัวเอง การอ่านข้อมูลและการเรียก Tool ทั้งหมดจะจำกัดอยู่แค่ในนั้น โดย Coordinator จะได้รับเฉพาะ Final message กลับมา การแยก Context นี้คือเหตุผลหลักในการกระจายงานข้าม Agent และเป็นสาเหตุที่ Subagent ต้องได้ Brief ที่ครบถ้วน เพราะมันไม่สามารถเข้าถึงสิ่งที่ Coordinator รู้ได้เลย",
+  "sections": [
+    {
+      "heading": "1. เริ่มต้นด้วย Agent เดียวเสมอ และแยก Agent เมื่อมีเหตุผลที่ชัดเจนเท่านั้น",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ระบบ Multi-agent คือการรัน Claude หลาย Instance พร้อมกัน โดยแต่ละตัวมี Conversation Context ของตัวเอง และทำงานร่วมกันเพื่อจบงานชิ้นเดียว คำถามสำคัญเชิง Design ไม่ใช่ \"สร้างอย่างไร\" แต่เป็น \"ควรสร้างหรือไม่\" จากสถิติของ Anthropic พบว่าหลายทีมนำ Multi-agent ไปใช้ในโจทย์ที่ Single Agent ทำงานได้มีประสิทธิภาพมากกว่า บางทีมเสียเวลาทำ Architecture ซับซ้อนหลายเดือน ทั้งที่ปรับ Prompt ของ Agent เดียวให้ดีขึ้นก็ได้ผลลัพธ์เท่ากัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การแยก Agent มีต้นทุนเสมอ Agent เพิ่มขึ้นหนึ่งตัว หมายถึงจุดล้มเหลว (Point of Failure) เพิ่มขึ้นหนึ่งจุด, ต้องดูแล Prompt เพิ่มขึ้น และเป็นอีกหนึ่งจุดที่อาจเกิดพฤติกรรมคาดไม่ถึง ในการทดสอบของ Anthropic พบว่า Multi-agent ใช้ Token เปลืองกว่า Single Agent ในโจทย์เดียวกันถึง 3–10 เท่า โดย Token ส่วนเกินเกิดจาก 3 ส่วน: Context ที่ซ้ำซ้อนระหว่าง Agent, ข้อความที่ใช้คุย Coordinate ระหว่างกัน และข้อความสรุป (Summary) ที่ต้องสร้างทุกครั้งที่ส่งต่องาน (Handoff) สำหรับ Claude Managed Agents แพลตฟอร์มการจัดการ Multi-agent Orchestration ภายใน Session เดียว ก็สะท้อนหลักการนี้ในเชิง Configuration กล่าวคือ Agent สามารถสร้าง Dynamic Workflow ซึ่งรันหลาย Agent เบื้องหลังแล้วรวมผลลัพธ์ ทุก Agent ที่รันจะผลาญ Token ดังนั้นระบบจึงบังคับให้ตั้ง Session Budget เพื่อจำกัด Cost รวมสูงสุดของทั้ง Session และ Workflow นั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "มีเพียง 3 สถานการณ์เท่านั้นที่คุ้มค่ากับต้นทุนที่เสียไป นอกเหนือจากนี้ ต้นทุนการ Coordination มักจะแพงกว่าประโยชน์ที่ได้ ซึ่งในเอกสารของ Managed Agents ก็ระบุเช่นเดียวกันว่า เหมาะสำหรับงานที่กระจายตัวข้ามระบบจำนวนมาก หรือมีหลาย Subtask ที่ขอบเขตชัดเจนและส่งผลลัพธ์สู่งานหลักชิ้นเดียว"
+        },
+        {
+          "type": "table",
+          "caption": "3 เหตุผลหลักในการแยก Agent, สัญญาณที่บ่งชี้ และต้นทุนที่ต้องจ่าย",
+          "headers": [
+            "Reason to split",
+            "Signal in a single agent",
+            "What it costs"
+          ],
+          "rows": [
+            [
+              "Context pollution",
+              "Subtask มีข้อมูลเข้ามาใน Context จำนวนมาก (เกิน 1,000 Tokens) ซึ่ง Task หลักไม่ได้ใช้งาน เช่น ประวัติคำสั่งซื้อทั้งหมดที่เข้ามาปนขณะกำลังวิเคราะห์ปัญหาเชิงเทคนิค",
+              "การ Handoff มีโอกาสสูญเสียรายละเอียด หากไม่ได้กำหนดเกณฑ์การสกัดข้อมูล (Extraction criteria) ให้ชัดเจน"
+            ],
+            [
+              "Parallel breadth",
+              "งานแตกออกเป็นส่วนที่ทำคู่ขนานกันได้อย่างอิสระ เช่น การ Research ข้อมูลจากหลายแหล่ง หรือการรัน Tests หลาย Component พร้อมกัน",
+              "ใช้ Tokens เพิ่มขึ้นมหาศาล และมักทำให้เวลาในการรันทั้งหมดนานขึ้น"
+            ],
+            [
+              "Specialisation",
+              "มี Tools มากเกินไป (มักจะมากกว่า 20+ ตัว), Tools ข้าม Domain ที่ไม่เกี่ยวข้องกัน หรือ Behavioral Modes ตีกันเอง",
+              "เกิด Routing complexity: หากส่ง Request ผิดตัว ผลลัพธ์ที่ได้จะแย่ทันที"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อตัดสินใจแยก Agent แล้ว ให้ตัดแบ่งขอบเขตด้วย Context Boundaries ไม่ใช่แบ่งตาม Type of Work การแบ่งตามหน้าที่ (Role) จะทำให้เกิดปัญหา \"กระซิบส่งต่อ\" (Telephone Game): Planner ส่งต่อ Implementer, ส่งต่อ Tester, ส่งต่อ Reviewer และทุกจุด Handoff รายละเอียดจะหล่นหาย ตัวอย่างเช่น Tester จะไม่รู้เหตุผลเบื้องหลังว่าทำไมโค้ดถึงถูกเขียนแบบนั้น ในการทดลองของ Anthropic กับ Role-specialised Agents พบว่า Agents ใช้ Token ในการ Coordinate กันมากกว่าการทำงานจริง ขอบเขตที่ดีคือสิ่งที่ Context ตัดขาดกันชัดเจน เช่น Research หัวข้ออิสระคนละฝั่ง (เช่น แนวโน้มตลาดเอเชีย vs ยุโรป), Components ที่มี API Contract ชัดเจน หรือการทำ Black-box Verification ที่รันเฉพาะ Tests เท่านั้น ส่วนขอบเขตที่แย่คือ ขั้นตอนต่อเนื่องกันของ Feature เดียวกัน (Sequential Phases), Components ที่ผูกติดกันแน่น (Tightly Coupled) หรืองานที่ต้องพึ่งพา Shared State ร่วมกัน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ข้อสอบเสนอให้แยก Agent ตาม Role สำหรับ Feature เดียว (Planner, Implementer, Tester, Reviewer)? (ทำไมถึงผิด): ไม่จริง: การแบ่งตาม Role คือการออกแบบที่ผิด เพราะสูญเสีย Context ในทุกจุด Handoff Agent ที่สร้าง Feature นั้นควรเป็นตัวที่เขียน Tests เองด้วยเนื่องจากถือ Context ไว้อยู่แล้ว ให้แยก Agent เฉพาะเมื่อ Context ตัดขาดกันได้อย่างแท้จริงเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "หน้าที่ของ Coordinator ในการแตกงานออกเป็นส่วนย่อยแบบ Runtime คือรูปแบบ [Orchestrator-workers (dynamic decomposition)](lesson:1.5) และในระบบ Multi-agent ตัว Orchestrator ก็จะกลายเป็น Coordinator Agent ที่แจกจ่ายงานแต่ละชิ้นไปยัง Subagent จริงๆ ที่มี Context Window แยกต่างหากเป็นของตัวเอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การแยก Task ให้หลาย Agent รันคู่ขนานกัน ทำให้งานเสร็จเร็วขึ้นและประหยัด Cost กว่า? (ทำไมถึงผิด): ไม่จริง: Multi-agent ใช้ Token เปลืองกว่า Agent เดี่ยว 3–10 เท่า และมักใช้เวลาโดยรวมนานกว่าเพราะมีการคำนวณมหาศาล สิ่งที่ได้กลับมาคือความละเอียดถี่ถ้วน (Thoroughness) ไม่ใช่ความเร็วหรือการประหยัด Cost | การออกแบบที่สะอาดที่สุดคือการแยก Agent ตามประเภทของงาน: Planner, Implementer, Tester, Reviewer? (ทำไมถึงผิด): ไม่จริง: การแยกตาม Role ทำให้ Context สูญหายทุกครั้งที่ Handoff ควรแบ่งงานตาม Context Boundaries เพื่อให้ Agent ตัวที่เขียน Feature เป็นตัวเขียน Tests ไปด้วยในตัว"
+        }
+      ]
+    },
+    {
+      "heading": "2. Coordinator Pattern และ Context ที่แยกขาดของ Subagent",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Coordinator Pattern ตัว Lead Agent จะวางแผนงาน ส่งต่องานย่อยให้ Subagents แล้วรวมผลลัพธ์เข้าด้วยกัน หัวใจสำคัญที่ทำให้รูปแบบนี้มีประโยชน์คือ ความเป็นอิสระ (Isolation) ของ Context โดย Subagent แต่ละตัวจะเริ่มบทสนทนาใหม่เสมอ Tool Calls และผลลัพธ์ระหว่างทางจะอยู่ภายใน Subagent เท่านั้น จะมีเพียง Final Message สรุปสุดท้ายเท่านั้นที่ส่งกลับไปยัง Parent Agent เช่น Research Subagent สามารถอ่านเอกสารหลายสิบไฟล์ได้โดยที่เนื้อหาเหล่านั้นไม่เข้าไปรกใน Main Conversation เลย Parent Agent จะได้รับเพียง Summary สั้นๆ ไม่ใช่เนื้อหาทุกไฟล์ที่ Subagent อ่าน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ระบบ Support Agent สะท้อนความสำคัญเรื่องนี้ได้ชัดเจน หากทุกครั้งที่มีการค้นหาคำสั่งซื้อ ประวัติ Order History ขนาดยาวหลายพัน Tokens จะถูกเทลง Context ทำให้ความสามารถในการ Reasoning ปัญหาทางเทคนิคของลูกค้าร่วงลงทันที แต่ถ้าแยกการค้นหานี้ให้เป็น Subagent ตัว Main Agent จะได้รับผลลัพธ์สรุปเพียง 50–100 Tokens (เช่น สถานะและวันที่) ทำให้ Context หลักยังคงสะอาดและโฟกัสตรงจุด Isolation จะมีประสิทธิภาพสูงสุดเมื่อ Subtask มีข้อมูลส่วนเกินเยอะที่งานหลักไม่ได้ใช้ และมีเกณฑ์ที่ชัดเจนว่าต้องการสกัดข้อมูลอะไรกลับมา"
+        },
+        {
+          "type": "paragraph",
+          "text": "Isolation เกิดขึ้นกับ Conversation เท่านั้น ไม่ได้จำกัดกับ Environment ใน Managed Agents ทุก Agent ใน Session จะแชร์ Sandbox, Filesystem และ Vault Credentials ร่วมกัน โดยแต่ละตัวจะรันอยู่บน Session Thread ของตัวเอง ซึ่งเป็น Event Stream ที่เก็บ Conversation History แยกกัน Subagent Thread ใน Managed Agents จะยังคงอยู่ Coordinator จึงสามารถส่งคำถาม Follow-up ซ้ำได้โดยที่ Subagent ยังจำประวัติการคุยในรอบก่อนหน้าได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Subagent คือ Tool ที่เหมาะสมสำหรับ Side Task ที่ต้องการแยก Working Material ไม่ให้เข้าไปปนใน Main Conversation ส่วน Agent Team (Teammate) คืออีกรูปแบบหนึ่ง: เป็นการรันหลาย Session คู่ขนานที่แชร์ Task List และคุยแลกเปลี่ยน Message กัน เหมาะกับการซิงค์งานระหว่าง Worker หลายตัว ไม่ใช่การซ่อนข้อมูล Investigation ของงานเดี่ยว และ Scripted Workflow จะเหมาะกับสเกลงานที่ใหญ่เกินกว่าจะคุมด้วย Subagent ไม่กี่ตัว ทั้งนี้ ไม่มีรูปแบบใดที่เป็นกลไกการมาตามตัด Transcript ย้อนหลัง เพราะพฤติกรรมการส่งกลับเฉพาะ Summary เป็นคุณสมบัติเฉพาะตัวของ Subagent เองตั้งแต่แรก"
+        }
+      ]
+    },
+    {
+      "heading": "3. การทำ Fan-out ให้ Subagents ที่เป็นอิสระต่อกันทำงานแบบ Parallel",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Subagents ที่ไม่ได้ขึ้นต่อกันสามารถรันพร้อมกันได้ ทำให้ทั้ง Batch ทำงานเสร็จเท่ากับตัวที่ช้าที่สุด ไม่ใช่ผลรวมเวลาของทุกตัวบวกกัน เช่น ในการทำ Code Review ตัว Style-checker, Security-scanner และ Test-coverage สามารถตรวจ Pull Request เดียวกันได้พร้อมกันทันที ซึ่ง Coordinator ต้อง Invoke ทั้งสามตัวพร้อมกันใน Turn เดียว หากเรียกทีละตัวแล้วรอผลลัพธ์ทีละขั้น ความเป็น Parallelism จะหายไปทันที และถ้าเอามารวมเป็น Subagent ตัวเดียวพร้อม Prompt ยาวๆ ก็จะสูญเสียทั้ง Parallelism และความแม่นยำของ Focused Instructions"
+        },
+        {
+          "type": "paragraph",
+          "text": "ระบบ Multi-agent สำหรับงานวิจัยของ Anthropic ก็ใช้สถาปัตยกรรมเดียวกัน โดย Lead Agent จะแตก Query ออกเป็นหลายๆ มิติ (Facets) จากนั้นเปิด Subagent ขึ้นมาตามแต่ละมิติ แล้วค่อยนำ Output ที่ได้มารวมกัน การสำรวจ Search Space ที่กว้างขึ้นด้วยวิธีนี้ช่วยเพิ่ม Accuracy ได้อย่างมีนัยสำคัญเมื่อเทียบกับ Single Agent แต่ในแง่ Cost และ Resource ภาพรวมยังคงชัดเจน: การรันแบบ Parallel เหนือกว่าการรัน Sequential ในงานเดียวกัน แต่โดยรวมแล้วอาจใช้เวลานานกว่าและกิน Resource มากกว่า Single Agent ตัวเดียวเพราะมี Total Computation มหาศาลกว่ามาก"
+        },
+        {
+          "type": "exam_trap",
+          "text": "นำไปปรับใช้กับงานของคุณ: ให้ลองพิจารณา Multi-agent Design ที่คุณเคยเห็นหรือออกแบบไว้ ว่า Subagents เหล่านั้นเป็นอิสระต่อกันจริงๆ จนสามารถรันพร้อมกันใน Turn เดียวได้หรือไม่ หรือแต่ละตัวต้องรอ Output จากตัวก่อนหน้า? หากต้องรอผลลัพธ์ต่อเนื่องกัน มันคือ Sequential Phases ที่ควรถูกรวมอยู่ใน Agent ตัวเดียวกันหรือไม่?"
+        }
+      ]
+    },
+    {
+      "heading": "4. การ Brief งานให้ Subagent ที่ไม่เห็น Context เดิม",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การแยกสภาพแวดล้อม (Isolation) เป็นดาบสองคม Subagent จะมองไม่เห็น Turns ของ Coordinator เลย ทั้ง User Request, ไฟล์ที่อ่านไปแล้ว หรือการตัดสินใจก่อนหน้า สิ่งที่มันรับรู้มีเพียง System Prompt ของตัวเอง, Context ระดับโปรเจกต์ เช่น CLAUDE.md และ Task Message ที่ได้รับมอบหมายเท่านั้น หาก Coordinator สั่งแค่ว่า \"now check the other module\" Subagent จะไม่รู้เลยว่าต้องตรวจ Module ไหน ต้องหาอะไร หรือต้องตอบกลับในรูปแบบใด ดังนั้นทุก Brief ที่ส่งให้จึงต้องเป็น Self-contained และสมบูรณ์ในตัวเองเสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Self-contained Brief ที่ดีประกอบด้วย 4 ส่วนสำคัญ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Objective: ระบุคำถามหรือ Task ให้ชัดเจน พร้อมแนบ Facts สำคัญจาก Context ของ Coordinator ที่จำเป็นต่อการทำงาน\n- Output format: กำหนด Format ข้อมูลที่ต้อง Return ให้เป๊ะ เพราะ Coordinator จะเห็นแค่ Final Message ของ Subagent เท่านั้น Isolation จะมีประสิทธิภาพสูงสุดเมื่อ Subtask มีเกณฑ์การสกัดข้อมูลที่ชัดเจน\n- Tools: กำหนด Scope ของ Tools ขั้นต่ำที่จำเป็นในระดับ Definition ของ Subagent\n- Boundaries: ขอบเขตและข้อห้ามว่าสิ่งใดห้ามแตะต้อง และเงื่อนไขที่ต้องหยุดทำงาน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Specialised Subagent จะเก่งได้เท่ากับ Instructions ที่มันได้รับ แนวทาง Prompt Engineering สำหรับ Single Agent จึงต้องนำมาใช้กับ System Prompt ของ Subagent ทุกตัวเช่นกัน รวมถึงต้องเขียน Description ใน Definition อย่างประณีต เพราะ Coordinator จะอ่าน Description นี้เพื่อตัดสินใจเลือกเรียก Subagent หากเขียนไม่ชัดเจนจนแยกความต่างของ Subagents สองตัวไม่ออก Task จะถูกส่งไปผิดตัวทันที (Misrouted)"
+        },
+        {
+          "type": "paragraph",
+          "text": "การกำหนด Tools Scope คือหัวใจสำคัญของ Brief ในระบบ Multi-agent Design คุณควรเซ็ตรายการ Tools ลงใน Definition ของ Specialist แต่ละตัวโดยตรง เช่น Doc-reviewer ที่มีหน้าที่แค่วิเคราะห์ Documentation แต่ต้องไม่แก้ไขไฟล์ ควรได้รับสิทธิ์เฉพาะ Read และ Grep เท่านั้น โดยตัด Edit, Write หรือ Bash ออก วิธีนี้จะป้องกัน Accidental Modification ได้อย่างเด็ดขาดในระดับ System Permission การละเว้นไม่ระบุ Tools ไม่ใช่ Safe Default เพราะหากไม่กำหนด Subagent จะ Inherit สิทธิ์ Tools ทุกตัวที่มีอยู่ในระบบมาทันที"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การไม่ระบุฟิลด์ tools ใน subagent definition จะช่วยจำกัดสิทธิ์ให้ปลอดภัยโดยอัตโนมัติ? (ทำไมถึงผิด): ไม่จริง: การละเว้นฟิลด์ tools จะทำให้ Subagent ได้รับ Tools ทุกตัวที่มีในระบบมาใช้งานโดยปริยาย (Inherit All Tools) หากต้องการให้เป็น Read-only ต้องระบุเฉพาะ Tools ที่จำเป็นอย่างชัดเจน เช่น Read และ Grep"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56645",
+      "question": "Code-review agent จำเป็นต้องตรวจสอบไฟล์หลายสิบไฟล์เพื่อหาสาเหตุของ bug แต่คุณต้องการกันเนื้อหาไฟล์และ intermediate reasoning จากการสืบค้นนั้นไม่ให้เข้ามาใน context window ของบทสนทนาหลัก โดยต้องการรับเฉพาะข้อสรุปสุดท้ายที่กระชับเท่านั้น ความสามารถ (capability) ใดตอบโจทย์ความต้องการนี้ได้ดีที่สุด?",
+      "options": [
+        "Subagent เนื่องจากทำงานใน context window ของตัวเอง และส่งเฉพาะข้อความสุดท้ายกลับไปยัง parent conversation",
+        "Agent team teammate เนื่องจากทำงานใน context window ของตัวเอง และรายงาน progress กลับไปยัง lead session",
+        "Hook ที่ดักจับ PostToolUse events และตัด tool results ออกจาก transcript ก่อนที่จะถูกบันทึก",
+        "Saved workflow script เนื่องจากทำงานด้วยสิทธิ์เข้าถึง filesystem เต็มรูปแบบภายนอก context ของบทสนทนาเสมอ"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56646",
+      "question": "ในระหว่างการทำ PR review คุณต้องการให้ style-checker, security-scanner, และ test-coverage subagent วิเคราะห์ pull request เดียวกัน โดยทั้งสามตัวควรทำงานเสร็จในเวลาใกล้เคียงกับตัวที่ช้าที่สุด แทนที่จะใช้เวลาเท่ากับผลรวมของทั้งสามตัวรวมกัน คุณควรทำอย่างไร?",
+      "options": [
+        "Invoke ทั้งสาม subagents ใน turn เดียวกัน เพื่อให้ทำงานแบบ concurrently แทนที่จะรันต่อกันทีละตัว",
+        "Invoke subagents ทีละตัวตามลำดับ เพื่อให้ผลการตรวจสอบของตัวก่อนหน้าส่งต่อไปยัง agent ตัวถัดไป",
+        "รวมนิยามของทั้งสาม subagents ให้กลายเป็น single subagent ตัวเดียวด้วย system prompt ที่รวมกัน",
+        "รันการ review สามครั้งใน session เดิม โดยสลับ model ในแต่ละรอบ"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56647",
+      "question": "คุณกำลังตั้งค่า doc-reviewer subagent ให้สามารถวิเคราะห์เอกสารเพื่อความถูกต้องและความชัดเจน แต่ต้องไม่สามารถแก้ไขไฟล์หรือ execute คำสั่งได้เลย แม้กระทั่งโดยไม่ได้ตั้งใจ คุณควรกำหนดสิทธิ์ tool access ของมันอย่างไร?",
+      "options": [
+        "ตั้งค่า tools ให้มีเฉพาะ Read และ Grep เพื่อให้สามารถตรวจสอบเนื้อหาได้โดยไม่มีความสามารถในการ write หรือ execution",
+        "ละเว้น (omit) ฟิลด์ tools ทั้งหมด เพื่อให้ subagent รับชุด tools เต็มรูปแบบจาก parent agent มาใช้งาน",
+        "ใส่ Edit และ Write เข้าไปด้วย แต่เพิ่ม PreToolUse hook เพื่อปฏิเสธ (deny) ความพยายามแก้ไขของ subagent เสมอ",
+        "ตั้งค่า tools เป็น Read, Grep, และ Bash เพื่อให้สามารถรันคำสั่ง linting เพื่อตรวจสอบผลการวิเคราะห์ซ้ำได้"
+      ],
+      "explanation": ""
+    }
+  ]
+}

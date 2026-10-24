@@ -1,0 +1,83 @@
+{
+  "title": "การจัดการ Tool Calls ใน Claude: Agentic Loop, การจัดการข้อผิดพลาด และระบบอนุมัติ",
+  "objectives": [
+    "สร้าง Agentic Loop ตาม stop_reason เพื่อกระจายงาน Client Tool Calls",
+    "จัดรูปแบบ tool_result blocks ให้ถูกต้อง รวมถึงการส่ง Content แบบ Multi-part",
+    "แจ้งเตือนข้อผิดพลาดด้วย is_error และแยกแยะความแตกต่างระหว่าง Execution Error กับ Invalid Tool Calls",
+    "จัดการ Server Tool Responses, การใช้ pause_turn และรอบการสนทนาที่ผสมระหว่าง Server กับ Client Tools",
+    "ควบคุมสิทธิ์การรัน Tool ด้วย canUseTool, Allow Rules และ Deny Rules ใน Agent SDK"
+  ],
+  "key_concept": "วงรอบการทำงานของ Tool Use (Agentic Loop) ตั้งแต่การตรวจจับ stop_reason, การส่งกลับ tool_result, การจัดการ Error ตลอดจนการควบคุมความปลอดภัยผ่าน Approval Gates ใน Agent SDK",
+  "sections": [
+    {
+      "heading": "1. The harness loop: dispatching client tool calls",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude ไม่สามารถรันโค้ดฝั่งคุณได้โดยตรง การเรียก client tool ทุกครั้งจึงเป็นแบบ round trip: Claude ร้องขอ -> Harness ของคุณรัน tool -> ส่งผลลัพธ์กลับไป รูปแบบมาตรฐานของ harness คือการใช้ while loop ที่เช็คค่า stop_reason โดย loop จะจบการทำงานเมื่อเจอ stop reason อื่นๆ (end_turn, max_tokens, stop_sequence, refusal) ซึ่งแอปพลิเคชันของคุณควรจัดการกับทุกกรณีเหล่านี้"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับแต่ละ tool_use block ให้ dispatch ตาม name, ส่ง input เข้าไป และเก็บ id ไว้ หากเป็น block จาก toolset ของ computer use หรือ browser use จะมีฟิลด์ toolset_name แนบมาด้วย ให้ dispatch โดยใช้ทั้งสองฟิลด์ร่วมกัน แต่ถ้าคุณไม่อยากเขียน loop เอง Tool Runner ของ SDK สามารถรัน tools และส่งผลลัพธ์กลับไปให้อัตโนมัติ"
+        }
+      ]
+    },
+    {
+      "heading": "2. Formatting tool_result blocks",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ผลลัพธ์ของ tool จะถูกส่งกลับไปใน user message ในรูปแบบ tool_result block โดยฟิลด์ tool_use_id เป็นฟิลด์บังคับและต้องตรงกับ id ของ request ที่ตอบกลับ ส่วน content เป็น optional ซึ่งสามารถส่งเป็น plain string หรือ list ของ text, image, document, หรือ search_result blocks ก็ได้ (ทำให้ tool สามารถส่งคำบรรยายพร้อม screenshot กลับไปพร้อมกันได้) หรือจะไม่ใส่ content เลยก็ได้เช่นกัน ทั้งนี้ ผลลัพธ์สำหรับสมาชิกใน toolset จะมีข้อกำหนดที่เข้มงวดกว่า คือต้องระบุ toolset_name เดิมกลับไปด้วย หากไม่มี API จะ reject ทันที"
+        }
+      ]
+    },
+    {
+      "heading": "3. การจัดการ Error: Execution Failures ปะทะ Invalid Calls",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อผิดพลาดของ Tool แบ่งออกเป็น 2 ประเภทหลัก: 1) Execution Error คือตัว Tool ทำงานล้มเหลวเอง เช่น เรียก Weather API แล้วเจอ HTTP 500 ให้ส่ง Error Message กลับมาใน content พร้อมระบุ `is_error: true` เพื่อให้ Claude นำเหตุผลที่ล้มเหลวไปเรียบเรียงตอบ User 2) Invalid Call คือ Claude ส่ง Request ผิด Format เช่น ขาด Parameter บังคับ สาเหตุหลักมักมาจาก Tool Definition อธิบายได้ไม่ชัดเจนพอ การแก้ไขระหว่าง Development คือปรับ Description ให้ละเอียดขึ้น ส่วน Runtime สามารถส่งผลลัพธ์พร้อม `is_error` ระบุจุดที่มีปัญหา เพื่อให้ Claude พยายาม Retry ปรับแก้ข้อมูล 2–3 ครั้งก่อนยอมแพ้ ทั้งนี้ การใช้ Strict Tool Use จะช่วยป้องกัน Schema Violations ได้ตั้งแต่ก่อนเกิด Call"
+        }
+      ]
+    },
+    {
+      "heading": "4. Server Tools ในช่วง Runtime: pause_turn และ Mixed Turns",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Server Tools จะรัน Loop ภายใน Infrastructure ของ Anthropic เอง โดย Response จะแสดงเป็นบล็อก `server_tool_use` (ID ขึ้นต้นด้วย `srvtoolu_`) ตามด้วย Result Block ของมันทันที คุณไม่ต้องส่ง `tool_result` กลับไป และ Error ของ Server Tool จะถูกจัดการให้แบบ Transparent จึงไม่ต้องคอยดัก `is_error` เอง อย่างไรก็ตาม มี 2 กรณีที่สิทธิ์ควบคุมจะถูกส่งกลับมาที่คุณ: 1) Server Loop ชน Iteration Cap เมื่อ Claude ชนขีดจำกัดนี้ จะได้ Stop Reason เป็น `pause_turn` ให้ส่ง Response ที่ถูก Pause นั้นกลับไปทั้งก้อนแบบเดิม พร้อมชุด `tools` เดิม โดยอย่าลืมกำหนดเพดานรอบการทำงานต่อ (Continuations Cap) 2) กรณีที่ Claude เรียก Server Tool และ Client Tool พร้อมกันใน Parallel Group เดียวกัน คุณจะได้ `tool_use` ควบคู่กับบล็อก `server_tool_use` ที่ยังไม่มี Result แนบมา ในกรณีนี้ให้ส่งเฉพาะ `tool_result` ของฝั่ง Client Tool กลับไป และคง Parameter `tools` เดิมไว้ แล้ว API จะนำ Server Tool ที่รออยู่ไปรันต่อให้เอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? Server Tools จำเป็นต้องรับ tool_result จากฝั่งเรา และต้องจัดการ is_error เหมือนกับ Client Tools (ทำไมถึงผิด): ไม่จริง: API รัน Server Tools ให้เองเบ็ดเสร็จและแนบ Result Block มาใน Response ทันที รวมถึงจัดการ Error ให้อัตโนมัติแบบ Transparent\n\nคำถามหลอก / สิ่งที่มักเข้าใจผิด? เมื่อ Server Tool ยังไม่ได้รัน Response จะส่งกลับมาเป็น pause_turn เสมอ ทำให้เราต้องส่งซ้ำกลับไปแบบ as-is (ทำไมถึงผิด): ไม่จริง: หาก Claude มีการเรียกใช้ Client Tool ร่วมด้วยใน Turn เดียวกัน API จะคืนค่าเป็น tool_use โดยยังไม่รัน Server Tool คุณจะต้องดำเนินกระบวนการต่อด้วยการส่งเฉพาะ client tool_result blocks กลับไป"
+        }
+      ]
+    },
+    {
+      "heading": "5. Approval patterns: การตัดสินใจว่า Tool Call ใดสามารถรันได้",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude มีหน้าที่แค่ส่ง Request เท่านั้น แต่โค้ดของคุณคือส่วนที่รัน Client Tool จริงๆ ทำให้ Harness ของคุณเป็นจุดที่เหมาะสมที่สุดในการ Approve หรือ Block Tool Calls โดย Agent SDK รองรับสิ่งนี้ผ่าน Permission Modes, Hooks และ Declarative Allow/Deny Rules\n\nHooks ใช้รัน Custom Code เพื่อ Allow, Deny หรือแก้ไข Tool Request ส่วน Allow Rules เช่น `allowed_tools=[\"Read\", \"Grep\"]` จะทำหน้าที่ Auto-approve Tool ที่ระบุไว้เท่านั้น Tool ที่ไม่อยู่ในลิสต์ยังคงมีอยู่ แต่การเรียกใช้งานจะ Fall through ไปยัง Permission Mode และ `canUseTool` Callback\n\nในทางกลับกัน `disallowed_tools` จะทำงานต่างออกไป คือตัด Tool Definition ออกจาก Request โดยสิ้นเชิง และหากไม่มีขั้นตอนก่อนหน้าใดตัดสินใจ Tool Call นั้น `canUseTool` จะถามผู้ใช้ที่ Runtime"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การไม่ใส่ Tool ไว้ใน allowed_tools จะเป็นการ Block ไม่ให้ Claude ใช้งาน Tool นั้น? (ทำไมถึงผิด): ไม่จริง: allowed_tools มีหน้าที่แค่ Auto-approve เท่านั้น Tool ที่ไม่ได้ระบุไว้ยังคงมีอยู่และจะ Fall through ไปยัง Permission Mode และ canUseTool หากต้องการลบ Tool ออกไม่ให้ใช้งานได้ ต้องใช้ disallowed_tools"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55784",
+      "question": "การตรวจสอบด้านความปลอดภัย (Security review) กำหนดว่าต้องบล็อก Shell pattern ที่อาจเป็นอันตรายอย่าง `rm -rf *` เสมอ โดยไม่ขึ้นกับการตั้งค่าอื่นๆ รวมถึงการเปลี่ยนแปลง Permission mode ในอนาคต การตั้งค่ากฎ (Rule configuration) ใดตอบโจทย์ข้อกำหนดนี้ โดยอิงจากลำดับการประเมินสิทธิ์ (Permission evaluation order) ของ SDK ที่จัดการกับ Deny rules?",
+      "options": [
+        "เพิ่ม `\"Bash(rm -rf *)\"` ลงใน `disallowed_tools` เนื่องจาก Scoped deny rules จะถูกตรวจสอบก่อนขั้นตอน Permission-mode และจะบล็อก Call ที่ตรงกัน แม้ว่าจะอยู่ภายใต้ `bypassPermissions` ก็ตาม",
+        "เพิ่ม `\"Bash\"` (ชื่อ Tool แบบเปล่าๆ) ลงใน `disallowed_tools` เนื่องจากวิธีนี้จะบล็อกเฉพาะ Pattern ที่เป็นอันตราย และยังคงอนุญาตให้ใช้คำสั่ง Bash อื่นๆ ได้",
+        "เพิ่ม `\"Bash(rm -rf *)\"` ลงใน `allowed_tools` พร้อมระบุ Comment กำกับว่าเป็นคำสั่งต้องห้าม เนื่องจาก Allow rules จะถูกประเมินเป็นลำดับสุดท้าย และสามารถ Override การอนุมัติในภายหลังได้",
+        "กำหนด `permission_mode` เป็น `\"plan\"` เนื่องจาก Plan mode จะบล็อกคำสั่ง Bash ทั้งหมดอย่างถาวรในทุกๆ Session ถัดไป"
+      ],
+      "explanation": ""
+    }
+  ]
+}

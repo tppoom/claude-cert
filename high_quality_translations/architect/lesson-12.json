@@ -1,0 +1,228 @@
+{
+  "title": "การจัดสรร Context Window: องค์ประกอบที่ถูกนับและวิธีวัดผล",
+  "objectives": [
+    "ระบุทุกองค์ประกอบใน Request ที่นับรวมใน Context Window ของ Claude เพื่อคำนวณงบประมาณ Token รวม",
+    "คาดการณ์พฤติกรรมของ API เมื่อ Input เพียงอย่างเดียว หรือ Input รวมกับ max_tokens มีขนาดเกิน Context Window",
+    "อธิบายผลกระทบของ Thinking Blocks จาก Turn ก่อนหน้าต่อ Context และค่าใช้จ่าย (Billing) ในแต่ละโมเดล",
+    "วัดปริมาณ Context ที่ใช้ก่อนส่ง Request ด้วย Token Counting Endpoint และหลังส่ง Request จาก Usage Fields",
+    "เลือกเทคนิคการลด Context Cost ให้เหมาะสมกับ Agent ที่เน้นการเรียกใช้ Tools หนัก"
+  ],
+  "key_concept": "Context Window คือหนึ่งงบประมาณร่วม — Context Window ทำหน้าที่เป็น Token Budget เดียว โดย System Prompt, Tool Definitions, Message History ทั้งหมดรวมถึง Tool Results ตลอดจน Output และ Thinking ของ Turn ปัจจุบันล้วนใช้โควตานี้ร่วมกัน แม้ว่า Caching จะช่วยลดค่าใช้จ่ายของ Token เหล่านั้น แต่ก็ยังคงใช้พื้นที่ใน Context Window เช่นเดิม",
+  "sections": [
+    {
+      "heading": "1. What fills the context window",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Context Window คือ Working Memory ของโมเดลในแต่ละ Request โดยทุกสิ่งที่ Claude นำมาอ้างอิงเพื่อตอบคำถามรวมถึงคำตอบที่กำลัง Generate ล้วนอยู่ในนี้ทั้งหมด ฝั่ง Request จะประกอบด้วย System Prompt, ข้อความทั้งหมดใน messages (รวมถึง Tool Results, รูปภาพ และ Documents) ตลอดจน Tool Definitions นอกจากนี้ Output ที่ Claude สร้างใน Turn นั้น รวมถึง Extended Thinking ก็นับรวมด้วยเช่นกัน ให้มองว่าทั้งหมดนี้ใช้โควตา (Budget) ร่วมกัน เช่น หาก Tool Catalogue มีขนาด 30,000 Tokens โควตาสำหรับบทสนทนาก็จะลดลง 30,000 Tokens ทันที ไม่ว่าจะมีการเรียกใช้ Tool หรือไม่ก็ตาม"
+        },
+        {
+          "type": "table",
+          "caption": "ที่มาของ Tokens ในแต่ละ Request",
+          "headers": [
+            "Component",
+            "Counts toward the window?",
+            "Note"
+          ],
+          "rows": [
+            [
+              "System prompt",
+              "นับ",
+              "ถูกส่งไปในทุกๆ Request"
+            ],
+            [
+              "Tool definitions",
+              "นับ",
+              "กินพื้นที่เสมอ แม้ใน Turn นั้นจะไม่มีการเรียกใช้ Tool"
+            ],
+            [
+              "Messages, including tool results, images and documents",
+              "นับ",
+              "โตขึ้นเรื่อยๆ ทุก Turn เพราะเก็บ History ของ Turn ก่อนหน้าไว้ครบทั้งหมด"
+            ],
+            [
+              "Output for the turn, including extended thinking",
+              "นับ",
+              "ถูกจำกัดด้วย max_tokens สูงสุดได้ถึง 128k บนโมเดล 1M-window"
+            ],
+            [
+              "Cached prefix (cache_read_input_tokens, cache_creation_input_tokens)",
+              "นับ",
+              "Caching เปลี่ยนเฉพาะราคาของ Tokens แต่ยังคงถูกนับเข้า Context Window ตามปกติ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ปัจจุบันขนาดของ Window กว้างขึ้นมาก โมเดลอย่าง Claude Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.1 และรุ่นใหม่อื่นๆ มี Context Window ขนาด 1M Tokens และ Generate Output ได้สูงสุด 128k Tokens ต่อหนึ่ง Request ขณะที่โมเดลรุ่นเก่าอย่าง Claude Sonnet 4.5 (Deprecated) มีขนาด 200k โดยบนโมเดล 1M-window นั้น ค่า Default คือเปิดให้ใช้เต็ม Window และคิดเงินตาม Standard Pricing ยกเว้น Claude Haiku 5.5 ที่ Prompt เกิน 100,000 Tokens จะมีอัตราค่าบริการที่สูงขึ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Window ที่ใหญ่ขึ้นไม่ได้แปลว่าคุณควรยัดข้อมูลจนเต็ม เพราะ Accuracy และ Recall จะดร็อปลงเมื่อ Token Count เพิ่มขึ้น การคุม Token Budget ให้อยู่ต่ำกว่าเพดานจึงเป็นแนวทางที่เหมาะสม เนื้อหาใน [Context limits and context rot](lesson:5.2) จะอธิบายถึงการเสื่อมประสิทธิภาพนี้ ซึ่งในบทเรียนนี้ นี่คือเหตุผลสำคัญที่คุณต้องวัดขนาด Context และตัดทอน (Trim) ให้เรียบร้อยก่อนจะชน Hard Limit"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Cached prompt prefixes ไม่นับรวมใน Context Window เพราะอ่านมาจาก Cache? (ทำไมถึงผิด): ไม่จริง: การทำ Caching ช่วยแค่ลดต้นทุนค่า Tokens แต่ไม่ได้ลดจำนวนที่นับ ทั้ง cache_read_input_tokens และ cache_creation_input_tokens ยังคงกินพื้นที่ Context Window ตามปกติ"
+        }
+      ]
+    },
+    {
+      "heading": "2. What happens at the limit",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "API จะจัดการเคส Token ล้น (Overflow) แตกต่างกันเป็น 2 กรณี:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Input เพียงอย่างเดียวมีขนาดเกิน Window: ทุกโมเดลจะ Reject Request ทันทีด้วย 400 invalid_request_error (\"prompt is too long\") โดยไม่เริ่ม Generate ใดๆ\n- Input ไม่เกิน แต่ Input รวมกับ max_tokens มีขนาดเกิน Window: บน Claude 4.5 และรุ่นใหม่กว่า (รวมถึง Opus 4.8) ตัว API จะยอมรับ Request แต่หากการ Generate ไปชนขอบ Window พอดี โมเดลจะหยุดทำงานด้วย stop_reason: \"model_context_window_exceeded\" (ส่วนโมเดลรุ่นก่อนหน้านี้จะ Throw Validation Error เว้นแต่คุณจะใส่ Beta Header model-context-window-exceeded-2025-08-26)"
+        },
+        {
+          "type": "paragraph",
+          "text": "ไม่ว่าจะเกิดเคสไหน API จะไม่เข้ามาแก้ปัญหาแทนคุณ มันจะไม่ยอมดรอป Turn เก่าทิ้ง และไม่ยอมขยาย Window ให้ชั่วคราวเป็นราย Call แม้ว่า Chat UI อย่าง claude.ai จะจัดการ Window แบบ FIFO (First-In, First-Out) ให้อัตโนมัติ แต่การยิง API แบบ Raw จะเก็บ Turn ก่อนหน้าไว้ครบทั้งหมด หากโค้ดของคุณไม่ได้เช็กค่า stop_reason ระบบของคุณจะมองว่าคำตอบที่ถูก Truncate ขาดตอนนั้นเป็นคำตอบที่สมบูรณ์"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ถ้า Input รวมกับ max_tokens มีขนาดเกิน Window ตัว API จะ Reject ด้วย 400 เหมือนกับกรณีที่ Input ยาวเกินไป? (ทำไมถึงผิด): ไม่จริง: 400 Error จะเกิดขึ้นเมื่อเฉพาะตัว Input มีขนาดเกิน Window เท่านั้น แต่บน Claude 4.5 และรุ่นใหม่กว่า เคสที่ Input รวมกับ max_tokens เกิน Window ตัว API จะ Accept Request ตามปกติ และจะหยุด Generate พร้อมส่ง stop_reason เป็น model_context_window_exceeded เมื่อ Token ชนเพดาน Window"
+        }
+      ]
+    },
+    {
+      "heading": "3. การจัดการ Thinking Tokens ข้ามหลาย Turns",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Thinking tokens ดึงโควตาจาก 2 งบประมาณพร้อมกัน: ใน Turn ที่ถูกสร้างขึ้น Thinking จะนับรวมอยู่ใน max_tokens ถูกคิดเงินเป็น Output tokens และนับเข้า Rate limits ด้วย Adaptive thinking ตัว Claude จะตัดสินใจเองว่าจะคิดลึกแค่ไหน ปริมาณ Token จึงเปลี่ยนไปตามแต่ละ Request ส่วนใน Turn ถัดๆ ไป Thinking blocks จะถูกจัดการอย่างไร ขึ้นอยู่กับ Model family ที่ใช้"
+        },
+        {
+          "type": "table",
+          "caption": "พฤติกรรมการจัดการ Thinking blocks ก่อนหน้าใน Turn ถัดไป",
+          "headers": [
+            "Model family",
+            "Thinking blocks เดิมใน Turn ถัดไป",
+            "ผลกระทบต่อ Request ถัดไป"
+          ],
+          "rows": [
+            [
+              "Opus 4.5 ขึ้นไป, Sonnet 4.6 ขึ้นไป, Haiku 5.5, รุ่น Fable และ Mythos",
+              "Kept by default (เก็บไว้เป็นค่าเริ่มต้น)",
+              "นับรวมใน Context window และคิดเงินเป็น Input tokens เหมือน History ปกติ"
+            ],
+            [
+              "Opus และ Sonnet รุ่นก่อนหน้า, Haiku ทุกรุ่นจนถึง Haiku 4.5",
+              "API ตัดทิ้งให้อัตโนมัติเมื่อส่งกลับไป",
+              "ไม่นับรวมใน Context window และ Developer ไม่ต้องเขียนโค้ดลบออกเอง"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับโมเดลที่เก็บ Thinking ไว้ คุณจะเสียค่าใช้จ่าย 2 ต่อ: ต่อแรกคิดเป็น Output tokens ตอนถูกสร้าง และต่อที่สองคิดเป็น Input tokens ในทุกๆ Request ถัดไปที่ส่งต่อก้อนนี้ไปเรื่อยๆ หากเป็น Session ยาวระดับ 40 Turns ค่าใช้จ่ายจะพุ่งสูงมาก อย่างไรก็ตาม คุณสามารถใช้เทคนิค Thinking block clearing (มีสอนในบทเรียน Context editing) เพื่อ Override พฤติกรรมเริ่มต้นได้ตามต้องการ"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อมี Tool use จะมีกฎเหล็ก 1 ข้อ: เมื่อคุณส่ง Tool result กลับไป คุณ 'จำเป็น' ต้องแนบ Thinking block จาก Assistant turn นั้นกลับมาด้วยแบบสมบูรณ์ ห้ามแก้ไข และต้องมี Cryptographic signature ครบถ้วน นี่เป็นกรณีเดียวที่ API บังคับให้ส่ง Thinking block คืน หากบล็อกถูกดัดแปลง API จะพ่น Error ทันที แต่เมื่อจบลูป Tool use และเริ่ม User turn ใหม่แล้ว คุณไม่จำเป็นต้องเก็บ Thinking block นั้นไว้ใน Context อีกต่อไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "บางโมเดลสามารถรับรู้ Budget ของตัวเองได้ เช่น Claude Sonnet 5, Sonnet 4.6, Sonnet 4.5 และ Haiku 4.5 โดย API จะใส่ขนาดรวมของ Context window ไว้ในแท็ก <budget:token_budget> และส่งคำเตือนปริมาณที่เหลือหลังจาก Tool call แต่ละครั้ง เพื่อให้โมเดลจัดสรรการคิดในงานที่ยาวได้ ส่วน Opus 4.7 ขึ้นไป, Sonnet 5.5, Haiku 5.5 รวมถึงโมเดลตระกูล Fable และ Mythos จะไม่ได้แท็กเหล่านี้ แต่สามารถกำหนด Budget ชัดเจนได้ผ่านฟีเจอร์ Task budgets (Beta)"
+        }
+      ]
+    },
+    {
+      "heading": "4. การวัด Token ก่อนและหลังยิง Request",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การวัด Token ทำได้ 2 จุด: ก่อนเรียก API ใช้ Token counting endpoint ซึ่งรับ Structured input เหมือน Message request ทั่วไป (System prompt, Tools, รูปภาพ, ไฟล์ PDF) แล้ว Return จำนวน Input tokens ออกมา และหลังเรียก API ดูจากฟิลด์ usage ใน Response เพื่อดูปริมาณที่ใช้จริง ทั้งนี้ เมื่อเปิด Prompt caching ตัว Input จะถูกแยกเป็น input_tokens, cache_read_input_tokens และ cache_creation_input_tokens โดยทั้ง 3 ตัวนี้นับรวมเข้า Context window ทั้งหมด หาก Dashboard ของคุณบวกเฉพาะ input_tokens จะทำให้เห็นตัวเลขการใช้ Context ต่ำกว่าความเป็นจริงอย่างมาก"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อจำกัดสำคัญของ Token counting endpoint (Pre-counting) ที่ควรรู้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- จะคืนค่า invalid_request_error เมื่อใช้กับ Server tools เช่น Web search และ Code execution, MCP connector รวมถึงรูปภาพหรือเอกสารที่ระบุ Source เป็น url หรือ file (หากต้องการนับ Token ของรูปภาพและ PDF ให้ส่งแบบ base64 ส่วน Server tools ให้อ่านจาก usage object บน Response จริงเท่านั้น)\n- ให้ค่าประมาณการโดยไม่คิด Cache logic: ส่ง cache_control ได้แต่ไม่มีผลต่อการคำนวณ\n- คำนวณตาม Tokenizer ของโมเดลที่ส่งไป: โมเดล Fable และ Mythos ใช้ Tokenizer ใหม่ของ Opus 4.7 ซึ่งจะนับ Token ได้มากกว่าโมเดลรุ่นก่อน Opus 4.7 ราวๆ 30% ดังนั้นก่อนย้ายโมเดล ควรนับ Request เดียวกันบนทั้งสองโมเดลเพื่อเทียบปริมาณก่อน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Endpoint นี้ใช้งานได้ฟรี แต่มี Rate limits แบบ Requests-per-minute (RPM) ตาม Usage tier (เช่น 5,000 RPM ที่ระดับ Start tier)"
+        }
+      ]
+    },
+    {
+      "heading": "5. การลด Context Cost ที่เกิดจาก Tools",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ในระบบ Agents โควตา Context Window ส่วนใหญ่มักหมดไปกับ Tools เพราะ Tool Definitions ต้องถูกส่งไปในทุก Request แถมผลลัพธ์ tool_result แต่ละครั้งยังค้างอยู่ใน History อีกด้วย ทั้ง 4 เทคนิคต่อไปนี้จะแก้ปัญหา Context Pressure จากต้นตอที่ต่างกัน ดังนั้นควรเริ่มจากการวิเคราะห์ก่อนว่า Tokens ของคุณหมดไปกับจุดไหน"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือกใช้เทคนิคให้ตรงกับปัญหา Tool Context Pressure",
+          "headers": [
+            "Technique",
+            "สิ่งที่ช่วยลด",
+            "สถานการณ์ที่เหมาะสม"
+          ],
+          "rows": [
+            [
+              "Tool search",
+              "Tool Definitions ที่ต้องโหลดล่วงหน้าทั้งหมด",
+              "มี Toolset ขนาดใหญ่ (20+ Tools) ซึ่งส่วนใหญ่ไม่ได้ถูกเรียกใช้ในทุก Turn"
+            ],
+            [
+              "Programmatic tool calling",
+              "Roundtrips ของ tool_result",
+              "Tool Calls ที่ทำงานต่อเนื่องเป็นลูกโซ่และสามารถรวมเป็น Script เดียวได้"
+            ],
+            [
+              "Prompt caching",
+              "Token Cost จากการส่ง Tool Definitions ซ้ำๆ",
+              "Toolset มีขนาดคงที่ ไม่เปลี่ยนแปลงตลอดหลาย Request"
+            ],
+            [
+              "Context editing",
+              "บล็อก tool_result เก่าที่ตกค้างใน History",
+              "บทสนทนายาวๆ ที่ผลลัพธ์จากช่วงแรกไม่มีความสำคัญแล้ว"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น Agent ที่มี 45 Tools: แทนที่จะส่ง Schema ทั้งหมดไปตั้งแต่แรก เทคนิค Tool Search จะส่งแค่ `tool_search` เพียงตัวเดียว เพื่อให้ Claude ค้นหา Tool อื่นเมื่อจำเป็น วิธีนี้ยอมแลก Latency เพิ่มขึ้น 1 Turn แต่ช่วยลด Baseline Definition Load ไปได้มหาศาล ส่วนการเรียกใช้งานย่อยๆ แบบเรียงลำดับ ให้ใช้ Programmatic Tool Calling โดยให้ Claude เขียน Chain นั้นเป็นโค้ดก้อนเดียวไปรันใน Sandbox ผลลัพธ์ระหว่างทาง (Intermediate Results) จึงไม่ต้องถูกส่งกลับเข้า Conversation เลย สำหรับ Definitions ส่วนที่จำเป็นต้องส่ง ก็สามารถใช้ Caching เพื่อจ่ายเฉพาะเรต Cache-Read ได้ แต่พึงระวังว่า Caching แค่ทำให้ค่า Definition ถูกลง ไม่ได้ช่วยลดพื้นที่ใน Window แต่อย่างใด"
+        },
+        {
+          "type": "paragraph",
+          "text": "มีหลายวิธีที่ฟังดูดีแต่แก้ไม่ตรงจุด เช่น การเปลี่ยนไปใช้ Model 1M Tokens, การเพิ่ม `max_tokens` หรือการย่นชื่อ Tool ให้สั้นลง วิธีเหล่านี้ไม่ได้ช่วยลด Definition Load, Roundtrips หรือต้นทุนที่ต้องจ่ายซ้ำเลย แถม Window ขนาดใหญ่ที่อัดแน่นไปด้วย Tools เดิมๆ ก็ยังหนีไม่พ้นปัญหา Context Rot อยู่ดี อีกแนวทางหนึ่งคือการแก้เชิงสถาปัตยกรรม: ให้มอบหมายงานค้นหาที่ต้องใช้บริบทเยอะๆ ให้กับ Subagent แยก Window ทำงานไปต่างหาก แล้วส่งกลับมาเฉพาะคำตอบที่สรุปแล้วเข้า Main Thread ดูรายละเอียดเพิ่มเติมได้ที่ [Coordinator pattern and isolated subagent context](lesson:1.4)"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56731",
+      "question": "นักพัฒนายิง Request ไปยัง Claude Opus 4.8 โดยจำนวน input tokens เพียงอย่างเดียวยังอยู่ใน context window ของโมเดลได้อย่างสบาย แต่เมื่อรวม input tokens กับ max_tokens ที่ระบุแล้วกลับเกินขนาด context window ทาง API จะตอบสนองอย่างไร?",
+      "options": [
+        "API จะยอมรับ Request และหากการ Generate ไปถึงขีดจำกัดของ context window โมเดลจะหยุดการทำงานก่อนกำหนด พร้อมตั้งค่า stop_reason เป็น model_context_window_exceeded",
+        "API จะส่งค่า 400 invalid_request_error กลับมาทันทีก่อนที่การ Generate จะเริ่มขึ้น แบบเดียวกับกรณีที่ input tokens เพียงอย่างเดียวเกิน context window",
+        "API จะตัดเทิร์นการสนทนาที่เก่าที่สุดออกจาก conversation history ให้โดยอัตโนมัติ เพื่อให้ Request ที่เหลือพอดีกับ context window",
+        "API จะขยายขนาด context window สำหรับ Request นั้นโดยอัตโนมัติ เพื่อรองรับค่า max_tokens ที่ระบุไว้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56734",
+      "question": "ระบบ Agent ใน Production มีการเรียกใช้ Tool ถึง 45 รายการตลอดการสนทนาที่ยาวนาน ทีมงานพบต้นตอของค่าใช้จ่าย (Cost) 3 ส่วน ได้แก่: นิยาม tool schema กิน context ในทุกๆ Request แม้ว่า Tool ส่วนใหญ่จะไม่ได้ถูกเรียกใช้ในเทิร์นนั้น, มีการเรียก Tool เล็กๆ ต่อเนื่องกันหลายครั้งทำให้มี tool_result ตกค้างใน History จำนวนมาก, และนิยาม Tool แบบเดิมที่ไม่มีการเปลี่ยนแปลงถูกส่งซ้ำและคิดราคาเต็มใหม่ทุก Request การปรับเปลี่ยนข้อใดที่แก้ปัญหาต้นตอทั้ง 3 นี้ได้โดยตรง?",
+      "options": [
+        "เปิดใช้งาน tool search tool เพื่อให้โหลด Schema แบบ on-demand แทนที่จะส่งไปทั้งหมดตั้งแต่แรก",
+        "ใช้ Programmatic Tool Calling เพื่อให้ Tool Call ต่อเนื่องทำงานเป็นสคริปต์เดียวแทนการวนหลาย Roundtrips",
+        "นำ Prompt Caching มาใช้กับนิยาม Tool ที่คงที่ เพื่อให้ Request ซ้ำๆ จ่ายค่าบริการในอัตรา Cache-read ที่ถูกลง",
+        "เพิ่ม max_tokens ในทุก Request เพื่อให้มี Budget ของ Response มากขึ้นสำหรับ Tool Output",
+        "เปลี่ยนไปใช้โมเดลที่มี 1M-token context window โดยไม่เปลี่ยนรายการ Tool ที่ลงทะเบียนไว้",
+        "ย่อชื่อ Tool ให้สั้นลงด้วยตนเองเพื่อประหยัดจำนวนตัวอักษรเล็กน้อยต่อ Schema ในชุด Tool"
+      ],
+      "explanation": ""
+    }
+  ]
+}

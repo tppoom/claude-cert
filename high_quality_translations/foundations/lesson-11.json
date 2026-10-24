@@ -1,0 +1,132 @@
+{
+  "title": "การเรียกใช้งาน Claude API: รูปแบบ REST, JSON และ Sync vs Async",
+  "objectives": [
+    "อธิบายการเรียก Messages API ผ่าน HTTPS POST รับ-ส่งข้อมูลแบบ JSON พร้อมระบุ Headers ที่ SDK จัดการให้อัตโนมัติ",
+    "เลือกใช้ Blocking call, Async client, Streaming หรือ Submit-and-poll ให้เหมาะกับลักษณะ Workload",
+    "บันทึกและจัดเก็บประวัติ Conversation เป็น JSON ในระบบ Storage ของตนเองระหว่างแต่ละ Request",
+    "อธิบายเหตุผลที่ Network call เหมาะกับการทำ Asynchronous programming พร้อมวิธีป้องกัน Shared-state race conditions ระหว่าง Coroutines ที่เรียก API"
+  ],
+  "key_concept": "One request, several ways to wait — ทุกรูปแบบส่ง JSON Messages request เดียวกันและได้รับ Message object กลับมาเหมือนกัน ความแตกต่างระหว่าง Blocking, Async, Streaming และ Submit-and-poll อยู่ที่วิธีที่ Code รอรับผลลัพธ์ ดังนั้นจึงควรเลือกใช้ตาม Latency และรูปแบบของ Workload ไม่ใช่ตามโครงสร้างของ Response",
+  "sections": [
+    {
+      "heading": "1. Messages API ในฐานะ REST Endpoint ที่สื่อสารด้วย JSON",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเรียกใช้งาน Claude คือ REST call ทั่วไป จึงใช้ Conventions เดียวกับที่ Service อื่นๆ ใช้งาน โดย API ให้บริการผ่าน https://api.anthropic.com และส่ง Request การสนทนาผ่าน POST /v1/messages ทุก Request ต้องส่ง Body เป็น JSON พร้อม Header content-type: application/json, anthropic-version (เช่น 2023-06-01) และส่ง Credential ทาง Authorization: Bearer <token> (หรือใช้ Header เดิมอย่าง x-api-key เป็น Fallback ได้)"
+        },
+        {
+          "type": "paragraph",
+          "text": "Official SDKs จะจัดการตั้งค่า Authentication, Version และ Content-Type Header ให้อัตโนมัติ พร้อมทั้งมี Typed Requests/Responses, Built-in Retries, Streaming Support และ Request Timeouts ให้ในตัว หากใช้ Raw HTTP Client จะต้องเขียน Logic เหล่านี้จัดการเองทั้งหมด Header เดียวที่ต้องส่งเองคือ anthropic-workspace-id ในกรณีที่ API Key ครอบคลุมมากกว่า 1 Workspace"
+        },
+        {
+          "type": "paragraph",
+          "text": "เนื่องจาก API ไม่เก็บ State ของบทสนทนา (Stateless) Service ฝั่ง Client จึงต้องเป็นผู้จัดเก็บ History เอง และส่งประวัติการสนทนาทั้งหมดแนบไปกับทุก Request ในทางปฏิบัติ ให้เก็บ messages array ในรูปแบบ JSON ธรรมดา เป็นรายการของ Object {\"role\", \"content\"} ลงใน Database หรือ Session Store โดยผูกตาม ID ของ Conversation จากนั้นโหลดขึ้นมา ต่อ User Turn ใหม่เข้าไป ส่ง Request แล้วนำ Response จาก Assistant บันทึกกลับลงไป โดยข้อความก่อนหน้าไม่จำเป็นต้องมาจาก Claude เสมอไป สามารถรวมข้อความ Assistant ที่เขียนจำลองขึ้นมาเอง (Synthetic Messages) ได้ด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "ประวัติการสนทนาที่บันทึกไว้จะขยายขนาดขึ้นในทุกๆ Turn ขณะที่ Request Size มีการจำกัดขนาด โดย Messages API และ Token Counting จำกัดขนาด Request สูงสุดไม่เกิน 32 MB หากเกินจะส่งผลให้ติด Error 413 request_too_large สำหรับ Chat ที่ทำงานต่อเนื่องยาวนานและเก็บทุก Turn ไว้ตลอด จะชน Limit นี้ในที่สุด จึงต้องออกแบบกลยุทธ์การ Trim History ไว้ล่วงหน้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "REST call จะใช้เวลาส่วนใหญ่ไปกับการรอ Network I/O การเขียนโปรแกรมแบบ Asynchronous จึงช่วยให้โปรแกรมนำเวลาระหว่างที่รอนี้ไปประมวลผลงานอื่นแทนที่จะบล็อกการทำงาน โดยการใช้ Async Client เช่น await client.messages.create(...) จะ Suspend เฉพาะ Coroutine ปัจจุบัน ทำให้ Event Loop สลับไปรัน Coroutine อื่นได้จนกว่า Response จะตอบกลับมา ทั้งนี้ Request Body และ Message Object ที่ได้จะเหมือนกับการเรียกแบบ Blocking ทุกประการ ต่างกันเพียงแค่วิธีการ Schedule เวลารอเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำงานแบบ Interleaving แฝงความเสี่ยงที่โค้ดแบบ Blocking ไม่มี คือเมื่อ Coroutines สลับการทำงานพร้อมกัน และมี API Calls หลายตัวพยายาม Append ข้อมูลลง List หรือ Dict เดียวกัน อาจทำให้ข้อมูลพังจาก Race Condition ของ Shared Mutable State ได้ วิธีแก้คือให้แต่ละ Coroutine คืนค่าผลลัพธ์ของตัวเองออกมา แล้วค่อยนำมารวมกันภายหลัง แทนที่จะแก้ไข Shared State จากภายใน Call นอกจากนี้ API ยังรองรับงานแบบ Asynchronous ในระดับ Endpoint ผ่าน Message Batches API ซึ่งจะรับ Request เข้ามาก่อนและประมวลผลในภายหลัง โดย HTTP Response จะส่งกลับมาเพียงเพื่อยืนยันการรับงานเท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "API จดจำประวัติก่อนหน้าได้ จึงส่งเฉพาะ User Message ล่าสุดในแต่ละ Request ก็พอ? (ทำไมถึงผิด): ไม่จริง: Messages API เป็น Stateless อย่างสมบูรณ์ ไม่มีการเก็บ State ฝั่ง Server ตัว Service ของคุณต้องเป็นผู้จัดเก็บ Conversation History เอง และส่งประวัติการสนทนาทั้งหมดแนบไปในทุก Request"
+        }
+      ]
+    },
+    {
+      "heading": "2. Blocking Calls และ Async Client",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Pattern พื้นฐานที่สุดคือ Blocking Call โดยการเรียก client.messages.create(...) บน Synchronous Client ของ Anthropic จะรอจนกว่า Claude จะประมวลผลเสร็จ แล้วจึง Return Message ออกมา เหมาะสำหรับ Scripts, CLI Tools และ Worker Processes ที่ประมวลผลทีละ Request ซึ่ง Thread ไม่จำเป็นต้องสลับไปทำงานอื่นระหว่างรอ Response"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Service ที่ทำงานบน Event Loop จำเป็นต้องใช้ Async Client เพราะ Blocking Call จะไปบล็อกทุก Coroutine ขณะที่รอ Network Response ตัว Python SDK มีคลาส AsyncAnthropic ที่มี Method messages.create ให้ใช้งานด้วยการ await ภายใน async function ซึ่ง Request Body และ Message ที่ได้รับยังคงเหมือนเดิมทุกอย่าง แตกต่างเพียงแค่โค้ดจะ Yield Control ขณะรอ นอกจากนี้ Async Client ยังสามารถสลับไปใช้ aiohttp เป็น HTTP Backend แทนค่า Default ได้ หากต้องการ Throughput ที่สูงขึ้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. Streaming เมื่อผลลัพธ์มีความยาว หรือมีผู้ใช้งานกำลังรอหน้าจอ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Streaming อยู่กึ่งกลางระหว่าง Blocking call กับ Background job โดย Response จะทยอยส่งมาเป็นชิ้นๆ ผ่าน HTTP connection เดียวที่เปิดค้างไว้ (ตามที่อธิบายใน [Streaming over server-sent events](lesson:5.2)) เหมาะสำหรับ 2 กรณี: กรณีแรกคือมีคนกำลังรอ การแสดงข้อความทันทีที่ได้รับจะช่วยให้รู้สึกว่าระบบตอบสนองเร็วขึ้น ส่วนกรณีที่สองคือ Response มีขนาดยาวมากจนการเชื่อมต่อที่เงียบไปอาจติด HTTP timeout ซึ่งในกรณีนี้ SDK จะบังคับให้ใช้ Streaming แม้ว่าคุณจะไม่ต้องการ Partial text ก็ตาม"
+        },
+        {
+          "type": "paragraph",
+          "text": "Streaming ยังเปลี่ยนรูปแบบการจัดการข้อผิดพลาดด้วย ปัญหาที่ Blocking call เคยรายงานเป็น HTTP status code อาจถูกส่งมาเป็น Error event กลางทางระหว่างสตรีม กรณีที่พบบ่อยคือ Overload ซึ่งจะได้รับเป็น `overloaded_error` event แทนที่จะเป็น HTTP 529 ดังนั้น Error handling ที่ดักจับเฉพาะ Initial HTTP response จะตรวจไม่พบข้อผิดพลาดนี้ ทั้งนี้ Python SDK รองรับทั้งแบบ Sync และ Async streams จึงใช้งานร่วมกับ Client รูปแบบใดก็ได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Streaming ใช้สำหรับ UI เท่านั้น และ Backend job ที่ต้องการผลลัพธ์ทั้งก้อนควรใช้ Blocking call เสมอหรือไม่? (ทำไมถึงผิด): ไม่จริง: เมื่อกำหนดค่า `max_tokens` ขนาดใหญ่ SDK จำเป็นต้องใช้ Streaming เพื่อหลีกเลี่ยง HTTP timeouts และยังสามารถเรียก `get_final_message()` บน Stream เพื่อรับออบเจกต์ Message ที่สมบูรณ์ได้เช่นกัน"
+        }
+      ]
+    },
+    {
+      "heading": "4. Submit-and-poll สำหรับงานเบื้องหลังที่ไม่มีใครมารอผลลัพธ์",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Submit-and-poll ช่วยแยกการส่ง Request ออกจากการดึงผลลัพธ์ โดยคุณส่ง Job เข้าไป รับ ID กลับมา แล้วค่อย Query เช็คสถานะภายหลัง ตัวอย่างมาตรฐานคือ Message Batches API ซึ่งรองรับการประมวลผลคำขอปริมาณมากแบบ Asynchronous ในราคาที่ประหยัดกว่า (รายละเอียดราคาและขีดจำกัดดูได้ที่ [Message Batches API and realtime vs batch](lesson:2.3)) ในมุมของการเขียนโค้ด ให้สังเกตสถานะ: Batch จะเริ่มต้นด้วย `processing_status` เป็น `in_progress` และเปลี่ยนเป็น `ended` เมื่อทุก Request ประมวลผลเสร็จสิ้นและผลลัพธ์พร้อมใช้งาน"
+        },
+        {
+          "type": "paragraph",
+          "text": "รูปแบบ Polling มีข้อพึงระวัง: Job ID จะต้องคงอยู่ต่อไปแม้ Process ที่ส่ง Job ไปจะจบการทำงานแล้ว จึงควรบันทึก Batch ID ควบคู่กับข้อมูลอ้างอิงของระบบคุณ จากนั้นจึงรัน Poller แยกเป็น Scheduled job ได้อย่างปลอดภัย แม้ Service จะ Restart งานก็ไม่สูญหาย ควรเลือกใช้ Pattern นี้เมื่อเน้น Throughput และ Cost มากกว่า Latency เช่น งานจำแนกข้อมูลประจำคืน (Nightly classification) หรืองาน Evaluation และหลีกเลี่ยงเมื่อมีผู้ใช้งานกำลังรอคำตอบแบบ Real-time"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือก Call Pattern ตามลักษณะของ Workload",
+          "headers": [
+            "Pattern",
+            "รูปแบบที่โค้ดรอรับผลลัพธ์",
+            "เหมาะสำหรับกรณีใด"
+          ],
+          "rows": [
+            [
+              "Blocking messages.create",
+              "Thread จะบล็อกเพื่อรอ Message ที่สมบูรณ์ทั้งก้อน",
+              "Scripts และ Worker ที่รันทีละ Request"
+            ],
+            [
+              "AsyncAnthropic + await",
+              "Coroutine จะ Yield คืนสิทธิ์ระหว่างที่ Request กำลังส่ง",
+              "Services ที่ทำงานอยู่บน Event loop"
+            ],
+            [
+              "messages.stream",
+              "รับ Events ต่อเนื่องผ่าน Connection เดียวที่เปิดค้างไว้",
+              "มีผู้ใช้รออ่านข้อความ หรือเมื่อตั้ง max_tokens ขนาดใหญ่จนเสี่ยง Timeout"
+            ],
+            [
+              "Message Batches (submit-and-poll)",
+              "บันทึก ID ไว้ แล้วค่อยเช็ค processing_status ภายหลัง",
+              "งานปริมาณมหาศาล (Large volumes) ที่ไม่มีใครรอผลลัพธ์แบบเดี่ยวๆ ทันที"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55418",
+      "question": "วิศวกรต้องการประมวลผล support ticket จำนวน 50,000 รายการในรอบดึกผ่าน Claude เพื่อสร้าง label การจัดหมวดหมู่ โดยแต่ละ ticket เป็นอิสระต่อกัน ไม่ติดปัญหาเรื่อง latency ตราบใดที่เสร็จก่อนเช้าวันถัดไป และทีมต้องการลดค่าใช้จ่ายให้ได้มากที่สุด วิธีการใดเหมาะสมที่สุดสำหรับ workload แบบ asynchronous นี้?",
+      "options": [
+        "ส่ง ticket ผ่าน Batch API ซึ่งประมวลผล request อิสระจำนวนมากแบบ asynchronous โดยมีค่าใช้จ่ายถูกกว่า synchronous call ปกติประมาณครึ่งหนึ่ง",
+        "เปิดการเชื่อมต่อ streaming Messages API ค้างไว้ข้ามคืน แล้วส่งแต่ละ ticket เข้าไปตามลำดับใน conversation turn เดียวกัน",
+        "เรียกใช้ standard synchronous Messages API ใน loop แบบถี่ๆ โดยไม่จำกัด concurrency เพราะการเรียกแบบ sequential จำนวน 50,000 ครั้งจะเสร็จก่อนเช้าแน่นอนไม่ว่าจะคิดค่าบริการอย่างไร",
+        "ใช้ฟีเจอร์ session resume ของ Agent SDK เพื่อ reprocess session id เดิมซ้ำในทุก ticket เพื่อไม่ให้มีการคิดค่าบริการ request ใหม่"
+      ],
+      "explanation": ""
+    }
+  ]
+}

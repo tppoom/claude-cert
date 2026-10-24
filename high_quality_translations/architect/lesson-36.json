@@ -1,0 +1,251 @@
+{
+  "title": "Human Approval Checkpoints ใน Claude Code และ Agent SDK",
+  "objectives": [
+    "เลือก Claude Code Permission Mode ให้สอดคล้องกับระดับการควบคุมและการอนุมัติของ Human",
+    "ระบุ Checkpoints ที่ต้องผ่านการอนุมัติจาก Human เสมอในทุก Permission Mode",
+    "Trace เส้นทาง Tool Call ผ่าน Hooks, Deny Rules, Ask Rules, Permission Mode, Allow Rules และ canUseTool พร้อมวิเคราะห์ลำดับขั้นในการตัดสินใจ",
+    "Implement canUseTool Callback เพื่อส่งผลการอนุมัติ (Approval), การปรับเปลี่ยนคำสั่ง (Changes) หรือการปฏิเสธ (Refusal) จาก Human กลับไปยัง Claude"
+  ],
+  "key_concept": "Human Approval Checkpoint — จุดหยุดชะงักใน Permission Pipeline ที่ Tool Call จะหยุดรอจนกว่า Human จะอนุมัติ, ปรับเปลี่ยน หรือปฏิเสธ โดย Checkpoint นี้จะมีผลก็ต่อเมื่อไม่มีขั้นตอนก่อนหน้าอนุมัติหรือปฏิเสธคำสั่งนั้นไปก่อน",
+  "sections": [
+    {
+      "heading": "1. ทำไม Agent จึงต้องมีจุดตรวจขออนุมัติจากมนุษย์ (Human Approval Checkpoints)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Agent ที่สามารถรัน Shell Commands, แก้ไขไฟล์ หรือเรียก External Services อาจทำสิ่งที่ไม่ตรงกับความตั้งใจของผู้ใช้ บันทึกเหตุการณ์ (Incident Log) ของ Anthropic พบกรณีจริง เช่น การลบ Git Branch บน Remote หลังอ่านคำสั่งผิด, การเผลออัปโหลด GitHub Auth Token ของวิศวกรขึ้น Compute Cluster หรือพยายามรัน Migration ใส่ Production Database ปัญหาเหล่านี้ไม่ได้เกิดจากความมุ่งร้าย แต่เป็นเพราะ Model กระตือรือร้นเกินไปและริเริ่มทำสิ่งที่ผู้ใช้ไม่ได้อนุมัติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Human-in-the-loop คือการดึงมนุษย์เข้ามาคั่นกลางระหว่าง Agent กับ Actions เหล่านั้น ความท้าทายในการออกแบบคือการวางจุดตรวจให้พอดี หากขออนุมัติทุก Action ผู้ใช้จะเลิกอ่าน Prompt (สถิติพบว่าผู้ใช้ Claude Code กดยอมรับถึง 93%) แต่หากไม่ขอเลย ก็จะไม่มีใครดักจับ Branch ที่ถูกลบได้ การออกแบบที่ดีจึงควรปล่อยให้คำสั่ง Read และ Edit ทั่วไปทำงานได้โดยไม่ต้องถาม แล้วเก็บความสนใจของมนุษย์ไว้เฉพาะ Actions ที่ย้อนคืนไม่ได้ (Irreversible), แตะต้อง Shared Infrastructure หรือส่งข้อมูลออกนอกองค์กร"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude รองรับการควบคุมนี้ 3 รูปแบบ: Claude Code ใช้ Permission Modes, Agent SDK ใช้ Callback canUseTool ให้ Application เป็นผู้ตอบ และ Managed Agents ใช้ Permission Policies เพื่อ Pause Session จนกว่า Client จะยืนยัน ทั้งสามส่วนตอบคำถามเดียวกันคือ Calls ใดรันได้เอง และ Calls ใดต้องรอมนุษย์อนุมัติ"
+        }
+      ]
+    },
+    {
+      "heading": "2. Permission Modes: ระดับการ Review ของมนุษย์",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Permission Mode เป็นตัวกำหนดระดับพื้นฐานว่ามนุษย์ต้อง Review มากน้อยเพียงใด ใน Claude Code สามารถสลับ Mode ด้วย Shift+Tab บน CLI ส่วนใน SDK ให้กำหนดผ่าน permissionMode ยิ่งเปลี่ยนจาก default ไปเป็น bypassPermissions สิทธิ์การตัดสินใจจะถูกดึงออกจากมนุษย์มากขึ้นเรื่อยๆ"
+        },
+        {
+          "type": "table",
+          "caption": "การทำงานแบบไม่ต้องขออนุมัติในแต่ละ Permission Mode ของ Claude Code และกรณีการใช้งานที่เหมาะสม",
+          "headers": [
+            "Mode",
+            "What runs without asking",
+            "Best for"
+          ],
+          "rows": [
+            [
+              "default",
+              "อ่านไฟล์อย่างเดียว (Reads only)",
+              "ต้องการ Review ทุก Action ด้วยตนเอง หรืองานที่มีความละเอียดอ่อนสูง"
+            ],
+            [
+              "acceptEdits",
+              "อ่านไฟล์, แก้ไขไฟล์ และคำสั่ง Filesystem พื้นฐาน (mkdir, touch, mv, cp ฯลฯ)",
+              "การพัฒนาโค้ดแบบ Iterative ที่คุณคอย Review ไปด้วย"
+            ],
+            [
+              "plan",
+              "อ่านไฟล์ พร้อมคำสั่งที่ผ่านการอนุมัติจาก Classifier (เมื่อเปิดใช้ Auto Mode)",
+              "สำรวจและทำความเข้าใจ Codebase ก่อนลงมือแก้จริง"
+            ],
+            [
+              "auto",
+              "ทำงานได้ทุกอย่าง โดยมี Background Safety Checks คอยตรวจสอบเบื้องหลัง",
+              "งานระยะยาว (Long tasks) เพื่อลดปัญหา Prompt Fatigue"
+            ],
+            [
+              "dontAsk",
+              "อ่านไฟล์เฉพาะใน Working Directories และ Tools ที่ Pre-approved ไว้เท่านั้น หากเป็น Action ที่ต้องขึ้น Prompt ถาม จะถูกปฏิเสธ (Denied) ทันที",
+              "สภาพแวดล้อม CI และ Scripts ที่ต้องการความปลอดภัยสูงสุดแบบอัตโนมัติ"
+            ],
+            [
+              "bypassPermissions",
+              "ทำงานได้ทุกอย่างโดยไม่ถาม",
+              "Isolated Containers และ VMs เท่านั้น"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "มี 2 Modes ที่ให้การควบคุมแบบ Human-in-the-loop ต่างกันและมักสับสนกันบ่อย: Mode plan เปิดให้ Claude ค้นหาและวิเคราะห์ได้อิสระ แต่จะไม่แตะต้อง Source Files จนกว่าจะมีคนอนุมัติ โดย Claude Code จะบล็อกการแก้ไขจนกว่าคุณจะ Approve ตัว Plan ส่วน Mode dontAsk ถูกออกแบบมาสำหรับ Run งานโดยไม่มีมนุษย์เฝ้า โดยจะเปลี่ยนทุกคำสั่งที่ต้อง Prompt ถามให้กลายเป็น Denied ทันที เพื่อป้องกันไม่ให้ CI Job ค้างรอคำตอบที่ไม่มีคนตอบ อย่างไรก็ตาม Calls ที่ได้รับอนุมัติผ่าน allowedTools หรือ Allow Rules จะยังคงรันได้ปกติ ใน SDK ตัว canUseTool จะไม่ถูกเรียกเลยใน Mode นี้ เช่นเดียวกับการรันแบบ Headless ด้วย --dangerously-skip-permissions คำสั่งส่วนน้อยที่ยังต้องถามก็จะถูก Denied แทนเช่นกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน Auto Mode จะมี Model-based Classifier ทำหน้าที่แทนมนุษย์ โดยจะตรวจสอบก่อนรัน Shell Commands และ Network Requests ว่าตรงกับ Intent ที่ผู้ใช้สั่งหรือไม่ ตัวนี้ถูกออกแบบมาเพื่อแก้ปัญหา Approval Fatigue โดยไม่ได้ตัดมนุษย์ออกไปทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทั้งนี้ มีบาง Actions ที่ต้องส่งถึงมนุษย์เสมอในทุก Mode รวมถึง Auto และ bypassPermissions (ซึ่งข้าม Prompt เกือบหมด ยกเว้น Actions พิเศษที่ไม่มี Mode ใด Auto-approve ได้) ได้แก่:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Tools ที่ตรงกับ Ask Rule ที่กำหนดไว้ชัดเจน\n- Connector Tools ที่องค์กรตั้งค่าให้เป็น Ask (ใน Sessions ที่ Setting มีผลถึง Claude Code)\n- Tools ที่ต้องอาศัย User Interaction เช่น AskUserQuestion ในตัว และ MCP Tools ที่ติด Flag requiresUserInteraction\n- คำสั่ง rm และ rmdir ที่พุ่งเป้าไปยัง Critical Path\n- กลไกป้องกันความปลอดภัยของการรับส่งข้อความข้าม Sessions (Cross-session messaging safeguards)"
+        },
+        {
+          "type": "paragraph",
+          "text": "Ask Rules จัดอยู่ในกลุ่มดังกล่าว สรุปคือ Ask Rule เป็นการระบุ Tool หรือ Command Pattern ที่ต้อง Prompt ถามเสมอ (ดู [Permission rules: allow, ask and deny](lesson:7.1)) ทำให้ Ask Rule เป็น Checkpoint ที่ยังคงทำงานแม้จะมีการสลับ Mode นอกจากนี้ Feedback ที่ผู้ใช้ตอบกลับก็มีความสำคัญ ผู้ใช้สามารถใส่ Comment แนบไปกับ Prompt ได้ หากเลือก Yes ตัว Claude Code จะรัน Action นั้นแล้วส่ง Comment ให้ Claude ทราบ แต่หากเลือก No ตัว Comment จะถูกส่งให้ Claude เป็นเหตุผลของการปฏิเสธเพื่อนำไปปรับการทำงานต่อ การเลือก No โดยไม่ใส่ Comment ใน Main Conversation Prompt จะเป็นการหยุด Turn การทำงานทันที"
+        },
+        {
+          "type": "exam_trap",
+          "text": "สิ่งที่มักเข้าใจผิดในข้อสอบ? (ทำไมถึงผิด): ไม่จริง: ผู้ใช้สามารถเลือกใช้ Mode อิสระได้เสมอ เพราะองค์กรสามารถจำกัดไม่ให้ใช้ Mode ที่หย่อนยานได้ โดยตั้งค่าใน Managed Settings: กำหนด permissions.disableBypassPermissionsMode เป็น \"disable\" เพื่อบล็อก bypassPermissions และกำหนด permissions.disableAutoMode เป็น \"disable\" เพื่อปิดการใช้งาน Auto Mode"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ใน dontAsk mode คำสั่งที่ไม่ได้รับการ Pre-approved จะถูกส่งไปยัง canUseTool หรือพักไว้รอคนตอบ เพราะ dontAsk จะเปลี่ยนทุกคำสั่งที่ต้อง Prompt ให้เป็น Denied ทันที และไม่มีการเรียก canUseTool เลย จึงเหมาะสำหรับ Unattended CI ที่ไม่มีคนเฝ้า"
+        }
+      ]
+    },
+    {
+      "heading": "3. ลำดับการประเมิน Permission กับ Human-in-the-loop",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Agent SDK การเรียก Tool ทุกครั้งจะผ่านลำดับการตรวจสอบที่กำหนดไว้แบบตายตัว (Fixed sequence) หาก Step ใดมีผลตัดสินแล้ว Call นั้นจะสิ้นสุดทันทีโดยไม่ผ่านไปยัง Step ถัดไป มนุษย์ (ผ่าน Callback `canUseTool`) จะอยู่ใน Step สุดท้ายเสมอ ดังนั้นมนุษย์จะได้ตรวจสอบการเรียก Tool หรือไม่ จึงขึ้นอยู่กับผลลัพธ์ของ Step ก่อนหน้าทั้งหมด"
+        },
+        {
+          "type": "table",
+          "caption": "ลำดับการประเมิน Permission ของ Agent SDK (เรียงจากลำดับแรกไปท้ายสุด)",
+          "headers": [
+            "Step",
+            "การจัดการกับ Tool Call"
+          ],
+          "rows": [
+            [
+              "1. Hooks",
+              "โค้ด Custom ที่สามารถสั่ง Allow, Deny หรือ Modify คำขอใช้ Tool ได้"
+            ],
+            [
+              "2. Deny rules",
+              "บล็อก Call ที่ตรงเงื่อนไขทันที และไม่มี Step ถัดไปใดสามารถปลดบล็อกได้"
+            ],
+            [
+              "3. Ask rules",
+              "ส่ง Call ที่ตรงเงื่อนไขไปขอการยืนยัน (Confirmation)"
+            ],
+            [
+              "4. Permission mode",
+              "`bypassPermissions` อนุมัติทุกอย่างที่ผ่านเข้ามาถึงขั้นนี้, `acceptEdits` อนุมัติ File operations อัตโนมัติ, `plan` ส่ง Tool แก้ไขไฟล์และคำสั่ง Shell-write ไปยัง `canUseTool`, ส่วนโหมดอื่นๆ จะ Fall through ไปขั้นต่อไป"
+            ],
+            [
+              "5. Allow rules",
+              "การกำหนด `allowedTools` แบบเจาะจง เช่น \"Read\" จะอนุมัติการใช้งาน Tool นั้นทั้งหมดทันที"
+            ],
+            [
+              "6. canUseTool callback",
+              "ส่งไปถามมนุษย์ตอน Runtime เมื่อไม่มี Step ก่อนหน้าใดตัดสินผลของ Call นั้น"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ลำดับเหล่านี้อธิบายถึงพฤติกรรมการคอนฟิก Human-in-the-loop ดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Plan mode บังคับให้ต้องมี Reviewer ทุกครั้งที่มีการเขียน: เนื่องจาก Mode step อยู่ก่อน Allow rules ใน Plan mode จึงไม่มีคำสั่ง Write ใดถูก Auto-approve ช่วยให้ Lead ตรวจสอบ Diff ได้ก่อนเซฟจริง โดยปล่อยให้ Claude อ่านไฟล์ได้ผ่าน Read-only tools แต่ส่งคำขอแก้ไขเข้า Callback ทั้งหมด ตรงกันข้ามกับ `acceptEdits` ที่ยินยอมให้แก้ไขไฟล์ก่อนแล้วค่อย Review ทีหลัง\n- การระบุ Allow แบบกว้างจะข้าม Callback ทันที: การใส่ Tool ใน `allowedTools` เช่น \"Read\" จะอนุมัติ Tool นั้นทั้งตัวตั้งแต่ Step 5 ก่อนถึง Callback ดังนั้นหากคาดหวังให้ `canUseTool` ดักจับ Tool ที่ระบุใน `allowedTools` ตัว Callback จะไม่มีทางถูกเรียกทำงาน\n- Callback ไม่สามารถปลด Deny rule ได้: Deny rules ทำงานใน Step 2 คำสั่งที่ถูกบล็อกจะไม่มีวันส่งไปถึง Step 6 ดังนั้น `canUseTool` จึงไม่สามารถสั่ง Override เพื่อปลดบล็อกได้\n- `bypassPermissions` อนุมัติเฉพาะสิ่งที่ส่งมาถึง Step 4 เท่านั้น: โหมดนี้จะอนุมัติเฉพาะคำสั่งที่หลุดมาถึง Mode step เท่านั้น หากคำสั่งถูกตัดสินโดย Hook หรือ Ask rule ไปแล้วใน Step ก่อนหน้า จะไม่ได้รับผลกระทบจาก Bypass"
+        },
+        {
+          "type": "paragraph",
+          "text": "เหตุผลนี้ทำให้ Hook เป็น Checkpoint ที่ปลอดภัยและรัดกุมที่สุดสำหรับ Tool ที่มีความสำคัญสูง (High-impact tools) เพราะ Hooks ทำงานด้วยโค้ด Custom ทุกครั้งที่ตรงเงื่อนไข เช่น `PreToolUse` hook ที่คุม Tool โอนเงิน จะตัดสินตั้งแต่ Step 1 ก่อน Rules หรือ Modes ใดๆ จึงเป็น Security layer เสริมชั้นบนสุด หากภายหลังมีใครสลับ Session ไปเป็น `bypassPermissions` ตัว Hook ก็ยังคงบังคับขอกดยืนยันจากมนุษย์อยู่ดี เพราะ Bypass ทำงานทีหลังใน Step 4"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การเปลี่ยน Session เป็น `bypassPermissions` จะข้ามทุก Checkpoint รวมถึง Hooks และ Ask rules — เหตุผล: `bypassPermissions` ทำงานที่ Step 4 (Permission mode) และอนุมัติเฉพาะ Call ที่ผ่านเข้ามาถึงขั้นนี้เท่านั้น ส่วน Hooks, Deny rules และ Ask rules ทำงานก่อนหน้า (Step 1-3) ผลการตัดสินของ Step เหล่านั้นจึงยังคงมีผลบังคับใช้เสมอ | ไม่จริง: การเพิ่ม Tool ลงใน `allowedTools` ยังเปิดให้ `canUseTool` ดักตรวจแต่ละ Call ได้ — เหตุผล: การระบุ Tool ใน `allowedTools` จะอนุมัติ Tool นั้นทั้งตัวที่ Step 5 (Allow rules) ทันที ทำให้ Call สิ้นสุดก่อนไปถึง Step 6 ส่งผลให้ `canUseTool` callback ไม่ถูกเรียกทำงานเลย"
+        }
+      ]
+    },
+    {
+      "heading": "4. canUseTool: การ Route คำสั่ง Tool ไปยังมนุษย์",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "`canUseTool` เป็นช่องทางที่ Agent SDK ใช้สอบถามมนุษย์ โดย SDK จะเรียกใช้ใน 2 กรณี: 1) เมื่อ Claude ต้องการใช้ Tool ที่ไม่มี Permission rule หรือ Mode ใด Auto-approve ไว้ล่วงหน้า และ 2) เมื่อ Claude เรียก `AskUserQuestion` เพื่อถามคำถามเพิ่มเติม ตัว Callback จะได้รับ Tool name, Input ของ Tool และ Context object ให้นำข้อมูลเหล่านี้ไปแสดงผลให้มนุษย์ตัดสินใจแล้ว Return ค่ากลับมา ตัวอย่างเช่น Tool `Bash` จะมี `command`, `description`, `timeout` ส่วน `Write` จะส่ง `file_path` และ `content` ซึ่งเป็นรายละเอียดที่ Reviewer ต้องใช้พิจารณา"
+        },
+        {
+          "type": "paragraph",
+          "text": "Callback จะส่งผลลัพธ์กลับได้ 2 แบบ ซึ่งจะส่งข้อมูลกลับไปให้ Claude ต่างกัน: ผลลัพธ์แบบ Allow จะแนบ Input ที่จะใช้รัน Tool ไปด้วย (เป็น Input ดั้งเดิมของ Claude หรือเวอร์ชันที่มนุษย์แก้ไขแล้วก็ได้) ส่วนผลลัพธ์แบบ Deny จะแนบข้อความปฏิเสธ (Message) โดย Tool จะไม่ถูกรัน และ Claude จะอ่านข้อความนั้นเพื่อดำเนินการต่อ"
+        },
+        {
+          "type": "table",
+          "caption": "รูปแบบการตอบกลับของ canUseTool ในแต่ละ SDK",
+          "headers": [
+            "Response",
+            "Python",
+            "TypeScript"
+          ],
+          "rows": [
+            [
+              "Allow",
+              "PermissionResultAllow(updated_input=...)",
+              "{ behavior: \"allow\", updatedInput }"
+            ],
+            [
+              "Deny",
+              "PermissionResultDeny(message=...)",
+              "{ behavior: \"deny\", message }"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ผลลัพธ์ทั้ง 2 รูปแบบรองรับ Action ของ Reviewer ได้ 6 รูปแบบ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. Approve: อนุญาตให้ Tool รันตามที่ Claude ร้องขอ\n2. Approve with changes: แก้ไข Input ก่อนสั่งรัน เช่น ปรับ Path ให้ปลอดภัย หรือเพิ่ม Constraint\n3. Approve and remember: ตอบกลับพร้อม Rule จาก Suggestions ใน Context เพื่อข้าม Prompt สำหรับ Call ที่ตรงเงื่อนไขในครั้งถัดไป\n4. Reject: สั่งบล็อก Tool และแจ้งเหตุผลกลับไปยัง Claude\n5. Suggest an alternative: ปฏิเสธ Call เดิมพร้อมแนะนำทางเลือกอื่นที่ User ต้องการแทน\n6. Redirect entirely: ใช้ Streaming input ส่ง Instruction ชุดใหม่ให้ Claude ทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดเชื่อมต่อ (Wiring) สำคัญ 2 จุดที่มักพลาด: หากมีการส่ง Array `tools` เข้ามา จะต้องใส่ `AskUserQuestion` เข้าไปด้วยเสมอ มิฉะนั้นคำถาม Clarify ของ Claude จะส่งไปไม่ถึง Callback สำหรับ Python ในโค้ดตัวอย่างต้องลงทะเบียน Dummy `PreToolUse` hook ที่ return `{\"continue_\": True}` เพื่อเปิด Stream ค้างไว้สำหรับ `can_use_tool` ส่วนใน TypeScript จะมี `AbortSignal` แนบมาใน Context argument สำหรับใช้กดยกเลิก Prompt เมื่อไม่มีผู้ใช้งานตอบกลับ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: เมื่อ Reviewer สั่ง Deny ไม่จำเป็นต้องส่งข้อความอธิบาย หรือส่งแค่ข้อความว่างเปล่าก็เพียงพอ — เหตุผล: การส่ง Deny message ที่มี Context ชัดเจน ช่วยป้องกันไม่ให้ Claude วนลูป Retry คำสั่งเดิมซ้ำ และช่วยไกด์ให้ Claude เลือก Tool หรือ Action อื่นที่ถูกต้องแทน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56958",
+      "question": "ทีม DevOps รัน Claude agent แบบ unattended ภายใน CI pipeline เพื่อคัดกรองและวิเคราะห์สาเหตุ (triage) ของ build ที่ล้มเหลว เนื่องจากไม่มีมนุษย์คอยตอบรับ interactive approval prompts ระหว่างการทำงาน tool call ใดก็ตามที่ไม่ได้รับการ pre-approve ไว้ล่วงหน้าจะต้องถูกปฏิเสธ (denied) ทันที แทนที่จะค้างรอ prompt การตั้งค่า permission mode ข้อใดตอบโจทย์นี้ได้ถูกต้อง?",
+      "options": [
+        "ตั้งค่า permissionMode เป็น \"dontAsk\" และระบุเครื่องมือที่ปลอดภัยสำหรับ CI ใน allowedTools เพื่อให้ tool calls ที่ระบุไว้รันโดยอัตโนมัติ และส่วนที่เหลือทั้งหมดจะถูกปฏิเสธโดยตรงโดยไม่ไปถึง canUseTool",
+        "ตั้งค่า permissionMode เป็น \"default\" และละเว้น (omit) canUseTool callback โดยสิ้นเชิง เพื่อให้ tool calls ที่ไม่ตรงเงื่อนไขถูกปฏิเสธไปเงียบๆ เมื่อ SDK ตรวจพบว่าไม่มี callback ลงทะเบียนไว้คอยตอบ",
+        "ตั้งค่า permissionMode เป็น \"acceptEdits\" และอาศัยการ auto-approval สำหรับ file-edit เพื่อรองรับความต้องการของ pipeline เนื่องจาก filesystem และ shell write operations ที่อยู่นอก scope นั้นจะถูกปฏิเสธโดยอัตโนมัติแทนที่จะถูกจัดคิวรอ prompt",
+        "ตั้งค่า permissionMode เป็น \"plan\" เพื่อให้ Claude นำเสนอเฉพาะแนวทางแก้ไขโดยไม่ execute tool ใดๆ ซึ่งช่วยขจัดความจำเป็นในการมี approval prompts เพราะไม่มี tool calls ถูก dispatch ระหว่างรัน"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56957",
+      "question": "Claude-powered agent ของบริษัท Fintech แห่งหนึ่งสามารถทำรายการโอนเงิน (wire transfers) ผ่าน custom MCP tool ได้ แม้ว่าทีม operations จะกำหนดค่า allowedTools ให้ auto-approve เครื่องมืออ่านข้อมูลและออกรายงานส่วนใหญ่ไว้แล้ว แต่พวกเขาต้องการให้การเรียก wire-transfer tool ทุกครั้งต้องผ่าน explicit approval จากมนุษย์เสมอ ไม่ว่า session จะถูกเปลี่ยนไปใช้ permission mode ใดในภายหลังก็ตาม รวมถึง bypassPermissions แนวทางใดตอบสนองความต้องการนี้ได้ดีที่สุด?",
+      "options": [
+        "ลงทะเบียน PreToolUse hook ที่กำหนด scope ให้กับ wire-transfer tool โดยให้คืนค่า permissionDecision เป็น \"ask\" ในทุกการเรียกใช้ เนื่องจาก hooks จะถูก execute ก่อน deny rules, ask rules, การตรวจสอบ permission mode และ allow rules เสมอ อีกทั้งการตัดสินใจของ hook ยังคงมีผลแม้จะอยู่ภายใต้ bypassPermissions",
+        "เพิ่ม wire-transfer tool เข้าไปใน allowedTools แบบเจาะจงเพื่อให้ auto-approve แล้วอาศัย canUseTool callback ในการ intercept เนื่องจาก bare allow rules จะ approve ทุก call ที่ตรงเงื่อนไขก่อนที่จะปรึกษา canUseTool ส่งผลให้ callback ไม่เคยถูกเรียกใช้งานสำหรับ tool นั้น",
+        "เปลี่ยน permission mode ของ session เป็น acceptEdits โดยคาดหวังให้ wire-transfer tool อยู่นอก scope ของ file-edit และถูก route ไปยัง canUseTool เสมอ แม้ว่า tools อื่นๆ ภายใต้ acceptEdits จะยังคงหลุดไปเข้า allow rules ที่ approve พวกมันอยู่แล้วก็ตาม",
+        "เพิ่ม wire-transfer tool ลงใน disallowed_tools โดยใช้ wildcard pattern เพื่อให้ถูกบล็อกเป็นค่าเริ่มต้น จากนั้นให้ canUseTool callback ยกเลิก deny rule เป็นรายครั้ง แม้ว่าแท้จริงแล้ว deny rules จะถูกประเมินก่อนที่ canUseTool จะทำงาน และไม่สามารถถูกแก้ไขย้อนกลับจากภายใน callback นั้นได้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56959",
+      "question": "Engineering Lead ต้องการใช้ Claude agent เพื่อตรวจสอบช่องโหว่ด้านความปลอดภัยที่น่าสงสัยใน codebase ขนาดใหญ่ แต่ยืนยันว่าจะต้องไม่มีไฟล์ใดถูกแก้ไขจนกว่าเธอจะได้ตรวจสอบและอนุมัติ (review & approve) diff ที่แน่ชัดที่ Claude ตั้งใจจะแก้ไขด้วยตนเอง การตั้งค่า configuration ใดตรงกับ workflow นี้มากที่สุด?",
+      "options": [
+        "รัน session ด้วย permissionMode เป็น \"plan\" เพื่อให้ Claude สามารถใช้ read-only tools ตรวจสอบได้อย่างอิสระ ในขณะที่ file-edit หรือ shell-write tool ใดๆ ที่ agent เสนอจะถูก route ไปยัง canUseTool callback ให้เธอตรวจสอบเสมอ โดยไม่คำนึงถึง allow rules ที่ตรงกัน",
+        "รัน session ด้วย permissionMode เป็น \"acceptEdits\" เพื่อให้ Claude แก้ไขไฟล์ได้ทันทีขณะตรวจสอบ แล้วให้เธอมา review diff ที่สะสมไว้ในภายหลังก่อนที่จะ merge branch เข้า codebase",
+        "รัน session ด้วย permissionMode เป็น \"default\" และเพิ่ม path ของ source file ทุกไฟล์ลงใน disallowed_tools เพื่อบล็อกคำสั่ง Write และ Edit ที่กระทำกับไฟล์เหล่านั้น จากนั้นจึงลบแต่ละ path ออกจาก deny list เมื่อเธออนุมัติการเปลี่ยนแปลงเฉพาะจุดนั้นแล้ว",
+        "รัน session ด้วย permissionMode เป็น \"bypassPermissions\" และเพิ่ม explicit ask rule สำหรับ Edit และ Write tools เนื่องจาก ask rules เป็น rule เพียงประเภทเดียวที่ถูกประเมินก่อนจะถึงขั้นตอน bypass"
+      ],
+      "explanation": ""
+    }
+  ]
+}

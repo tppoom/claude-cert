@@ -1,0 +1,260 @@
+{
+  "title": "ประเภท Error ของ Claude API และกลยุทธ์การ Recovery",
+  "objectives": [
+    "จำแนก Error จาก Status Code และ Error Type ว่าต้องแก้ที่ Request หรือ Retry",
+    "ประเมินพฤติกรรม Auto-retry ของ SDK และตั้งค่า max_retries อย่างเหมาะสม",
+    "แก้ปัญหา 413 และ Timeout โดยปรับ Payload Size หรือ Transport แทนการ Retry",
+    "แยกแยะความต่างระหว่าง Rate-limit 429, Acceleration 429, Spend-cap 429 และ Spend-limit 400 พร้อมเลือกวิธี Recovery ที่ถูกต้อง",
+    "ตัดสินใจเลือกแนวทางแก้ไข (แก้ Request, รอ SDK Retry, เปลี่ยน Transport หรือ Escalate) จากหลักฐานใน Failed Call",
+    "วิเคราะห์ Status, Error Type, Request ID และ Headers เพื่อระบุ Failure Mode และชี้ชัดว่าปัญหาเกิดจาก Integration Layer หรือ Model Output"
+  ],
+  "key_concept": "ต้นตอของ Error กำหนดกลยุทธ์ Recovery — 4xx หมายถึงต้องแก้ที่ Request, Key, Account หรือ Payload ก่อนส่งใหม่; 5xx หรือ Temporary 429 หมายถึง Request เดิมอาจสำเร็จได้ในภายหลัง จึงควร Retry ด้วย Backoff การเลือกวิธีผิดจะทำให้ติด Loop ไม่รู้จบ หรือเสียเวลาแก้ Code ทั้งที่ไม่ได้มีปัญหา",
+  "sections": [
+    {
+      "heading": "1. การแยกแยะ Error: แก้ไข Request หรือลองส่งใหม่ (Retry)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เมื่อการเรียก Claude API ล้มเหลว ข้อมูลใน Response จะบอกได้ทันทีว่าเป็นปัญหาจากฝั่งไหนก่อนที่จะเปิด Log ของระบบด้วยซ้ำ โดย Status Code และฟิลด์ error.type จะแบ่งความล้มเหลวออกเป็น 2 กลุ่ม: หากเป็น 4xx แสดงว่าปัญหาอยู่ที่ตัว Request เอง (เช่น Request Body, API Key, Account หรือขนาด Payload) ซึ่งการ Retry ส่งซ้ำโดยไม่แก้ไขอะไรก็จะล้มเหลวเหมือนเดิม ส่วน 500, 504 หรือ 529 เกิดจากปัญหาฝั่ง Server ซึ่ง Request เดิมอาจจะทำงานสำเร็จในอีกสักครู่ หากคุณ Retry ข้อผิดพลาด 400 ระบบจะติด Loop ไม่รู้จบ แต่ถ้าคุณมัวไปไล่ Debug โค้ดของตัวเองเมื่อเจอ 500 คุณจะเสียเวลาเปล่าไปกับโค้ดที่ไม่ได้มีบั๊กตั้งแต่แรก"
+        },
+        {
+          "type": "paragraph",
+          "text": "โครงสร้างของ Error Body จะเป็นรูปแบบเดียวกันเสมอ คือ JSON ที่มี Object error ระดับบนสุด ประกอบด้วย type, message และ request_id โดย request_id นี้จะถูกส่งกลับมาใน Header request-id ของทุก Response เสมอ ไม่ว่าจะสำเร็จหรือล้มเหลว ควรสั่ง Log ค่านี้ไว้ทุกครั้งที่เกิดข้อผิดพลาด เพราะทีม Support จำเป็นต้องใช้เมื่อเกิด 500 ต่อเนื่อง ทั้งยังช่วยเชื่อมโยง Log ในแอปพลิเคชันเข้ากับการเรียก API แต่ละครั้งได้อย่างแม่นยำ สำหรับ Python และ TypeScript SDK สามารถเข้าถึงค่านี้ได้ผ่าน _request_id บน Response Object"
+        },
+        {
+          "type": "table",
+          "caption": "Status Codes ของ Claude API, ความหมาย และแนวทางการรับมือ (Recovery)",
+          "headers": [
+            "Status and type",
+            "What went wrong",
+            "Recovery"
+          ],
+          "rows": [
+            [
+              "400 invalid_request_error",
+              "รูปแบบหรือเนื้อหาของ Request ไม่ถูกต้อง",
+              "แก้ไข Request ห้าม Retry ข้อมูลเดิมซ้ำ"
+            ],
+            [
+              "401 authentication_error",
+              "API Key ผิดรูปแบบ ถูกเพิกถอน หรือหมดอายุ",
+              "แก้ไข API Key ให้ถูกต้อง"
+            ],
+            [
+              "402 billing_error",
+              "ปัญหาเกี่ยวกับระบบบิลหรือการชำระเงิน",
+              "ตรวจสอบข้อมูลการชำระเงินใน Claude Console"
+            ],
+            [
+              "403 permission_error",
+              "API Key ไม่มีสิทธิ์เข้าถึง Resource นั้น",
+              "ตรวจสอบสิทธิ์ Organization และการตั้งค่า Workspace"
+            ],
+            [
+              "404 not_found_error",
+              "ไม่พบ Resource ที่ระบุ",
+              "ตรวจสอบ Endpoint Path และ Resource IDs"
+            ],
+            [
+              "409 conflict_error",
+              "Request ขัดแย้งกับสถานะปัจจุบันของ Resource",
+              "แก้ปัญหา Conflict ให้เรียบร้อยก่อน แล้วจึง Retry"
+            ],
+            [
+              "413 request_too_large",
+              "Request มีขนาด Byte เกินกำหนด",
+              "ลดขนาด Payload ให้อยู่ภายใต้ Limit ของ Endpoint"
+            ],
+            [
+              "429 rate_limit_error",
+              "ชน Rate Limit หรือแตะ Spend Cap",
+              "ขึ้นอยู่กับว่าเป็น Limit ใด (ดูรายละเอียดในหัวข้อถัดไป)"
+            ],
+            [
+              "500 api_error",
+              "เกิดข้อผิดพลาดที่ไม่คาดคิดภายในระบบของ Anthropic",
+              "Retry ด้วย Exponential Backoff หากปัญหายังไม่หายให้ติดต่อ Support พร้อมระบุ Request ID"
+            ],
+            [
+              "504 timeout_error",
+              "Request เกิด Timeout ขณะกำลังประมวลผล",
+              "เปลี่ยนไปใช้ Streaming Messages API สำหรับ Request ที่ใช้เวลานาน"
+            ],
+            [
+              "529 overloaded_error",
+              "API มีปริมาณการใช้งานหนาแน่นชั่วคราว",
+              "Retry ใหม่ด้วย Exponential Backoff"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "มี 2 กรณีที่ต้องสังเกตเป็นพิเศษ: ประการแรก 409 conflict_error จัดเป็น 4xx ชนิดเดียวที่คุณสามารถ Retry ได้ แต่ต้องแก้ไขต้นเหตุก่อนเสมอ สาเหตุมักเกิดจาก Resource ถูกแก้ไขพร้อมกัน (Concurrent Modification) หรือค่าที่ต้อง Unique ถูกใช้งานไปแล้ว เช่น Worker สองตัวพยายามอัปเดต Resource เดียวกันในเวลาเดียวกัน หาก Retry โดยไม่จัดคิวให้ทำงานเรียงตามลำดับ (Sequential) ก็จะเกิด Conflict ซ้ำอีก ประการที่สอง 500 api_error จะเป็นกรณีตรงกันข้าม คือไม่ได้เกิดจากสิ่งที่อยู่ใน Request ของคุณเลย แนวทางคือให้ชะลอเวลาด้วย Backoff แล้ว Retry หากยังไม่หายจึงเปิด Support Ticket พร้อมแนบ Request ID นอกจากนี้ ในอนาคตอาจมี type ใหม่ๆ เพิ่มเข้ามา จึงควรเขียน Branch ดักประเภทที่รู้จัก และจัดการประเภทที่ไม่รู้จักตามกลุ่ม Status Code"
+        },
+        {
+          "type": "paragraph",
+          "text": "การดู Trace ของ Call ที่ล้มเหลวเพียงครั้งเดียวแบบทีละฟิลด์จะช่วยระบุ Failure Mode ได้ชัดเจน โดย Status Code และ error.type จะระบุกลุ่มปัญหา ส่วน message มักบอกสาเหตุเฉพาะเจาะจง เช่น 400 ที่เกี่ยวกับ Thinking Blocks จะระบุตำแหน่งของ Block ที่มีปัญหาตั้งแต่ต้นข้อความ เช่น messages.1.content.0 ซึ่งชี้ตรงไปยังจุดใน History ที่โค้ดของคุณไปแก้ไข นอกจากนี้ Header ยังช่วยบอกข้อมูลเพิ่มเติม เช่น Header retry-after หมายถึงการรอนั้นได้ผล แต่ถ้าเป็น 429 ที่ไม่มี Header นี้พร้อมกับมี error.details.error_code เป็น enforced_spend_limit_reached แปลว่าการรอจะไม่ช่วยอะไร ส่วน request_id จะเชื่อมโยงข้อมูลทั้งหมดนี้เข้ากับ Call นั้นๆ ทำให้ค่า ID เดียวกันนี้ปรากฏทั้งใน Log ของคุณ, Error Body และ Support Ticket"
+        },
+        {
+          "type": "paragraph",
+          "text": "Pattern ที่เกิดข้ามหลายๆ Trace ช่วยแยกแยะ Failure Mode ที่ Trace เดี่ยวๆ บอกไม่ได้ หาก Call เดิมล้มเหลวเหมือนกันทุกครั้ง ปัญหามักอยู่ที่ Request, Key หรือ Account แต่ถ้าเป็น 5xx แล้วหายไปในการลองรอบถัดไป ปัญหานั้นมาจากฝั่ง Server ส่วน 429 ที่ยังคงล้มเหลวต่อเนื่องหลายชั่วโมง ชี้ว่าเกิดจาก Spend Cap ไม่ใช่ Limit รายนาที (RPM/TPM) สิ่งแรกที่ต้องแยกแยะคือความล้มเหลวเกิดขึ้นที่เลเยอร์ไหน หากมี Error Body ส่งกลับมา แสดงว่าพังที่ Integration Layer และไม่มี Output ออกมา จึงต้องอ่าน Status Code เพื่อแก้ไขหรือ Retry แต่ระบบ Streaming จะมีข้อยกเว้น: Error สามารถเกิดขึ้นได้หลังจาก API ส่ง Status 200 ออกมาแล้ว ดังนั้น Status 200 เพียงอย่างเดียวจึงไม่ได้การันตีว่า Call นั้นสำเร็จทั้งหมด เมื่อ Trace แสดง 200 เรียบร้อยแต่ผลลัพธ์ยังผิดปกติ ปัญหาก็จะย้ายไปอยู่ที่ฝั่ง Model Output ซึ่งจะกล่าวถึงในบทเรียน Stop Reason"
+        },
+        {
+          "type": "exam_trap",
+          "text": "EXAM TRAP: หากได้รับ HTTP Status 200 แสดงว่า API Call นั้นสำเร็จอย่างสมบูรณ์แล้ว ข้อผิดพลาดใดๆ ที่เกิดขึ้นหลังจากนั้นจึงต้องมาจากฝั่ง Model Output เท่านั้น? (ทำไมถึงผิด): ไม่จริง: สำหรับการตอบกลับแบบ Streaming Error จากฝั่ง Server หรือเครือข่ายสามารถเกิดขึ้นได้หลังจากที่ API ส่ง HTTP Status 200 เริ่มต้นไปแล้ว ซึ่งการจัดการ Error ในกรณีนี้จะไม่เป็นไปตาม Flow ปกติของ HTTP Error ทั่วไป"
+        }
+      ]
+    },
+    {
+      "heading": "2. สิ่งที่ SDK จัดการให้ ก่อนที่โค้ดของคุณจะเห็น Error",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Official SDKs จะแปลง Error JSON ให้กลายเป็น Typed Exceptions เช่น ใน Python ข้อผิดพลาด 404 จะแสดงออกมาเป็น anthropic.NotFoundError โค้ดส่วน Recovery ของคุณควรตรวจสอบเงื่อนไขจาก Exception Class ไม่ใช่จากข้อความใน Error Message และลำดับการ Catch มีความสำคัญมาก: ให้ Catch คลาสที่จำเพาะเจาะจงที่สุดก่อนเสมอ เพราะหากวาง Handler ทั่วไป (Broad Handler) ไว้ด้านบน มันจะดักจับ Case ย่อยที่คุณตั้งใจจะแยก Handle ไปจนหมด ส่วนภาษา Go จะไม่ใช้ Pattern แยกหนึ่งคลาสต่อหนึ่ง Status แต่ Go SDK จะมี Type เดียวคือ *anthropic.Error แล้วให้คุณเขียน Branch ตรวจสอบจาก StatusCode แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "SDK มีกลไก Retry ทำงานอยู่เบื้องหลังก่อนที่ Handler ในโค้ดของคุณจะทำงานเสียอีก โดยจะ Retry ความล้มเหลวชั่วคราว (Connection Errors, Rate Limits และ 5xx Server Errors) ให้อัตโนมัติ 2 ครั้งเป็นค่า Default พร้อมทำ Exponential Backoff และหาก Response มี Header retry-after ตัว SDK จะรอตามระยะเวลาที่ระบุ การตั้งค่า max_retries บน Client สามารถปรับจำนวนรอบ Retry หรือปิดการ Retry ได้ ซึ่งมีผลต่อการ Debug 2 ประการ: ข้อแรก หาก Error ที่ Retry ได้หลุดมาถึงโค้ดของคุณ แสดงว่าปัญหานั้นกินเวลายาวนานกว่าช่วง Backoff ของ SDK ไปแล้ว ข้อสอง การครอบ API Call ด้วย Retry Loop ของคุณเองจะทำให้จำนวนครั้งการพยายามส่งคูณทวีคูณกับของ SDK ทางที่ดีควรกำหนด max_retries ตามจำนวนครั้งที่ต้องการจริง และเขียน Custom Handling เฉพาะกับ Error ตระกูล 4xx ซึ่ง SDK ไม่ได้ Retry ให้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกกลยุทธ์ Recovery คือการเลือก 1 ใน 4 แนวทางนี้สำหรับแต่ละ Error ที่หลุดมาถึง Handler ของคุณ: 1) Change the Request สำหรับ 400, 401, 402, 403, 404 และ 413 เพราะการส่งซ้ำไม่มีทางสำเร็จ 2) Wait แล้วปล่อยให้ SDK Retry สำหรับ 429 ที่มี retry-after, 500 หรือ 529 3) Change the Transport สำหรับ 504 หรือ Non-streaming Call ที่ใช้เวลานาน โดยเปลี่ยนไปใช้ Streaming หรือ Message Batches API 4) Stop and Escalate เมื่อการ Retry ไร้ประโยชน์ เช่น 429 ที่เกิดจาก Spend Cap จนกว่าจะได้สิทธิ์ใช้งานคืนมา หรือ 500 ที่เป็นต่อเนื่อง ซึ่งต้องส่งให้ Support ตรวจสอบพร้อม Request ID"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกกลยุทธ์ยังส่งผลต่อการจูนค่า max_retries ด้วย สำหรับ User-facing Request ที่ต้องการคำตอบภายในไม่กี่วินาที ควรปรับลดค่าลงหรือตั้งเป็น 0 แล้วแสดง Fallback ทันที ส่วน Nightly Batch Job สามารถยอมรับ Backoff ที่นานขึ้นได้ จึงคงค่า Default หรือปรับเพิ่มขึ้นได้ ไม่ว่าจะตั้งค่าไว้อย่างไร Error ที่หลุดมาถึง Handler หลังจาก Retry จนหมดโควตาถือเป็นหลักฐานสำคัญ: หาก 5xx ยังคงอยู่หลังผ่าน Backoff มาแล้ว ให้ Log ค่า Request ID แล้ว Escalate ทันที แทนที่จะวน Loop ซ้ำอีก ทั้งนี้ 409 เป็น Error 4xx เพียงกรณีเดียวที่เมคเซนส์ในการทำ Custom Retry ของคุณเอง และต้องทำหลังจากที่คุณ Resolve ข้อขัดแย้งของ Conflict นั้นเรียบร้อยแล้วเท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. Requests ขนาดใหญ่เกินไป และ Calls ที่ทำงานนานเกินไป",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อผิดพลาด 413 request_too_large เกิดจากขนาด Bytes เกินลิมิต โดยที่ตัว Model จะไม่มีทางได้เห็น Request นั้นเลย เพราะบน Claude API โดยตรง Cloudflare จะ reject ทันทีก่อนที่ Request จะส่งไปถึง API servers เสียอีก การแก้คำใน Prompt, เปลี่ยน Model หรือแก้ max_tokens จะไม่ช่วยอะไร ทางแก้เดียวคือลด Payload ให้ต่ำกว่า Size Limit ของ Endpoint ที่เรียกใช้งาน การ Retry ซ้ำด้วย Body เดิมจึงไม่มีทางสำเร็จ"
+        },
+        {
+          "type": "table",
+          "caption": "ขนาด Request สูงสุดต่อ Endpoint หากเกินจะได้รับ 413 request_too_large",
+          "headers": [
+            "Endpoint",
+            "Maximum request size"
+          ],
+          "rows": [
+            [
+              "Messages API",
+              "32 MB"
+            ],
+            [
+              "Token Counting API",
+              "32 MB"
+            ],
+            [
+              "Batch API",
+              "256 MB"
+            ],
+            [
+              "Files API",
+              "500 MB"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ปัญหา Timeout เป็นปัญหาประเภทเดียวกันแต่คิดจากเวลาแทนขนาด Bytes โดย 504 timeout_error หมายถึง Request เกิด Timeout ระหว่างประมวลผล ทางแก้สำหรับ Request ที่ทำงานนานคือเปลี่ยนไปใช้ Streaming Messages API ส่วนปัญหา Idle connections ก็ทำให้เกิดความผิดพลาดแบบเงียบๆ ได้เช่นกัน โดย Network บางแห่งจะตัด Idle connection ทิ้งหลังผ่านไปสักระยะ ส่งผลให้การเรียกแบบ Non-streaming ที่ตั้ง max_tokens ไว้สูงอาจล้มเหลวหรือค้างไปโดยไม่มี Response ใดๆ กลับมาจาก Anthropic เลย SDK จึงป้องกันปัญหานี้ 2 วิธี: ตั้งค่า TCP keep-alive และตรวจสอบว่า Non-streaming request ไม่ควรทำงานนานเกิน 10 นาที หากเกิน ให้สลับไปใช้ Streaming ซึ่ง SDK สามารถอ่านทั้ง Stream แล้ว return เป็น Message ที่สมบูรณ์เหมือนการเรียกแบบ Non-streaming ได้ หรืออีกทางเลือกคือใช้ Message Batches API ที่ใช้วิธี Poll ผลลัพธ์แทนการเปิด Connection ค้างไว้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: 413 request_too_large เป็นปัญหาฝั่ง Capacity ที่แก้ได้ด้วยการ Retry หรือสลับไปใช้ Model ที่มี Context ขนาดใหญ่ขึ้น เพราะ 413 จะ reject ทันทีจากขนาด Byte ก่อนที่ Request จะส่งไปถึง API servers ทางแก้เดียวคือการลดขนาด Payload ให้เล็กลง"
+        }
+      ]
+    },
+    {
+      "heading": "4. การแยกแยะประเภทของ 429 และข้อผิดพลาด 400 ที่ดูคล้ายกัน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ขีดจำกัด (Limits) หลายแบบใช้ Status Code เดียวกัน ลำพังแค่ดูตัวเลข Code จึงไม่พอที่จะบอกวิธี Recovery ได้ เช่น Rate limits จะจำกัด Request และ Token ต่อนาที ส่วน Spend limits จะจำกัดค่าใช้จ่ายรายเดือน (อ่านรายละเอียด Tier และตัวเลขได้ใน [Rate limits, spend limits and service tiers](lesson:2.1)) สำหรับการ Debug สิ่งสำคัญคือสัญญาณ (Signals) ที่ส่งกลับมาพร้อม Response แต่ละแบบ"
+        },
+        {
+          "type": "table",
+          "caption": "Responses ที่เกี่ยวกับ Quota, สัญญาณที่ใช้ระบุประเภท และวิธี Recovery",
+          "headers": [
+            "Cause",
+            "Status and type",
+            "Distinguishing signal",
+            "Recovery"
+          ],
+          "rows": [
+            [
+              "Rate limit (RPM, ITPM, OTPM)",
+              "429 rate_limit_error",
+              "Message ระบุ Limit ที่เกิน และมี header retry-after",
+              "รอตามเวลาที่ระบุใน retry-after (ตัว SDK จัดการให้อัตโนมัติ)"
+            ],
+            [
+              "Acceleration limit",
+              "429 rate_limit_error",
+              "เกิดขึ้นเมื่อ API usage พุ่งสูงขึ้นอย่างรวดเร็ว (Spike)",
+              "เป็นสถานะชั่วคราว ให้ทำ Backoff แล้ว Retry ใหม่"
+            ],
+            [
+              "Usage tier monthly spend cap",
+              "429 rate_limit_error",
+              "ไม่มี retry-after โดย error.details.error_code จะเป็น enforced_spend_limit_reached",
+              "หยุด Retry ทันที ให้อัปเกรดเป็น Tier ที่สูงขึ้น หรือรอรีเซ็ตตอน 00:00 UTC วันที่ 1 ของเดือนถัดไป"
+            ],
+            [
+              "Spend limit you set (organization or workspace)",
+              "400 invalid_request_error",
+              "Message ขึ้นต้นด้วย You have reached your specified API usage limits",
+              "เพิ่มหรือปลด Limit ที่ตั้งไว้"
+            ],
+            [
+              "Claude Code workspace limit",
+              "429",
+              "มี header retry-after",
+              "รอตามเวลาที่ระบุใน retry-after"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Header retry-after คือวิธีที่เร็วที่สุดในการแยกประเภท โดย Rate-limit 429 จะระบุชื่อ Limit ที่เกินและแนบ retry-after มาด้วย ซึ่ง SDK จัดการให้อยู่แล้ว อนึ่ง Rate limit อาจถูกบังคับใช้ในช่วงเวลาที่สั้นกว่า 1 นาที เช่น 60 RPM อาจถูกคิดเฉลี่ยเป็น 1 Request ต่อวินาที ทำให้การส่งแบบ Burst ชน Limit ได้แม้ค่าเฉลี่ยต่อนาทีจะไม่เกิน ส่วน Acceleration limits ก็จะส่งกลับมาเป็น 429 rate_limit_error เช่นกัน แต่ถูกกระตุ้นจากการที่ Usage พุ่งสูงขึ้นกะทันหัน ไม่ใช่การส่งในอัตราที่คงที่ สำหรับ Tier spend-cap 429 คือกรณีที่คุณต้องหยุด Retry ทันที โดยจะไม่มี retry-after และค่า error.details.error_code จะเป็น enforced_spend_limit_reached"
+        },
+        {
+          "type": "paragraph",
+          "text": "นอกจากนี้ยังมี Error 400 ที่ดูเผินๆ เหมือน Request พัง แต่ความจริงเกิดจาก Quota โดยเมื่อ Usage ถึง Spend limit ที่คุณตั้งไว้ระดับ Organization หรือ Workspace ตัว API จะส่ง 400 invalid_request_error กลับมา พร้อม Message ที่ขึ้นต้นด้วย You have reached your specified API usage limits (หรือ workspace API usage limits) กรณีนี้ Request body ถูกต้องสมบูรณ์อยู่แล้ว การแก้ Payload จึงไม่ช่วยอะไร ต้องไปเพิ่มหรือปลด Limit ที่ตั้งไว้เท่านั้นจึงจะใช้งานต่อได้ ส่วน Limit บน Claude Code workspace จะถูกตรวจสอบแยกต่างหาก และอาจส่งกลับมาเป็น 429 พร้อม retry-after แทน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: 400 invalid_request_error ทุกเคสแปลว่า Request Body ผิดรูปแบบและต้องเข้าไปแก้ไข เพราะ Spend limit ที่เราตั้งเอง (User-defined spend limit) ก็ส่งกลับมาเป็น 400 invalid_request_error เช่นกัน โดยที่ Body นั้นถูกต้องแล้ว ต้องแก้ด้วยการเพิ่มหรือปลด Limit เท่านั้น | ไม่จริง: 429 rate_limit_error ทุกตัวจะหายได้เองหากปล่อยให้ SDK ทำการ Retry ต่อไปเรื่อยๆ เพราะ Tier spend-cap 429 จะไม่มี header retry-after และจะส่ง Error ตลอดไปจนกว่าจะเริ่มรอบบิลใหม่ ให้ตรวจสอบว่า error.details.error_code เป็น enforced_spend_limit_reached หรือไม่"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55517",
+      "question": "ระบบ Production job ที่เรียกใช้งาน Messages API เริ่มเกิดข้อผิดพลาดเป็นระยะด้วย HTTP 429 (Rate Limit) โดยแต่ละ Response ที่ล้มเหลวจะมี Header `retry-after` แนบมาด้วย โค้ด retry ของทีมในปัจจุบันใช้วิธีดักจับ exception แล้วส่ง Request เดิมซ้ำทันทีใน tight loop การปรับปรุง Retry logic แบบใดมีประสิทธิภาพมากที่สุด?",
+      "options": [
+        "Parse Header retry-after แล้วรออย่างน้อยตามจำนวนวินาทีที่ระบุไว้ก่อนส่งซ้ำ พร้อมใช้ Backoff เพิ่มเติมหากยังเจอ 429 ซ้ำ",
+        "เปลี่ยน Client ไปใช้วิธี Poll ที่ status endpoint ของ Message Batches API แทนการส่ง Request เดิมซ้ำ",
+        "ลดค่า max_tokens ของ Request ลง เพื่อให้ Response เสร็จสิ้นก่อนที่ Rate-limit window รอบถัดไปจะ Reset",
+        "สลับไปใช้ API key ที่สองทุกครั้งที่เจอ 429 เพื่อให้ Request ที่ Retry ถูกนับใน Rate-limit bucket อื่น"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55520",
+      "question": "Agent ส่ง tool_use request สำหรับ tool ชื่อ `query_database` แต่ Tool executor ฝั่ง Client เกิด Connection exception โค้ดของนักพัฒนาจึงส่ง tool_result block ที่มี `is_error: true` พร้อม Exception message กลับไปให้ Claude ในเทิร์นถัดไป จากนั้น Response ต่อมาของ Claude ได้กล่าวขออภัยและแนะนำให้ตรวจสอบการเชื่อมต่อฐานข้อมูลแทนที่จะส่งผลลัพธ์ของ Query ออกมา Root cause ของข้อผิดพลาดในเทิร์นนี้อยู่ที่ใด?",
+      "options": [
+        "อยู่ที่ Integration layer เนื่องจาก Tool executor ไม่สามารถเชื่อมต่อกับ Database ได้ ซึ่งคำตอบของ Claude สะท้อนตาม tool_result ที่มี is_error อย่างถูกต้องแล้ว",
+        "อยู่ที่ Model output เนื่องจาก Claude ควร Retry การเรียก tool_use ซ้ำโดยอัตโนมัติ แทนที่จะแจ้งความล้มเหลวกลับมายังผู้ใช้",
+        "อยู่ที่ Integration layer เนื่องจาก tool_result block ที่มี is_error จะใช้ได้ก็ต่อเมื่อชื่อ Tool ใน Request สะกดผิดเท่านั้น",
+        "อยู่ที่ Model output เนื่องจาก System prompt ที่ปรับแต่งมาอย่างดีควรป้องกันไม่ให้ Claude รับรู้หรือตอบรับ tool_result error ใดๆ เลย"
+      ],
+      "explanation": ""
+    }
+  ]
+}

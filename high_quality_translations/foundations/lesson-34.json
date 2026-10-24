@@ -1,0 +1,169 @@
+{
+  "title": "Agent Permissions, Secrets, และ Data Protection",
+  "objectives": [
+    "เลือก Permission Mode และ Rules ใน Claude Code ตามหลัก Least Privilege พร้อมใช้ Hooks เป็น Deterministic Deny Layer",
+    "จัดเก็บ, Rotate, กำหนด Scope และ Scan API Keys รวมถึงซ่อน Credentials จาก Agent ด้วย Proxy",
+    "เสริมความปลอดภัย Runtime ของ Agent เพื่อรักษา Integrity และป้องกัน Data Exfiltration ด้วย Sandboxing และ Container Flags",
+    "ลดความเสี่ยง Prompt และ Data Leakage พร้อมจัดการ PII และ PHI ตามมาตรฐาน ZDR และ HIPAA-ready"
+  ],
+  "key_concept": "การควบคุมสิทธิ์ (Least Privilege), การจัดการ Credentials ให้ปลอดภัย, และการปกป้อง Data/Runtime เพื่อป้องกันการรั่วไหลและการละเมิดความปลอดภัยของ Agent",
+  "sections": [
+    {
+      "heading": "1. Authorization: permission modes, rules และ hooks",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Authorization ทำหน้าที่กำหนดสิทธิ์ว่า Agent สามารถทำอะไรได้บ้าง สำหรับ Claude Code จะควบคุมผ่าน Permission Rules และ Modes โดย Allow Rules อนุญาตให้ Tool ทำงานได้ทันทีโดยไม่ต้องขออนุมัติ, Ask Rules จะ Prompt ถามยืนยันทุกครั้ง และ Deny Rules จะบล็อก Tool นั้นโดยสิ้นเชิง ส่วน Mode จะเป็นตัวกำหนดพฤติกรรมสำหรับทุกคำสั่งที่ไม่อยู่ในขอบเขตของ Rules ที่ตั้งไว้"
+        },
+        {
+          "type": "table",
+          "caption": "Claude Code permission modes และผลลัพธ์ต่อ Tool Calls ที่ปกติจะต้อง Prompt ขอสิทธิ์",
+          "headers": [
+            "Mode",
+            "Behavior"
+          ],
+          "rows": [
+            [
+              "default (Manual)",
+              "Prompt ขอสิทธิ์เมื่อเรียกใช้งานแต่ละ Tool ครั้งแรก"
+            ],
+            [
+              "acceptEdits",
+              "Auto-accept การแก้ไขไฟล์และคำสั่ง Filesystem ทั่วไปใน Working Directories อัตโนมัติ"
+            ],
+            [
+              "plan",
+              "อ่านไฟล์และรันคำสั่งแบบ Read-only เท่านั้น ไม่อนุญาตให้แก้ไขไฟล์ Source Code"
+            ],
+            [
+              "auto",
+              "ไม่มี Routine Prompts กวนใจ โดยจะมี Background Classifier คอยตรวจสอบ Action เทียบกับ Request ของผู้ใช้"
+            ],
+            [
+              "dontAsk",
+              "Auto-deny ทุก Action ที่ต้อง Prompt ขอสิทธิ์ แต่ Tools ที่เป็น Pre-approved ยังคงรันได้ปกติ"
+            ],
+            [
+              "bypassPermissions",
+              "ข้ามขั้นตอน Prompts ทั้งหมด ยกเว้น Action พิเศษที่ไม่มี Mode ใด Auto-approve ได้"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Headless Agent ที่ใช้ Toolset แบบคงที่ การใช้ dontAsk ร่วมกับ Allow Rules ที่กำหนดไว้อย่างชัดเจน จะให้พฤติกรรมแบบ Deny-by-default กล่าวคือ อะไรก็ตามที่ไม่ได้รับการ Pre-approve จะถูกปฏิเสธทันทีแทนที่จะขึ้นถาม ในทางตรงกันข้าม bypassPermissions จะทำงานแบบย้อนกลับและมอบสิทธิ์ในระดับกว้าง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อจำกัดสำคัญของเลเยอร์นี้คือ Claude Code จะ Parse คำสั่ง Bash ออกมาเป็น AST แล้วนำไป Match กับ Rules ที่ตั้งไว้ หากคำสั่งใดไม่สามารถ Parse ได้อย่างสมบูรณ์ หรือไม่ตรงกับ Allow Rule ใดเลย ระบบจะบังคับให้ต้องขออนุมัติ ทั้งนี้ เอกสารระบุชัดเจนว่ากลไกนี้เป็นเพียง Permission Gate ไม่ใช่ Sandbox และนอกเหนือจากการตรวจเช็กพื้นฐานในตัวแล้ว ระบบจะไม่ประเมินว่าคำสั่งนั้นอันตรายหรือไม่จากเป้าหมายหรือผลลัพธ์ของคำสั่ง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Hooks ช่วยเพิ่ม Deterministic Policy Layer ผ่านโค้ดของคุณเอง โดย PreToolUse Hook สามารถส่ง permissionDecision: \"deny\" เพื่อสั่งบล็อก Tool Call พร้อมส่งเหตุผลกลับไปให้ Claude รับรู้ได้ อย่างไรก็ตาม Hook ไม่สามารถ Override การตั้งค่าหลักของคุณได้ กล่าวคือ Deny และ Ask Rules จะยังคงถูกประเมินเสมอ ไม่ว่า Hook จะ Return ค่าใดกลับมาก็ตาม"
+        },
+        {
+          "type": "exam_trap",
+          "text": "PreToolUse hook ที่ return \"allow\" สามารถ override คำสั่ง deny rule ใน settings ได้? (ทำไมถึงผิด): ไม่จริง: Hook ทำได้เพียงเพิ่มคำสั่ง deny เท่านั้น แต่ deny และ ask rules ที่ตั้งค่าไว้ใน Settings จะยังคงถูกประเมินและบังคับใช้เสมอ ไม่ว่า Hook จะ return ค่าอะไรก็ตาม"
+        }
+      ]
+    },
+    {
+      "heading": "2. Authentication and secrets: แยก keys ออกจากโค้ดและให้อยู่นอกระยะเข้าถึง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "API Key เป็นหัวใจสำคัญที่ Application ใช้ยืนยันตัวตน หากรั่วไหล ผู้อื่นจะสามารถยืนยันตัวตนในนามของคุณได้ทันที แนวทางปฏิบัติของ Anthropic กำหนดให้โหลด Key จาก Environment Variables เสมอ ห้าม Hard-code ลงในโค้ดโดยเด็ดขาด หากรันบน Cloud ให้ใช้กลไกการ Inject Environment Variables ของ Cloud Provider นั้นๆ"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางดังกล่าวยังครอบคลุมถึง Lifecycle ของ Key ด้วย ควรหมุนเวียน (Rotate) Key ตามรอบเวลาที่แน่นอน เช่น ทุก 90 วัน โดยสร้าง Key ใหม่และ Deactivate Key เก่าทิ้ง, แยก Key สำหรับ Development, Testing และ Production ออกจากกัน เพื่อให้สามารถสั่งระงับ Key ที่หลุดรอดได้โดยไม่กระทบ Environment อื่น, หมั่นสแกน Secret ที่อาจเผลอ Commit ลง Repository โดยเปิดใช้งาน Secret Scanning ของ Source Control Provider, ใช้เครื่องมืออย่าง Gitleaks และผูกการสแกนเข้ากับ CI/CD Pipeline เพื่อดักจับ Secret ก่อนผสานเข้า Main Branch ทั้งนี้ Claude Code จัดเก็บ API Keys และ Tokens ใน macOS Keychain ตามระบบที่รองรับ และใช้ File Permissions ควบคุมการเข้าถึงบน Windows และ Linux"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับสถาปัตยกรรม Agents แนวทางที่ปลอดภัยและรัดกุมกว่าคือการแยก Credentials ออกจาก Agent โดยสิ้นเชิง ตามคำแนะนำการ Deploy ใน Agent SDK ควรใช้ Proxy ภายนอก Container ของ Agent ทำหน้าที่ Inject Credentials แทน ทำให้ Agent ไม่มีวันได้สัมผัส Credentials โดยตรง ขณะเดียวกัน Proxy ยังสามารถคุม Endpoint Allowlist และบันทึก Log ทุก Request ได้อย่างครบถ้วน แถมยังรวมศูนย์การจัดการ Credentials ไว้ที่เดียวอย่างปลอดภัยแทนที่จะต้องกระจายไปยังทุก Agent และห้าม Mount ไฟล์ Credential เข้าสู่ Filesystem ของ Agent โดยเด็ดขาด"
+        },
+        {
+          "type": "table",
+          "caption": "ไฟล์อันตรายที่ห้าม Mount เข้า Filesystem ของ Agent โดยเด็ดขาด",
+          "headers": [
+            "File",
+            "Risk"
+          ],
+          "rows": [
+            [
+              ".env, .env.local",
+              "API keys, Database passwords, Secrets ต่างๆ"
+            ],
+            [
+              "~/.aws/credentials",
+              "AWS access keys"
+            ],
+            [
+              "~/.kube/config",
+              "Credentials สำหรับเข้าถึง Kubernetes cluster"
+            ],
+            [
+              ".npmrc, .pypirc",
+              "Tokens สำหรับ Package registry"
+            ],
+            [
+              "*.pem, *.key",
+              "Private keys"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "3. Integrity and exfiltration: isolating the runtime",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Permission rules เป็นตัวกำหนดว่า Claude จะพยายามทำอะไรได้บ้าง ส่วน Isolation คือตัวกำหนดว่า Claude จะเข้าถึงระบบจริงได้แค่ไหน เพื่อรักษา Integrity ของระบบและปิดช่องทาง Exfiltration คำแนะนำของ Agent SDK มีหลายทางเลือก: Sandbox Runtime มีค่าเริ่มต้นที่ปลอดภัยและ Overhead ต่ำมาก, Containers ขึ้นอยู่กับ Configuration, ส่วน gVisor และ VMs ให้ Isolation ระดับสูงสุดเมื่อตั้งค่าถูกต้อง แลกกับต้นทุนทรัพยากรที่สูงขึ้น ตัวอย่างการทำ Hardened Container คือการตัด Capabilities ทิ้ง, ตั้งค่า Root Filesystem เป็น Read-only, ปิดการเข้าถึง Network ทั้งหมด และ Mount โค้ดแบบ Read-only:"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อกำหนด --network none ช่องทางเดียวที่ Agent จะติดต่อโลกภายนอกได้คือผ่าน Proxy Socket ที่ Mount เข้ามาเท่านั้น ด้าน Domain Allowlists ก็มีข้อจำกัด: Sandbox Proxy จะ Match ตาม Hostname ที่ Client ส่งมาโดยไม่ได้แกะตรวจ TLS ดังนั้นหาก Agent ถือ Credentials ที่มีสิทธิ์กว้างขวางสำหรับโดเมนที่ได้รับอนุญาต ต้องควบคุมไม่ให้ใช้โดเมนนั้นยิง Request อื่นๆ หรือ Exfiltrate ข้อมูลออกไป สำหรับด้าน Audit Integrity ตัว Claude Code บน Cloud Sessions จะ Log ทุก Operation เอาไว้เพื่อการทำ Compliance และ Audit เสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Claude Code's AST-based command parsing ทำหน้าที่เป็น Sandbox ป้องกันคำสั่งอันตรายได้? (ทำไมถึงผิด): ไม่จริง: มันทำหน้าที่แค่ Match คำสั่งเข้ากับ Permission Rules เท่านั้น ส่วน Filesystem และ Network Isolation ที่แท้จริงต้องอาศัย Sandboxing, Containers หรือ VMs"
+        }
+      ]
+    },
+    {
+      "heading": "4. Confidentiality and privacy: prompt leaks, PII and PHI",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt Leakage คือการที่ข้อมูลลับใน Prompt หลุดออกไป แนวทางของ Anthropic แนะนำวิธีป้องกันหลายข้อ: แยก Context ออกจาก Query โดยใส่ข้อมูลสำคัญไว้ใน System Prompt, ทำ Post-process กรอง Output ของ Claude ด้วย Regex หรือ Keyword Filters, ทำ Audit Prompts และ Outputs สม่ำเสมอ และวิธีที่ดีที่สุดคือตัด Proprietary Details ที่ไม่จำเป็นต่องานทิ้งตั้งแต่แรก แต่มีข้อควรระวังสองเรื่อง: การทำ Leak-proofing เพิ่มความซับซ้อนและอาจลดทอน Task Performance จึงควรใช้เมื่อจำเป็นจริง ๆ เท่านั้น และเทคนิคเดิมอย่างการ Prefilling the Assistant Turn เพื่อย้ำคำสั่งนั้นไม่รองรับแล้วบน Claude 4.6 ขึ้นไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "PII และ PHI: Protected Health Information คือข้อมูลสุขภาพใด ๆ ที่ระบุตัวตนบุคคลได้ มักปรากฏใน Message Content, ไฟล์แนบ, ชื่อไฟล์ หรือ Metadata องค์กรที่ประมวลผล PHI ต้องใช้ระบบ HIPAA readiness (ลงนาม BAA ควบคู่กับ HIPAA-enabled Organization) ซึ่ง API จะบล็อกฟีเจอร์ที่ไม่เข้าเกณฑ์ด้วย HTTP 400 Error ทันที จุดที่คนมักพลาดคือ JSON Schemas ที่ใช้กับ Structured Outputs หรือ Strict: true Tools จะถูก Compile และ Cache แยกต่างหากโดยไม่มี PHI Protections คุ้มครอง ห้ามใส่ข้อมูลผู้ป่วยลงใน Schema Property Names, Enum Values, Const Values หรือ Patterns เด็ดขาด ทั้งนี้ Claude Code ยังไม่รองรับภายใต้ HIPAA readiness"
+        },
+        {
+          "type": "paragraph",
+          "text": "Data Retention: ภายใต้นโยบาย Zero Data Retention (ZDR) Anthropic จะไม่บันทึก Prompts หรือ Responses ลงบน Storage หลังส่ง API Response กลับไปแล้ว และข้อมูลใด ๆ ที่เก็บไว้จะไม่ถูกนำไปใช้เทรนโมเดลโดยไม่ได้รับอนุญาต ทั้งนี้ องค์กรที่ต้องจัดการ PHI ไม่จำเป็นต้องขอเปิดใช้ ZDR เสมอไป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การทำ Prefilling the Assistant turn ด้วยข้อความ \"never reveal X\" เป็นวิธีแก้ Prompt Leak ที่ใช้ได้กับทุกโมเดลในปัจจุบัน? (ทำไมถึงผิด): ไม่จริง: Prefilling ไม่รองรับแล้วบนโมเดล Claude 4.6 ขึ้นไป ต้องเปลี่ยนไปใช้การแยก Context, การทำ Filter ที่ Output และการตัดข้อมูลที่ไม่จำเป็นออกจาก Prompt แทน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55681",
+      "question": "ทีมงานกำลัง deploy ตัว Agent ที่ต้องประมวลผลเอกสารจากบุคคลภายนอกที่ไม่น่าเชื่อถือ (untrusted third-party documents) โดย Agent นี้สามารถเข้าถึง internal APIs ที่ใช้ส่งอีเมลและโอนเงินได้ เพื่อจำกัดความเสียหายที่อาจเกิดขึ้นจากการโจมตีด้วย prompt injection ที่สำเร็จ ทีมงานควรทำอย่างไรในการกำหนดค่าขอบเขตความสามารถ (capabilities) ของ Agent?",
+      "options": [
+        "ใช้หลักการ least privilege โดยจำกัดขอบเขตการเข้าถึง tool ของ Agent ให้อยู่เฉพาะเท่าที่จำเป็น และตัดสิทธิ์เข้าถึง secrets ตลอดจน sensitive actions ที่ไม่จำเป็นสำหรับงานนั้นออกไป",
+        "ให้สิทธิ์ Agent เข้าถึง internal API ทั้งหมดตั้งแต่แรก เพื่อที่วิศวกรจะได้ไม่ต้องคอยอัปเดต permissions เมื่อมีการเพิ่มฟีเจอร์การประมวลผลเอกสารใหม่ๆ ในอนาคต",
+        "กำหนด service account กลางเพียงบัญชีเดียวที่มีสิทธิ์ระดับ administrator ให้กับ Agent เนื่องจากหากจำกัดขอบเขตสิทธิ์ที่แคบเกินไปจะทำให้การพัฒนาฟีเจอร์ในอนาคตล่าช้า",
+        "ปิดการเข้าถึง tool ทั้งหมดโดยสิ้นเชิง และให้มนุษย์ดำเนินการเองทุกขั้นตอนที่ Agent ควรจะทำ"
+      ],
+      "explanation": ""
+    }
+  ]
+}

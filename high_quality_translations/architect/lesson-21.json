@@ -1,0 +1,168 @@
+{
+  "title": "RAG Ingestion: Chunking, Embeddings และ Contextual Indexing",
+  "objectives": [
+    "ตัดสินใจเลือกระหว่างการสร้าง RAG Pipeline หรือส่ง Knowledge Base ทั้งหมดเข้าไปใน Prompt",
+    "อธิบายผลกระทบของ Chunk Size, Boundary และ Overlap ต่อการ Retrieval รวมถึงสาเหตุที่ Chunk ขาด Document Context",
+    "เลือก Voyage Embedding Model พร้อมกำหนด input_type ให้ถูกต้องสำหรับ Document และ Query",
+    "สร้าง Contextual Embeddings และ Contextual BM25 Index จาก Chunk Context เดียวกัน พร้อมใช้ Prompt Caching เพื่อลดต้นทุน"
+  ],
+  "key_concept": "Contextual Retrieval — ให้ Claude เขียน Context สั้นๆ ระบุที่มาและความหมายของแต่ละ Chunk ภายใน Document ต้นทาง ก่อนนำไปต่อหน้า Chunk แล้วประมวลผล Embedding และ BM25 Index ช่วยให้ทั้งสองระบบค้นหา Chunk ที่อ่านโดดๆ แล้วไม่รู้เรื่องได้แม่นยำยิ่งขึ้น",
+  "sections": [
+    {
+      "heading": "1. Chunk size, boundaries และ Context ที่ chunk สูญเสียไป",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Retrieval-augmented generation (RAG) ทำหน้าที่ค้นหาข้อความที่เกี่ยวข้องใน Knowledge Base แล้วนำไปใส่ใน Prompt คำถามแรกในการออกแบบคือ คุณจำเป็นต้องใช้ RAG จริงหรือไม่? หาก Knowledge Base มีขนาดไม่เกินประมาณ 200,000 Tokens (ราว 500 หน้า) คุณสามารถยัดข้อมูลทั้งหมดลงใน Prompt ได้เลยโดยตรง และการใช้ Prompt Caching จะช่วยให้คำขอที่ซ้ำๆ ทำงานได้เร็วและประหยัดค่าใช้จ่ายอย่างมาก คุณควรเริ่มนำ RAG ที่มีระบบซับซ้อนเข้ามาใช้ก็ต่อเมื่อ Corpus มีขนาดใหญ่เกินกว่าจะใส่ลงใน Context Window ได้หมดเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "ขั้นตอนส่วนใหญ่ของ RAG Pipeline จะเกิดขึ้นตอน Ingestion โดย Corpus จะถูกตัดแบ่งเป็น Chunks ย่อยๆ ซึ่งมักจะมีขนาดไม่เกิน 2-3 ร้อย Tokens ต่อ Chunk จากนั้น Embedding Model จะแปลงแต่ละ Chunk ให้เป็น Vector เพื่อจัดเก็บลงใน Vector Database สำหรับใช้ค้นหาด้วย Semantic Similarity เมื่อมี Query เข้ามา ระบบจะดึง Chunks ที่ใกล้เคียงที่สุดไปใส่ไว้ใน Prompt แล้วส่งต่อให้ Claude"
+        },
+        {
+          "type": "paragraph",
+          "text": "Chunk Size, Chunk Boundary และ Chunk Overlap คือ 3 การตั้งค่าที่คุณต้องจูน และแต่ละตัวส่งผลกระทบโดยตรงต่อ Retrieval Performance เช่น การตัดแบ่งตาม Heading ช่วยให้เนื้อหาในแต่ละหัวข้อย่อยอยู่รวมกัน ในขณะที่ Character Splitter พื้นฐานจะตัดข้อความตามจำนวนตัวอักษรทันทีโดยไม่สนใจโครงสร้างเนื้อหา ส่วน Overlap ก็สำคัญไม่แพ้กัน การตัด Overlap ออกเพื่อเร่งความเร็วในการ Indexing จะเปลี่ยนผลลัพธ์ของ Retrieval เสมอ จึงต้องวัดผลทุกครั้งเหมือนกับการปรับจูน Retrieval อื่นๆ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Chunk Size ทุกขนาดมีราคาที่ต้องจ่ายเหมือนกัน นั่นคือเมื่อถูกตัดแยกออกมา Chunk จะสูญเสีย Context รอบข้างของเอกสารไป ตัวอย่างเช่น ในเอกสารงบการเงิน SEC มี Chunk ที่ระบุว่า 'The company's revenue grew by 3% over the previous quarter.' ข้อความนี้เป็นคำตอบของคำถามว่า 'รายได้ของ ACME Corp ใน Q2 2023 เติบโตเท่าไหร่' ได้อย่างสมบูรณ์แบบ แต่ใน Chunk กลับไม่มีชื่อบริษัทและไม่มีระบุไตรมาส ทำให้ Query เกี่ยวกับ ACME ใน Q2 2023 มีคำตรงกันใน Chunk น้อยมาก และต่อให้ดึง Chunk นี้ขึ้นมาได้ Claude ก็ไม่สามารถบอกได้อยู่ดีว่าเป็นข้อมูลของบริษัทไหน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การดึง Context เหล่านั้นกลับมามี 2 วิธี วิธีแรกคือเขียน Context เพิ่มเข้าไปในแต่ละ Chunk ก่อนทำ Indexing ซึ่งเป็นแนวทางของ Contextual Retrieval (จะกล่าวถึงด้านล่าง) อีกวิธีหนึ่งคือใช้ Contextualized Chunk Embedding Model เช่น voyage-context-4 ที่สามารถสร้าง Vector ในระดับ Chunk โดยฝัง Context ของทั้งเอกสารเข้ามาด้วยในตัว โดยที่คุณไม่ต้องเสียเวลาใส่ Metadata เองด้วยมือ และเรียกใช้งานผ่าน contextualized_embed() แทน embed()"
+        }
+      ]
+    },
+    {
+      "heading": "2. การเลือกและเรียกใช้งาน Embedding Model",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Anthropic ไม่มี Embedding Model ของตัวเอง ขั้นตอนนี้จึงต้องพึ่งพา Third-party Provider โดยเอกสารของ Claude มักยกตัวอย่าง Voyage AI แต่ยังคงแนะนำให้เปรียบเทียบผู้ให้บริการหลายๆ เจ้า ปัจจัยหลักในการเลือก Provider มี 3 ข้อ: ข้อแรกคือ ขนาดและความสอดคล้องกับ Domain ของ Training Data ข้อสองคือ Inference Performance (Lookup Speed และ End-to-end Latency) ซึ่งสำคัญมากใน Production ขนาดใหญ่ และข้อสามคือ Customization ว่าสามารถ Fine-tune โมเดลต่อด้วย Private Data เพื่อรองรับคำศัพท์เฉพาะทางได้หรือไม่"
+        },
+        {
+          "type": "table",
+          "caption": "Voyage AI embedding models: วิธีเรียกใช้และกรณีการเลือกใช้งาน",
+          "headers": [
+            "Model",
+            "Call with",
+            "Context length",
+            "Pick it when"
+          ],
+          "rows": [
+            [
+              "voyage-4-large",
+              "embed()",
+              "32,000",
+              "ต้องการคุณภาพ Retrieval ดีที่สุดสำหรับงานทั่วไปและรองรับหลายภาษา (Multilingual)"
+            ],
+            [
+              "voyage-4",
+              "embed()",
+              "32,000",
+              "ต้องการความสมดุลระหว่างคุณภาพและประสิทธิภาพ"
+            ],
+            [
+              "voyage-4-lite",
+              "embed()",
+              "32,000",
+              "ให้ความสำคัญกับ Latency ต่ำและประหยัดต้นทุนเป็นอันดับแรก"
+            ],
+            [
+              "voyage-code-4",
+              "embed()",
+              "32,000",
+              "Corpus เป็นซอร์สโค้ด หรือใช้งานใน Agentic Coding"
+            ],
+            [
+              "voyage-law-2",
+              "embed()",
+              "16,000",
+              "ใช้งานกับงานด้านกฎหมาย ทั้ง Retrieval และ RAG"
+            ],
+            [
+              "voyage-finance-2",
+              "embed()",
+              "32,000",
+              "ใช้งานกับงานด้านการเงิน ทั้ง Retrieval และ RAG"
+            ],
+            [
+              "voyage-context-4",
+              "contextualized_embed()",
+              "120,000 with enable_auto_chunking",
+              "ต้องการ Chunk-level Vectors ที่เก็บ Context ของเอกสารทั้งชุดไว้ด้วย"
+            ],
+            [
+              "voyage-multimodal-3.5",
+              "multimodal_embed()",
+              "32,000",
+              "จำเป็นต้องทำ Embedding ร่วมกันระหว่างข้อความ รูปภาพ และวิดีโอ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Context Length จะยิ่งมีความสำคัญมากขึ้นเมื่อคุณเพิ่ม Context เข้าไปในแต่ละ Chunk เนื่องจาก Embedding Model บางตัวมีขีดจำกัด Input Token ที่ตายตัว หาก Contextualized Chunks มีผล Retrieval แย่กว่า Chunk ธรรมดา อาจเกิดจากข้อความ Context ที่เพิ่มเข้าไปทำให้เกินขีดจำกัดจนเนื้อหาถูกตัดทอน (Truncate) ทางแก้คือเปลี่ยนไปใช้โมเดลที่มี Context Window ใหญ่ขึ้น เช่น voyage-law-2 จะรับ Input ได้เพียงครึ่งหนึ่งของโมเดล General-purpose ทั่วไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Embed ระหว่าง Documents และ Queries ต้องแยกกัน ให้กำหนด input_type=\"document\" ตอนทำ Embed Chunks และกำหนด input_type=\"query\" ตอนทำ Embed คำถามของผู้ใช้ ห้ามละเว้นพารามิเตอร์นี้หรือตั้งค่าเป็น None เด็ดขาด เนื่องจาก Voyage จะเติม Instruction นำหน้า Input แต่ละประเภทแตกต่างกัน ได้แก่ 'Represent the document for retrieval: ' สำหรับ Chunks และ 'Represent the query for retrieving supporting documents: ' สำหรับคำถาม การทำเช่นนี้จะได้ Vector ที่เหมาะสมกับการค้นหามากกว่า ส่งผลให้ Retrieval Quality สูงขึ้นโดยตรง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Voyage Vectors ถูก Normalize ให้มีความยาวเป็น 1 เสมอ ทำให้ Cosine Similarity มีค่าเท่ากับ Dot Product โดยที่ Dot Product ใช้เวลาคำนวณเร็วกว่ามาก และ Euclidean Distance ก็ให้ผลการจัดอันดับ (Ranking) แบบเดียวกัน ดังนั้น ไม่ว่าจะเลือกใช้ Similarity Metric ตัวใด ผลลัพธ์ Chunks ที่ดึงกลับมาก็จะไม่เปลี่ยนแปลง"
+        },
+        {
+          "type": "paragraph",
+          "text": "มี 2 การตั้งค่าฝั่ง Output ที่ช่วยลดขนาด Index ลงได้โดยไม่ทำให้ความแม่นยำในการค้นหาดีขึ้น ได้แก่ output_dtype ที่ทำหน้าที่ Quantize แต่ละ Vector หากใช้ int8 หรือ uint8 พื้นที่จัดเก็บ Memory และต้นทุนจะลดลง 4 เท่า ส่วน binary หรือ ubinary จะลดลงถึง 32 เท่า โดยค่า Default คือ float จะให้ Precision และความแม่นยำสูงสุด ส่วน output_dimension (เช่น ปรับเป็น 256 จาก Default 1024) จะส่งค่า Matryoshka Vectors ที่สั้นลงกลับมา ซึ่ง Vector ที่บันทึกไปแล้วก็สามารถตัดขนาดลงให้เหลือเฉพาะมิติต้นๆ แล้ว Normalize ใหม่ได้ ให้ใช้การตั้งค่าเหล่านี้เมื่อเจอปัญหาเรื่องขนาด Index หรือต้นทุนเท่านั้น เพราะมันไม่ช่วยแก้ปัญหา Chunks ที่ตรงประเด็นหลุดหายไป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ที่คิดว่าสามารถละเว้น input_type หรือทำ Embed ข้อมูล Queries และ Chunks ด้วยวิธีเดียวกันได้เพราะโมเดลรองรับทั้งคู่ แต่ในความเป็นจริง สำหรับงาน Retrieval ต้องระบุ Chunks เป็น document และระบุคำถามเป็น query เสมอ เพราะ Voyage จะเติม Instruction นำหน้าที่แตกต่างกันเพื่อให้ได้ Vector ที่มีประสิทธิภาพสูงสุดสำหรับการค้นหา การละเว้นพารามิเตอร์นี้หรือตั้งเป็น None จะทำให้สูญเสียประสิทธิภาพดังกล่าวไป"
+        }
+      ]
+    },
+    {
+      "heading": "3. Contextual embeddings และ contextual BM25",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Contextual Retrieval จะเขียนบริบทของเอกสารที่ขาดหายไปกลับเข้าไปในแต่ละ Chunk ก่อนทำ Indexing โดย Claude จะรับทั้งเอกสารและ Chunk นั้นๆ แล้วสร้าง Context สั้นๆ (ปกติราว 50-100 Tokens) เพื่อระบุตำแหน่งและความหมายของ Chunk ในภาพรวมของเอกสาร จากนั้นนำ Context นี้ไปใส่ไว้ข้างหน้า (Prepend) Chunk เช่น Chunk ของ ACME จะกลายเป็น 'Chunk นี้มาจากรายงานไฟลิ่งของ SEC เกี่ยวกับผลการดำเนินงานของ ACME Corp ใน Q2 2023 โดยมีรายได้ไตรมาสก่อนหน้าอยู่ที่ 314 ล้านดอลลาร์' แล้วตามด้วยประโยคเดิมของ Chunk"
+        },
+        {
+          "type": "paragraph",
+          "text": "Chunk ที่เพิ่ม Context แล้วนี้จะถูกส่งไปยังทั้งสอง Index เพราะ Pipeline มักเก็บ Lexical Index ควบคู่กับ Vector Index เพื่อป้องกันไม่ให้ Embeddings พลาด Exact Strings สำคัญ (เช่น รหัส Error 'TS-999' ที่ BM25 จับคู่ได้แม่นยำ) การนำ Context ที่สร้างขึ้นไปใส่ข้างหน้าก่อนทำ Embedding เรียกว่า Contextual Embeddings และการนำข้อความเดียวกันไปใส่ข้างหน้าก่อนทำ Tokenize สำหรับ BM25 เรียกว่า Contextual BM25 ซึ่งเนื้อหาเดิมของ Chunk ยังคงอยู่ ทำให้ BM25 ยังคงค้นหา Exact Match สำหรับรหัสสินค้าหรือ Error ได้แม่นยำเหมือนเดิม แถมยังสามารถค้นหาชื่อบริษัท ช่วงเวลา หรือชื่อไฟล์ที่ปรากฏอยู่ส่วนอื่นของเอกสารได้อีกด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "ผลลัพธ์ของแต่ละ Index ดีขึ้นอย่างชัดเจน จากการทดสอบกับ Codebase, นิยาย, เอกสาร ArXiv และงานวิจัยวิทยาศาสตร์ การใช้ Contextual Embeddings เพียงอย่างเดียวช่วยลด Retrieval Failure Rate (Top-20) ลงถึง 35% (จาก 5.7% เหลือ 3.7%) และเมื่อผสานเข้ากับ Contextual BM25 จะลดลงถึง 49% (เหลือ Failure Rate เพียง 2.9%) โดยเทคนิคนี้ช่วยเพิ่มประสิทธิภาพให้กับ Embedding Model ทุกตัวที่ทดสอบ โดยเฉพาะ Gemini และ Voyage Embeddings ที่เห็นผลชัดเจนที่สุด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Context ที่สร้างขึ้นจะต้องเฉพาะเจาะจงกับ Chunk นั้นๆ จริงๆ การนำ Summary กว้างๆ ของทั้งเอกสารไปแปะให้ทุก Chunk ให้ผลลัพธ์ที่ดีขึ้นน้อยมาก และ Summary-based Indexing มีประสิทธิภาพต่ำ แม้ Generic Prompt ทั่วไปจะทำงานได้ดี แต่ Prompt ที่ปรับแต่งให้เข้ากับ Domain เฉพาะ เช่น การเพิ่ม Glossary ของคำศัพท์ที่นิยามไว้ในเอกสารอื่น จะยิ่งให้ผลลัพธ์ที่ดียิ่งขึ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "การใช้ Prompt Caching ช่วยควบคุมต้นทุนได้อย่างมาก เนื่องจากแต่ละ Chunk ต้องส่งเอกสารทั้งฉบับซ้ำๆ ให้วางตัวเอกสารไว้ส่วนแรกของ Prompt และระบุ cache_control ไว้ท้ายเอกสาร Chunk แรกจะทำหน้าที่เขียนเอกสารลง Cache ส่วน Chunk ถัดๆ ไปจะอ่านจาก Cache โดยได้ส่วนลดค่าใช้จ่ายถึง 90% และเนื่องจาก Cache มีอายุ 5 นาที จึงควรประมวลผล Chunk ทั้งหมดของเอกสารฉบับเดียวกันให้เสร็จสิ้นต่อเนื่องกัน แทนที่จะสลับไปมาระหว่างเอกสารคนละฉบับ ตัวอย่างเช่น เอกสาร 8k Tokens แบ่งเป็น Chunks ละ 800 Tokens และมี Context 100 Tokens ต่อ Chunk จะมีต้นทุนการสร้าง Context เพียง $1.02 ต่อ 1 ล้าน Document Tokens ซึ่งจ่ายเพียงครั้งเดียวตอน Ingestion ไม่ได้เสียทุกครั้งที่ Query โดยในการทดสอบกับชุดข้อมูล Codebase จำนวน 737 Chunks การใช้ Caching ช่วยลด Input Cost จากราว $9.20 เหลือเพียงประมาณ $2.85"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ใส่ Context ที่สร้างขึ้นเฉพาะกับ Embeddings แล้วคง Raw Chunk Text ไว้ใน BM25 เพื่อให้ Match ข้อมูลตรงๆ ได้แม่นยำ? (ทำไมถึงผิด): ไม่จริง: ต้อง Prepend บริบทเดียวกันทั้งก่อนทำ Embedding และก่อนทำ BM25 Indexing เพราะข้อความดั้งเดิมยังคงอยู่ใน Chunk ทำให้ Exact Matching ยังทำงานได้ปกติ แถม BM25 ยังสามารถค้นหาคำที่ปรากฏอยู่ส่วนอื่นของเอกสารเจอด้วย | นำ Document Summary เดียวกันไปแปะในทุก Chunk จะได้ผลลัพธ์เทียบเท่ากับ Contextual Retrieval? (ทำไมถึงผิด): ไม่จริง: ประสิทธิภาพที่เพิ่มขึ้นมาจากการเขียน Context ที่เฉพาะเจาะจงสำหรับแต่ละ Chunk จากการทดสอบพบว่าการใช้ Generic Document Summary แปะให้ทุก Chunk ให้ผลลัพธ์ดีขึ้นน้อยมาก"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56791",
+      "question": "ทีม Search ต้องการให้ Lexical Index ยังคง Match กับรหัสสินค้าและ Error Strings แบบตรงตัวเป๊ะ (Verbatim) ได้เหมือนเดิม แต่ก็ต้องการได้รับประโยชน์จาก Document-level Grounding แบบเดียวกับที่เพิ่งเพิ่มเข้าไปใน Semantic Embeddings ด้วย โดยพวกเขาวางแผนที่จะใช้งานทั้ง BM25 Index และ Vector Index ร่วมกันใน Pipeline ทีมควรทำอย่างไรเพื่อให้ทั้งสอง Index สอดคล้องกัน (Align)?",
+      "options": [
+        "นำ Contextual Text เฉพาะของแต่ละ Chunk ที่ใช้กับ Embeddings มาใส่ไว้ข้างหน้า (Prepend) แต่ละ Chunk ก่อนที่จะนำไปทำ Tokenize สำหรับ BM25 Index",
+        "แทนที่ BM25 Index ทั้งหมดด้วย Embedding-based Index ตัวที่สองที่ใช้ Voyage Model รุ่นอื่นเพื่อทำ Redundancy",
+        "ลดค่าน้ำหนัก Term-frequency ของ BM25 ลง เพื่อให้ Lexical Matches มีผลต่อผลลัพธ์การจัดอันดับ (Ranked Results) ขั้นสุดท้ายน้อยลง",
+        "Rebuild BM25 Index ขึ้นมาใหม่โดยใช้เฉพาะ Document Titles และ Section Headings แทนการใช้ Full Chunk Text"
+      ],
+      "explanation": ""
+    }
+  ]
+}

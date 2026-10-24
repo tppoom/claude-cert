@@ -1,0 +1,321 @@
+{
+  "title": "การ Re-use Prompt ด้วย Caching, Modular Prompts และ Agent Skills",
+  "objectives": [
+    "อธิบายกลไกของ Prompt Caching ในการ Re-use Prefix ที่เหมือนกัน และประเมินต้นทุนจากราคา Write, Hit และ TTL",
+    "เลือกใช้ระหว่าง Automatic Caching กับ Explicit cache_control Breakpoints พร้อมวิธีผสานการใช้งานภายใต้โควตา 4 Slots",
+    "วินิจฉัยสาเหตุของ Cache Miss จาก Lookback Window ขนาด 20 Blocks หรือการเปลี่ยนแปลงเนื้อหาก่อนหน้า Breakpoint",
+    "จัดลำดับเนื้อหาใน Prompt จากส่วนที่คงที่ที่สุดไปยังส่วนที่มีการเปลี่ยนแปลงบ่อย เพื่อลดการ Invalidate Cache ให้น้อยที่สุด",
+    "เขียน Frontmatter ของ SKILL.md ให้ผ่าน Validation และ Trigger ได้อย่างแม่นยำ พร้อมโครงสร้างแบบ Progressive Disclosure สำหรับ Skill ขนาดใหญ่"
+  ],
+  "key_concept": "Reusable Stable Prefix — การ Re-use จะทำงานได้เมื่อจุดเริ่มต้นของ Request ตรงกันแบบ Byte-for-Byte กับ Request ก่อนหน้า Caching จะเก็บ Prefix นั้นไว้เพื่อข้ามขั้นตอน Reprocessing ใน Request ถัดไป โครงสร้างแบบ Modular ช่วยรักษา Prefix ให้คงที่โดยย้ายเนื้อหาที่เปลี่ยนบ่อยไปไว้ท้ายสุด และ Skills ช่วยแยกคำสั่งที่ Re-use ได้ออกจาก Prefix จนกว่างานนั้นจะต้องการเรียกใช้",
+  "sections": [
+    {
+      "heading": "1. สิ่งที่ Prompt Caching นำกลับมาใช้ซ้ำและโครงสร้างราคา",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Production Prompts จำนวนมากมักขึ้นต้นด้วยหลายพัน Tokens เดิมๆ ทุกครั้ง เช่น Tool Definitions, System Prompt ขนาดยาว, ชุด Examples หรือ Reference Document การใช้ Prompt Caching ช่วยให้ Request ถัดๆ ไปไม่ต้องประมวลผล Prefix ส่วนต้นที่แชร์ร่วมกันซ้ำ เมื่อมี Request เข้ามาและเปิดใช้งาน Caching ระบบจะเช็กว่า Prompt Prefix จนถึง Cache Breakpoint เคยถูกแคชไว้จาก Query ล่าสุดหรือไม่ หาก Cache Hit ระบบจะดึงเวอร์ชันที่แคชไว้มาใช้ทันที ซึ่งช่วยลดทั้ง Latency และ Cost แต่หาก Cache Miss ระบบจะประมวลผล Full Prompt แล้วค่อยแคช Prefix นั้นเมื่อเริ่ม Stream Response กลุ่ม Workloads ที่ได้ประโยชน์สูงสุดคือ Prompts ที่มี Examples เยอะ, มี Background Context ขนาดใหญ่, งานซ้ำๆ ที่ใช้คำสั่งเดิม และการสนทนาแบบ Multi-turn ขนาดยาว"
+        },
+        {
+          "type": "paragraph",
+          "text": "โดย Default ตัว Cache Entry จะมีอายุ (TTL) 5 นาที และทุกครั้งที่มีการอ่านซ้ำ (Hit) ระบบจะ Refresh อายุขัยให้ใหม่โดยไม่มีค่าใช้จ่ายเพิ่มเติม นอกจากนี้ยังมีตัวเลือก TTL แบบ 1 ชั่วโมง โดยคิดราคา 2 เท่าของ Base Input Price ข้อควรระวังคือ อายุขัยจะเริ่มนับตั้งแต่ 'จุดเริ่มต้น' ของ Request ที่ Write หรือ Read แคช ไม่ได้เริ่มนับตอน Response ตอบจบ ดังนั้นเวลา Generation จึงกินเวลาของ TTL ไปด้วย เช่น ถ้า Response ใช้เวลา Stream 4 นาที Request ถัดไปที่ต้องการใช้ Prefix เดิมต้องเริ่มส่งภายในราวๆ 1 นาทีหลังการตอบจบ หากเป็น Agent Loop ที่ทำงานช้าหรือ User ทิ้งช่วงนาน แคชอาจจะหมดอายุไปก่อน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Caching ส่งผลต่อราคาของ Input Tokens โดยการ Write ลงแคชจะมีราคาสูงกว่า Base Input เล็กน้อย แต่การ Read (Hit) จากแคชจะถูกกว่า Base Input มหาศาล สำหรับ Cache Hits บน Claude Opus 5.5 และ Claude Sonnet 5.5 จะอยู่ที่ 0.05 เท่าของ Base Input, บน Claude Fable 5.1 และ Claude Mythos 5.1 อยู่ที่ 0.025 เท่า และ 0.1 เท่าสำหรับ Model อื่นๆ ทั้งหมด ส่วนตัว Breakpoints นั้นไม่มีค่าใช้จ่าย คุณจะจ่ายเฉพาะค่า Cache Writes, Cache Reads และ Uncached Input เท่านั้น การใส่ Breakpoints จึงไม่ทำให้ค่าใช้จ่ายเพิ่มขึ้นแต่อย่างใด"
+        },
+        {
+          "type": "table",
+          "caption": "ราคา Prompt Caching ต่อล้าน Tokens (MTok) สำหรับ Models ปัจจุบัน",
+          "headers": [
+            "Model",
+            "Base input",
+            "5m cache write",
+            "1h cache write",
+            "Cache hits and refreshes"
+          ],
+          "rows": [
+            [
+              "Claude Opus 5.5",
+              "$4 / MTok",
+              "$5 / MTok",
+              "$8 / MTok",
+              "$0.20 / MTok"
+            ],
+            [
+              "Claude Sonnet 5.5",
+              "$2 / MTok",
+              "$2.50 / MTok",
+              "$4 / MTok",
+              "$0.10 / MTok"
+            ],
+            [
+              "Claude Haiku 5.5 (prompts up to 100,000 tokens)",
+              "$0.10 / MTok",
+              "$0.125 / MTok",
+              "$0.20 / MTok",
+              "$0.01 / MTok"
+            ],
+            [
+              "Claude Fable 5.1",
+              "$10 / MTok",
+              "$12.50 / MTok",
+              "$20 / MTok",
+              "$0.25 / MTok"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างการคำนวณ System Prompt ขนาด 20,000 Tokens บน Sonnet 5.5: หากส่งแบบไม่แคช จะเสีย $0.04 ต่อ Request แต่ถ้าเปิด Caching ใน Request แรกที่ Write แคชจะเสีย $0.05 และทุก Hit หลังจากนั้นจะเสียเพียง $0.002 ซึ่งจุดคุ้มทุนของการ Write จะคืนทุนทันทีตั้งแต่การ Reuse ครั้งแรก อย่างไรก็ตาม สำหรับ Short Prompts หากความยาวไม่ถึง Minimum Cacheable Length ของ Model นั้นๆ Prefix จะไม่ถูกแคชแม้ว่าจะใส่ cache_control ก็ตาม โดย Minimum Threshold อยู่ที่ 512 Tokens สำหรับ Opus 5.5, Sonnet 5.5, Haiku 5.5 และ Fable 5.1 และอาจสูงถึง 4,096 Tokens ใน Model รุ่นเก่าอย่าง Haiku 4.5"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: อายุแคช 5 นาทีเริ่มนับหลังจาก Response ทำงานเสร็จ ทำให้เวลา Generation ไม่กระทบต่ออายุแคช (เพราะในความเป็นจริง อายุแคชนับตั้งแต่จุดเริ่มต้นของ Request ที่ Write หรือ Read แคช หาก Stream ไปแล้ว 4 นาที คุณจะเหลือเวลาเพียงประมาณ 1 นาทีในการส่ง Request ถัดไปก่อนที่แคชจะหลุด) | คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การใส่ cache_control breakpoint เพิ่มจะทำให้ค่าใช้จ่ายต่อ Request เพิ่มขึ้น (เพราะตัว Breakpoint เองไม่มีค่าใช้จ่าย คิดเงินเฉพาะ Cache Writes, Cache Reads และ Uncached Input Tokens เท่านั้น)"
+        }
+      ]
+    },
+    {
+      "heading": "2. Automatic Caching และ Explicit cache_control Breakpoints",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เราสามารถเปิดใช้งาน Caching ได้ 2 รูปแบบ วิธีแรกคือ Automatic Caching โดยกำหนดฟิลด์ cache_control ไว้ที่ Top-level ของ Request ตัวเดียว ระบบจะวาง Breakpoint ไว้ที่ Block สุดท้ายที่สามารถแคชได้ และจะเลื่อนตำแหน่งไปข้างหน้าเรื่อยๆ ตามการสนทนาที่ยาวขึ้น คุณจึงไม่ต้องจัดการ Marker เอง ในแต่ละ Turn ข้อมูลทั้งหมดจนถึงจุดสิ้นสุดของ Request ก่อนหน้าจะถูกอ่านเป็น Cache Read และจะมีเพียงข้อความใหม่ของ Assistant Reply กับ User Message เท่านั้นที่ถูก Write เพิ่ม ส่วนวิธีที่สองคือ Explicit Breakpoints ซึ่งเป็นการใส่ cache_control เจาะจงที่ Content Blocks แต่ละตัว ช่วยให้ควบคุมระดับ Granular ได้ดีขึ้น เช่น เหมาะกับการแคช Sections ที่มีความถี่ในการเปลี่ยนแปลงไม่เท่ากัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทั้งสองวิธีสามารถนำมาใช้ร่วมกันได้ โดย Request หนึ่งสามารถมี Breakpoints ได้สูงสุด 4 จุด และ Automatic Caching จะกินโควตาไป 1 จุด หากมีการใส่ Explicit Breakpoints ระดับ Block ครบ 4 จุดอยู่แล้ว Request นั้นจะ Error 400 ทันทีเนื่องจากไม่มี Slot เหลือให้ Automatic Caching นอกจากนี้จะเกิด 400 Error เช่นกันหาก Block สุดท้ายมี Explicit Marker ที่ใช้ TTL คนละค่า แต่ถ้า Marker นั้นใช้ TTL ค่าเดียวกัน Automatic Caching จะถือว่าครอบคลุมแล้วและไม่ทำอะไรเพิ่ม แพทเทิร์นยอดนิยมคือการวาง Explicit Breakpoint ไว้ที่ System Prompt และปล่อยให้ Automatic Caching เลื่อนตามบริบทการสนทนา"
+        },
+        {
+          "type": "paragraph",
+          "text": "Automatic Caching ทำงานบน Infrastructure เดียวกันกับ Explicit Breakpoints จึงใช้เงื่อนไขราคา, Minimum Token Thresholds, ข้อกำหนดเรื่องลำดับ และ Lookback Window ขนาด 20 Blocks แบบเดียวกันทั้งหมด หากต้องการใช้ TTL 1 ชั่วโมง สามารถกำหนด { \"type\": \"ephemeral\", \"ttl\": \"1h\" } ลงในฟิลด์เดิมได้เลย ทั้งนี้ฟีเจอร์ Prompt Caching ทั้งแบบ Automatic และ Explicit รองรับบน Claude Models ที่เปิดใช้งานอยู่ทั้งหมด"
+        }
+      ]
+    },
+    {
+      "heading": "3. กลไก Lookback ในการค้นหา Cache Entries ก่อนหน้า",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Breakpoint จะกำหนดจุดสิ้นสุดของ Prefix ที่ต้องการค้นหาใน Cache ซึ่งปกติใน Request มักใส่เพียงจุดเดียว เมื่อไม่พบ Entry ที่ตรงกับ Prefix ณ ตำแหน่ง Breakpoint พอดี ระบบจะทำ Lookback ถอยหลังทีละ Block เพื่อค้นหา Prefix ที่ยาวที่สุดที่เคย Write ลง Cache ไว้ โดยระยะการค้นหาย้อนหลัง (Lookback Reach) ถูกจำกัดไว้คงที่สูงสุด 20 ตำแหน่ง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างการทำงานตลอด 3 Turns: ใน Turn 1 มี 10 Blocks โดยวาง Breakpoint ที่ Block 10 ระบบจึง Write Cache ณ จุดนี้ ต่อมาใน Turn 2 ขยายเป็น 15 Blocks เมื่อ Block 15 ยังไม่มี Cache ระบบจึง Lookback ย้อนกลับไปเจอ Block 10 (Hit) ทำให้ประมวลผลใหม่เฉพาะ Block 11–15 แล้ว Write Entry ใหม่ที่ Block 15 พอถึง Turn 3 ข้อมูลพุ่งเป็น 35 Blocks (เช่น เกิด Tool Calls ถี่ยิบ) การ Lookback จาก Block 35 ย้อนกลับไปได้ไกลสุดแค่ Block 16 จึงพลาด Entry ที่ Block 15 ไปเพียงตำแหน่งเดียว ทั้งที่ Cache ยังไม่หมดอายุและไม่ได้ถูกลบ แต่ระยะ Lookback เอื้อมไปไม่ถึง"
+        },
+        {
+          "type": "paragraph",
+          "text": "วิธีแก้คือเพิ่ม Breakpoint ตัวที่สองแบบ Explicit ไว้ที่ตำแหน่งใกล้เคียงกับจุดที่มีการ Write ครั้งล่าสุด เพราะ Breakpoint แต่ละจุดจะมีระยะ Lookback 20 ตำแหน่งแยกของตัวเอง ดังนั้นการวาง Breakpoint ที่ Block 15 จะช่วยให้ค้นพบ Entry ของ Turn 2 ได้ทันที ทั้งนี้ Agent Loops ที่สร้าง Block จำนวนมากในแต่ละ Turn (เช่น Tool Calls และ Tool Results) มักชนข้อจำกัดของ Automatic Caching Window นี้ จึงควรคอยมอนิเตอร์ Cache-read Counts เมื่อ Conversation ยาวขึ้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Cache Miss ใน Conversation ขนาดยาวที่เนื้อหาช่วงแรกไม่เปลี่ยนแปลง เกิดจาก Cache หมดอายุหรือถูกลบ ความจริงคือเกิดจากระยะ Lookback Window ถอยไปไม่ถึงจุดที่เคย Write (จำกัด 20 ตำแหน่ง) แก้ได้ด้วยการเพิ่ม Explicit Breakpoint ใกล้กับจุด Write ล่าสุด ส่วนการย้าย Breakpoint ไปไว้ที่ Block แรกสุดไม่ได้ช่วยแก้ปัญหานี้"
+        }
+      ]
+    },
+    {
+      "heading": "4. โครงสร้าง Modular Prompt: วางโมดูลคงที่ไว้หน้าสุด ตัวแปรไว้ท้ายสุด",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การทำ Caching จะได้ผลเฉพาะกับเนื้อหาที่ไม่เปลี่ยนแปลงข้าม Request เท่านั้น ลำดับของ Prompt จึงเป็นตัวชี้วัดประสิทธิภาพของ Cache ควรเรียงลำดับโมดูลตามความถี่ในการเปลี่ยนแปลง: เริ่มจาก Tool Definitions, ตามด้วย System Instructions, Reference Context และ Examples, แล้วจึงเป็น Conversation History โดยค่าที่เปลี่ยนทุก Request ต้องอยู่ท้ายสุดเสมอ หลักการนี้ใช้กับ Reusable Prompt Templates เช่นกัน คือต้องวางข้อความคงที่ของ Template ไว้ก่อนหน้า Slot ต่างๆ เพื่อให้การแทนค่าตัวแปรส่งผลกระทบเฉพาะส่วนท้ายเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "API จะสร้าง Cache Prefixes ตามลำดับชั้นตายตัว: tools → system → messages หากระดับใดมีการเปลี่ยนแปลง จะทำให้ระดับนั้นและระดับที่ตามหลังทั้งหมดถูก Invalidate ทันที แต่จะไม่กระทบระดับก่อนหน้า นี่คือเหตุผลที่ลำดับมีความสำคัญมาก การแก้ Tool Definition เพียงนิดเดียวจะล้าง Cache ทั้งหมดทิ้ง ในขณะที่การแก้ไขเฉพาะระดับ Messages จะยังคงใช้ Cache ของ Tools และ System ได้ตามปกติ"
+        },
+        {
+          "type": "table",
+          "caption": "การเปลี่ยนแปลงแต่ละประเภทส่งผล Invalidate Cache ส่วนใดบ้าง",
+          "headers": [
+            "Change",
+            "Invalidates"
+          ],
+          "rows": [
+            [
+              "Modifying tool definitions",
+              "Cache ทั้งหมด (tools, system, messages)"
+            ],
+            [
+              "Toggling web search or citations",
+              "System และ messages caches"
+            ],
+            [
+              "Changing tool_choice",
+              "Messages cache"
+            ],
+            [
+              "Changing disable_parallel_tool_use",
+              "Messages cache"
+            ],
+            [
+              "Toggling images present/absent",
+              "Messages cache"
+            ],
+            [
+              "Changing thinking parameters",
+              "Messages cache เสมอ และรวมถึง tool กับ system caches ด้วยในบาง Model ที่ประมวลผล Thinking Configuration ไว้ก่อนหน้า"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การบังคับเรียกใช้ Tool ผ่าน tool_choice ถือเป็น Request Setting ที่อยู่ในลำดับชั้นนี้เช่นกัน โดยจะส่งผล Invalidate เฉพาะ Messages Cache เท่านั้น ขณะที่ Tools และ System Prompt ยังคงอ่านจาก Cache ได้ตามปกติ นอกจากนี้ยังรองรับ Dynamic Tool Discovery โดยกำหนด Tool Definitions บางตัวเป็น Deferred เพื่อตัดออกจาก System-prompt Prefix เริ่มต้น จนกว่า Model จะรัน Tool Search แล้วพบว่าจำเป็นต้องใช้ จึงค่อย Append เข้าไปที่ท้าย Conversation History หลัง Cached Prefix ทำให้ Prefix ส่วนหน้าไม่ถูกกระทบและยังคง Cache Hit ได้ต่อเนื่อง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อผิดพลาดที่พบบ่อยที่สุดคือการวางตัวแปรไว้ตรงตำแหน่ง Breakpoint เช่น Block 1–5 เป็น Static System Context ขนาดใหญ่ และ Block 6 มี Timestamp รวมกับ User Message โดยใส่ cache_control ไว้ที่ Block 6 ทุกครั้งที่ Timestamp เปลี่ยน Prefix Hash ที่ Block 6 จะเปลี่ยนตาม ทำให้ระบบ Lookback ถอยไปที่ Block 5 ถึง 1 แล้วไม่พบอะไรเลย เพราะไม่เคยมีการ Write Entry ไว้ก่อนหน้า (Lookback จะหาเฉพาะ Entry ที่เคยถูก Write ไว้แล้วเท่านั้น ไม่ได้แคชเนื้อหาคงที่ที่อยู่หลัง Breakpoint ให้อัตโนมัติ) วิธีแก้คือวาง Breakpoint ไว้ที่ Block 5 ซึ่งเป็นจุดสิ้นสุดของโมดูลคงที่ แล้วย้าย Timestamp ไปไว้ด้านหลัง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การเปลี่ยน tool_choice จะ Invalidate Cache ทั้งหมดเหมือนกับการแก้ tools array เพราะในความเป็นจริงมีเพียงการแก้ไข Tool Definitions เท่านั้นที่จะล้าง Cache ทั้งหมด ส่วนการเปลี่ยน tool_choice จะ Invalidate แค่ Messages Cache ทำให้ Tools และ System ยังคง Read จาก Cache ได้ตามเดิม"
+        }
+      ]
+    },
+    {
+      "heading": "5. Agent Skills: รวม Instruction ที่ใช้ซ้ำเป็น SKILL.md",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt Caching ช่วยลด Token ของ Prefix ซ้ำๆ แต่ Agent Skills ออกแบบมาแก้ปัญหาการทำงานซ้ำในอีกลักษณะ นั่นคือ Procedure เดิมๆ ที่ต้องคอย Copy & Paste ใส่ Prompt ตลอดเวลา โดย Skill จะอยู่ในรูป Directory ที่เก็บทั้ง Instruction, Metadata และ Resource เสริมอย่าง Script หรือ Template ซึ่ง Claude จะเรียกใช้งานอัตโนมัติทันทีที่ Request มีความเกี่ยวข้อง แตกต่างจาก Prompt ทั่วไปที่เป็น Instruction ระดับ Conversation สำหรับงานเดี่ยวๆ เพราะ Skill ถูกสร้างเพียงครั้งเดียวและถูก On-demand Load ซ้ำได้ในทุก Conversation ปัจจุบัน Anthropic มี Built-in Skills สำหรับ PowerPoint, Excel, Word และ PDF ให้พร้อมใช้ และยังเปิดให้ Pack Custom Skills สำหรับ Procedure เฉพาะของแต่ละองค์กรได้ด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทุก Skill ต้องมีไฟล์ SKILL.md ที่ขึ้นต้นด้วย YAML Frontmatter พร้อมระบุ 2 Required Fields ต่อไปนี้ตามกฎที่เข้มงวด หากผิดกฎ Skill จะถูกปฏิเสธทันที:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- name: ความยาวไม่เกิน 64 ตัวอักษร, ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และ Hyphen (-), ห้ามมี XML Tag, และห้ามมี Reserved Words อย่าง \"anthropic\" หรือ \"claude\" เด็ดขาด\n- description: ห้ามเว้นว่าง, ความยาวไม่เกิน 1024 ตัวอักษร, ห้ามมี XML Tag\n- ไม่มี Required Field อื่นๆ ไม่ต้องใส่ Version Suffix และไม่มีเกณฑ์ความยาวขั้นต่ำของ Description"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude ใช้ Description ในการตัดสินใจ Trigger เรียกใช้งาน Skill โดยจะนำ Request ของ User มา Match กับ Description ซึ่งในบางระบบอาจต้องเลือกจาก Skill นับร้อยรายการ Description ที่ดีจึงต้องระบุให้ชัดเจนว่า Skill ทำอะไรได้และควรใช้เมื่อไหร่ โดยอิงจากคีย์เวิร์ดที่ User มักพิมพ์จริง เช่น คำว่า \"Helps with documents\" นั้นกว้างเกินไปและไม่บอก Trigger ทำให้แทบไม่ถูกเรียกใช้งาน สำหรับการตั้ง name ควรใช้รูป Gerund ให้สอดคล้องกัน เช่น processing-pdfs หรือ analyzing-spreadsheets เพื่อให้ค้นหาใน Library ได้ง่าย และหลีกเลี่ยงชื่อคลุมเครืออย่าง helper หรือ utils"
+        },
+        {
+          "type": "paragraph",
+          "text": "สิทธิ์การเข้าถึง Custom Skill ขึ้นอยู่กับตำแหน่งที่จัดเก็บและ Deploy:"
+        },
+        {
+          "type": "table",
+          "caption": "ตำแหน่งจัดเก็บ Custom Skills และสิทธิ์การใช้งาน",
+          "headers": [
+            "Surface",
+            "วิธีการเพิ่ม Custom Skill",
+            "ผู้มีสิทธิ์ใช้งาน"
+          ],
+          "rows": [
+            [
+              "Claude API",
+              "อัปโหลดผ่าน Skills API (/v1/skills) และเรียกใช้งานผ่าน skill_id ร่วมกับ Code Execution Tool",
+              "สมาชิกทุกคนใน Workspace"
+            ],
+            [
+              "Claude Code",
+              "สร้าง Directory ที่มี SKILL.md ภายใต้ ~/.claude/skills/ หรือ .claude/skills/",
+              "ระดับส่วนบุคคล (~/.claude/skills/) หรือระดับโปรเจกต์ (.claude/skills/)"
+            ],
+            [
+              "claude.ai",
+              "อัปโหลดไฟล์ Zip ใน Settings > Features",
+              "เฉพาะ User ที่อัปโหลดเท่านั้น ไม่แชร์ทั้ง Organization และไม่มี Admin จัดการแบบรวมศูนย์"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เนื่องจาก Skill สามารถส่งได้ทั้ง Instruction และโค้ด หากมี Skill ที่ไม่ประสงค์ดี อาจสั่งรัน Tool Calls หรือ Code Execution ที่อยู่นอกเหนือจากจุดประสงค์ที่แจ้งไว้ได้ จึงควรติดตั้ง Skill จากแหล่งที่น่าเชื่อถือเท่านั้น และต้อง Audit ไฟล์ทั้งหมดใน Bundle ก่อนแชร์ให้ผู้อื่น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ชื่อ Skill สามารถมีคำว่า \"claude\" ได้ ตราบใดที่ใช้ตัวพิมพ์เล็กและ Hyphen? (ทำไมถึงผิด): ไม่จริง: คำว่า \"anthropic\" และ \"claude\" เป็น Reserved Words ที่ห้ามนำมาใช้ใน Field name โดยเด็ดขาด ไม่ว่าจะจัด Format อย่างไรก็ตาม | Custom Skill ที่อัปโหลดบน claude.ai จะแชร์ให้ใช้งานได้ทั้ง Organization? (ทำไมถึงผิด): ไม่จริง: Custom Skill บน claude.ai จะเข้าถึงได้เฉพาะ User ที่อัปโหลดเท่านั้น การแชร์ทั้ง Workspace จะทำได้เมื่ออัปโหลดผ่าน Claude API เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "6. Progressive Disclosure: ลำดับการ Load 3 ระดับของ Skill",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Skill ช่วยป้องกันไม่ให้ Token ล้น Context Window ด้วยเทคนิค Progressive Disclosure ที่ทยอย Load ข้อมูลเป็น Stage แทนที่จะโหลดทั้งหมดในคราวเดียว โดย Claude จะรันอยู่ใน Virtual Machine ที่เข้าถึง Filesystem ได้ ทำให้ Skill ถูกเก็บเป็น Directory บน Disk และ Claude จะเปิดอ่านไฟล์เฉพาะตอนจำเป็นเท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "ลำดับการ Load แต่ละระดับและ Token Cost ที่ใช้",
+          "headers": [
+            "Level",
+            "ช่วงเวลาที่โหลด",
+            "Token Cost",
+            "เนื้อหา"
+          ],
+          "rows": [
+            [
+              "Level 1: Metadata",
+              "โหลดตลอดเวลา (ตอนเริ่มต้น)",
+              "~100 tokens ต่อ Skill",
+              "name และ description จาก YAML Frontmatter"
+            ],
+            [
+              "Level 2: Instructions",
+              "เมื่อ Skill ถูก Trigger",
+              "ไม่เกิน 5k tokens",
+              "เนื้อหา SKILL.md Body ซึ่งเป็น Instruction และคำแนะนำการทำงาน"
+            ],
+            [
+              "Level 3+: Resources",
+              "โหลด On-demand เมื่อต้องใช้งาน",
+              "ไม่มีค่าใช้จ่ายจนกว่าจะถูกเปิดอ่าน",
+              "ไฟล์ Bundled ต่างๆ โดย Reference File จะคิด Token เมื่อถูกอ่าน ส่วน Script จะรันผ่าน Bash และดึงเฉพาะ Output เข้าสู่ Context"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น Request \"สกัด Text จาก PDF นี้แล้วทำ Summary\": ตอนเริ่มต้น System Prompt จะโหลดเฉพาะ name และ description ของ pdf-processing เมื่อ Request ตรงกัน Claude จะรันคำสั่ง cat pdf-processing/SKILL.md เพื่อดึง Body เข้าสู่ Context และหากงานนี้ไม่ต้องกรอกฟอร์ม ไฟล์ FORMS.md จะไม่ถูกอ่านเลย จึงไม่มีค่า Token นอกจากนี้ หากรัน Script เช่น validate_form.py ตัวซอร์สโค้ดจะไม่ถูกดึงเข้าสู่ Context มีเพียงผลลัพธ์ Output เช่น \"Validation passed\" เท่านั้นที่ถูกบันทึก ทำให้การรัน Script ประหยัด Token กว่าการให้โมเดล Generate Code ขึ้นมาใหม่ในทันที แถมยังได้ผลลัพธ์ที่ Deterministic และสม่ำเสมอกว่า"
+        },
+        {
+          "type": "paragraph",
+          "text": "หลักการของ Progressive Disclosure มีผลต่อการวาง Architecture ของ Skill โดยควรมอง SKILL.md ให้เหมือน Table of Contents และคุมขนาด Body ไม่ให้เกิน 500 บรรทัด หากเนื้อหาเริ่มยาว ให้แยก Detail ออกเป็น Reference Files แล้ว Link ออกไป เช่น FORMS.md, REFERENCE.md หรือ examples.md สำหรับ Skill ที่รองรับหลาย Domain ให้แยกตามโฟลเดอร์ เช่น reference/finance.md และ reference/sales.md เพื่อให้คำถามเกี่ยวกับ Sales โหลดเฉพาะ Schema ของ Sales เท่านั้น ทั้งนี้ ควรคุม Reference ให้ลึกเพียง 1 ระดับจาก SKILL.md (One Level Deep) เพื่อป้องกันไม่ให้ Claude ใช้คำสั่งอ่านแบบ Partial เช่น head -100 จนพลาดข้อมูลสำคัญ และหาก Reference File ใดมีความยาวเกิน 100 บรรทัด ควรใส่ Table of Contents ไว้ด้านบนสุด เพื่อให้การอ่านบางส่วนยังเห็นภาพรวมของไฟล์ครบถ้วน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "สิ่งที่มักเข้าใจผิดเกี่ยวกับ Progressive Disclosure? (ทำไมถึงผิด): ไม่จริง: การเขียนรวมทุกอย่างไว้ใน SKILL.md เพียงไฟล์เดียวไม่ได้ช่วยประหยัด Token เสมอไป สถาปัตยกรรมที่ดีต้องแยก Resource ออกเป็น Level 3+ เพื่อให้โหลด On-demand เฉพาะเท่าที่จำเป็น และหากเป็น Script ควรดึงเฉพาะ Output เข้า Context แทนการอ่าน Source Code ทั้งหมด"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56745",
+      "question": "ใน Agent session ที่ยาวนาน มีการสะสม conversation turns โดยใช้เพียง automatic request-level caching เท่านั้น เมื่อถึง turn ที่ 15 มี cache entry อยู่ที่ content block ที่ 12 ต่อมาเมื่อถึง turn ที่ 25 บทสนทนาเพิ่มขึ้นเป็น 35 content blocks และ breakpoint ปัจจุบันอยู่ที่ block สุดท้าย แต่ปรากฏว่า cache reads ไม่ตรง (cache miss) อีกต่อไป ทั้งที่เนื้อหาบทสนทนาช่วงแรกไม่มีการเปลี่ยนแปลง คำอธิบายและวิธีแก้ไขที่ดีที่สุดคือข้อใด?",
+      "options": [
+        "การ lookup ของ cache จะสแกนย้อนหลังจาก breakpoint ได้เพียง 20 blocks ทำให้ entry ที่ block 12 อยู่นอกช่วง window ดังกล่าว การเพิ่ม explicit breakpoint ย้อนกลับไปข้างหน้าจะช่วยให้กลับมา match ได้อีกครั้ง",
+        "Automatic caching จะติดตามเฉพาะ turn ล่าสุดเพียง turn เดียวเท่านั้น ดังนั้นบทสนทนาที่ยาวกว่า 2 turns จะเกิด cache miss กับเนื้อหาก่อนหน้าเสมอ ไม่ว่าจะวาง breakpoint ไว้ที่ใด",
+        "Cache entries จะถูกลบออกทันทีที่บทสนทนามีเกิน 30 content blocks ดังนั้นจึงต้อง restart session ใหม่เพื่อให้กลับมาใช้ caching ได้อีกครั้ง",
+        "ต้องวาง breakpoint ไว้ที่ block แรกของบทสนทนาแทนที่จะเป็น block สุดท้าย เนื่องจาก caching จะใช้คีย์จากเนื้อหาส่วนแรกสุดเสมอ ไม่ใช่ส่วนล่าสุด"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56742",
+      "question": "Agentic workflow มีการส่ง requests พร้อม tools array ขนาดใหญ่ (มี 15 tool definitions ที่ถูก cache ไว้), cached system prompt และ conversation history ที่เพิ่มขึ้นเรื่อยๆ ต่อมาใน request หนึ่ง นักพัฒนาได้เพิ่ม tool_choice: {\"type\": \"tool\", \"name\": \"search\"} เพื่อบังคับให้เรียก tool ที่กำหนด โดยไม่ได้แก้ไข tools array, system prompt หรือเนื้อหา messages เลย จะเกิดอะไรขึ้นกับ prompt caching ใน request นี้?",
+      "options": [
+        "มีเพียง cache ในระดับ messages เท่านั้นที่กลายเป็นโมฆะ (invalidated) ดังนั้น tokens จนถึง system prompt จะยังคงอ่านมาจาก cache ได้ แต่ messages จะต้องถูกประมวลผลใหม่",
+        "Cache ทั้งหมดจะกลายเป็นโมฆะ เนื่องจากความเปลี่ยนแปลงของ tool_choice จะถูกปฏิบัติเหมือนกับการแก้ไข tools array โดยตรง ทำให้ต้องคำนวณใหม่ทั้งหมดตั้งแต่ block แรก",
+        "ไม่มี cache ส่วนใดกลายเป็นโมฆะ เนื่องจาก tool_choice เป็น request-level parameter ที่อยู่นอก hierarchy ของ cached tools, system และ messages โดยสิ้นเชิง",
+        "มีเพียง cache ของ tools array เท่านั้นที่กลายเป็นโมฆะ แต่ system prompt และ messages cache ยังคงใช้งานได้ เนื่องจาก tool_choice ส่งผลต่อการพิจารณา tool definitions เท่านั้น"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56747",
+      "question": "ขณะกำลังสร้าง custom Skill นักพัฒนาได้กำหนด frontmatter เป็น name: claude-pdf-helper และ description: \"Helps with PDF forms.\" แต่เมื่อ Claude Code พยายามโหลด Skill นี้ กลับถูกปฏิเสธ (rejected) จากกฎเกณฑ์ของฟิลด์ที่จำเป็นใน SKILL.md ข้อใดคือสาเหตุที่เป็นไปได้มากที่สุด?",
+      "options": [
+        "name มี reserved word คือคำว่า \"claude\" ซึ่งไม่อนุญาตให้ใช้ในฟิลด์ name ของ Skill เช่นเดียวกับคำว่า \"anthropic\"",
+        "description สั้นเกินกว่าจะผ่านการตรวจสอบ (validation) เนื่องจาก description จะต้องมีความยาวมากกว่า 45 ตัวอักษรขึ้นไปจึงจะถือว่าเป็น metadata ที่ถูกต้อง",
+        "ชื่อของ Skill จะต้องมี version suffix ต่อท้าย เช่น -v1 และการไม่มี suffix จะทำให้ Claude Code ปฏิเสธ frontmatter ในขั้นตอน discovery",
+        "ฟิลด์ name ใช้เครื่องหมายยัติภังค์ (hyphen) แต่ frontmatter ของ Claude Code รองรับเฉพาะเครื่องหมายขีดล่าง (underscore) ในการคั่นคำของค่า name เท่านั้น"
+      ],
+      "explanation": ""
+    }
+  ]
+}

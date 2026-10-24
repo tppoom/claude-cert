@@ -1,0 +1,167 @@
+{
+  "title": "Run-level telemetry และการทำ Tagging สำหรับ Claude Agent Fleets",
+  "objectives": [
+    "อธิบายว่าทำไม Request Logs ถึงบอกสาเหตุที่ Agent Run ล้มเหลวไม่ได้ พร้อมระบุ Spans และ Attributes ที่ตอบโจทย์ได้",
+    "Deploy คอนฟิก OpenTelemetry Collector ไปยังทุกเครื่องผ่าน Managed Settings และเข้าใจว่า Keys ไหนที่ Developer ยัง Override ได้",
+    "Tag ข้อมูล Telemetry ด้วย Tenant, Team และ Deployment Attributes พร้อมปิด Identity Attributes ที่ Dashboard ไม่ได้ใช้งาน",
+    "ประเมินและเลือกเปิดใช้ Content Gates ที่คุ้มค่าสำหรับทั้ง Fleet โดยคำนึงถึงข้อมูลที่จะถูกเปิดเผย"
+  ],
+  "key_concept": "Run-level telemetry — ระบบ Telemetry ที่บันทึก Agent Turn ในรูปแบบ Tree: มี 1 Parent Span สำหรับทั้ง Turn และมี Child Spans ย่อยสำหรับ Model Request, Tool Call และ Subagent แต่ละตัว ช่วยให้เห็นลำดับการทำงานของ Run และจุดที่เกิดปัญหา ซึ่ง Flat List ของ API Calls ทั่วไปไม่สามารถแสดงได้",
+  "sections": [
+    {
+      "heading": "1. ทำไมการรัน Agent จึง Debug ด้วยวิธีทั่วไปได้ยาก",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Request log ตอบโจทย์การทำงานของ Agent ไม่ได้ เพราะ Prompt เพียงครั้งเดียวสามารถแตกแขนงเป็น Model request นับสิบครั้ง, Tool calls หลายรายการ, การรอ Human in the loop อนุมัติ Permission รวมถึงการเรียก Subagent ที่สร้าง Request ย่อยของตัวเอง แต่ละ Step ขึ้นอยู่กับผลลัพธ์ของ Model ใน Step ก่อนหน้า ทำให้การรัน Prompt เดิมซ้ำอาจได้ Execution path ที่ต่างกันสิ้นเชิง การดู Log แบบ 1 แถวต่อ 1 API call ที่บอกเพียงว่า Request ที่ 7 ติด max_tokens จะไม่สามารถบอกได้เลยว่า Request นั้นอยู่ใน Turn ไหน, Agent ตัวใดเป็นคนเรียก หรือ Tool call ก่อนหน้านั้นต้องรอนานถึง 4 นาทีเพื่อรอ Approval"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tracing จึงเข้ามาเชื่อมโยงความสัมพันธ์เหล่านี้ โดยแต่ละ Turn จะถูกบันทึกเป็น claude_code.interaction Span จากนั้น Model calls และ Tool calls จะ Nest อยู่ใต้ Span นี้ ส่วน Tool span เองก็จะแยก Child spans ออกเป็นช่วงรอ Permission และช่วง Execution จริง ยิ่งไปกว่านั้น เมื่อ Agent tool เรียก Subagent ขึ้นมา Request และ Tool spans ของ Subagent นั้นก็จะไป Nest อยู่ใต้ Tool call ที่ Spawn มันขึ้นมาโดยอัตโนมัติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Attributes บน claude_code.llm_request Span จะระบุต้นทางของ Request ใน Multi-agent run ไว้อย่างชัดเจน: agent_id ใช้ระบุ Subagent หรือ Teammate ที่ส่ง Request, parent_agent_id ระบุ Agent ต้นทางที่ Spawn มันขึ้นมา ส่วน query_source_safe จะระบุ Subsystem เช่น repl_main_thread หรือ agent.builtin.general-purpose นอกจากนี้ยังมี attempt (จำนวนครั้งที่ Retry), stop_reason และ error_class เมื่อเกิดข้อผิดพลาด เช่น api_timeout หรือ server_overload ข้อมูลเหล่านี้ช่วยให้แยกแยะได้ทันทีว่าปัญหานั้นเกิดจาก Token เต็ม (Max output tokens) หรือเกิดจาก Endpoint ล่มจนต้อง Retry ซ้ำๆ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Managed Agents มอบมุมมองเหล่านี้ให้ทันทีแบบ No-code โดย Session viewer บน Claude Console มี Timeline แสดง 1 Lane ต่อ 1 Thread พร้อมแท็บ Tools ที่สรุป Tool ทุกตัว ทั้งจำนวน Call, Failures และ Median duration ทำให้เห็นชัดเจนทันทีหาก Tool ใดพังบ่อย หรือหากต้องการดึง Spans ของ API เข้า Backend ของคุณ ก็สามารถเพิ่ม OpenTelemetry destination ใน Console ได้ และหากต้องการ Nest Spans เหล่านั้นเข้ากับ Spans ของ Application คุณเอง เพียงเรียก SDK ภายใต้ Span ของคุณ ตัว API จะอ่าน W3C traceparent Header ให้อัตโนมัติ ทั้งนี้มี Delivery rules สองข้อที่ต้องคำนึงถึง: การส่งข้อมูลเป็นแบบ At-least-once จึงต้องทำ Deduplicate ด้วย Trace ID และ Span ID เสมอ และการส่งข้อมูลเป็นแบบ Best effort หาก Span สูญหายจะไม่มีการส่งซ้ำ"
+        }
+      ]
+    },
+    {
+      "heading": "2. การ Rollout Collector Config ผ่าน Managed Settings",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code ส่ง Telemetry ออกมา 3 Signals ได้แก่ Metrics, Log events และ Traces ซึ่งแต่ละตัวตอบโจทย์คนละมุมมอง (ดูเพิ่มเติมที่ [Metrics, log events and traces: three signals, three questions](lesson:4.6)) ความท้าทายในระดับ Scale คือการควบคุมให้เครื่องของทีมหลายร้อยเครื่องส่งทั้ง 3 Signals ไปยัง Collector ตัวเดียวกันอย่างถูกต้อง หากปล่อยให้ Developer เซ็ต Environment variables ใน Shell profile ตัวเอง แค่พิมพ์ผิดตัวเดียวหรือลืม Export ก็ทำให้เกิด Silent gap ข้อมูลหายทันที ทางออกคือให้กำหนด Config ไว้ใน env Block ของ settings.json ที่ฝั่ง Administrator จัดการ (Managed settings) เพื่อบังคับใช้กับทุกเครื่องได้ทันทีโดยที่ Developer ไม่ต้อง Setup เอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Managed transport settings จะมี Priority เหนือกว่าการตั้งค่าของ Developer เสมอ โดยการตั้ง OTEL_EXPORTER_OTLP_ENDPOINT ใน Managed settings จะ Overwrite ทุก Endpoint ย่อยระดับ Signal ที่ Developer ตั้งไว้ เพื่อป้องกันไม่ให้มีใครแอบส่งบาง Signal แยกไปยัง Collector อื่น ส่วน OTEL_EXPORTER_OTLP_PROTOCOL ก็ทำงานเช่นเดียวกัน สำหรับด้าน Security ยิ่งเข้มงวดกว่าเดิม หาก Managed settings มีการกำหนด OTEL_EXPORTER_OTLP_HEADERS, Client key หรือ Certificate ตัว Claude Code จะล้าง Endpoint ทั้งหมดที่ Developer ตั้งไว้ออกทันที เพื่อป้องกันไม่ให้ Token หรือ Credential ขององค์กรรั่วไหลไปยัง Collector ปลายทางที่ไม่ได้ควบคุม"
+        },
+        {
+          "type": "paragraph",
+          "text": "ช่องโหว่ที่ต้องระวังคือ Exporter selectors เพราะ OTEL_METRICS_EXPORTER, OTEL_LOGS_EXPORTER และ OTEL_TRACES_EXPORTER ยังคงใช้ Precedence ตามปกติแบบ Per-key หากไม่ได้ระบุไว้ใน Managed settings ทาง Developer จะสามารถแก้บนเครื่องตัวเองได้ กรณีที่พบบ่อยคือถูกแก้เป็น console ทำให้ Telemetry พ่นออกแค่ที่ Terminal ของ Developer เท่านั้น ไม่ถูกส่งไปยัง Central collector ส่งผลให้ทีม Observability มองไม่เห็นข้อมูล นอกจากนี้ควรคุม Export intervals ใน Managed settings ด้วย โดยปรับให้สั้นลงช่วง Debugging และคืนค่าเดิมเมื่อขึ้น Production (ค่า Default ของ Metrics คือ 60 วินาที)"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับการ Deploy ด้วย Agent SDK ก็มีแนวทางเดียวกัน Best practice บน Production คือให้กำหนด Environment variables ใน Process environment ไม่ว่าจะเป็น Shell, Container หรือ Orchestrator ซึ่งฟังก์ชัน query() ทุกตัวจะดึง Config ไปใช้ได้ทันทีโดยไม่ต้องแก้โค้ด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): การล็อก OTLP Endpoint ใน Managed settings เพียงพอที่จะการันตีว่า Metrics จากทุกเครื่องจะถูกส่งไปยัง Central collector แน่นอน? ไม่จริง: แม้ว่า Endpoints, Protocols และ Credentials จะ Override การตั้งค่าของ Developer ได้ แต่ Exporter selectors ยังคงมี Precedence แยกแบบ Per-key ทำให้ Developer ยังสามารถสลับ Signal ไปเป็น console หรือ none ได้อยู่ เว้นแต่จะระบุ Selectors ไว้ใน Managed settings ให้ครบถ้วนด้วย"
+        }
+      ]
+    },
+    {
+      "heading": "3. Tagging telemetry per tenant, team and deployment",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Fleet Telemetry จะมีประโยชน์ก็ต่อเมื่อแยกกลุ่มข้อมูลได้ การเห็น Cost พุ่งสูงจาก Developer 400 คนแทบไม่มีความหมายจนกว่าจะรู้ว่าเกิดจาก Team, Service หรือลูกค้ารายใด โดยมี 2 ตัวแปรมาตรฐานที่ช่วยเพิ่ม Context ให้ทุก Signal ได้แก่: OTEL_SERVICE_NAME ใช้ระบุชื่อ Agent และ OTEL_RESOURCE_ATTRIBUTES ใช้ส่งค่า key=value คั่นด้วย comma เช่น service.version=1.4.0,deployment.environment=production ซึ่ง Platform Team สามารถกำหนด Key เองได้ตามมิติที่ฝ่ายการเงินต้องการจัดกลุ่ม เช่น แผนก หรือ Cost Center"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Multi-tenant Service ค่า Tag จะเปลี่ยนไปตามแต่ละ Request โดย Agent SDK รองรับการส่งตัวแปรเหล่านี้ผ่าน Per-call Options ทำให้ Tag แต่ละ Run ตาม User และ Tenant ที่เรียกใช้งานได้ ค่าเหล่านี้มาจาก Request จึงควรทำ URL-encode เสมอ ทั้งนี้ใน TypeScript ตัวแปร options.env จะทับ (Replace) Environment เดิมทั้งหมดแทนที่จะทำ Merge ดังนั้นต้อง Spread process.env เข้าไปด้วยก่อนเสมอ มิฉะนั้น Agent จะสูญเสียค่า PATH และ API Key"
+        },
+        {
+          "type": "paragraph",
+          "text": "การตั้งค่า Exporter จะใช้กลุ่มตัวแปรสำหรับเปิด Telemetry และระบุปลายทาง ได้แก่: CLAUDE_CODE_ENABLE_TELEMETRY, Exporter Selector แยกตาม Signal (OTEL_METRICS_EXPORTER, OTEL_LOGS_EXPORTER และสำหรับ Traces คือ OTEL_TRACES_EXPORTER ร่วมกับ CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1) รวมถึงการตั้งค่า Transport ได้แก่ OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_ENDPOINT และ OTEL_EXPORTER_OTLP_HEADERS สำหรับ Python ค่า Per-call env จะถูก Merge ทับ Environment เดิมโดยอัตโนมัติ ทำให้ตั้งค่า Exporter ใน Process Environment ระดับโฮสต์ได้ แล้วส่งเฉพาะ Tags ผ่าน Per-call Dict"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Code จะแนบ Resource Attributes ไปกับทุก Datapoint ของ Metric เป็นค่า Default ทำให้แยก Group Metrics ตาม Team ได้ แต่ขณะเดียวกันก็แนบ Identity Attributes ที่อาจไม่จำเป็นมาด้วย เช่น session.id และ Account Attributes ซึ่งเปิดเป็น Default ไว้ ทำให้ทุกครั้งที่มี Session หรือ Developer ใหม่เกิดขึ้น Metric จะได้รับ Attribute Values ชุดใหม่ตามไปด้วย หาก Dashboard ของคุณต้องการ Group ข้อมูลแค่ระดับ Team ควรปิด Flag เหล่านี้ เพื่อป้องกันไม่ให้จำนวน Time Series พุ่งสูงตามจำนวนพนักงาน และช่วยคุมค่าใช้จ่าย Backend Storage"
+        },
+        {
+          "type": "table",
+          "caption": "Attribute flags บน Claude Code metrics และค่า Default",
+          "headers": [
+            "Variable",
+            "Adds",
+            "Default"
+          ],
+          "rows": [
+            [
+              "OTEL_METRICS_INCLUDE_RESOURCE_ATTRIBUTES",
+              "เพิ่ม Keys จาก OTEL_RESOURCE_ATTRIBUTES ลงใน Metric Datapoints",
+              "true"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_SESSION_ID",
+              "เพิ่ม session.id (และ ccr.session.id บน Cloud Sessions)",
+              "true"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_ACCOUNT_UUID",
+              "เพิ่ม user.account_uuid และ user.account_id",
+              "true"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_VERSION",
+              "เพิ่ม app.version",
+              "false"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_ENTRYPOINT",
+              "เพิ่ม app.entrypoint",
+              "false"
+            ],
+            [
+              "OTEL_METRICS_INCLUDE_REPOSITORY",
+              "เพิ่ม vcs.* repository identity",
+              "false"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ฝั่ง API Spans จะแยกตาม Workspace โดย Destination บน Console สามารถเลือกส่งได้ทั้ง All workspaces, Selected workspaces หรือ All except the ones you list ซึ่ง API จะส่งแต่ละ Span ไปยังทุก Destination ที่เปิดใช้งานและครอบคลุม Workspace ของ Request นั้น หากแยก Production และ Staging Workspace ชัดเจน การตั้ง Destination เป็น Selected จะช่วยให้ส่งเฉพาะ Traffic ของ Production ไปยัง Backend ที่มีค่าใช้จ่ายสูงได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Per-session identifiers เป็นแบบ opt-in ทำให้ Metrics มีขนาดเล็กเสมอเว้นแต่จะเพิ่ม Attributes เข้าไปเอง? (ทำไมถึงผิด): ไม่จริง: session.id และ Account Attributes ถูกแนบไปกับ Metrics เป็นค่า Default อยู่แล้ว หากต้องการลดจำนวน Time Series ต้องสั่งปิด (Disable) Flags ที่ Dashboard ไม่ได้ใช้งานด้วยตัวเอง"
+        }
+      ]
+    },
+    {
+      "heading": "4. Which content is worth collecting at scale",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อมูล Content จะถูก Redact (ปิดบัง) ไว้เป็นค่า Default การเปิด Gate แต่ละระดับจะทำให้ข้อมูลทุก Session บนทุกเครื่องเปิดเผยมากขึ้น การตัดสินใจระดับ Scale คือเรื่องของ Exposure (ความเสี่ยงข้อมูลรั่วไหล) ไม่ใช่เรื่อง Capability หาก Developer คนเดียวเปิด Prompt Logging จะกระทบแค่ Session ของตนเอง แต่หากเปิด Gate เดียวกันนี้ผ่าน Managed Settings ข้อมูล Prompt ของวิศวกรทุกคนจะถูกส่งไปยัง Shared Backend ที่หลายคนเข้าถึงและ Query ดูได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อมูลบางส่วนจะถูกส่งไปยัง Backend แม้จะปิด Gate ทั้งหมด เช่น ในระบบ OAuth ค่า user.email จะถูกส่งเป็น Telemetry Attribute ซึ่งข้อมูลนี้จะวิ่งไปยัง Collector ของคุณเท่านั้น ไม่ได้ส่งไปหา Anthropic แต่ Backend ของคุณจะจัดเก็บไว้ ดังนั้นควรตั้งกฎ Filter ออกหาก Policy ขององค์กรกำหนด สำหรับ Gate ที่เปิดกว้างที่สุดคือ OTEL_LOG_RAW_API_BODIES ซึ่งจะพ่น Request/Response Body ทั้งหมดออกมา รวมถึง Conversation History ทั้งระบบ การเปิดตัวเลือกนี้เทียบเท่ากับการยินยอมให้เปิดเผยข้อมูลทั้งหมดที่ Prompt, Tool-detail และ Tool-content Gates จะแสดงได้ ซึ่งแทบไม่เคยเป็นตัวเลือกที่เหมาะสมสำหรับการใช้งานระดับ Fleet"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือก Gate ที่เฉพาะเจาะจงมักตอบโจทย์การใช้งานจริงได้ดีกว่า เช่น ทีม Security ที่ต้องการ Audit ว่ามีคำสั่งอะไรถูกรันบ้าง ต้องการเพียง OTEL_LOG_TOOL_DETAILS ส่งเป็น Log Events ไปยัง SIEM โดยไม่ต้องเก็บ Prompt Text อย่างไรก็ดี ตัวเลือกนี้ยังคงเปิดเผยข้อมูลมากอยู่ดี เพราะ Field อย่าง full_command จะถูกส่งออกมาแบบไม่ตัดทอน (Untruncated) ซึ่งคำสั่งเหล่านั้นอาจมี Secrets แฝงอยู่ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Gate ที่ทำงานเกี่ยวข้องกันมักถูกตั้งค่าผิดได้ง่าย หากไม่ได้กำหนดค่า OTEL_LOG_ASSISTANT_RESPONSES ตัวแปรนี้จะดึงค่ามาจาก OTEL_LOG_USER_PROMPTS โดยอัตโนมัติ ทำให้การเปิด Prompt เป็นการเปิด Response ไปด้วย เว้นแต่จะระบุ Response Gate เป็น 0 อย่างชัดเจน นอกจากนี้หากเก็บ Prompts แล้วต้องการลบออกในภายหลังที่ Collector ต้องลบทั้งสอง Attributes ที่เก็บข้อความ คือ prompt และ prompt_text หากตั้ง Rule ลบเพียงตัวใดตัวหนึ่ง ข้อความ Prompt จะยังคงหลงเหลืออยู่ใน Storage"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Raw API body logging เป็นเพียง switch แยกสำหรับ debug โดยที่ Prompt และ Tool content gates ยังคงมีผลบังคับใช้อยู่? (ทำไมถึงผิด): ไม่จริง: Raw Bodies จะรวม Conversation History ทั้งหมดเอาไว้ การเปิดตัวเลือกนี้ถือเป็นการยินยอมเปิดเผยข้อมูลทั้งหมดที่ Content Gates อื่นๆ จะเปิดเผยได้ทันที"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56803",
+      "question": "องค์กรแห่งหนึ่งกำลังติดตั้งระบบส่งออกข้อมูล OpenTelemetry แบบรวมศูนย์สำหรับ Claude Code ให้แก่วิศวกรจำนวน 400 คนบน Kubernetes โดยทีม Observability ต้องการรูปแบบการกำหนดค่า (configuration) ที่สามารถรองรับการขยายตัว (scale) ได้โดยไม่ต้องตั้งค่าแยกรายบุคคล และช่วยควบคุมต้นทุน Backend Storage ให้อยู่ในระดับที่คาดการณ์ได้ แนวทางปฏิบัติข้อใดบ้างที่องค์กรควรนำมาใช้ร่วมกัน? (เลือกทุกข้อที่ถูกต้อง)",
+      "options": [
+        "กำหนด telemetry environment variables ไว้ในไฟล์ settings.json ที่ดูแลโดยผู้ดูแลระบบ (Administrator) แทนการพึ่งพา shell profile ของนักพัฒนาแต่ละคน",
+        "เพิ่ม custom OTEL_RESOURCE_ATTRIBUTES เช่น department และ cost_center เพื่อให้สามารถจำแนกการใช้งานและค่าใช้จ่ายตามทีมในระบบ Backend ได้",
+        "ปิดการใช้งาน OTEL_METRICS_INCLUDE_SESSION_ID และแฟล็ก Cardinality อื่นๆ ที่คล้ายกันซึ่งไม่จำเป็นต่อ Dashboard ของทีม เพื่อจำกัดการเพิ่มขึ้นของ Unique Time-Series",
+        "กำหนด OTEL_METRICS_EXPORTER=console บนเครื่องของนักพัฒนาทุกคน เพื่อให้สามารถดู Metrics ได้ในเครื่องตนเองโดยไม่ต้องพึ่งพา Central Collector",
+        "กำหนดให้นักพัฒนาทุกคน export ค่า OTEL_EXPORTER_OTLP_ENDPOINT เดียวกันใน personal shell profile ของตนเองด้วยตนเอง เพื่อให้การตั้งค่าสอดคล้องกัน"
+      ],
+      "explanation": ""
+    }
+  ]
+}

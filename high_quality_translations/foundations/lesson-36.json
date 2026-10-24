@@ -1,0 +1,174 @@
+{
+  "title": "Secure-by-Design Deployment: หลักการ Least Privilege, การจัดการสิทธิ์เข้าถึง, Secrets และความเป็นส่วนตัว",
+  "objectives": [
+    "กำหนดสิทธิ์ Least Privilege ให้กับ Tools ของ Agent ด้วยกฎ allow, ask และ deny",
+    "ออกแบบ IAM สำหรับ Agents: จำกัดสิทธิ์ระดับต่ำสุดและ inject credentials ผ่าน Proxy",
+    "จัดเก็บ หมุนเวียน (Rotate) และตรวจจับ API Keys ตาม Best Practices ของ Anthropic",
+    "กำหนด Data Retention และ Zero Data Retention (ZDR) ให้สอดคล้องกับข้อกำหนดด้าน Privacy"
+  ],
+  "key_concept": "การสร้างระบบรักษาความปลอดภัยแบบเชิงรุกสำหรับ AI Agent ตั้งแต่ระดับสิทธิ์ของ Tools, การจัดการ Credentials และความปลอดภัยของข้อมูลตามมาตรฐานของ Anthropic",
+  "sections": [
+    {
+      "heading": "1. Least privilege: จำกัดขอบเขตความเสียหายหากเกิดข้อผิดพลาด",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Guardrails ช่วยลดโอกาสที่การโจมตีจะสำเร็จ แต่แนวคิดแบบ Secure-by-design จะตั้งสมมติฐานว่าการโจมตีอาจหลุดรอดเข้ามาได้เสมอ จึงมุ่งจำกัดสิ่งที่ตัวโจมตีจะทำได้ Anthropic แนะนำไว้อย่างชัดเจนว่า: ห้ามส่ง Secrets ใดๆ ที่ไม่จำเป็นให้กับ Claude, รัน Tools ทั้งหมดใน Sandbox เสมอ และจำกัดขอบเขต Permissions ให้แคบที่สุดเท่าที่เป็นไปได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Claude Code และ Agent SDK หลักการ Least privilege จะถูกควบคุมผ่าน Permission Rules โดย Allow rules จะรัน Tool ทันทีโดยไม่ต้องถาม, Ask rules จะถามยืนยันทุกครั้ง และ Deny rules จะบล็อก Tool นั้นอย่างสมบูรณ์ ซึ่ง Rules สามารถระบุครอบคลุมทั้ง Tool (เช่น Bash, WebFetch, Read) หรือเจาะจงเฉพาะ Parameter ที่เรียกใช้ (เช่น Read(./.env), WebFetch(domain:example.com)) และองค์กรยังสามารถ Push Policies ไปยังผู้ใช้ทุกคนได้ด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "การใช้ Wildcards มีโอกาสพลาดให้ครอบคลุมกว้างเกินไปได้ง่าย เพราะเครื่องหมาย * จะ Match ข้อความทั้งหมดในตำแหน่งนั้น และการลืมเว้นวรรคเพียงช่องเดียวก็ทำให้ผลลัพธ์เปลี่ยนไปทันที:"
+        },
+        {
+          "type": "table",
+          "caption": "รูปแบบการ Match ของ Wildcard ใน Bash rule",
+          "headers": [
+            "Rule",
+            "Matches",
+            "Doesn't match"
+          ],
+          "rows": [
+            [
+              "Bash(npm run *)",
+              "npm run build, npm run test --watch, npm run",
+              "npm install"
+            ],
+            [
+              "Bash(ls *)",
+              "ls -la, ls",
+              "lsof"
+            ],
+            [
+              "Bash(ls*)",
+              "ls -la, lsof",
+              "—"
+            ],
+            [
+              "Bash(git * main)",
+              "git merge main, git push origin main, git -c core.fsmonitor=<script> diff main",
+              "git log"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Permission rules ทำหน้าที่เป็นเพียง Gate ไม่ใช่ Sandbox โดย Claude Code จะ Parse คำสั่ง Bash แล้วนำไป Match กับ Rules ที่ตั้งไว้ ซึ่งนอกจาก Built-in checks พื้นฐานสองสามอย่างแล้ว ระบบไม่ได้วิเคราะห์เลยว่าผลลัพธ์ของการรันคำสั่งจริงจะเป็นอันตรายหรือไม่ หากต้องการจำกัดการกระทำของคำสั่งจริงๆ จำเป็นต้องใช้ OS-level sandboxing"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Bash deny rule หรือ allowlist ช่วยทำ Sandboxing ให้กับ Agent และจำกัดสิ่งคำสั่งสามารถทำได้จริง? (ทำไมถึงผิด): ไม่จริง: Permission rules เป็นเพียง Gate ที่ตรวจจับ Pattern ของข้อความคำสั่ง (Text-matching) เท่านั้น ไม่ใช่ Sandbox ของระบบปฏิบัติการ หากต้องการจำกัดการเข้าถึง Filesystem และ Network จริงๆ ต้องใช้ OS-level sandboxing"
+        }
+      ]
+    },
+    {
+      "heading": "2. Identity and access management: แยก Credentials ออกจากตัว Agent อย่างเด็ดขาด",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Agent เรื่อง Identity and Access Management (IAM) หัวใจสำคัญคือการกันไม่ให้ Agent เข้าถึง Secrets ได้โดยตรง คำแนะนำด้านความปลอดภัยของ Anthropic ระบุให้รัน Proxy ไว้นอก Environment ของ Agent เช่น การใช้ Envoy ร่วมกับ credential_injector filter โดย Proxy จะคอย Validate ทุก Request, บังคับใช้ Domain allowlist, Inject credentials เข้าไป และ Log ทราฟฟิกทั้งหมด ทำให้ Agent ไม่เคยเห็น Credentials เลย Credentials จึงถูกเก็บไว้ที่ส่วนกลางอย่างปลอดภัย ไม่ต้องกระจายไปยังทุก Agent แถมยังมี Audit trail ตรวจสอบได้ครบถ้วน สำหรับฝั่ง Cloud ให้ตั้งค่า Service Account ของ Agent ด้วยสิทธิ์ IAM ที่ต่ำที่สุด และบล็อก Egress ทั้งหมด ยกเว้นปลายทางที่วิ่งไปยัง Proxy เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Isolation คือหัวใจสำคัญอีกชั้น โดย Hardened Container จะดรอปสิทธิ์ที่ไม่จำเป็นทิ้ง และ Mount เฉพาะสิ่งที่ Agent ต้องใช้เท่านั้น:"
+        },
+        {
+          "type": "table",
+          "caption": "ตัวเลือก Container และสิทธิ์ที่ถูกตัดออก",
+          "headers": [
+            "Option",
+            "Purpose"
+          ],
+          "rows": [
+            [
+              "--cap-drop ALL",
+              "ตัด Linux capabilities ทั้งหมด เช่น NET_ADMIN และ SYS_ADMIN เพื่อป้องกันการทำ Privilege Escalation"
+            ],
+            [
+              "--network none",
+              "ตัด Network interfaces ทั้งหมด โดยให้ Agent สื่อสารผ่าน Unix socket ที่ Mount ไปยัง Proxy เท่านั้น"
+            ],
+            [
+              "--user 1000:1000",
+              "รันคำสั่งในฐานะ Non-root user"
+            ],
+            [
+              "-v...:/workspace:ro",
+              "Mount ซอร์สโค้ดแบบ Read-only และต้องหลีกเลี่ยงการ Mount ไดเรกทอรีสำคัญอย่าง ~/.ssh, ~/.aws หรือ ~/.config"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Access management ยังครอบคลุมถึงผู้ใช้งานและ Workloads ที่เรียกใช้ Claude API อีกด้วย ซึ่งใน Claude Console ชนิดของ Key จะเป็นตัวระบุ Identity ว่ากำลังทำงานในฐานะใคร:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Personal key ทำงานในฐานะตัวคุณ โดยได้รับ Roles และ Permissions ตามบัญชีของคุณ\n- Service account key ทำงานในฐานะ Service Account สำหรับระบบ\n- Workspace key เป็นแบบ Legacy ไม่ได้ผูกกับ Identity ใดๆ ปัจจุบันแนะนำให้เปลี่ยนไปใช้ Identity-backed keys หรือ Workload Identity Federation แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Personal และ Service account keys เป็นแบบ Identity-backed กล่าวคือเมื่อ User หรือ Service Account ถูกลบออกจาก Organization ตัว Key ก็จะหยุดทำงานทันที ป้องกันปัญหา Key ค้างหลังเจ้าของหรือ Workload ถูกยกเลิก ควรใช้ Personal key สำหรับการ Dev และรัน Script ส่วนตัว ส่วนงาน Shared หรือ Automated workloads เช่น CI และ Production services ให้ Organization Admin สร้าง Service Account ขึ้นมา เพื่อให้ Workload มี Identity ของตนเอง ห้ามแชร์ Key ส่วนตัวร่วมกันเด็ดขาด"
+        },
+        {
+          "type": "paragraph",
+          "text": "นอกจากนี้ Key ยังสามารถ Scope ให้ใช้งานได้เฉพาะในระดับ Workspace เดียวได้ และสำหรับ Production workloads บน Cloud platforms หรือ CI/CD แนะนำให้ใช้ Workload Identity Federation แลก Identity Token เพื่อรับ Token แบบชั่วคราว (Short-lived token) ซึ่งช่วยขจัดความเสี่ยงจากการใช้ Static Secret ไปได้อย่างสิ้นเชิง"
+        }
+      ]
+    },
+    {
+      "heading": "3. การจัดเก็บ, หมุนเวียน (Rotate) และสแกนหา API Keys",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude API key ต้องได้รับการดูแลอย่างเข้มงวดเช่นเดียวกัน แนวทางของ Anthropic แนะนำให้โหลด Key จาก Environment Variables แทนการ Hard-code ในโค้ด สำหรับบน Cloud ให้ใช้กลไกการ Inject Environment Variables ของ Cloud Provider และเมื่อระบบมี Secrets เพิ่มขึ้น ควรใช้ Key Management System (KMS) เพื่อจัดเก็บแบบเข้ารหัสที่ศูนย์กลาง มีระบบ Fine-grained Access Control, บันทึก Audit Trails และจัดการ Rotate ได้ง่ายขึ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "3 แนวทางปฏิบัติที่ช่วยลดความเสียหายหาก Key เกิดหลุดรั่ว:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Rotate ตามรอบเวลา เช่น ทุก 90 วัน โดยสร้าง Key ใหม่แล้วค่อย Deactivate Key เก่า อย่ารอให้เกิดเหตุก่อนแล้วค่อยทำ - แยก Key ตาม Environment (Development, Testing, Production) เพื่อให้สามารถปิดเฉพาะ Key ที่ถูก Compromised ได้ทันที - สแกนหา Secrets ที่หลุดเข้าไปใน Codebase โดยเปิด Secret Scanning บน Source Control Provider, ใช้เครื่องมือ SAST เช่น Gitleaks และใส่การสแกนไว้ใน CI/CD Pipeline เพื่อดักจับก่อน Commit จะเข้าสู่ Main Branch"
+        },
+        {
+          "type": "paragraph",
+          "text": "Anthropic เข้าร่วม GitHub Secret Scanning Partner Program หาก Claude API key หลุดขึ้น Public Repository ทาง Anthropic จะ Deactivate Key ให้อัตโนมัติและส่งอีเมลแจ้งเตือนเจ้าของทันที นอกจากนี้ Agents ยังอาจทำ Secrets อื่นรั่วไหลได้เช่นกัน ไฟล์อย่าง .env, ~/.aws/credentials, ~/.kube/config และ *.pem ต้องไม่ถูก Mount เข้าไปยังจุดที่ Agent สามารถอ่านได้เด็ดขาด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "API keys จำเป็นต้อง Rotate เฉพาะตอนที่สงสัยว่า Key หลุดเท่านั้น? (ทำไมถึงผิด): ไม่จริง: Anthropic แนะนำให้ Rotate เป็นรอบปกติ เช่น ทุกๆ 90 วัน เพื่อจำกัดอายุการใช้งานและลดความเสี่ยง หาก Key เกิดหลุดโดยที่ไม่มีใครสังเกตเห็น"
+        }
+      ]
+    },
+    {
+      "heading": "4. ความเป็นส่วนตัว: Data Retention และ Zero Data Retention (ZDR)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Privacy by Design เริ่มต้นที่ Prompt ตัวอย่าง Guardrails บนหน้า Jailbreak Mitigation ของ Anthropic ระบุให้เขียนข้อกำหนดการปกป้องข้อมูลลงใน System Prompt โดยตรง เช่น \"Protect client privacy; never disclose personal or financial data.\" ส่วนอีกด้านคือ Data Lifecycle: ข้อมูลใดบ้างที่แพลตฟอร์มจะเก็บไว้ และเก็บไว้นานเท่าใด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Data Minimization คือหลักการพื้นฐาน Anthropic จัดเก็บเฉพาะข้อมูลที่จำเป็นทางเทคนิคเพื่อให้ฟีเจอร์ทำงานได้เท่านั้น และเนื้อหาบทสนทนา (Prompts และ Claude's Outputs) จะไม่ถูกเก็บไว้เป็นค่าเริ่มต้น (Not retained by default) ข้อมูล API ที่ถูกเก็บไว้จะไม่ถูกนำไปใช้เทรนโมเดลโดยเด็ดขาด เว้นแต่จะได้รับอนุญาตอย่างชัดเจน"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Use Case ที่ต้องการความปลอดภัยเข้มงวดเป็นพิเศษ Anthropic มีข้อตกลงการจัดการข้อมูล 2 รูปแบบสำหรับ Claude API ได้แก่ Zero Data Retention (ZDR) และ HIPAA Readiness ซึ่งเป็นข้อตกลงคนละส่วนกัน และตาราง Feature Eligibility จะระบุว่าแต่ละข้อตกลงครอบคลุม API Features ใดบ้าง ภายใต้ ZDR นั้น Anthropic จะไม่เก็บ Prompts หรือ Responses ในระดับ Data at Rest เลยหลังจากส่ง Response คืนไปแล้ว แต่ต้องวางแผนรับมือเงื่อนไขต่อไปนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- ZDR เปิดใช้งานแยกราย Organization หากเปิด Organization ใหม่จะต้องตั้งค่าเปิดใช้งานแยกต่างหาก - ฟีเจอร์ที่ระบุว่า \"No\" ในตาราง Eligibility (เช่น Code Execution) จะไม่ได้รับความคุ้มครอง แม้ว่าจะเรียกผ่าน /v1/messages ก็ตาม - บน Amazon Bedrock และ Google Cloud's Agent Platform ตัว Cloud Provider จะทำหน้าที่เป็น Data Processor จึงต้องยึดตาม Data Controls ของ Provider รายนั้นๆ แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อมูลบางส่วนจะอยู่นอกเหนือข้อตกลงทั้งสอง: Activity Feed จะเก็บข้อมูลไว้นาน 6 ปี ส่วนประวัติแชท, ไฟล์ และ Project Content บน claude.ai จะยึดตาม Retention Policy ของ Organization คุณ ดังนั้นควรตรวจสอบก่อนเสมอว่าข้อมูลของคุณอยู่ภายใต้เงื่อนไขแบบใด ก่อนที่จะการันตีกับผู้ใช้งานว่าไม่มีการจัดเก็บข้อมูล"
+        }
+      ]
+    }
+  ],
+  "questions": []
+}

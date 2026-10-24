@@ -1,0 +1,243 @@
+{
+  "title": "ข้อกำหนดด้าน Infrastructure: Platform, Data Residency, ZDR และ Capacity",
+  "objectives": [
+    "เลือก Deployment Platform ให้เหมาะกับ Cloud เดิมของลูกค้าและผู้ประมวลผลข้อมูล",
+    "บังคับใช้ US-only Inference ด้วย inference_geo และ Workspace Geo Controls",
+    "ระบุเงื่อนไขที่ต้องใช้ Zero Data Retention (ZDR) และ Feature ที่ไม่รองรับ ZDR",
+    "คำนวณและจัดการ Capacity ด้วย Rate Limits, Spend Limits และ Priority Tier"
+  ],
+  "key_concept": "",
+  "sections": [
+    {
+      "heading": "1. การเลือก Platform ตาม Cloud เดิมของลูกค้า",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อกำหนดด้าน Infrastructure มักเริ่มจากระบบที่ลูกค้าใช้งานอยู่แล้ว หากบริษัทมีระบบ Billing, IAM และ CloudTrail บน AWS อยู่เดิม ย่อมต้องการใช้ Claude บน Cloud นั้นโดยไม่ต้องเปิดสัญญา Vendor ใหม่ ทั้งนี้แต่ละ Platform จะคิดค่าบริการผ่าน Cloud ของตนเอง และเชื่อมต่อกับ Identity และเครื่องมือ Audit ของ Cloud นั้นๆ โดยตรง"
+        },
+        {
+          "type": "table",
+          "caption": "การจับคู่ Platform ให้ตรงกับ Infrastructure เดิมของลูกค้า",
+          "headers": [
+            "Platform",
+            "Best for",
+            "Billing",
+            "Enterprise controls"
+          ],
+          "rows": [
+            [
+              "Anthropic Console (Claude API)",
+              "Developer ทั่วไป / ใช้งานเดี่ยว",
+              "PAYG",
+              "Usage dashboard"
+            ],
+            [
+              "Amazon Bedrock",
+              "ระบบที่รันแบบ AWS-native",
+              "PAYG ผ่าน AWS",
+              "IAM policies, CloudTrail"
+            ],
+            [
+              "Claude Platform on AWS",
+              "ต้องการ Billing ผ่าน AWS Marketplace แต่ใช้ฟีเจอร์ของ Claude API",
+              "PAYG ผ่าน AWS Marketplace",
+              "IAM policies, CloudTrail"
+            ],
+            [
+              "Google Cloud's Agent Platform, formerly Vertex AI",
+              "ระบบที่รันแบบ GCP-native",
+              "PAYG ผ่าน GCP",
+              "IAM roles, Cloud Audit Logs"
+            ],
+            [
+              "Microsoft Foundry",
+              "ระบบที่รันแบบ Azure-native",
+              "PAYG ผ่าน Azure",
+              "RBAC policies, Azure Monitor"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "แม้ตัวเลือกบน AWS ทั้งสองแบบจะดูคล้ายกัน แต่มี Operator ต่างกัน ซึ่งส่งผลต่อเรื่อง Compliance โดย Bedrock ดำเนินการโดย AWS ส่วน Claude Platform on AWS ดำเนินการโดย Anthropic บนโครงสร้างพื้นฐานของ AWS สำหรับ Google Cloud ดำเนินการโดย Google และ Microsoft Foundry ดำเนินการโดย Anthropic บน Azure ทั้งนี้ Operator จะเป็นตัวกำหนดว่าต้องใช้กฎ Retention และ Data Residency ของใคร: กรณี Bedrock และ Google Cloud นั้น Cloud Provider จะเป็น Data Processor ดังนั้นมาตรการควบคุมของ Anthropic จึงไม่มีผลบังคับใช้ในส่วนนี้"
+        }
+      ]
+    },
+    {
+      "heading": "2. Data Residency: จุดที่ Inference รัน และจุดที่ Data พัก (Data at Rest)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อกำหนดอย่าง \"Inference ต้องรันในสหรัฐอเมริกาเท่านั้น\" จะถูกแบ่งออกเป็น 2 ค่าคอนฟิกที่เป็นอิสระจากกัน: 1) Inference Geo ควบคุมจุดที่โมเดลทำการ Inference โดยตั้งค่าได้ต่อ Request ผ่านพารามิเตอร์ `inference_geo` หรือตั้งเป็นค่า Default ระดับ Workspace 2) Workspace Geo ควบคุมจุดที่เก็บ Data at Rest และจุดประมวลผล Endpoint ต่างๆ เช่น การรัน Code Execution ซึ่งต้องเลือกตั้งแต่ตอนสร้าง Workspace และแก้ไขภายหลังไม่ได้ ปัจจุบัน Workspace Geo รองรับเฉพาะ \"us\" เท่านั้น ส่วน `inference_geo` รองรับ \"us\" หรือ \"global\" (ซึ่งเป็นค่า Default)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้งค่า inference_geo เป็น \"us\" จะเป็นการเพิ่ม Capacity ในฝั่ง US แยกจาก Global Capacity? (ทำไมถึงผิด): ไม่จริง: Rate Limits ถูกแชร์ร่วมกันในทุก Geo ทราฟฟิกเฉพาะ US จึงนับรวมในโควตาเดียวกัน ไม่ได้ช่วยเพิ่ม Capacity แต่อย่างใด"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากจำเป็นต้องบังคับใช้ตามกฎหมาย การส่งพารามิเตอร์ในโค้ดทุก Request อาจไม่เพียงพอ ที่ระดับ Workspace สามารถใช้ `allowed_inference_geos` เพื่อ Reject ทุก Request ที่ระบุ Geo นอกรายการที่กำหนด และใช้ `default_inference_geo` เมื่อ Request ไม่ได้ส่งพารามิเตอร์มา หากตั้งค่าทั้งสองเป็น \"us\" ทุก API Key ใน Workspace นั้นจะถูกบังคับให้ Inference ใน US ทั้งหมด คุณสามารถตรวจสอบจุดที่ Request นั้นรันได้จาก Object `usage`"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อกำหนด US Residency ส่งผลต่อการเลือกใช้โมเดลและงบประมาณ เนื่องจาก `inference_geo` รองรับเฉพาะโมเดล Claude 4.6 ขึ้นไปเท่านั้น หากเรียกใช้บน Haiku 4.5 พารามิเตอร์นี้จะส่งคืน Error 400 ส่งผลให้ไม่สามารถใช้โมเดลนี้ได้หากมีข้อกำหนด US-only สำหรับโมเดลที่รองรับ การทำ Inference เฉพาะใน US จะมีค่าใช้จ่าย 1.1x จากราคามาตรฐาน (ตัวคูณนี้มีผลบน Claude API และ Claude Platform on AWS ส่วน Bedrock และ Google Cloud จะใช้โครงสร้างราคาตาม Region ของตนเอง) และเนื่องจาก Rate Limits ถูกแชร์ร่วมกันทุก Geo การย้ายทราฟฟิกไป \"us\" จึงไม่ช่วยเพิ่ม Capacity"
+        }
+      ]
+    },
+    {
+      "heading": "3. Zero Data Retention: ขอบเขตที่ครอบคลุมและข้อจำกัด",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Zero Data Retention (ZDR) คือคำตอบเมื่อ Requirement กำหนดว่าผู้ให้บริการต้องไม่เก็บ Prompts หรือ Outputs หากไม่มี ZDR ตัว API จะลบ Inputs และ Outputs ภายใน 30 วัน แต่หากเปิดใช้ ZDR ข้อมูลของลูกค้าจะไม่ถูกบันทึกไว้ (Stored at Rest) เมื่อส่ง API Response กลับเรียบร้อยแล้ว ทั้งนี้ ZDR เป็นข้อตกลงระดับสัญญา (Contractual Arrangement) ไม่ใช่ Request Flag โดยเปิดใช้งานระดับ Organization และ Organization ใหม่ที่อยู่ภายใต้ Account เดียวกันจะไม่ได้รับสิทธิ์นี้โดยอัตโนมัติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ZDR มีข้อยกเว้น 2 ประการ: ประการแรก แม้อยู่ภายใต้ ZDR แต่ Anthropic อาจเก็บข้อมูลไว้ได้หากกฎหมายกำหนด หรือหากระบบ Trust and Safety ตรวจพบสิ่งผิดปกติใน Chat หรือ Session ข้อมูล Inputs และ Outputs อาจถูกเก็บไว้นานสุดถึง 2 ปี ประการที่สอง ZDR ครอบคลุมเฉพาะฟีเจอร์ที่รองรับ (Eligible Features) เท่านั้น และฟีเจอร์ที่ไม่รองรับจะไม่ถูกบล็อก หาก Request มีการเรียกใช้ฟีเจอร์ดังกล่าว ข้อมูลนั้นจะอยู่นอกเหนือข้อตกลง ZDR ทันทีโดยไม่มี Error แจ้งเตือน"
+        },
+        {
+          "type": "table",
+          "caption": "ความเข้ากันได้ของฟีเจอร์ภายใต้ ZDR",
+          "headers": [
+            "Feature",
+            "ZDR eligible",
+            "What is kept"
+          ],
+          "rows": [
+            [
+              "Messages API",
+              "Yes",
+              "ไม่เก็บข้อมูลใดๆ หลังส่ง Response"
+            ],
+            [
+              "Prompt caching",
+              "Yes",
+              "KV Cache และ Hashes จะคงอยู่ใน Memory ตามระยะเวลา Cache TTL"
+            ],
+            [
+              "Structured outputs",
+              "Yes (qualified)",
+              "เก็บเฉพาะ JSON Schema นานสุด 24 ชั่วโมงหลังจากการใช้งานครั้งล่าสุด"
+            ],
+            [
+              "Batch processing",
+              "No",
+              "เก็บข้อมูล 29 วัน เนื่องจากต้องใช้ Asynchronous Storage"
+            ],
+            [
+              "Files API",
+              "No",
+              "เก็บไฟล์ไว้จนกว่าจะถูกลบหรือหมดอายุ"
+            ],
+            [
+              "Code execution",
+              "No",
+              "เก็บข้อมูลใน Container สูงสุด 30 วัน"
+            ],
+            [
+              "Claude Managed Agents",
+              "No",
+              "เก็บบันทึก Transcripts ไว้จนกว่าคุณจะสั่งลบ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Architect หลักการออกแบบคือต้องเน้น Stateless Messages API Call และหลีกเลี่ยง Stateful Features ทั้งนี้ ลูกค้า ZDR จะเสียสิทธิ์การลดต้นทุนบางอย่าง เช่น ส่วนลด 50% ของ Batch API ที่ต้องอาศัย Asynchronous Storage นอกจากนี้ ZDR ยังจำกัดตัวเลือก Model ผ่านการกำหนดที่เรียกว่า Covered Models ซึ่งเป็นกลุ่ม Model ที่ Anthropic กำหนดให้ต้องมีการเก็บข้อมูลและ Review อย่างจำกัดเพื่องาน Safety จึงไม่สามารถรันภายใต้ Zero Retention ได้ เช่น Claude Fable 5.1 หาก Anthropic ไม่ได้อนุมัติให้ Organization ของคุณเป็นกรณีพิเศษ Request ที่ส่งไปยัง Covered Model จาก Workspace ที่เป็น Zero-Retention จะติด Error: \"In order to access this model, your organization or Workspace must have data retention enabled.\" วิธีแก้คือให้ Organization Admin หรือ Owner เปิด Data Retention แบบ 30 วันสำหรับ Workspace นั้นผ่าน Privacy Controls บน Console ซึ่งจะมีผลเฉพาะ Workspace ดังกล่าวและไม่มีผลย้อนหลัง ดังนั้นควรตรวจสอบเสมอว่า Model เป็น Covered Model หรือไม่ ก่อนตกลงทำ ZDR สุดท้าย ZDR มีผลเฉพาะกรณีที่ Anthropic เป็น Data Processor เท่านั้น โดยมีให้ใช้งานบน Claude API และขอบริการได้บน Claude Platform บน AWS ส่วน Bedrock และ Google Cloud ให้ใช้ Retention Controls ของผู้ให้บริการรายนั้นๆ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ภายใต้ ZDR ทาง Anthropic จะไม่มีการเก็บข้อมูล Traffic ของลูกค้าเลยแม้แต่นิดเดียว? (ทำไมถึงผิด): ไม่จริง: ข้อมูลอาจยังถูกเก็บไว้หากมีข้อกำหนดทางกฎหมาย หรือเก็บไว้นานสูงสุด 2 ปีหากถูกตรวจจับโดยระบบ Trust and Safety นอกจากนี้ฟีเจอร์ที่ไม่รองรับ ZDR (เช่น Batch API) จะยังคงเก็บข้อมูลตาม Policy ปกติของฟีเจอร์นั้นๆ"
+        }
+      ]
+    },
+    {
+      "heading": "4. การคำนวณ Capacity: Rate Limits, Spend Limits และ Priority Tier",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ปริมาณการใช้งานที่คาดการณ์ (Expected Volume) ถือเป็น Requirement สำคัญที่ถูกแมปเข้ากับ Limits ระดับ Organization โดย Rate Limits ของ Messages API จะวัดเป็น Requests per Minute (RPM), Input Tokens per Minute (ITPM) และ Output Tokens per Minute (OTPM) แต่ละ Model จะมี Limits แยกกัน หากเกินค่าใดค่าหนึ่งจะได้รับ HTTP 429 พร้อม Header retry-after โดย Model ปัจจุบันส่วนใหญ่รองรับ 1,000 RPM, 2,000,000 ITPM และ 400,000 OTPM ขณะที่ Claude Fable 5.x รองรับเพียง 500,000 ITPM และ 100,000 OTPM ทำให้งานที่ต้องการ Throughput สูงอาจหมดสิทธิ์ใช้งาน แม้ด้านคุณภาพจะตอบโจทย์ที่สุดก็ตาม"
+        },
+        {
+          "type": "paragraph",
+          "text": "มี 2 ปัจจัยที่ส่งผลต่อการคำนวณ Capacity อย่างมีนัยสำคัญ: ข้อแรก Prompt Caching ช่วยให้ Re-use เนื้อหาเดิมซ้ำๆ ข้าม Request ได้ เช่น System Instructions, Tool Definitions และเอกสารขนาดใหญ่ โดย Token ส่วนที่ดึงจาก Cache จะถูกรายงานเป็น cache_read_input_tokens ซึ่ง Model ส่วนใหญ่จะไม่นับ Token ส่วนนี้รวมใน ITPM ส่งผลให้ Limit 2,000,000 ITPM ที่ทำ Cache Hit Rate ได้ 80% สามารถรองรับ Input ได้จริงสูงถึงประมาณ 10,000,000 Tokens ต่อนาที ข้อสอง max_tokens จะไม่ถูกนำไปคิดใน OTPM คิดเฉพาะ Token ที่ Generate ออกมาจริงเท่านั้น อย่างไรก็ตาม สิ่งสำคัญคือ Rate Limits ทุกตัวคือเพดานสูงสุด (Ceiling) ไม่ใช่การการันตี Capacity"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทั้ง Limits และ Spend Caps จะขึ้นอยู่กับ Usage Tier ของ Organization ซึ่ง Anthropic จะจัด Tier ให้อัตโนมัติตามประวัติการใช้งานและสถานะ Account โดย Tier จะปรับสูงขึ้นตามการใช้งาน API ส่วน Organization ใหม่หรือประวัติใช้งานน้อยจะเริ่มต้นที่ Evaluation Tier ซึ่งมี Limit ต่ำกว่ามาตรฐาน และจะปลดล็อกเพิ่มขึ้นเองตามประวัติการใช้งาน คุณสามารถเช็ก Tier และ Limit ปัจจุบันได้จากหน้า Rate Limits ใน Console รวมถึงส่งคำขอเพิ่ม Limits ได้"
+        },
+        {
+          "type": "table",
+          "caption": "Usage Tiers และ Monthly Spend Caps",
+          "headers": [
+            "Usage tier",
+            "Monthly spend cap"
+          ],
+          "rows": [
+            [
+              "Start",
+              "$500 USD"
+            ],
+            [
+              "Build",
+              "$1,000 USD"
+            ],
+            [
+              "Scale",
+              "$200,000 USD"
+            ],
+            [
+              "Custom",
+              "ไม่มีเพดานจำกัด (ตกลงร่วมกับทีม Account)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "พฤติกรรมเมื่อชน Spend Cap จะต่างจาก Rate Limit ทั่วไป: เมื่อ Organization ใช้จ่ายชน Cap ประจำ Tier การใช้งานจะหยุดชะงัก (Pause) ไปจนถึงเวลา 00:00 UTC ของวันแรกในเดือนถัดไป โดย Request จะตอบกลับเป็น 429 พร้อม Error Code enforced_spend_limit_reached และไม่มี Header retry-after ทำให้ Automatic Retries ล้มเหลวต่อเนื่อง แต่หากเป็นการตั้ง Spend Limit เองต่ำกว่า Cap จะได้รับ HTTP 400 แทน ดังนั้นการวางงบประมาณระดับ Tier ต้องเผื่อให้คลุมช่วงเดือนที่ Peak ไม่ใช่แค่เดือนที่ใช้งานเฉลี่ย"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากโจทย์ต้องการ Guaranteed Throughput ต้องใช้ Priority Tier ซึ่งจะได้มาผ่าน Capacity Commitment เท่านั้น โดยต้องระบุ Input/Output Tokens per Minute, เลือกระยะสัญญา 1, 3, 6 หรือ 12 เดือน และระบุ Model Version ให้ชัดเจน Priority Requests จะได้รับการประมวลผลก่อน Traffic อื่นๆ ทั้งหมด พร้อมการันตี Uptime 99.5% และส่วนที่เกินจาก Commitment จะถูกปรับลดไปทำงานที่ Standard Tier ทั้งนี้ Priority Tier ไม่รองรับบน Claude Fable 5.1, Opus 5.5, Opus 5, Sonnet 5.5 หรือ Sonnet 5 หาก Requirement บังคับทั้ง Guaranteed Throughput และต้องใช้ Model กลุ่มนี้ จะเกิด Conflict ทันที ซึ่งต้องแก้ด้วยการเปลี่ยน Model หรือยอมลดหย่อนเงื่อนไขการการันตี Throughput ลง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ตัวเลข Rate Limits ที่ประกาศตาม Tier คือการการันตี Capacity ที่ระบบจะรองรับได้แน่นอน? (ทำไมถึงผิด): ไม่จริง: Rate Limits เป็นเพียงเพดานสูงสุด (Ceiling) เท่านั้น หากต้องการการันตี Capacity จำเป็นต้องทำ Capacity Commitment ผ่าน Priority Tier"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง (Practise it for real)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ตรวจสอบว่า Request ถูกประมวลผลบน US-only inference จริงหรือไม่ และดูพฤติกรรมของระบบเมื่อรันบน Model ที่ไม่รองรับ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55342",
+      "question": "ในระบบ Customer Support ที่เป็นบทสนทนาแบบ Multi-turn มีการส่ง System Prompt ขนาดยาวชุดเดิมซึ่งประกอบด้วยนโยบายผลิตภัณฑ์และ Tone Guidelines ซ้ำในทุก ๆ Turn ทีมงานต้องการลดทั้ง Latency และค่าใช้จ่ายในการประมวลผลเนื้อหาส่วนเดิมซ้ำ ๆ ควรเปิดใช้งานฟีเจอร์ใด?",
+      "options": [
+        "Prompt caching",
+        "Token counting",
+        "Batch processing",
+        "Data residency"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55343",
+      "question": "Agent จำเป็นต้องดึงและวิเคราะห์เนื้อหาทั้งหมดจากหน้าเว็บและเอกสาร PDF ที่ระบุระหว่างการสนทนา โดยต้องการใช้ Tool แบบ Built-in ที่รันอยู่บนแพลตฟอร์ม แทนที่จะต้องโฮสต์ Infrastructure เอง Built-in Tool ใดตอบโจทย์ความต้องการนี้?",
+      "options": [
+        "Web search tool",
+        "Web fetch tool",
+        "Code execution tool",
+        "MCP connector"
+      ],
+      "explanation": ""
+    }
+  ]
+}

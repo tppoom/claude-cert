@@ -1,0 +1,163 @@
+{
+  "title": "การ Validate คำตอบจาก Claude ก่อนนำไปใช้งานจริง",
+  "objectives": [
+    "ตรวจสอบ stop_reason เป็นลำดับแรก พร้อมจัดการ end_turn, max_tokens, tool_use, pause_turn และ refusal อย่างถูกต้อง",
+    "กู้คืนระบบจาก truncated tool calls และ refusals โดยไม่นำผลลัพธ์ที่ไม่สมบูรณ์กลับมาใช้ซ้ำ",
+    "เพิ่ม guard สำหรับตรวจจับ empty content ใน pipeline การ validate คำตอบ",
+    "ทำ grounding และ citation checks เพื่อตรวจสอบว่าผลลัพธ์ที่มี format ถูกต้องนั้นมีความถูกต้องตามข้อเท็จจริง"
+  ],
+  "key_concept": "Response Validation และ Error Handling เพื่อความถูกต้อง ปลอดภัย และเสถียรของแอปพลิเคชันก่อนนำ Output จาก LLM ไปประมวลผลต่อ",
+  "sections": [
+    {
+      "heading": "1. เช็ก stop_reason ก่อนอ่าน content เสมอ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Response ที่สำเร็จของ Messages API จะมีฟิลด์ stop_reason เพื่อบอกว่าทำไม Claude ถึงหยุด Generate เสมอ ซึ่งค่านี้ไม่ใช่ Error เพราะ Error คือ Request ล้มเหลว แต่ stop_reason คือคำอธิบายสถานะหลัง Generate เสร็จสิ้น แม้จะได้ HTTP 200 แต่ข้อมูลก็อาจยังไม่สมบูรณ์พอที่จะนำไปใช้งานจริง ดังนั้น Pipeline ของคุณควร Branch ตามค่า stop_reason ก่อนอ่าน content เสมอ เพื่อตัดสินใจว่าจะนำ Response ไปใช้ต่อ, สั่ง Continue, Retry หรือส่งต่อไปยัง Model อื่น"
+        },
+        {
+          "type": "table",
+          "caption": "ค่า stop_reason และสิ่งที่ Code ควรจัดการ",
+          "headers": [
+            "stop_reason",
+            "เกิดขึ้นเมื่อใด",
+            "สิ่งที่ต้องทำ"
+          ],
+          "rows": [
+            [
+              "end_turn",
+              "Claude ตอบจบกระบวนการอย่างสมบูรณ์ตามธรรมชาติ",
+              "นำ Response ไปใช้งานได้ทันที"
+            ],
+            [
+              "max_tokens",
+              "Response ยาวจนชนขีดจำกัด max_tokens ที่ตั้งไว้",
+              "เพิ่ม max_tokens หรือส่งคำขอเพื่อให้ตอบต่อ (Continue)"
+            ],
+            [
+              "stop_sequence",
+              "Claude ตรวจพบหนึ่งใน stop_sequences ที่กำหนดไว้",
+              "อ่านค่า stop_sequence เพื่อดูว่าลำดับคำสั่งใดถูก Trigger"
+            ],
+            [
+              "tool_use",
+              "Claude ต้องการเรียกใช้งาน Tool",
+              "รัน Tool ดังกล่าวแล้วส่ง Result กลับไปให้ Model"
+            ],
+            [
+              "pause_turn",
+              "Server-tool Loop ทำงานถึงโควตาจำกัดรอบ (Iteration Limit)",
+              "ส่ง Assistant Content เดิมกลับไปเพื่อทำงานต่อ"
+            ],
+            [
+              "refusal",
+              "Claude ปฏิเสธการตอบกลับ",
+              "อ่านค่า stop_details แล้ว Retry ด้วย Fallback Model"
+            ],
+            [
+              "model_context_window_exceeded",
+              "Response ยาวเกินขนาด Context Window ของ Model",
+              "จัดการ Response ในฐานะข้อมูลที่ไม่สมบูรณ์ (Truncated)"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "2. การจัดการ Truncated, Tool และ Paused Turns",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "มี 3 stop_reason ที่บ่งชี้ว่างานยังไม่เสร็จสิ้น โดย max_tokens และ model_context_window_exceeded หมายถึง Output ถูกตัดตอน ข้อความที่ค้างอยู่กลางประโยคเป็นเพียง Fragment ไม่ใช่ผลลัพธ์ที่สมบูรณ์ จึงห้ามส่งเข้า Parser หรือส่งตรงถึง User โดยเด็ดขาด ปกติแล้วหากเป็น Text Response ธรรมดา คุณสามารถสั่งให้ Generate ต่อได้ แต่ข้อยกเว้นคือ Tool Calls: หาก Content Block สุดท้ายเป็น tool_use ที่ไม่สมบูรณ์ การสั่ง Continue จะไม่ได้ Arguments ที่ถูกต้อง ต้องส่ง Request ใหม่อีกครั้งพร้อมปรับค่า max_tokens ให้สูงขึ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "tool_use หมายถึง Claude กำลังรอคุณอยู่ ให้รัน Tool นั้นแล้วส่งผลลัพธ์กลับไป ส่วน Server Tool Call ที่ยังไม่มี Result Block จะถูกประมวลผลต่อใน Response ถัดไป คุณจึงไม่ต้องจัดการด้วยตัวเอง สำหรับ pause_turn หมายถึง Server-tool Loop ชนเพดาน Iteration ให้ส่ง Assistant Content กลับไปตามเดิม Claude จะทำงานต่อจากจุดที่ค้างไว้ทันที"
+        },
+        {
+          "type": "exam_trap",
+          "text": "max_tokens แก้ได้เสมอโดยการสั่งให้ Claude ทำงานต่อ (Continue)? (ทำไมถึงผิด): ไม่จริง: หาก Content ที่ถูกตัดตอนลงท้ายด้วยบล็อก tool_use ที่ไม่สมบูรณ์ คุณไม่สามารถสั่ง Continue ต่อได้ แต่ต้อง Retry คำขอใหม่ทั้งหมดด้วยค่า max_tokens ที่สูงขึ้นเพื่อให้ได้ Tool Call ที่สมบูรณ์"
+        }
+      ]
+    },
+    {
+      "heading": "3. Refusals ถูกส่งกลับมาเป็น Successful Responses",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Fable 5.1, Fable 5, Opus 5.5, Opus 5 และ Sonnet 5.5 มี Safety Classifiers ในตัวที่อาจปฏิเสธคำขอ (Refusal) ได้ ซึ่งการปฏิเสธนี้จะถูกส่งกลับมาเป็น Response ปกติ ดังนั้น Pipeline ที่ดักจับเฉพาะ Exception จึงไม่ตรวจพบ อีกทั้ง Loop ที่เรียกอ่าน response.content[0] จะ Crash ทันทีเพราะเป็น Empty List โดย Refusal จะมีลักษณะดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "ให้ทำ Branching ตาม stop_details.category อย่าอิงจากข้อความ Explanation เนื่องจาก Explanation ไม่มีความเสถียร (Unstable) เหมาะสำหรับแสดงให้ผู้ใช้ดูเท่านั้น ไม่ควรนำไป Parse ทั้งสองฟิลด์สามารถเป็น null ได้หาก Refusal นั้นไม่ตรงกับ Category ใด และถือเป็นค่าปกติ นอกจากนี้ Refusal ยังอาจเกิดขึ้นระหว่าง Stream หลังจากมี Output ส่งมาแล้วบางส่วน ซึ่งควร Discard Output บางส่วนนั้นทิ้งไปแทนที่จะเก็บไว้ ส่วนการ Recovery ให้ส่งคำขอเดิมไปยังโมเดล Claude อื่น หรือใช้ Beta Setting อย่าง fallbacks=\"default\" ที่จัดการ Fallback ฝั่ง Server-side อัตโนมัติตามโมเดลที่แนะนำสำหรับ Category นั้นๆ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Refusal จะ Raise API Error ดังนั้นครอบ try/except รอบ API Call ก็เพียงพอต่อการดักจับแล้ว? (ทำไมถึงผิด): ไม่จริง: Refusal ส่งกลับมาเป็น Response 200 ปกติ โดยมี stop_reason เป็น \"refusal\" และ content อาจว่างเปล่า การเช็คผ่าน stop_reason เท่านั้นจึงจะตรวจพบ"
+        }
+      ]
+    },
+    {
+      "heading": "4. Guard เพื่อป้องกัน Empty Content",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Response อาจมี stop_reason จบด้วย end_turn ได้แม้ไม่มี Content ใดๆ เลย ซึ่ง [Empty end_turn responses](lesson:4.1) มักเกิดขึ้นหลัง Tool Results เมื่อ Claude ตัดสินว่า Turn นั้นจบลงแล้ว ใน Validation Pipeline การเช็คแค่ end_turn จึงไม่เพียงพอ ควรใส่ Guard ไว้คู่กับ Stop-reason Branch เช่น if response.stop_reason == \"end_turn\" and not response.content: แล้ว Handle เคสนี้อย่างชัดเจน แทนที่จะส่ง Empty List ไปยัง Parser"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดที่ Developer มักทำพลาดคือกระบวนการ Recovery เพราะการส่ง Conversation เดิมกลับไปซ้ำๆ จะได้คำตอบว่างเปล่าเหมือนเดิม เนื่องจาก Claude ตัดสินไปแล้วว่าทำงานเสร็จ วิธีแก้ลำดับแรกคือปรับ Message Structure ไม่ให้มี Text Block ต่อท้าย Tool Results โดยตรงทันที หากยังไม่ได้ผล จึงค่อยใส่ Continuation Prompt ผ่าน User Message อันใหม่"
+        }
+      ]
+    },
+    {
+      "heading": "5. Well-formed output ไม่ได้แปลว่า Correct output",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Schema การันตีแค่ Shape (รูปแบบข้อมูล) แต่ไม่ได้การันตีความถูกต้องของเนื้อหา Constrained decoding บังคับให้ field `total_amount` ออกมาเป็น float ได้ แต่ไม่ได้การันตีว่ามันคือยอดรวมจริงบนใบแจ้งหนี้ ข้อความที่อ่านลื่นไหลและ Valid ตาม Schema ก็ยังผิดพลาดได้จากกลไก [Next-token generation และ Hallucination](lesson:5.1) แม้กระทั่ง field อย่าง `confidence: 0.92` ก็เป็นเพียง Output จากโมเดลที่ถูกบังคับให้อยู่ในรูปตัวเลขเท่านั้น ดังนั้น จงมอง Valid output ที่ดูน่าเชื่อถือว่าเป็นเพียง 'สมมติฐาน' ที่ต้องนำไป Verify เทียบกับ Source เสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "เทคนิค Grounding และ Verification ต่อไปนี้ ช่วยเปลี่ยนการตรวจสอบให้กลายเป็น Pipeline อัตโนมัติในระบบของคุณได้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Quote first: สำหรับเอกสารขนาดยาว ให้ Claude ดึงข้อความอ้างอิงแบบคำต่อคำ (word-for-word quotes) ออกมาก่อนเริ่มทำ Task และบังคับให้วิเคราะห์จาก Quote เหล่านั้นเท่านั้น\n- Cite and retract: กำหนดให้ทุก Claim ต้องมี Quote ซัพพอร์ต หากไม่มี Quote รองรับ ให้ตัด Claim นั้นทิ้งทันที\n- Best-of-N: ยิง Prompt เดิมซ้ำกันหลายครั้ง (N ครั้ง) แล้วนำผลลัพธ์มาเปรียบเทียบกัน หาก Output มีความขัดแย้งกันแสดงว่าอาจเกิด Hallucination\n- Allow uncertainty: อนุญาตให้ Claude ตอบตรงๆ ได้ว่า 'ข้อมูลไม่เพียงพอ' ใน Prompt อย่างชัดเจน เพื่อป้องกันไม่ให้โมเดลพยายามแต่งเติมข้อมูลเพื่อเติมเต็มช่องว่าง\n- Restrict knowledge: สั่ง Claude ให้ดึงข้อมูลเฉพาะจากเอกสารที่ให้ไปเท่านั้น โดยห้ามใช้ General knowledge ของตัวเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Quotes คือจุดสำคัญที่ทำให้ Code สามารถทำ Automated Verification ได้ หากคุณออกแบบ Schema ให้ส่ง Quote กำกับไว้ข้างๆ แต่ละ Value ที่สกัดออกมา Validator ของคุณจะสามารถตรวจสอบได้ทันทีว่า Quote นั้นมีอยู่จริงใน Source document หรือไม่ ก่อนที่จะยอมรับ Record นั้นเข้าสู่ระบบ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Output ที่ผ่าน Schema validation แล้วสามารถเชื่อถือได้ว่าเป็นข้อมูลที่ถูกต้อง (ทำไมถึงผิด): ไม่จริง: Schema compliance ควบคุมได้แค่โครงสร้าง (Shape) ของข้อมูลเท่านั้น แต่ Claude ยังคงสามารถ Generate เนื้อหาที่ผิดข้อเท็จจริงหรือขัดแย้งกับ Context ได้ Output ทุก Claim จึงจำเป็นต้องผ่านการ Grounding และตรวจเช็ก Citation เพิ่มเติมเสมอ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55657",
+      "question": "ทีมพัฒนาระบบ Pipeline สำหรับสกัดข้อมูลการติดต่อ (name, email, plan) จาก Support Tickets แล้วส่งเข้าไปยังคำสั่ง Insert ของฐานข้อมูลโดยตรง โดยไม่มีการใช้ try/except ดักจับขั้นตอน JSON parsing ปรากฏว่าระบบเกิด Crash เป็นบางครั้ง เนื่องจาก Response ของ Claude มีข้อความอธิบายแทรกมาก่อน JSON หรือทำ Required Field ตกหล่น วิธีการแก้ไขที่มีประสิทธิภาพสูงสุดในการรับประกัน Schema Conformance โดยไม่ต้องพึ่งพาเพียงแค่ Prompt Wording คืออะไร?",
+      "options": [
+        "เพิ่มคำสั่งใน System Prompt เพื่อบอกให้ Claude ตอบกลับมาเป็น JSON เท่านั้นโดยไม่มีข้อความอื่น",
+        "กำหนดค่า Structured Outputs ด้วย JSON Schema ใน Output Format Field ของ API",
+        "เพิ่มค่า max_tokens เพื่อให้ Claude มีพื้นที่เพียงพอสำหรับเขียน JSON Object ให้ครบถ้วน",
+        "กำหนดให้ Claude ครอบ JSON ด้วย Triple Backticks แล้วนำมาตัดออกในขั้นตอน Post-processing"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55658",
+      "question": "บริการสรุปข้อมูล (Summarization Service) นำ Response Text มา Parse เป็น JSON สำหรับ Transcript ที่มีความยาวมาก พบว่า JSON String มักจะถูกตัดขาดกลาง Object เป็นครั้งคราว ส่งผลให้ Parser เกิด Decode Error เมื่อตรวจสอบเพิ่มเติม วิศวกรพบว่า stop_reason มีค่าเป็น \"max_tokens\" ในทุก Request ที่ทำงานล้มเหลว ตรรกะของ Defensive Parsing ควรจัดการอย่างไร?",
+      "options": [
+        "Catch ตัว Decode Error แล้วตรวจสอบว่า stop_reason เป็น max_tokens หรือไม่ และถือว่า Response นั้นได้ข้อมูลมาไม่สมบูรณ์",
+        "ละเว้น stop_reason แล้วลอง Parse ซ้ำด้วย Lenient JSON Parser ที่รองรับ Trailing Commas",
+        "ลดค่า max_tokens ลงอีกเพื่อให้ Claude ถูกบังคับให้สร้าง Completion ที่สั้นและปลอดภัยยิ่งขึ้น",
+        "ถือว่า JSON Decode Error ทุกกรณีเกิดจากปัญหาชั่วคราวของ Network แล้วส่ง Request เดิมซ้ำอีกครั้ง"
+      ],
+      "explanation": ""
+    }
+  ]
+}

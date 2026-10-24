@@ -1,0 +1,163 @@
+{
+  "title": "Compaction และ Context Editing สำหรับ Claude Sessions ขนาดยาว",
+  "objectives": [
+    "เลือกใช้กลยุทธ์ Compaction ให้เหมาะสม: On-demand, Token threshold หรือ Client-side SDK",
+    "ตั้งค่าการล้าง Tool results และ Thinking blocks ด้วย Triggers และ Keep rules",
+    "ตรวจสอบผลกระทบของ Context editing ล่วงหน้าด้วย Token counting endpoint",
+    "ประเมินความคุ้มค่าระหว่าง Context ที่ประหยัดได้กับ Prompt cache hits ที่เสียไป พร้อมกำหนด Cache breakpoints ไม่ให้กระทบ System prompt"
+  ],
+  "key_concept": "การบริหารจัดการและลดขนาด Context (Compaction & Context Editing) เพื่อรองรับ Long-running sessions อย่างมีประสิทธิภาพสูงสุด โดยไม่สูญเสีย Prompt caching",
+  "sections": [
+    {
+      "heading": "1. Compaction: ยุบประวัติการสนทนาเก่าด้วยสรุปย่อ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ยิ่งรัน Agent Sessions นาน Context ยิ่งบวม จนอาจล้นขีดจำกัดหรือเกิด Context Rot ที่ทำให้ความแม่นยำลดลงก่อนเต็มขีดจำกัด Compaction เข้ามาแก้ปัญหานี้โดยการแทนที่ Turns เก่าด้วย Summary ที่เขียนโดย Claude ทำให้ Task รันต่อเนื่องได้ใน Active Context ขนาดกะทัดรัด สำหรับงานที่ Context ชนลิมิตบ่อย Server-side Compaction คือแนวทางหลัก (ปัจจุบันเป็นสถานะ Beta สำหรับ Claude 4.6+, รุ่นหลังจากนั้น และ Claude Mythos Preview)"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบแนวทาง Compaction ทั้ง 3 รูปแบบ และจังหวะที่ควรเลือกใช้",
+          "headers": [
+            "Aspect",
+            "Compaction on demand",
+            "Compaction at a token threshold",
+            "Your own summarizer (client)"
+          ],
+          "rows": [
+            [
+              "Who decides when",
+              "ฝั่งคุณเอง โดยการยิง Request สั่งทำ",
+              "ฝั่ง API อัตโนมัติเมื่อ Input Tokens ชน Threshold ที่ตั้งไว้",
+              "ฝั่งคุณเอง"
+            ],
+            [
+              "Code you write",
+              "เขียน Compaction Loop เพื่อเรียกขอ Summary และนำมา Swap สลับประวัติ",
+              "เพิ่มพารามิเตอร์เพียงตัวเดียวใน Requests ปกติ",
+              "โค้ดเรียก Summarization, ออกแบบ Prompt เอง และจัดการ Rewrite ประวัติเองทั้งหมด"
+            ],
+            [
+              "Runs in the background",
+              "ใช่",
+              "ไม่ใช่: ทำงานควบคู่ไปใน Request ตัวที่แตะ Threshold",
+              "ใช่ โดยรันในโค้ดของคุณเอง"
+            ],
+            [
+              "Choose it when",
+              "ต้องการคุม Timing เอง, ไม่อยากให้ระบบชะงักระหว่างรอสรุป หรือต้องเก็บ Turns ล่าสุดพร้อม Thinking ไว้",
+              "ต้องการให้ API จัดการ Context ให้แบบอัตโนมัติเบ็ดเสร็จใน Requests ปกติ",
+              "มี Summarizer เดิมที่คอยสรุปและแทนที่ History ทั้งหมดอยู่แล้ว"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "แนะนำให้เลือกใช้ On-demand Compaction เป็นหลักเมื่อรองรับ เพราะเป็นตัวเลือก Server-side เพียงแบบเดียวที่ยังเก็บ Thinking ของ Turns ที่ถูกเก็บไว้บนโมเดลที่รองรับ Thinking Preservation ในขณะที่ Threshold Compaction หากมีการ Re-insert Turns ย้อนกลับเข้ามาบนโมเดล Fable 5.1, Opus 5.5, Sonnet 5.5 หรือ Haiku 5.5 จำเป็นต้องลบ Thinking ออกทั้งหมด ทั้งนี้ Compaction ทั้งสองแบบนับเป็น Sampling Step เพิ่มเติม ซึ่งถูกนำไปคิดใน Rate Limits และค่าบริการ (Billing) ตามปกติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "อีกทางเลือกหนึ่งคือ Client-side SDK Compaction แต่มักแนะนำให้ใช้ Server-side Compaction มากกว่า การทำงานบน TypeScript และ Ruby SDKs จะใช้ผ่าน tool_runner พร้อมตั้งค่า compaction_control โดยหลังทุกการตอบกลับ SDK จะบวกคำนวณ input_tokens + cache_creation_input_tokens + cache_read_input_tokens + output_tokens เมื่อยอดรวมเกิน context_token_threshold (ค่า Default คือ 100,000) SDK จะแทรก Request เพื่อสั่งสรุป และแทนที่ History ทั้งหมดด้วย Summary นั้น ในตัวอย่างการใช้งานจะลดขนาดจาก ~100k tokens เหลือเพียง ~2–3k tokens การตั้ง Threshold ต่ำลงจะทำให้เกิด Compaction ถี่ขึ้นและ Context มีขนาดเล็กลง นอกจากนี้ยังสามารถเลือกใช้โมเดลที่ราคาประหยัดกว่าสำหรับงานเขียนสรุป หรือปรับแต่ง summary_prompt เองได้ โดยต้องครอบผลลัพธ์ด้วยแท็ก <summary></summary>"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดพึงระวัง: ผลรวม Token ดังกล่าวอาจคลาดเคลื่อนอย่างมากเมื่อมีการใช้งาน Server-side Tools เช่น หลังยิง Web Search ตัว cache_read_input_tokens อาจนับรวม Reads จากการเรียกภายในของ Tool หลายครั้ง ทำให้ Context จริงที่ใช้ไป 63,000 tokens ถูกรายงานพุ่งสูงถึง 334,400 tokens ส่งผลให้ Compaction ทำงานก่อนเวลาอันควร ทางแก้คือให้เช็ก Context Length ที่แท้จริงผ่าน Token Counting Endpoint หรือหลีกเลี่ยงการใช้ SDK Compaction ใน Workflows ที่พึ่งพา Server Tools หนักๆ ทั้งนี้ Compaction เหมาะมากสำหรับ Tasks ที่ต้องแก้โค้ดหลายไฟล์ระยะยาว หรืองานค้นคว้าที่มี Artifacts บันทึกไว้นอกบทสนทนา แต่ไม่เหมาะอย่างยิ่งกับงานที่ต้องจำรายละเอียดยิบย่อยช่วงต้น หรือต้องรักษา State ตัวแปรหลายตัวอย่างแม่นยำ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? ยอดรวม Token จาก Client-side SDK เป็นค่า Context Length ที่แม่นยำและเชื่อถือได้เสมอ แม้จะมีการใช้งาน Server-side Tools (ทำไมถึงผิด): ไม่จริง: เมื่อใช้ Server-side Tools ค่า cache_read_input_tokens จะรวมยอด Reads จาก Internal Calls ของ Tool เข้าไปด้วย ทำให้ตัวเลขบวมและกระตุ้น Compaction เร็วเกินไป ควรใช้ Token Counting Endpoint เพื่อตรวจวัดความยาวที่แท้จริง"
+        }
+      ]
+    },
+    {
+      "heading": "2. Context Editing: เคลียร์ Tool Results และ Thinking บล็อกตามเงื่อนไข",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Context Editing ใช้หลักการตัดทิ้ง (Removal) ไม่ใช่การสรุปย่อ (Summarization) โดยทำงานตาม Rules ที่กำหนด เมื่อแตะ Threshold ที่ตั้งไว้ API จะเคลียร์เนื้อหาที่ระบุออกก่อนที่ Prompt จะถูกส่งไปถึง Claude มี 2 กลยุทธ์หลักบนฝั่ง Server-side ซึ่งเลือกเปิดใช้งานแยกกันหรือผสมผสานร่วมกันได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tool Result Clearing (clear_tool_uses_20250919) ออกแบบมาสำหรับ Agents ที่เรียกใช้ Tools หนักๆ เช่น ไฟล์ที่ Claude อ่านไปเมื่อยี่สิบ Turns ก่อนมักหมดประโยชน์แล้ว เมื่อทริกเกอร์ทำงาน API จะเริ่มเคลียร์ผลลัพธ์ของ Tool ที่เก่าที่สุดก่อนตามลำดับเวลา และใส่ Placeholder Text แทนที่ หากตั้งค่า clear_tool_inputs เป็น true จะทำการเคลียร์ Parameter ต่างๆ ของ Tool Call นั้นออกไปด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "Thinking Block Clearing (clear_thinking_20251015) ใช้ควบคุม Thinking จาก Assistant Turns ก่อนหน้าผ่าน keep โดยกำหนด {type: \"thinking_turns\", value: N} เพื่อคงไว้เฉพาะ N เทิร์นล่าสุด หรือใช้ \"all\" เพื่อเก็บทั้งหมด หากไม่ได้ระบุ ค่า Default จะอิงตามโมเดล: โมเดล Opus 4.5+, Sonnet 4.6+, Haiku 5.5+ รวมถึง Fable และ Mythos จะเก็บไว้ทุก Turns ขณะที่ Opus, Sonnet และ Haiku รุ่นเก่าจะเก็บเฉพาะ Turn ล่าสุดเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Stored History ฝั่งคุณจะยังอยู่ครบถ้วน สำหรับโมเดล Fable 5.1, Opus 5.5, Sonnet 5.5 และ Haiku 5.5 การจัดการ Context บน Server-side จะไม่ทำให้ Thinking Blocks เสียหาย (Invalidate) ในทางกลับกัน การแก้ Turns ย้อนหลังบนฝั่ง Client ด้วยตัวเอง อาจส่งผลให้ Thinking ใน Assistant Turns ถัดไปทั้งหมดใช้งานไม่ได้ การเคลียร์ยังทำงานร่วมกับ Memory Tool ได้อย่างมีประสิทธิภาพ โดยเมื่อ Context ใกล้ถึงจุด Clearing Threshold ตัว Claude จะได้รับการแจ้งเตือนอัตโนมัติเพื่อให้จดบันทึกข้อมูลสำคัญลงใน Memory Files ก่อนที่ผลลัพธ์จะถูกลบหายไป หากต้องการพรีวิวผลลัพธ์ก่อนเปิดใช้ Rule ให้ส่ง context_management ชุดเดียวกันไปยัง Token Counting Endpoint ซึ่งจะส่งคืนตัวเลข Token หลังเคลียร์เทียบกับยอดเดิมให้ทันที"
+        }
+      ]
+    },
+    {
+      "heading": "3. Context management กับ Prompt Cache",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt Caching อาศัยการ Reuse Prefix ของ Prompt ที่เหมือนเดิมทุกประการ ([Prompt caching](lesson:2.5)) แต่ทั้ง Compaction และ Context Editing จะเข้าไปแก้ไขเนื้อหากลาง Prompt ซึ่งทำให้ Cache Hit สิ้นสุดลงทันทีตรงจุดที่มีการเปลี่ยนแปลงแรก ทุกครั้งที่มีการเคลียร์หรือทำ Compaction แม้จะช่วยประหยัด Context Window แต่ก็แลกมาด้วยต้นทุน Cache Write ใหม่ การ Trade-off นี้จะคุ้มค่าก็ต่อเมื่อจำนวน Token ที่เคลียร์ออกมีมากพอเท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "ผลกระทบต่อ Cache จากแต่ละ Action ของ Context Management และการตั้งค่าเพื่อคุม Trade-off",
+          "headers": [
+            "Action",
+            "ผลกระทบต่อ Cache",
+            "วิธีปรับแต่ง (Tuning)"
+          ],
+          "rows": [
+            [
+              "Tool result clearing",
+              "Cache Prefix ใช้งานไม่ได้ (Invalidate) ทันทีที่เนื้อหาถูกเคลียร์ และต้อง Cache Write ใหม่ทุกครั้งที่เคลียร์",
+              "ตั้งค่า clear_at_least เพื่อให้การ Invalidate แต่ละครั้งลบ Token ออกมากพอจนคุ้มค่าต้นทุน Cache Write"
+            ],
+            [
+              "Thinking block clearing",
+              "การเก็บ Block ไว้จะช่วยรักษา Cache Hit แต่ถ้าเคลียร์จะทำให้ Cache ถูก Invalidate ณ จุดที่เคลียร์",
+              "ตั้ง keep: \"all\" หากต้องการเน้น Cache Hit หรือตั้งค่า thinking_turns ต่ำๆ หากต้องการประหยัดพื้นที่ Context Window"
+            ],
+            [
+              "Compaction",
+              "ข้อความ Summary คือเนื้อหาใหม่ที่ต้อง Write ลง Cache ใหม่เสมอ",
+              "วาง Breakpoint cache_control ไว้ที่ท้าย System Prompt เพื่อให้ System Prompt ยังถูก Cache แยกไว้ได้"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Compaction ชี้ให้เห็นว่าตำแหน่ง Breakpoint สำคัญมาก หาก System Prompt ไม่มี Breakpoint ของตัวเอง เมื่อ Compaction เขียนประวัติการสนทนาใหม่ System Prompt จะถูก Invalidate ไปด้วยทั้งหมด และต้องนำไป Re-cache ใหม่พร้อมกับ Summary แต่หากใส่ Breakpoint cache_control ไว้ที่ Block สุดท้ายของ System Prompt ตัว System Prompt จะยังคงอ่านจาก Cache ได้แม้หลังเกิด Compaction และจะมีเพียง Summary เท่านั้นที่ต้อง Write เป็น Cache Entry ใหม่"
+        },
+        {
+          "type": "paragraph",
+          "text": "หลักการนี้ใช้ได้กับ Request ทุกแบบที่มี Preamble แบบ Static ขนาดใหญ่ โดยให้นำ Static Content ไว้หน้าสุดเสมอ (เช่น Tool Definitions, System Instructions, Examples) แล้วปิดท้ายด้วย cache_control ตัวอย่างเช่น Support Agent ที่มี Policy Prompt ขนาด 6,000 Tokens และ User Message เปลี่ยนแปลงตลอดเวลา ให้วาง Breakpoint ไว้ที่ Block สุดท้ายของข้อความ Policy การวาง Breakpoint ไว้ที่ User Message จะทำให้เกิด Cache Entry ใหม่ที่ไม่มี Request ถัดไปเรียกใช้ซ้ำได้ และการใส่ Breakpoint ไว้ทุก Block ก็ไม่ช่วยอะไร เพราะส่วนที่เปลี่ยนตลอดเวลาไม่มีทางเป็น Shared Prefix ได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเคลียร์ Thinking Blocks ช่วยประหยัด Context ฟรี โดยไม่มีต้นทุนอื่นแอบแฝง? (ทำไมถึงผิด): ไม่จริง: การเคลียร์ Thinking จะ Invalidate Prompt Cache ณ จุดที่เคลียร์ทันที การเก็บ Block ไว้จะช่วยรักษา Cache Hit ไว้ได้ การตั้งค่า keep จึงเป็นการ Trade-off ระหว่างประสิทธิภาพของ Cache กับพื้นที่ Context Window"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "วัดผลว่ากฎ Tool Result Clearing ช่วยประหยัด Context ได้เท่าใด ก่อนเปิดใช้งานจริงบน Production"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56729",
+      "question": "ทีมงานกำลังสร้าง customer support agent ที่ส่ง static system prompt ขนาด 6,000 tokens ซึ่งประกอบด้วยนโยบายผลิตภัณฑ์ (product policies) และแนวทางการใช้น้ำเสียง (tone guidelines) ตามด้วย user message สั้นๆ ในแต่ละ request ที่แตกต่างกันเสมอ ทั้งนี้ ทีมงานให้ความสำคัญกับทั้ง latency และ cost และต้องการเพิ่ม prompt cache hit rate ให้ได้สูงสุดสำหรับ request นับพันรายการต่อวัน ทีมงานควรวาง cache_control breakpoint ไว้ที่ตำแหน่งใด?",
+      "options": [
+        "ไว้ที่ block สุดท้ายของ static system prompt เพื่อให้นโยบายและข้อความ tone guidelines ที่ไม่เปลี่ยนแปลงถูก cache และนำกลับมาใช้ซ้ำได้ในทุก request",
+        "ไว้ที่ user message block เพื่อให้แต่ละ request ที่เข้ามาสร้าง cache entry ใหม่ ซึ่งเทิร์นถัดๆ ไปสามารถนำไปต่อยอดได้",
+        "ไว้ที่ tools array เท่านั้น โดยไม่ cache ส่วน system prompt เนื่องจาก tool schemas มีการเปลี่ยนแปลงบ่อยกว่าข้อความนโยบาย",
+        "ไว้ที่ทุก content block ใน request รวมถึง user message เพื่อให้ prompt ทั้งหมดมีสิทธิ์ถูกนำไป caching"
+      ],
+      "explanation": ""
+    }
+  ]
+}

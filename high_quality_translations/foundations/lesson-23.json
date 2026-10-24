@@ -1,0 +1,165 @@
+{
+  "title": "การสตรีมผลลัพธ์ของ Claude ด้วย Server-Sent Events (SSE)",
+  "objectives": [
+    "อธิบายการทำงานของ Messages API ในการส่งข้อมูลสตรีมผ่าน Server-Sent Events บน HTTP response แทนการใช้ bidirectional socket",
+    "จัดลำดับ SSE events ในสตรีม พร้อมประกอบ text, tool-input, thinking และ usage deltas อย่างถูกต้อง",
+    "จัดการ error ที่เกิดขึ้นระหว่างสตรีม และใช้ SDK streaming helpers เพื่อป้องกันปัญหา HTTP timeout เมื่อมีเอาต์พุตขนาดยาว"
+  ],
+  "key_concept": "ทำความเข้าใจกลไก Server-Sent Events (SSE) บน HTTP สำหรับการสตรีมคำตอบของ Claude การเรียงต่อข้อมูลย่อย (deltas) หลากรูปแบบ และการจัดการข้อผิดพลาดเพื่อความเสถียรของระบบ",
+  "sections": [
+    {
+      "heading": "1. One HTTP request, streamed back: SSE แทนที่จะเป็น WebSocket",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การทำ Streaming response ใน Claude คือการเรียก Messages API ตามปกติ แค่เพิ่ม \"stream\": true ใน Request Body โดยยังคงยิง POST ไปที่ /v1/messages ด้วย Headers เดิม จุดต่างสำคัญคือรูปแบบ Response ที่ส่งกลับมา: จะส่งกลับมาเป็น Server-Sent Events (SSE) ทยอยส่งข้อมูลมาทันทีที่สร้างเสร็จ แทนที่จะรอส่ง JSON ก้อนเดียวจบตอนท้าย แต่ละ Event จะมีชื่อระบุประเภท เช่น event: message_stop พร้อมกับ Payload ในรูปแบบ JSON data ที่บอก Type ซ้ำมาด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทีมที่คุ้นเคยกับ Chat backend มักเข้าใจผิดว่าจะต้องใช้ WebSocket (การเปิด Persistent two-way connection ค้างไว้เพื่อ push ข้อความใหม่เข้าไปเรื่อยๆ) แต่ Messages API ไม่ได้ออกแบบมาแบบนั้น ตัวระบบเป็นแบบ Stateless ดังนั้นแต่ละ Turn จึงเป็นการยิง Request ใหม่ที่ต้องแนบ Conversation history ทั้งหมดไปด้วยเสมอ การเปิด Streaming ส่งผลเพียงแค่การรับข้อมูลตอบกลับของ Request นั้นๆ เท่านั้น โดย HTTP connection จะเปิดค้างไว้เพื่อส่ง Events จาก Server สู่ Client ดังนั้นระบบ Chat จึงต้องส่ง Request ใหม่ทุกครั้งที่ User ส่งข้อความ แล้วอ่านคำตอบกลับมาในรูปแบบ Event stream"
+        }
+      ]
+    },
+    {
+      "heading": "2. ลำดับของ Events ภายใน Stream",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Stream ทุกตัวจะมีโครงสร้างที่แน่นอน ทำให้ตัว Parser สามารถ Track สถานะได้ง่าย โดยจะเริ่มต้นด้วย message_start ซึ่งส่ง Message object ที่ content ยังว่างเปล่ามาให้ จากนั้นในแต่ละ Content block จะเริ่มด้วย content_block_start ตามด้วย content_block_delta อย่างน้อยหนึ่งรายการ แล้วปิดด้วย content_block_stop โดย index ของ block จะระบุตำแหน่งใน Content array ขั้นสุดท้าย ทำให้คุณ Merge ข้อมูล deltas ตาม index ได้อย่างแม่นยำแม้จะมีหลาย block ถัดมาจะมี message_delta อย่างน้อยหนึ่งรายการเพื่อรายงานการเปลี่ยนแปลงระดับ Top-level เช่น stop_reason และปิดท้าย Stream ทั้งหมดด้วย message_stop ทั้งนี้ อาจมี ping events แทรกเข้ามาระหว่างสตรีมได้ทุกเมื่อ ซึ่งตัว Parser ควร Ignore ทิ้งไป"
+        }
+      ]
+    },
+    {
+      "heading": "3. การอ่าน text, tool-input และ thinking deltas",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ฟิลด์ delta.type ใช้บอกวิธีนำ content_block_delta แต่ละตัวไปอัปเดตลงในบล็อกของมัน โดย text_delta จะส่งชิ้นส่วนข้อความมาให้ต่อท้าย (append) ส่วนการเรียก Tool จะแตกต่างออกไป ซึ่งอีเวนต์ input_json_delta จะส่ง partial_json มาเป็น string fragment ของ Tool arguments เช่น {\"location\": \"San Fra ชิ้นส่วนเหล่านี้ยังไม่ใช่ JSON ที่สมบูรณ์ในตัวเอง ต้องทำการต่อ string (concatenate) ตาม index ของบล็อก แล้วค่อย parse เมื่อได้รับ content_block_stop ของบล็อกนั้น หรือจะใช้ SDK helpers หรือ partial-JSON parser ช่วยจัดการก็ได้ นอกจากนี้ อาจพบช่วงเว้นว่างระหว่างอีเวนต์ของ tool-input ได้ เนื่องจากโมเดลปัจจุบันจะสร้าง key และ value ที่สมบูรณ์ทีละคู่ แล้วทยอยส่งออกมาเป็นหลายๆ chunks"
+        },
+        {
+          "type": "table",
+          "caption": "ประเภทของ Delta และส่วนที่แต่ละตัวอัปเดต",
+          "headers": [
+            "delta.type",
+            "Payload field",
+            "Updates"
+          ],
+          "rows": [
+            [
+              "text_delta",
+              "text",
+              "ข้อความของ text block"
+            ],
+            [
+              "input_json_delta",
+              "partial_json",
+              "input ของ tool_use block ในรูป partial JSON strings"
+            ],
+            [
+              "thinking_delta",
+              "thinking",
+              "ฟิลด์ thinking ของ thinking block"
+            ],
+            [
+              "signature_delta",
+              "signature",
+              "integrity signature ซึ่งส่งมาก่อน content_block_stop เล็กน้อย"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Thinking blocks จะ Stream การคิดหาเหตุผลออกมาเป็นอีเวนต์ thinking_delta โดยแต่ละบล็อกจะปิดท้ายด้วย signature_delta หนึ่งตัวเสมอเพื่อใช้ตรวจสอบความสมบูรณ์ (integrity) ของบล็อก หากตั้งค่าการแสดงผล thinking เป็น omitted ตัวบล็อกจะยังคงเปิดและปิดตามปกติ แต่ thinking_delta จะเป็น empty string และตามด้วย signature เท่านั้น ซึ่งหาก UI รออ่านข้อความ reasoning ในโหมดนี้ก็จะไม่แสดงผลข้อความใดๆ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "แต่ละ input_json_delta บรรจุ JSON object ที่พร้อมใช้งานของ Tool arguments ทันที? (ทำไมถึงผิด): ไม่จริง: deltas เหล่านี้เป็นเพียงชิ้นส่วนของ string (string fragments) ต้องนำมาต่อกันให้ครบทั้งบล็อกแล้ว parse เมื่อ content_block_stop มาถึง หรือใช้ SDK helpers ช่วยจัดการ"
+        }
+      ]
+    },
+    {
+      "heading": "4. การนับ Usage, Mid-stream errors และ Unknown events",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "จำนวน Token usage ในการ Stream จะส่งมา 2 จุด โดย message_start จะรายงาน input tokens ส่วนแต่ละ message_delta จะรายงาน output tokens แบบผลรวมสะสม (running total) ไม่ใช่ค่าที่เพิ่มขึ้นทีละอีเวนต์ (incremental) จึงต้องยึดค่าจากอีเวนต์สุดท้าย หากระบบคำนวณบิลนำ output_tokens จากทุก message_delta มาบวกกัน ค่าจะสูงกว่าที่แสดงบนหน้า Dashboard จริง และยิ่งคลาดเคลื่อนมากขึ้นตามจำนวนอีเวนต์ที่ได้รับ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Stream อาจล้มเหลวหลังจาก Server ส่ง HTTP status 200 OK ออกมาแล้วได้ เพราะเมื่อส่ง status line ไปแล้ว ข้อผิดพลาดจะถูกส่งมาในรูปของอีเวนต์ error ภายใน Stream แทน ซึ่งใช้ type และ error object โครงสร้างเดียวกับ Error Body ปกติ โดย overloaded_error ใน Stream จะเทียบเท่ากับ HTTP 529 ให้จัดการตามแนวทางใน [API error types and recovery](lesson:4.1) และทิ้งเนื้อหาส่วนที่ได้รับมาก่อนหน้านั้นทั้งหมด นอกจากนี้ API อาจเพิ่ม event types ใหม่ตามนโยบาย versioning ดังนั้น Parser ควรข้าม (skip) อีเวนต์ที่ไม่รู้จัก แทนที่จะหยุดทำงานด้วย error"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การคิดจำนวน billed output tokens ของ Stream response ต้องนำ output_tokens จากทุก message_delta event มาบวกกัน? (ทำไมถึงผิด): ไม่จริง: ค่า usage ใน message_delta เป็นแบบสะสม (cumulative) ค่าที่รายงานในอีเวนต์สุดท้ายคือยอดรวมทั้งหมด การนำทุกอีเวนต์มาบวกกันจึงทำให้คิด usage สูงเกินจริง"
+        }
+      ]
+    },
+    {
+      "heading": "5. SDK streaming helpers and long outputs",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "SDK มี Streaming ให้เลือก 2 รูปแบบตาม use case: 1) `client.messages.create(..., stream=True)` จะ return raw events ออกมาเป็น iterable ใช้ memory น้อยเพราะไม่มีการ build final message เหมาะสำหรับ forward หรือ relay events ไปที่อื่น 2) `client.messages.stream(...)` เป็น helper ครอบทับอีกชั้น มี `text_stream` สำหรับดึงเฉพาะ text, รองรับ event handlers ใน TypeScript และรวมผลลัพธ์เป็น complete Message ผ่าน `get_final_message()` ใน Python หรือ `finalMessage()` ใน TypeScript เหมาะสำหรับงานที่ต้องการผลลัพธ์แบบประกอบสมบูรณ์ สำหรับ TypeScript สามารถยกเลิก Stream ได้โดย break ออกจาก loop หรือเรียก `stream.controller.abort()`"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือกรูปแบบ Streaming ใน Python SDK",
+          "headers": [
+            "Call",
+            "Returns",
+            "Use when"
+          ],
+          "rows": [
+            [
+              "client.messages.create(..., stream=True)",
+              "Iterable ของ stream events โดยไม่มีการ build final message",
+              "ต้องการ process หรือ relay raw events และต้องการประหยัด memory"
+            ],
+            [
+              "client.messages.stream(...) with text_stream",
+              "Text ที่ทยอยสะสมเข้ามาแบบเรียลไทม์",
+              "ต้องการ render ข้อความให้ User แบบ incremental"
+            ],
+            [
+              "client.messages.stream(...) with get_final_message()",
+              "Message object ที่สมบูรณ์",
+              "ต้องการเฉพาะผลลัพธ์สุดท้ายที่เสร็จสมบูรณ์ โดยเฉพาะเมื่อตั้งค่า max_tokens สูงๆ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Long outputs การใช้ Streaming จะเป็นข้อบังคับไม่ใช่แค่ทางเลือก เพราะ non-streaming request จะไม่ส่ง response ใดๆ กลับมาเลยจนกว่าจะ generate ครบทั้งหมด หากตั้งค่า `max_tokens` ไว้สูง ระยะเวลารออาจเกิน HTTP timeout ซึ่ง SDK จะบังคับให้ต้องใช้ Streaming เสมอ การใช้ Streaming จะช่วยเลี้ยง connection ไว้ด้วย events อย่างต่อเนื่อง และถ้าต้องการเพียงผลลัพธ์สุดท้ายที่สมบูรณ์ ก็ยังสามารถเรียก `get_final_message()` เพื่อรับ object ที่เหมือนกับผลลัพธ์จาก `create()` ได้ นอกจากนี้ Streaming ยังเป็นวิธีแก้ปัญหาเมื่อเจอกรณี 504 `timeout_error` จาก long requests อีกด้วย"
+        },
+        {
+          "type": "exam_trap",
+          "text": "client.messages.create(..., stream=True) จะ return ผลลัพธ์ Message ที่ประกอบสมบูรณ์เหมือน stream helper แต่เร็วกว่า? (ทำไมถึงผิด): ไม่จริง: คำสั่งนี้ return เพียง raw event iterable เท่านั้น และไม่มีการ build final message ให้ หากต้องการผลลัพธ์สุดท้ายที่ประกอบสมบูรณ์ ต้องใช้ client.messages.stream(...) คู่กับ get_final_message()"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55562",
+      "question": "ทีมวิศวกรดูแล custom SSE event handler สำหรับ Messages API หลังจากการอัปเดต Anthropic API ตัว handler เกิด unhandled exception เมื่อเจอ event type ที่ไม่รู้จัก ส่งผลให้ stream connection หลุดทั้งหมด ตามคำแนะนำของ Anthropic เกี่ยวกับ event stream ตัว handler ควรจัดการอย่างไรแทน?",
+      "options": [
+        "ปฏิบัติต่อ event type ที่ไม่รู้จักให้เป็นเรื่องปกติและข้าม (skip) ไปโดยไม่แจ้ง error เนื่องจากอาจมีการเพิ่ม event type ใหม่ๆ เข้ามาได้ตาม versioning policy ของ API",
+        "ปิด connection ทันทีแล้ว fall back ไปใช้ non-streaming request เมื่อได้รับ event type ที่ไม่คุ้นเคย เพื่อป้องกันการประมวลผลข้อมูลที่ผิดรูปแบบ (malformed data)",
+        "ปฏิเสธ stream และส่งคำขอโดยปรับค่า anthropic-version header ให้ต่ำลงในรอบถัดไป เนื่องจาก event type ใหม่แสดงว่า client กำลังใช้เวอร์ชันที่ใหม่เกินไป",
+        "Buffer ทุก event ที่ไม่รู้จักเอาไว้จนกว่าจะได้รับ message_stop จากนั้นยกเลิก (discard) response ทั้งหมดทิ้งหากมี event ที่ไม่รู้จักปรากฏอยู่"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55563",
+      "question": "ทีมที่คอยตรวจสอบ Claude API streaming integration สังเกตเห็น ping event แทรกอยู่เป็นระยะท่ามกลาง content_block_delta event ใน SSE logs โดยไม่กระทบต่อเนื้อหาข้อความที่รวมผลลัพธ์ ข้อใดคือแนวทางการจัดการ ping event เหล่านี้ที่ถูกต้อง?",
+      "options": [
+        "ปฏิบัติต่อ ping event เป็น keep-alive signal ที่ไม่มี data payload เกี่ยวข้องกับเนื้อหาข้อความ และ ignore ข้ามไปเมื่อทำการ reconstruct response",
+        "ปฏิบัติต่อ ping event เป็นสัญญาณเตือนล่วงหน้าว่า connection กำลังจะถูกปิดโดย server และให้ reconnect ล่วงหน้าโดยใช้ request เดิม",
+        "ปฏิบัติต่อ ping event เป็น partial usage update และนำจำนวน token ไปบวกเพิ่มใน cumulative usage ที่รายงานใน message_delta",
+        "ปฏิบัติต่อ ping event เป็นสัญญาณเตือนว่า content block เกิดการค้าง (stalled) และให้ resend request เดิมอีกครั้งหากพบ ping event มากกว่าหนึ่งครั้ง"
+      ],
+      "explanation": ""
+    }
+  ]
+}

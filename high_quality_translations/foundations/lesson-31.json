@@ -1,0 +1,125 @@
+{
+  "title": "Structured Outputs และ Strict Tool Use",
+  "objectives": [
+    "อธิบายสาเหตุที่การขอ JSON ผ่าน Prompt มักทำให้ Downstream Parser พัง และวิธีที่ Constrained Decoding ช่วยป้องกันปัญหานี้",
+    "ส่ง JSON Schema ผ่าน output_config.format โดยตรง หรือผ่าน client.messages.parse()",
+    "เปิดใช้งาน strict: true บน Tool และระบุชุด Toolsets ที่ไม่รองรับ",
+    "เลือกกลยุทธ์ Fallback เมื่อ Structured Outputs ไม่สามารถรองรับ Schema ที่ต้องการได้"
+  ],
+  "key_concept": "Constrained Decoding — การจำกัด Token Sampling ของ Claude ให้สร้างเฉพาะผลลัพธ์ที่ถูกต้องตาม Schema ที่กำหนด การบังคับโครงสร้างตั้งแต่ขั้นตอน Generate ทำให้ผลลัพธ์ Parse ผ่านเสมอและมีฟิลด์กับ Data Types ครบถ้วนตามต้องการ โดยไม่ต้องลุ้นว่าโมเดลจะทำตามคำสั่งหรือไม่",
+  "sections": [
+    {
+      "heading": "1. ทำไมการขอ JSON ผ่าน Prompt ถึงทำให้ Pipeline พัง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ปลายทางที่รับ Output ของ Claude มักเป็นโค้ด เช่น json.loads(), การ insert ลง Database หรือฟังก์ชันที่คาดหวังว่า passengers ต้องเป็น integer ซึ่งโค้ดไม่ยอมรับความคลาดเคลื่อน หากขอ JSON ผ่าน Prompt เพียงอย่างเดียว ผลลัพธ์ส่วนใหญ่อาจ Parse ผ่าน แต่จะมีบางครั้งที่หลุดประโยคปิดท้าย, ขาด Key สำคัญ หรือส่งตัวเลขมาเป็น String จนทำให้ Job พังตอนตีสามจากข้อมูล Record ที่ไม่มีใคร reproduce ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การจูน Prompt อย่างละเอียดช่วยลดโอกาสเกิดได้ แต่ไม่สามารถทำให้ Error เป็นศูนย์ โดยมี Failure 4 รูปแบบที่พบบ่อย: Syntax พังจน Parse ไม่ผ่าน, ขาด Required Fields, Data Types ไม่สอดคล้องกัน และ Schema Violations ที่ต้องคอย Catch เพื่อ Retry ตัวอย่างที่เห็นชัดคือ Booking Tool ที่ต้องการ passengers: int แต่ถ้าไม่มีการบังคับ Schema Claude อาจส่ง \"two\" หรือ \"2\" มาแทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Structured Outputs แก้ปัญหานี้ตั้งแต่จังหวะ Generation โดยจำกัด Sampling ของ Claude ให้สร้างเฉพาะ Output ที่ถูกต้องตาม Schema เท่านั้น ส่งผลให้ได้ผลลัพธ์ที่ Valid เสมอ (หมดปัญหา JSON.parse() พัง), มี Type Safety (การันตีทั้ง Type และ Required Fields) และทำงานได้เสถียรโดยไม่ต้องคอย Retry ฟีเจอร์นี้แบ่งเป็น 2 ส่วน ซึ่งใช้งานแยกกันหรือใช้ร่วมกันใน Request เดียวได้: JSON Outputs ใช้คุม Response ของ Claude ส่วน Strict Tool Use ใช้คุม Arguments ที่ Claude ส่งเข้า Tools"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Prompt ที่ชัดเจนพร้อมตัวอย่างเพียงพอที่จะทำให้ JSON จาก Claude ปลอดภัยสำหรับ Parser ทั่วไปโดยไม่ต้องมี Guard? (ทำไมถึงผิด): ไม่จริง: Prompting ทำได้เพียงเพิ่มโอกาสความน่าจะเป็นเท่านั้น ปัญหา Malformed JSON, ฟิลด์ตกหล่น หรือ Data Type ผิดพลาด จะถูกกำจัดได้อย่างเด็ดขาดก็ต่อเมื่อใช้ Constrained Decoding บังคับตาม Schema เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "2. การใช้งาน JSON Outputs ด้วย output_config.format",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การทำ JSON Output มี 3 ขั้นตอน: 1. กำหนดโครงสร้างที่ต้องการในรูปแบบ JSON Schema หรือ Type ในภาษานั้นๆ 2. ส่งค่านั้นไปใน output_config.format ของ Request พร้อมระบุ type: \"json_schema\" 3. อ่านผลลัพธ์จาก Text Content Block ของ Response ทั้งนี้ Schema จะอิงตามมาตรฐาน JSON Schema โดยมีข้อจำกัดบางประการ"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางที่แนะนำสำหรับ Python คือการใช้ SDK Helper โดยส่ง Pydantic Model ให้ client.messages.parse() ผ่านพารามิเตอร์ output_format= จากนั้น SDK จะแปลง Model เป็น Schema, ส่งต่อไปที่ output_config.format, Validate ข้อมูล Response และ Return ออกมาเป็น Typed Object ใน parsed_output ทั้งนี้ output_format คือ Argument ของ Helper ส่วน output_config.format คือ Field ระดับ Request ที่ Helper ช่วยกรอกให้ ซึ่งทั้งคู่คือฟีเจอร์เดียวกันที่อยู่คนละเลเยอร์"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การส่ง output_format=SomeModel ใน client.messages.parse() แตกต่างจาก output_config.format ใน messages.create()? (ทำไมถึงผิด): ไม่จริง: ทั้งสองคือฟีเจอร์เดียวกัน โดย output_format เป็นเพียง Argument ของ Helper ที่จะแปลงข้อมูลไปใส่ใน output_config.format ของ Raw Request ให้อัตโนมัติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "JSON Schema Constraints บางตัวไม่สามารถใส่ตรงๆ ใน Schema ที่ส่งให้โมเดลได้ ซึ่ง Helper จะจัดการให้อย่างโปร่งใส Constraints อย่าง minimum, maximum, minLength และ maxLength จะถูกถอดออกจาก Schema ที่ส่งให้ Claude แล้วย้ายไปเขียนไว้ใน description ของฟิลด์แทน นอกจากนี้ Helper จะเพิ่ม additionalProperties: false ให้ทุก Object และกรอง String Formats ให้เหลือเฉพาะตัวที่รองรับ เมื่อ Claude ส่ง Response กลับมา Helper จะ Validate ข้อมูลกับ Schema ดั้งเดิมบนโค้ดฝั่งเราอีกครั้ง (เช่น ฟิลด์ที่มี minimum: 100 จะส่งไปหา Claude เป็น Integer ทั่วไปที่มี {minimum: 100} ใน description และผลลัพธ์จะยังคงถูก Validate ด้วยเงื่อนไข minimum: 100 เสมอ) หากต้องการประกอบ Request เอง สามารถใช้ transform_schema() จากแพ็กเกจ anthropic ในการแปลง Schema ก่อนนำไปปรับแต่งได้"
+        }
+      ]
+    },
+    {
+      "heading": "3. Strict tool use: รับประกัน Tool Inputs ตาม Schema",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "จุดผิดพลาดของ Agents มักไม่ได้อยู่ที่คำตอบสุดท้าย แต่อยู่ที่ Arguments ที่ Claude ส่งเข้าไปยัง Functions เช่น หาก Handler ของ create_booking คาดหวังตัวเลข 2 แต่ได้สตริง \"2\" หรือขาด Required field ก็จะเกิด Runtime error ระหว่างทำ Multistep task ทันที การตั้งค่า strict: true ในนิยาม Tool จะคอมไพล์ input_schema ให้เป็น Grammar โดยใช้ Pipeline เดียวกับ Structured Outputs เพื่อจำกัดการ Sampling ของ Claude ให้ส่งเฉพาะ Inputs ที่ตรงตาม Schema เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "strict เป็น Top-level property ของ Tool อยู่ระนาบเดียวกับ name, description และ input_schema เมื่อเปิดใช้งาน คุณจะได้รับการรับประกัน 2 อย่าง: Input ในทุกๆ tool_use block จะถูกต้องตาม input_schema เสมอ และ Tool name จะถูกต้องแน่นอน (ต้องเป็น Tool ที่ส่งไปให้ หรือ Server tool) ทำให้ Handler ไม่จำเป็นต้องมี Validate-and-retry loop สำหรับตรวจสอบ Tool arguments อีกต่อไป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "strict: true สามารถตั้งค่ากับทุก Tool ใน tools array รวมถึง Computer และ Browser Use toolsets ได้หรือไม่? (ทำไมถึงผิด): ไม่จริง: Toolsets ทั้งสองกลุ่มนี้ปฏิเสธ strict: true และ API Request จะ Error ทันทีหากมีการกำหนดค่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Strict mode มีข้อจำกัดในการใช้งาน 3 ข้อ ได้แก่: 1. Toolsets สำหรับ Computer Use และ Browser Use (computer_toolset_20260801 และ browser_toolset_20260801) ไม่รองรับ strict: true และจะ Reject คำขอทันที 2. Tool schemas ที่คอมไพล์แล้วจะถูกแคชไว้สูงสุด 24 ชั่วโมงหลังจากการใช้งานล่าสุด (แยกอิสระจาก Message content) 3. แม้ Strict tool use จะรองรับ HIPAA แต่ Schema cache ดังกล่าวไม่ได้รับความคุ้มครอง PHI ในระดับเดียวกับ Prompts และ Responses ดังนั้นจึงต้องระวังไม่ให้มี PHI อยู่ใน Property names, Enum values, Const values และ Pattern regexes"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบฟีเจอร์ Structured Outputs ทั้ง 2 รูปแบบ",
+          "headers": [
+            "Feature",
+            "Where you set it",
+            "What it constrains",
+            "Where the result arrives"
+          ],
+          "rows": [
+            [
+              "JSON outputs",
+              "output_config.format ที่มี type: \"json_schema\"",
+              "Claude's response",
+              "Text content block ของ Response"
+            ],
+            [
+              "Strict tool use",
+              "strict: true ในนิยามของ Tool",
+              "Tool names และ Tool inputs",
+              "input field ของ tool_use block"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "4. เมื่อไม่สามารถใช้งาน Structured Outputs ได้",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ก่อนจะยอมแพ้และเลิกใช้ Constrained Decoding ควรตรวจสอบก่อนว่าข้อจำกัดนั้นไม่รองรับจริงหรือไม่ เพราะเงื่อนไขอย่าง Minimum, Maximum หรือ String length ไม่ได้บล็อกการใช้งาน Structured Outputs เราสามารถใช้ transform_schema() หรือ Validating SDK helper ย้ายเงื่อนไขเหล่านี้ไปไว้ใน description แล้วค่อยตรวจสอบในโค้ดฝั่งเราแทน กรณีที่จำเป็นต้อง Fallback จริงๆ มีเพียงการใช้ Model ที่ไม่รองรับ Structured Outputs หรือ Schema ต้องการฟีเจอร์ที่อยู่นอกเหนือจาก Supported subset"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับเคสเหล่านั้น คุณจะต้องกลับไปสั่งจัด Format ใน Prompt แทนตามเทคนิคใน [Prompting for output format](lesson:6.2) โดยสรุปคือ: กำหนด Format ให้ชัดเจนด้วย JSON, XML หรือ Template, ทำ Prefill ที่ Assistant turn และจำกัดขอบเขตด้วย Examples สิ่งที่เปลี่ยนไปใน Pipeline คือผลลัพธ์จะไม่มีการการันตีอีกต่อไป ปัญหาเดิมๆ ทั้ง Syntax errors, Missing fields, Wrong types อาจกลับมาได้ทั้งหมด คุณจึงต้องครอบ Parsing ด้วย Error handling, Validate เทียบกับ Schema ในโค้ด และเตรียมโควตาสำหรับ Retries ซึ่งเป็นขั้นตอนมาตรฐานที่ใช้กันอยู่แล้วก่อนจะมี Structured Outputs"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55660",
+      "question": "weather tool มักจะทำงานล้มเหลวเป็นบางครั้งเนื่องจาก upstream API เกิด timeout โดย integration ในปัจจุบันส่งกลับ tool_result สั้นๆ เพียงคำว่า \"error\" พร้อมระบุ is_error: true ส่งผลให้ Claude ยังคงเรียก tool เดิมที่ล้มเหลวนั้นซ้ำไปเรื่อยๆ เป็น loop การปรับเปลี่ยนเนื้อหาใน tool_result ตามข้อใดมีแนวโน้มช่วยหยุดการเรียกซ้ำที่ล้มเหลวนี้ได้ดีที่สุด?",
+      "options": [
+        "เปลี่ยนข้อความ \"error\" ทั่วไป ให้เป็นข้อความที่ระบุสาเหตุความล้มเหลวอย่างชัดเจน พร้อมทั้งระบุ retry delay",
+        "ลบ is_error ออกทั้งหมด เพื่อให้ Claude มองว่าการเรียกที่ล้มเหลวซ้ำๆ นั้นทำงานสำเร็จ",
+        "หยุดส่งค่า tool_result ใดๆ กลับไป และปล่อยให้การสนทนาจบลงโดยไม่มีการตอบกลับ",
+        "เปลี่ยน tool จาก client tool ไปเป็น server tool เพื่อให้ Anthropic ทำการ retry ให้โดยอัตโนมัติ"
+      ],
+      "explanation": ""
+    }
+  ]
+}

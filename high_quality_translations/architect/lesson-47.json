@@ -1,0 +1,330 @@
+{
+  "title": "วงจรชีวิตของ AI Solution: ตั้งแต่ Discovery จนถึง Retirement",
+  "objectives": [
+    "ระบุ Phase ต่าง ๆ ของ AI Solution และ Artifact ที่ต้องส่งมอบให้ Phase ถัดไป",
+    "กำหนด Success Criteria และ Evaluation Set ในช่วง Discovery โดยแยกงาน Phase หลัง เช่น Runbook และ Cost Tuning ออกไป",
+    "เลือกใช้ Client SDK, Agent SDK หรือ Managed Agents ในช่วง Design ตามสิทธิ์การควบคุม Agent Loop และ Infrastructure",
+    "ใช้ Monitored Signals และ Regression Evals ตัดสินใจว่าจะ Deploy, แก้ไข หรือ Rollback ตัว Live Solution",
+    "วางแผน Retirement สำหรับ Solution ของคุณและ Base Model ที่ใช้งาน"
+  ],
+  "key_concept": "Lifecycle Ownership — AI Solution ขับเคลื่อนผ่านช่วง Discovery, Design, Handoff, Monitoring, Iteration จนถึง Retirement โดยแต่ละ Phase จะส่งต่อ Artifact ที่ชัดเจนให้กัน ซึ่ง Solution Architect ต้องเป็นเจ้าของผลลัพธ์ครอบคลุมทั้งหมด: ตั้งแต่การประเมินความคุ้มค่าที่จะสร้าง, พฤติกรรมหลัง Launch, ไปจนถึงการตัดสินใจปลดระวาง (Retire)",
+  "sections": [
+    {
+      "heading": "1. วงจร 6 Phases ที่ส่งมอบ Artifact ต่อเนื่องกัน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "โซลูชัน AI ไม่ได้จบลงแค่โค้ดรันผ่าน แต่ต้องผ่านทั้ง 6 Phases ได้แก่ Discovery, Design, Handoff, Monitoring, Iteration และ Retirement โดยหัวใจสำคัญของแต่ละ Phase คือ \"สิ่งที่ต้องส่งต่อให้ Phase ถัดไป\" หากระบุไม่ได้ว่าต้องส่งมอบอะไร Phase ต่อไปจะต้องคาดเดาเอาเอง ซึ่งสุดท้ายจะกลายเป็นงานแก้ (Rework) ที่ย้อนกลับมาสร้างปัญหาในภายหลัง"
+        },
+        {
+          "type": "table",
+          "caption": "สิ่งที่แต่ละ Lifecycle Phase ต้องส่งมอบให้ Phase ถัดไป",
+          "headers": [
+            "Phase",
+            "Core question",
+            "Hands to the next phase"
+          ],
+          "rows": [
+            [
+              "Discovery",
+              "แก้ปัญหาอะไร, เพื่อใคร, และอะไรคือตัวชี้วัดความสำเร็จ?",
+              "Success Criteria, Acceptance Tests และ Evaluation Set"
+            ],
+            [
+              "Design",
+              "Architecture และ Build Surface ใดที่ตอบโจทย์ Criteria เหล่านั้น?",
+              "Design ที่กำหนด Behavior ให้ Test สามารถตรวจสอบได้"
+            ],
+            [
+              "Handoff",
+              "ทีม Engineering สามารถ Build และปรับปรุงได้อย่างปลอดภัยหรือไม่?",
+              "Tests ที่นิยามคำว่า Done พร้อมทั้งเอกสาร Design"
+            ],
+            [
+              "Monitoring",
+              "ระบบทำงานได้ดีกับผู้ใช้จริงภายใต้ต้นทุน (Cost) ที่รับได้หรือไม่?",
+              "ผลลัพธ์จากการวัดผลจริงเทียบกับ Criteria ที่ตั้งไว้"
+            ],
+            [
+              "Iteration",
+              "จะ Deploy, แก้ไข หรือหยุดการพัฒนา?",
+              "เวอร์ชันใหม่ (New Version) หรือการตัดสินใจ Retire ระบบ"
+            ],
+            [
+              "Retirement",
+              "จะปลดระวางระบบหรืองานที่รันอยู่บน Model เดิมอย่างไร?",
+              "แผนการ Migration ไปยังระบบใหม่ พร้อมเก็บบันทึกประวัติ (Records)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "แต่ละ Phase จะทำงานเป็น Loop ไม่ใช่เส้นตรง การ Iteration จะวนกลับไปที่ Design และ Handoff ในทุกเวอร์ชันใหม่ ส่วน Monitoring จะรันอย่างต่อเนื่องตราบใดที่โซลูชันยังทำงานอยู่ สำหรับ Retirement อาจถูกทริกเกอร์จากปัจจัยภายนอกได้เช่นกัน เมื่อ Model หลักที่ใช้งานถึงกำหนด Deprecation/Retirement นอกจากนี้ การ Ship ระบบขึ้น Production ยังมีเรื่อง Migrations, Versioning, Rate Limits และ Feature Flags ซึ่งต้องเตรียมการล่วงหน้า โดยแต่ละเรื่องจะผูกอยู่กับ Phase ที่เฉพาะเจาะจง จึงต้องวางแผนรับมือให้ถูกจุด"
+        }
+      ]
+    },
+    {
+      "heading": "2. Discovery ส่งมอบนิยามความสำเร็จให้ Design",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Discovery คือขั้นตอนการกำหนดนิยามความสำเร็จก่อนเริ่มเขียน Prompt ประเด็นเรื่อง Users, Needs, Experience และ Constraints จะถูกครอบคลุมใน [The discovery brief: users, needs, experience, constraints](lesson:6.1) แต่ในมุมของ Lifecycle หัวใจสำคัญของ Discovery คือการส่งมอบ Use Case, Success Criteria ที่ชัดเจนและวัดผลได้จริง รวมถึง Evaluation Set สำหรับใช้ตรวจสอบทั้งใน Phase Design และ Phases ถัดไปทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Criteria ต้องระบุเป็นตัวเลขเชิงปริมาณที่ชัดเจน การระบุแค่ \"Model ต้องจำแนก Sentiment ได้ดี\" ไม่ได้ช่วยกำหนดเป้าหมายให้ทีม Design แต่การระบุว่า \"F1-score อย่างน้อย 0.85 บน Held-out Set จำนวน 10,000 โพสต์ และ 95% ของ Response ต้องต่ำกว่า 200ms\" จะให้ทั้ง Target และ Benchmark ที่ชัดเจน นอกจากนี้ Evaluation Set ต้องสะท้อนการกระจายตัวของข้อมูลจริง (Data Distribution) ครอบคลุม Edge Cases เช่น ข้อมูลว่างเปล่า (Empty Input) หรือข้อความยาวมาก มิฉะนั้นตัวเลขที่วัดได้ตอน Design จะไม่มีความหมายเมื่อนำไปรันบน Production"
+        },
+        {
+          "type": "paragraph",
+          "text": "Evaluation Suite ที่สร้างขึ้นตั้งแต่ช่วง Discovery จะช่วยยุติข้อขัดแย้งเชิงเทคนิคได้ตั้งแต่เนิ่นๆ วิศวกรสองคนที่อ่าน Spec เดียวกันอาจตีความวิธีจัดการ Edge Case ต่างกัน การมี Test Case ที่เป็นรูปธรรมจะช่วยกำจัดความคลุมเครือนั้น ก่อนที่จะบานปลายกลายเป็นการ Implement โค้ดที่ขัดแย้งกันสองแบบ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "สิ่งที่มักเข้าใจผิดเกี่ยวกับลำดับใน Discovery? (ทำไมถึงผิด): ไม่จริง: กิจกรรมใน Discovery คือการกำหนด Use Case, Success Criteria ที่วัดผลได้ และ Evaluation Set เท่านั้น การระบุเจาะจง Production Model หรือ System Prompt ต้องทำใน Phase Design หลังสรุป Requirements แล้ว ส่วนการทำ Prompt Caching และ Batch Processing เป็นการปรับจูน Cost หลังจากมี Design แล้ว และการเขียน Production Runbook จัดอยู่ใน Phase Handoff หากช้อยส์ข้อสอบวางสิ่งเหล่านี้ไว้ก่อนสรุป Requirements ถือว่าเรียงลำดับขั้นตอนผิดทั้งหมด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเขียน Production Runbook หรือตั้งค่า Prompt Caching เหมาะที่จะทำตั้งแต่ช่วงแรกของ Discovery เพื่อโชว์ความคืบหน้าให้ลูกค้าเห็น? (ทำไมถึงผิด): ไม่จริง: Discovery มีหน้าที่กำหนด Use Case, Success Criteria และ Evaluation Set ส่วน Runbook เป็นงานของ Handoff และ Caching เป็นเรื่องของ Cost Optimization ซึ่งทั้งคู่ต้องพึ่งพา Design ที่ยังไม่ได้ถูกออกแบบด้วยซ้ำในขั้นตอนนี้"
+        }
+      ]
+    },
+    {
+      "heading": "3. Design: เลือก Build Surface ตาม Constraints ที่กำหนด",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ขั้นตอน Design คือการแปลง Success Criteria ให้ออกมาเป็น Architecture โดยการตัดสินใจแรกๆ คือการเลือกว่าจะสร้างบน Claude Surface ตัวไหน ซึ่งมักถูกตีกรอบไว้แล้วตั้งแต่ช่วง Discovery ผ่าน Constraints ต่างๆ เช่น \"เราจะไม่รัน Agent Infrastructure เอง\" หรือ \"เราต้องการสิทธิ์ควบคุมทุก Step แบบเบ็ดเสร็จ\" คำถามสำคัญที่ใช้ตัดสินใจคือ ใครเป็นผู้ดูแลและควบคุม Agent Loop รวมถึง Runtime ที่ระบบทำงานอยู่"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบ Build Surfaces ตามผู้ดูแล Loop และ Infrastructure",
+          "headers": [
+            "Surface",
+            "What you get",
+            "Who operates the loop and runtime",
+            "Pick it when"
+          ],
+          "rows": [
+            [
+              "Client SDK (Claude API / Messages API)",
+              "เข้าถึง Claude API โดยตรง ต้องเขียน Tool Loop จัดการเองทั้งหมด",
+              "คุณต้องเขียนและรันเองทั้งหมด",
+              "ต้องการ Custom Agent Loops และต้องการควบคุมการทำงานแบบ Fine-grained"
+            ],
+            [
+              "Agent SDK",
+              "Library ที่รัน Claude Code binary มาพร้อม Built-in Tools, Permissions, Sessions และ Hooks",
+              "คุณเป็นผู้รัน ภายใน Process ที่คุณดูแลเอง",
+              "Agent ต้องการ Built-in Tools สำหรับจัดการไฟล์ รันคำสั่ง และค้นหาข้อมูล โดยไม่ต้องเขียน Tool Loop ขึ้นมาเอง"
+            ],
+            [
+              "Managed Agents",
+              "Hosted Agent Harness ที่จัดการรัน Agent Loop ให้ ทำงานบน Anthropic-managed Cloud Sandbox หรือ Self-hosted Sandbox",
+              "Anthropic เป็นผู้ Host ตัว Harness ส่วน Sandbox สามารถเลือกให้ Anthropic จัดการได้",
+              "งานประเภท Long-running, Asynchronous ที่ลูกค้าไม่ต้องการดูแลรัน Agent Infrastructure เอง"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวเลือกแถวกลาง (Agent SDK) มักเป็นจุดที่หลายทีมสับสนบ่อยที่สุด หากคุณกำลังพัฒนา Internal Coding Agent ที่ต้องอ่านไฟล์ใน Repository, รัน Shell Commands และแก้ไขโค้ด โดยที่ทีมไม่อยากเขียน Tool-execution Loop เอง Agent SDK คือตัวเลือกที่ตอบโจทย์ เพราะมี Built-in Tools สำหรับอ่าน เขียน แก้ไขไฟล์ รันคำสั่ง และ Search Web พร้อมทั้งจัดการ Session Context ข้ามการสนทนาให้เสร็จสรรพ หากใช้ Client SDK ทีมจะต้องมานั่งเขียน Loop เองทั้งหมด ซึ่งเป็นสิ่งที่พยายามหลีกเลี่ยง เช่น ต้องคอยเช็ค Stop Reason ของแต่ละ Response, ทริกเกอร์รัน Tool แล้วส่งผลลัพธ์กลับเข้าไปใหม่ อย่างไรก็ตาม Agent SDK ยังคงต้องรันบนเซิร์ฟเวอร์ของคุณ ดังนั้นหากมีโจทย์บังคับว่า \"ต้องไม่มี Infrastructure\" ตัวเลือกที่ถูกต้องคือ Managed Agents"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ลูกค้าที่ไม่ต้องการดูแล Agent Infrastructure ควรใช้ Agent SDK เพราะจัดการ Agent Loop ให้เสร็จสรรพ — แม้ Agent SDK จะมี Loop ให้ แต่ยังต้องรันใน Process บน Infrastructure ของคุณเอง หากไม่ต้องการรัน Infrastructure เลย ต้องเลือก Managed Agents ซึ่งเป็น Hosted Harness ที่รัน Agent Loop บน Anthropic-managed Cloud Sandbox"
+        }
+      ]
+    },
+    {
+      "heading": "4. Handoff: ส่งมอบชุด Tests ควบคู่ไปกับ Design",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ในการ Handoff สิ่งสำคัญที่สุดที่ทีม Engineering ต้องพึ่งพาคือชุด Tests ที่ใช้กำหนดนิยามของคำว่า Done (การเขียนเทสต์เหล่านี้มีระบุใน [Acceptance tests defined before code](lesson:6.1)) หัวใจสำคัญคือแต่ละ Test ต้องมีความชัดเจนและเป็นรูปธรรมพอที่คนนอกจะตัดสินได้ทันทีว่า Pass หรือ Fail ตัวอย่างเช่น \"ผู้ป่วยที่ใช้สมาร์ตโฟนทั่วไปสามารถดูเวลารอคิวปัจจุบันได้ภายใน 30 วินาทีโดยไม่ต้องสร้าง Account\" แบบนี้สามารถส่งมอบได้ แต่ข้อความลอยๆ อย่าง \"ระบบต้องใช้งานง่าย\" ไม่สามารถนำมาเป็นเกณฑ์ส่งมอบได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tests เหล่านี้ยังคงต้องใช้งานต่อเนื่องหลังระบบ Launch เมื่อมีการเปลี่ยนแปลงโค้ดในภายหลัง ระบบจะถูก Verify เทียบกับ Tests ชุดนี้เสมอ ทำให้ทีมมั่นใจได้ทุกครั้งที่แก้ไข Live System หากส่งมอบ Design โดยไม่มี Tests กำกับ ทีม Engineering จะต้องตีความคำว่า Done เอาเอง ซึ่งนิยามของวิศวกรแต่ละคนย่อมไม่ตรงกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "นอกจากนี้ Handoff ยังเป็นปราการด่านสุดท้ายก่อนที่ระบบจะถึงมือผู้ใช้งานจริง จึงควรใช้เป็น Readiness Gate สั้นๆ เพื่อตรวจสอบความพร้อม:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Understanding: ทีมสามารถอธิบายสิ่งที่โค้ดทำงานจริงๆ ได้หรือไม่ ไม่ใช่รู้อยู่แค่มันควรทำอะไร - Testing: Acceptance Tests ยังคง Pass ทั้งหมดหรือไม่ รวมถึง Edge Cases ต่างๆ เช่น Missing Data หรือค่าที่เป็น Zero? - Access: มีผู้ใช้กลุ่มใดที่ระบบนี้ยังตอบโจทย์ได้ไม่ดีพอหรือไม่? - Responsibility: ผลลัพธ์จาก AI มีโอกาสถูกตีความผิดหรือนำไปใช้ผิดทางหรือไม่ และมีการระบุชัดเจนหรือไม่ว่าเป็นผลงานของ AI? - Feedback loop: หลังจาก Deploy ไปแล้ว จะวัดผลและรู้ได้อย่างไรว่าระบบยังทำงานได้ถูกต้องตามเป้าหมาย?"
+        },
+        {
+          "type": "paragraph",
+          "text": "คำถามข้อสุดท้ายคือตัวเชื่อมระหว่าง Handoff กับ Monitoring หากไม่มีใครตอบได้ว่าระบบทำงานถูกต้องอย่างไร Monitoring ก็ไม่มีเมตริกใดๆ ให้ตรวจวัด"
+        }
+      ]
+    },
+    {
+      "heading": "5. Monitoring เปลี่ยนพฤติกรรมจริงใน Production ให้เป็นข้อมูลตัดสินใจ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Monitoring มีไว้เพื่อเป็นหลักฐานในการตัดสินใจ Iteration นั่นคือการวัด Success Criteria ที่กำหนดไว้ตั้งแต่ช่วง Discovery เทียบกับการใช้งานจริง รวมถึงวัด Cost และข้อผิดพลาดที่ Test Set ทั่วไปไม่สามารถทำนายได้ สำหรับการวาง Instrumentation และ Dashboard ในระดับ Scale สามารถดูเพิ่มเติมได้ที่ [monitoring with logging and observability tools](lesson:4.6) แต่ในมุมของ Lifecycle ประเด็นสำคัญคือสัญญาณใดบ้างที่จะนำมาใช้ตัดสินใจว่าควร Ship, Fix หรือ Stop"
+        },
+        {
+          "type": "paragraph",
+          "text": "บน Managed Agents ข้อมูล Cost และ Resource ที่ใช้ต่อ Session จะแสดงอยู่ใน Cumulative Usage Object ของ Session นั้น แนะนำให้อ่านค่าเมื่อ Session เปลี่ยนสถานะเป็น Idle เพราะผลรวมทั้งหมดจะคำนวณเสร็จสิ้นแล้ว และ `list_cost` จะแสดงปริมาณการใช้งานตามอัตรา Public List Rate เป็นหน่วยเซนต์ (Cents)"
+        },
+        {
+          "type": "paragraph",
+          "text": "การคอยมอนิเตอร์ตัวเลขแล้วสั่งตัด Session เองด้วยโค้ดเป็นวิธีคุม Limit ที่ไม่ถูกต้อง เพราะ Session Budget ออกแบบมาให้เป็น Hard Cap อยู่แล้ว โดย Platform จะหยุด Thread ชั่วคราว (Pause) ก่อนการเรียก Model Request ครั้งถัดไปทันทีที่ `list_cost` ถึงเกณฑ์ อย่างไรก็ตาม ควรบันทึกทุกครั้งที่ชน Budget ไว้เสมอ เพราะระบบที่ชน Cap ซ้ำๆ คือสัญญาณเตือนว่าต้องนำไปปรับปรุงใน Iteration ถัดไป"
+        },
+        {
+          "type": "table",
+          "caption": "Events สำคัญที่บ่งบอกว่า Session ต้องการการตรวจสอบ",
+          "headers": [
+            "สิ่งที่ต้องจับตาดู (What to watch)",
+            "จุดที่ตรวจสอบได้ (Where to see it)"
+          ],
+          "rows": [
+            [
+              "Session ที่เข้าสู่สถานะ Idle เช่น กำลังรอการอนุมัติ (Approval)",
+              "Webhook `session.status_idled`"
+            ],
+            [
+              "Session ที่ใช้งานชน Budget หรือถูก Terminate",
+              "Webhook `session.budget_reached` และ `session.status_terminated`"
+            ],
+            [
+              "Scheduled Run ที่เริ่ม Start Session ไม่สำเร็จ",
+              "Webhook `deployment_run.failed` และ `deployment.paused`"
+            ],
+            [
+              "พฤติกรรมของ Agent ที่เกินขอบเขต Permission ที่กำหนดไว้",
+              "Offline Review Job เสริมที่คอยอ่านและตรวจสอบ Events ของแต่ละ Session"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การส่ง Webhook อาจตกหล่นได้ จึงควรใช้ Cron/Schedule ดึง List Sessions ควบคู่กันไปด้วย อย่าพึ่งพาแค่ Push เพียงอย่างเดียว นอกจากนี้ การทำ Transcript Review ก็มีข้อจำกัดที่ต้องวางแผนรับมือ คือมันจะตรวจพบปัญหาหลังจากที่มีการ Call API ไปแล้วเท่านั้น Monitoring จึงบอกได้เฉพาะสิ่งที่เกิดขึ้นไปแล้ว การป้องกันความเสียหายจึงเป็นหน้าที่ของ Limit ที่กำหนดไว้ตั้งแต่ขั้นตอน Design"
+        }
+      ]
+    },
+    {
+      "heading": "6. Iteration: Ship it, Fix it หรือ Stop it",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุกรอบของการ Iteration จะจบลงด้วย 1 ใน 3 ทางเลือกเสมอ: 'Ship it' หมายถึงเวอร์ชันนี้ผ่านเกณฑ์และรักษาประสิทธิภาพบน Production ได้ จึงปล่อยใช้งานต่อ, 'Fix it' หมายถึงพบ Gap ที่วัดผลได้ชัดเจนและสามารถแก้ไขได้ในเวอร์ชันปรับปรุง, 'Stop it' หมายถึงระบบไม่ได้สร้าง Value ที่คุ้มค่าพอที่จะดูแลต่อ จึงควรนำไป Retire กฎพื้นฐานของทั้ง 3 ทางเลือกคือ Prototype ให้ไวและคล่องตัว แต่ Ship อย่างเข้มงวดและคัดกรอง เพราะโค้ดที่ต้นทุนต่ำจะสร้าง Value ได้จริงก็ต่อเมื่อผ่านการ Eval อย่างตรงไปตรงมาเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "การใช้ Evals 2 ประเภทจะช่วยให้ตัดสินใจได้จากหลักฐานเชิงประจักษ์: Capability Evals จะเริ่มต้นด้วย Pass Rate ที่ต่ำเพื่อเป็นเป้าหมายให้ทีมพัฒนาไปให้ถึง ส่วน Regression Evals ต้องผ่านเกือบ 100% ตลอดเวลา และหากคะแนนตกแปลว่ามีบางอย่างพัง หากเวอร์ชันใหม่ทำ Capability Evals ได้ดีขึ้นแต่ Regression Evals ตก ต้องจัดเป็น 'Fix it' ทันที ไม่ว่า Demo จะดูดีแค่ไหนก็ตาม ในทางกลับกัน เวอร์ชันที่รักษาผล Regression ได้คงที่และขยับ Capability เข้าใกล้ Discovery Criteria ได้ นั่นคือ 'Ship it'"
+        },
+        {
+          "type": "paragraph",
+          "text": "Iteration จะดำเนินต่อเนื่องไปเรื่อยๆ ตราบใดที่ระบบยัง Active อยู่ และความเสี่ยงในแต่ละรอบควรลดลงเรื่อยๆ การทำ Version Pinning ให้กับ Session และการค่อยๆ ทยอยย้าย Traffic มีรายละเอียดใน [Promote, canary and roll back by version](lesson:4.3) ในมุมของ Lifecycle การ Rollback ก็คือ Fast 'Fix it' รูปแบบหนึ่ง คือการดึงเวอร์ชันก่อนหน้ากลับมาใช้งานระหว่างที่กำลังแก้ไขเวอร์ชันใหม่"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากไม่มี Evals การ Iteration จะกลายเป็นการตั้งรับ (Reactive) ทีมต้องคอยรอรับเรื่องร้องเรียน นำปัญหามา Reproduce ด้วยมือ แก้ไข แล้วได้แต่หวังว่าจะไม่มีอะไรพังเพิ่ม แถมไม่สามารถแยกแยะได้ว่าข้อผิดพลาดที่พบเป็น Regression จริงหรือเป็นแค่ Noise ทำให้ทุกการตัดสินใจ Ship, Fix หรือ Stop เป็นเพียงการเดาสุ่ม แนวทางปฏิบัติที่มีประโยชน์ก่อน Release แต่ละครั้งคือ: Deploy แล้วส่งการเปลี่ยนแปลงให้ผู้ใช้จริงกลุ่มเล็กๆ ทดสอบ ปรับแก้ 1 Iteration ตามฟีดแบ็กที่ได้รับ และเขียน Test เพิ่มเติมเพื่อ Verify การเปลี่ยนแปลงนั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: คิดว่าระบบ Production ที่ไม่ตอบโจทย์แล้วควรปล่อยรันต่อไปเรื่อยๆ เหตุผลคือเมื่อระบบส่งสัญญาณที่ชัดเจนว่าไม่คุ้มค่าที่จะพัฒนาต่อและมีตัวชี้วัดยืนยัน ต้องกล้าตัดสินใจ 'Stop it' เพื่อ Retire ระบบ แทนที่จะเสีย Resource ดูแลต่อโดยไม่ได้ Value"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: เมื่อ Capability Eval ทำคะแนนผ่านเกือบทุก Task แล้วถือว่าหมดหน้าที่และสามารถตัดทิ้งได้ เหตุผลคือ Capability Eval ที่ผ่านเกณฑ์สูงแล้วจะต้องถูกย้ายเข้าไปเป็นส่วนหนึ่งของ Regression Suite และต้องรันอย่างต่อเนื่อง หากคะแนนตกลงในภายหลังจะได้รู้ทันทีว่ามีบางอย่างพัง"
+        }
+      ]
+    },
+    {
+      "heading": "7. Retirement: ผลงานของคุณ และ Model ที่อยู่เบื้องหลัง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Retirement มี 2 รูปแบบ: แบบแรกคือการสั่ง Retiring ผลงานของตัวเอง ซึ่งเป็นการตัดสินใจหยุดพัฒนาหลังผ่านการ Iteration โดยความกล้าที่จะ Deprecate ผลงานตัวเองถือเป็นทักษะสำคัญที่มักถูกมองข้าม ส่วนอีกแบบถูกกำหนดโดย Lifecycle Calendar ของผู้ให้บริการ Model เนื่องจาก Claude แต่ละตัวมี Lifecycle State กำกับไว้ และเมื่อ Model เข้าสู่สถานะ Retired ทุก Request ที่ยิงเข้าไปจะส่ง Error กลับมาทันที ไม่ว่า Solution ของคุณจะพร้อมย้ายหรือไม่ก็ตาม"
+        },
+        {
+          "type": "table",
+          "caption": "Lifecycle States ของ Model และรุ่นทดแทนที่แนะนำ (ตามประกาศ)",
+          "headers": [
+            "API model name",
+            "State",
+            "Deprecated",
+            "Retirement date",
+            "Recommended replacement"
+          ],
+          "rows": [
+            [
+              "claude-sonnet-4-5-20250929",
+              "Deprecated",
+              "30 กันยายน 2026",
+              "30 พฤศจิกายน 2026",
+              "claude-sonnet-5-5"
+            ],
+            [
+              "claude-opus-4-1-20250805",
+              "Retired",
+              "5 มิถุนายน 2026",
+              "5 สิงหาคม 2026",
+              "claude-opus-4-8"
+            ],
+            [
+              "claude-sonnet-4-20250514",
+              "Retired",
+              "14 เมษายน 2026",
+              "15 มิถุนายน 2026",
+              "claude-sonnet-5-5"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การประกาศ Deprecation จะบีบให้เกิดรอบ Iteration ที่มี Deadline ชัดเจน เช่น Developer ที่ใช้ Sonnet 4.5 ได้รับแจ้งเมื่อ 30 กันยายน 2026 ว่า Model จะ Retire ในวันที่ 30 พฤศจิกายน 2026 ทีมที่ใช้ claude-sonnet-4-5-20250929 จึงต้อง Migration ไปยัง claude-sonnet-5-5 ให้เสร็จภายในกรอบเวลานี้: รัน Migration ผ่าน Regression Suite, ปรับแต่ง Prompts แล้ว Deploy ขึ้น Production ความเร็วในกระบวนการนี้ขึ้นอยู่กับ Evals เป็นหลัก ทีมที่ไม่มี Evals อาจต้องเสียเวลาเทสต์หลายสัปดาห์ ในขณะที่ทีมที่มี Evals ครบถ้วนสามารถวิเคราะห์จุดเด่นของ Model ใหม่ จูน Prompts และ Upgrade เสร็จได้ภายในไม่กี่วัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การ Retire Solution บน Managed Agents ต้องตัดสินใจว่าจะเก็บข้อมูลใดไว้บ้างก่อนจะสั่งลบ Session History จะคงอยู่จนกว่า Session จะถูกลบ และไฟล์ที่สร้างขึ้นโดย Session นั้นจะถูกลบไปด้วย ดังนั้นควร Export ข้อมูล Events ไปยังระบบ Logs ของคุณเองผ่าน Events API ให้เรียบร้อย และดาวน์โหลด Output Files ที่จำเป็นมาก่อนลบ นอกจากนี้ ต้องจัดการลบ Uploaded Files, Memory Stores และ Vaults แยกต่างหาก เพราะการลบ Session จะไม่ส่งผลต่อ Resource เหล่านี้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: หลังเลย Retirement Date แล้ว Integration เดิมยังคงใช้งานต่อได้เรื่อยๆ จนกว่าเราจะ Migrate เสร็จ — เพราะเมื่อ Model เข้าสู่สถานะ Retired ทุก Request ที่ส่งเข้ามาจะ Fail ทันที คุณต้องทำ Migration ให้เสร็จสมบูรณ์ภายในช่วงเวลาระหว่างการแจ้ง Deprecation Notice จนถึง Retirement Date เท่านั้น"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57018",
+      "question": "ก่อนที่จะเริ่มเขียน Prompt ทีมที่ปรึกษาได้ประชุมร่วมกับลูกค้าเพื่อกำหนดขอบเขตของ Document-Classification Assistant กิจกรรมใดจัดอยู่ในช่วง Discovery Phase ของโปรเจกต์นี้อย่างถูกต้องที่สุด?",
+      "options": [
+        "การกำหนด Use Case, เกณฑ์ชี้วัดความสำเร็จที่วัดผลได้ (Measurable Success Criteria) และชุดข้อมูลทดสอบ (Evaluation Set) สำหรับใช้ในการ Validate ภายหลัง",
+        "การเลือกรุ่นโมเดลสำหรับ Production ในขั้นสุดท้าย และล็อก System Prompt ไว้ก่อนที่ Requirement จะชัดเจน",
+        "การตั้งค่า Prompt Caching และ Batch Processing เพื่อลดค่าใช้จ่ายด้าน Token ของลูกค้าให้เหลือน้อยที่สุด",
+        "การเขียน Runbook สำหรับการทำ Production Deployment ให้ทีม Support ของลูกค้านำไปปฏิบัติตามตอน Launch ระบบ"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57017",
+      "question": "ทีม Solutions กำลังกำหนดขอบเขตของ Internal Tool ตัวใหม่ที่ต้องทำงานแบบ Asynchronous ในการสืบค้นและวิเคราะห์ข้อมูลหลายขั้นตอน (Multi-step Investigations) ข้ามระบบ Backend หลายตัว โดยลูกค้าต้องการหลีกเลี่ยงการดูแลระบบโครงสร้างพื้นฐานสำหรับ Agent-loop หรือ Sandbox ด้วยตนเองโดยสิ้นเชิง ในช่วง Discovery Phase ทีมควรแนะนำแนวทางใด?",
+      "options": [
+        "พัฒนาโดยตรงบน Messages API และเขียน Tool-Execution Loop ขึ้นมาเอง เพื่อให้วิศวกรของลูกค้าควบคุมทุกขั้นตอนของ Orchestration ได้อย่างเบ็ดเสร็จ",
+        "เลือกใช้ Claude Managed Agents เนื่องจาก Anthropic เป็นผู้ดูแลระบบ Sandbox และ Session Infrastructure ที่จำเป็นสำหรับงานแบบ Asynchronous ที่ต้องใช้ระยะเวลานานให้ทั้งหมด",
+        "นำ Claude Agent SDK ไปติดตั้ง (Embed) ภายในเซิร์ฟเวอร์ของลูกค้าเอง และให้ทีม Operations ของลูกค้าดูแล Process Lifecycle",
+        "ใช้ Files API ร่วมกับ Prompt Caching เพื่อให้ลูกค้าไม่จำเป็นต้องมี Orchestration Layer แยกต่างหาก"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57020",
+      "question": "ทีมพัฒนากำลังออกแบบ Internal Agent ที่สามารถอ่านไฟล์ใน Repository, รัน Shell Commands และแก้ไขโค้ดได้โดยอัตโนมัติ โดยที่ทีมไม่ต้องเขียน Tool-Execution Loop ขึ้นมาเอง ตัวเลือกการออกแบบใดตอบโจทย์ความต้องการนี้?",
+      "options": [
+        "พัฒนาบน Anthropic Client SDK และเขียน Loop เพื่อตรวจสอบ Stop Reason ของแต่ละ Response แล้วสั่งรัน Tool ด้วยตนเอง",
+        "พัฒนาบน Claude Agent SDK ซึ่งมี Built-in Tools, Agent Loop และ Context Management มาให้พร้อมใช้งานทันที (Out of the box)",
+        "เรียก Messages API แยกทีละไฟล์ และนำผลลัพธ์มาประกอบเข้าด้วยกันเองโดยไม่ต้องใช้ Tool-Execution Loop",
+        "ใช้ Usage and Cost Admin API เพื่อทำหน้าที่ Orchestrate การเรียก Tool ข้าม Repository แทนทีมพัฒนา"
+      ],
+      "explanation": ""
+    }
+  ]
+}

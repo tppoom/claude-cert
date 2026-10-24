@@ -1,0 +1,202 @@
+{
+  "title": "การยืนยันสิทธิ์และการอนุญาต (Authorization) ใน MCP: Discovery, Client Registration และ Scoped Tokens",
+  "objectives": [
+    "เลือกว่าการเชื่อมต่อ MCP ควรใช้ OAuth หรือ Environment Credentials ตามประเภท Transport ที่ใช้งาน",
+    "แกะรอยขั้นตอนที่ MCP Client ค้นหา Authorization Server และลงทะเบียนตนเอง พร้อมชี้จุดเสี่ยงที่อาจถูกโจมตี",
+    "ตรวจหาช่องโหว่ Token Audience เช่น Server ยอมรับ Token ที่ออกให้ Server อื่น หรือส่งต่อ Token ตรงไปยัง Downstream APIs",
+    "แยกความแตกต่างระหว่าง 401 กับ 403 และออกแบบ Step-up Authorization เพื่อจำกัด Scopes ให้แคบที่สุด"
+  ],
+  "key_concept": "Audience-bound access token — Access Token ของ MCP จะถูกออกให้สำหรับ MCP Server ปลายทางเฉพาะเจาะจงตาม Canonical URI โดย Server นั้นต้องปฏิเสธ Token ที่ออกให้ Server อื่น และต้องไม่ส่งต่อ Token ที่ได้รับไปยังบริการอื่นโดยเด็ดขาด",
+  "sections": [
+    {
+      "heading": "1. Transport เป็นตัวกำหนดรูปแบบ Authentication ของ MCP Server",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การตรวจสอบ Authentication ของระบบ MCP ต้องเริ่มจากคำถามแรก: Client เชื่อมต่อไปยัง Server ด้วยวิธีใด? ถ้า Server เชื่อมต่อผ่าน HTTP ถือว่าเป็น Network Service ที่ใครก็ตามที่เข้าถึง URL ได้ก็สามารถยิง Request ได้ จึงจำเป็นต้องมีระบบ Authorization จริงจัง ซึ่งสเปก MCP Authorization กำหนดให้สร้างบนมาตรฐาน OAuth 2.1 ในทางกลับกัน ถ้า Server ถูกรันในเครื่องแบบ STDIO มันจะทำงานเป็น Child Process ของ Client โดยตรง จึงไม่มี Network Listener ที่ต้องป้องกัน สเปกจึงระบุให้ข้ามขั้นตอน OAuth แล้วไปอ่าน Credentials จาก Environment แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Transport แต่ละแบบมีช่องโหว่ (Gap) ที่พบบ่อยต่างกัน: HTTP Server ที่ยอมรับ Request โดยไม่มี Token หรือใช้ Static Key ร่วมกันทุกคน ถือว่าผิดสเปกเพราะละเลย OAuth Flow ส่วน STDIO Server ที่พยายามรัน Browser-based OAuth ก็ถือว่า Overbuilt เกินจำเป็น ความเสี่ยงที่แท้จริงของ STDIO คือตัว Environment เอง เพราะ Secret ใดก็ตามที่อ่านจาก Environment Variable จะถูก Process อื่นในเครื่องเดียวกันมองเห็นได้ทั้งหมด (เนื้อหาถัดจากนี้จะเน้นเฉพาะเคส HTTP)"
+        },
+        {
+          "type": "table",
+          "caption": "กลไก Authorization ที่แต่ละ MCP Transport ควรใช้งาน",
+          "headers": [
+            "Transport",
+            "Expected mechanism",
+            "Gap to look for"
+          ],
+          "rows": [
+            [
+              "HTTP-based",
+              "OAuth 2.1 ตามสเปก MCP authorization",
+              "Server เข้าถึงได้โดยไม่มี Token หรือใช้ Shared Static Key ตัวเดียวร่วมกัน"
+            ],
+            [
+              "STDIO",
+              "ดึง Credentials จาก Environment",
+              "เก็บ Secret ไว้ใน Environment จน Process อื่นสามารถอ่านได้"
+            ],
+            [
+              "Alternative transports",
+              "Security Best Practices ตามมาตรฐานของ Protocol นั้นๆ",
+              "ไม่มีการกำหนดกลไกความปลอดภัยใดๆ เลย"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "2. Client ค้นหา Authorization Server ได้อย่างไร (Discovery Flow)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Client ไม่จำเป็นต้องรู้ล่วงหน้าว่าจะไปขอ Token จากที่ไหน เพราะกระบวนการ Discovery จะเริ่มจากการส่ง Unauthenticated Request เข้าไปก่อน จากนั้น MCP Server จะตอบกลับมาเป็น 401 Unauthorized พร้อม Header `WWW-Authenticate` ที่ระบุ URL `resource_metadata` ชี้ไปยังเอกสาร OAuth 2.0 Protected Resource Metadata ของ Server โดย MCP Server ทุกตัวต้องเปิดเผยเอกสารนี้ และ Client ต้องใช้เอกสารนี้ในการค้นหา Authorization Server เสมอ ซึ่งสามารถโฮสต์ไว้ที่ Well-known URI ที่ Root (`/.well-known/oauth-protected-resource`) หรือต่อท้ายด้วย Path ของ MCP Endpoint"
+        },
+        {
+          "type": "paragraph",
+          "text": "จากนั้น Client จะดึง Metadata ของ Authorization Server ต่อ โดย Authorization Server ต้องรองรับอย่างน้อย 1 ช่องทางระหว่าง OAuth 2.0 Authorization Server Metadata (`/.well-known/oauth-authorization-server`) หรือ OpenID Connect Discovery (`/.well-known/openid-configuration`) และตัว Client เองต้องรองรับทั้ง 2 แบบ ทั้งนี้ หากใน Metadata ไม่มีฟิลด์ `code_challenge_methods_supported` ตัว Client จะต้องหยุดทำงานทันที เพราะการไม่มีฟิลด์นี้แปลว่า Server ไม่รองรับ PKCE และ Client ห้ามดำเนินการต่อเด็ดขาดหากไม่มี PKCE"
+        },
+        {
+          "type": "paragraph",
+          "text": "กฎของ Transport ที่ต้องตรวจสอบในการ Audit มีดังนี้: ทุก Endpoint ของ Authorization Server ต้องรันผ่าน HTTPS เสมอ และทุก Redirect URI ต้องเป็น localhost หรือ HTTPS เท่านั้น หาก Client ตรวจพบเงื่อนไขใดไม่ผ่านแล้วยังฝืนทำงานต่อ จะถือว่ามีช่องโหว่ด้าน Authentication ทันที แม้ว่า Token ที่ได้รับในภายหลังจะถูกต้องทุกประการก็ตาม"
+        }
+      ]
+    },
+    {
+      "heading": "3. การลงทะเบียน Client ที่ Server ไม่เคยรู้จักมาก่อน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ก่อนที่ Client จะสามารถขอ Token ได้ Authorization Server จะต้องระบุตัวตนของ Client นั้นก่อน โดย Specification กำหนดลำดับความสำคัญ (Order of Preference) ไว้ดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. ใช้ข้อมูล Client ที่ลงทะเบียนไว้ล่วงหน้า (Pre-registered Client Information) หาก Client และ Server มีการเชื่อมต่อกันอยู่แล้ว 2. ใช้ Client ID Metadata Document หาก Authorization Server ประกาศรองรับ client_id_metadata_document_supported ซึ่งเป็นกรณีทั่วไปเมื่อทั้งสองฝ่ายไม่เคยมีความสัมพันธ์กันมาก่อน 3. Fallback ไปใช้ Dynamic Client Registration หาก Server มี registration_endpoint 4. หากไม่มีวิธีข้างต้น ให้ User กรอกรายละเอียดของ Client ด้วยตนเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "กรณีใช้ Client ID Metadata Document ตัว client_id จะเป็น HTTPS URL ที่มี Path Component อยู่ด้วย โดย JSON ที่โฮสต์อยู่บน URL ดังกล่าวจะต้องประกอบด้วย client_id, client_name และ redirect_uris ซึ่งค่า client_id ต้องตรงกับ Document URL ทุกตัวอักษร จากนั้น Authorization Server จะ Fetch ตัว Document มา และต้องตรวจสอบว่า Redirect URI ใน Authorization Request แต่ละครั้งตรงกับรายการที่ระบุไว้ใน Document หรือไม่ สำหรับ Dynamic Client Registration ปัจจุบันคงไว้เพื่อ Backwards Compatibility เท่านั้น โดยถือว่าเป็นวิธีที่ Deprecated แล้ว และใช้เฉพาะกับ Authorization Server ที่ยังไม่รองรับ Metadata Documents"
+        },
+        {
+          "type": "paragraph",
+          "text": "Redirect ไปยัง Localhost ถือเป็นช่องทางหลักของการถูกสวมรอย (Impersonation Attack) โดย Attacker สามารถนำ Metadata URL ของ Client ที่ถูกต้องมาใช้เป็น client_id ของตนเอง แล้ว Bind เข้ากับ Localhost Port ที่ระบุไว้ใน Redirect URIs เมื่อ User กดยินยอม Listener ของ Attacker ก็จะได้รับ Authorization Code ทันที Specification จึงแก้ไขปัญหานี้ที่หน้า Consent Screen โดย Authorization Server ต้องแสดง Hostname ของ Redirect URI ให้เห็นอย่างชัดเจน ควรเพิ่มคำเตือนสำหรับ Redirect URI ที่เป็น Localhost เท่านั้น และอาจกำหนดให้มี Attestation เพิ่มเติม นอกจากนี้ Server ที่ดูแล Resource ที่มีความสำคัญสูงยังสามารถจำกัด Client Domains ที่ยอมรับได้ โดยใช้ Trusted-domain Allowlist หรือการตรวจสอบชื่อเสียง (Reputation Checks)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การที่ MCP Server ยอมรับ HTTPS client_id ทุกอันเป็นเรื่องปลอดภัย เพราะหากองค์กรต้องการควบคุมความปลอดภัย มาตรการแรกที่ควรเพิ่มคือการทำ Trusted-domain Allowlist หรือ Domain Verification ซึ่งอาจส่งผลกระทบให้ Legit Clients ทั่วไป (เช่น Client จาก Third-party ภายนอก หรือ Local Development Tools) ถูกบล็อกการใช้งานได้"
+        }
+      ]
+    },
+    {
+      "heading": "4. การ Bind Token ไว้กับ Server เดียว และห้ามส่งต่อเด็ดขาด",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Token Request ทุกครั้งต้องระบุ Server ปลายทางที่ต้องการใช้งาน โดย Client จะต้องส่งพารามิเตอร์ resource ไปในทั้ง Authorization Request และ Token Request ซึ่งค่านี้จะต้องเป็น Canonical URI ของ MCP Server เพื่อระบุว่า Client มีเป้าหมายจะนำ Token ไปใช้กับ Server ใด ตัว URI ต้องมี Scheme และห้ามมี Fragment โดย Specification แนะนำให้ใช้รูปแบบที่ไม่มี Trailing Slash เพื่อความเป็นระเบียบเดียวกัน"
+        },
+        {
+          "type": "table",
+          "caption": "Canonical Server URIs สำหรับพารามิเตอร์ resource",
+          "headers": [
+            "Value",
+            "Valid?",
+            "Reason"
+          ],
+          "rows": [
+            [
+              "https://mcp.example.com/mcp",
+              "Yes",
+              "มีครบทั้ง Scheme, Host และ Path"
+            ],
+            [
+              "https://mcp.example.com:8443",
+              "Yes",
+              "อนุญาตให้ระบุ Port ได้"
+            ],
+            [
+              "https://mcp.example.com/server/mcp",
+              "Yes",
+              "ใช้ Path เพื่อระบุ Server ปลายทางได้ชัดเจน"
+            ],
+            [
+              "mcp.example.com",
+              "No",
+              "ไม่มี Scheme"
+            ],
+            [
+              "https://mcp.example.com#fragment",
+              "No",
+              "มี Fragment ปนอยู่"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Token ต้องถูกส่งผ่านช่องทางที่ถูกต้อง โดย Client ต้องส่ง Token ผ่าน Header Authorization: Bearer <access-token> และห้ามใส่ใน Query String ของ URI เด็ดขาด เนื่องจาก Query String จะถูกบันทึกใน Logs และ Browser History ด้าน Refresh Token จะต้องถูกเก็บเป็นความลับทั้ง In Transit และ In Storage นอกจากนี้ Client ต้องไม่ด่วนสรุปว่าจะได้รับ Refresh Token เสมอไป เนื่องจากขึ้นอยู่กับ Authorization Server เป็นผู้ตัดสินใจ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความล้มเหลวของ Audience Binding เกิดขึ้นได้ 2 รูปแบบ รูปแบบแรกคือ Server ข้ามขั้นตอนการ Validate Audience จึงเผลอยอมรับ Token ที่ออกให้แก่ Service อื่น ทำให้ Attacker สามารถนำ Token ของ Service อื่นมา Re-use กับ Service นี้ได้ ส่วนรูปแบบที่สองคือ Token Passthrough ซึ่งอันตรายยิ่งกว่า โดย Server นำ Token ที่ได้รับส่งต่อ (Forward) ไปยัง Downstream API ทั้งดุ้น ทำให้เกิดช่องโหว่แบบ Confused Deputy เพราะ Downstream API อาจคิดว่า Token มาจาก MCP Server โดยตรง หรือคิดว่า Upstream API ทำการ Validate มาแล้ว ดังนั้น Server ที่ปลอดภัยต้อง Validate Audience ของ Token ขาเข้าทุกครั้ง และใช้ Token ใหม่ที่ออกสำหรับ Downstream Service นั้นโดยเฉพาะเมื่อต้องเรียกใช้งาน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: เมื่อโจทย์ระบุว่า MCP Server \"ส่งต่อ Token ของ User ไปให้ Backend API ทันที\" จะถือเป็นการประหยัด Resource หรือปลอดภัยเพราะมาจาก User คนเดิม — ที่ถูกต้องคือ นี่คือปัญหา Token Passthrough ซึ่งนำไปสู่ความเสี่ยง Confused Deputy วิธีแก้ที่ถูกต้องคือ MCP Server ต้องทำ Audience Validation และขอ Token ชุดใหม่แยกต่างหากสำหรับ Downstream Call การเพิ่ม Token Lifetime หรือการใช้ Signature ที่แข็งแกร่งขึ้นไม่สามารถแก้ปัญหานี้ได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Token ใดๆ ที่ Sign โดย Authorization Server ขององค์กรสามารถนำไปใช้กับ MCP Server ใดก็ได้ในองค์กร และการส่งต่อไปยัง Backend API จะช่วยลดการขอ Token รอบที่สอง — ที่ถูกต้องคือ Token จะถูก Bind ไว้กับ Canonical URI ของ Server เดียวเท่านั้น Server ที่ยอมรับ Audience อื่นจะเปิดช่องให้ Token ถูกนำไป Re-use ข้าม Service และการ Forward Token ไปยัง API อื่นจะทำให้เกิดช่องโหว่ Confused Deputy"
+        }
+      ]
+    },
+    {
+      "heading": "5. เปรียบเทียบ 401 กับ 403 และการขอ Scope เพิ่มเติมเมื่อจำเป็นเท่านั้น (Step-up Authorization)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "แต่ละ Status Code กำหนดให้ Client จัดการต่างกัน: 401 หมายถึงจำเป็นต้องมี Authorization หรือ Token ไม่ถูกต้อง ทำให้ Client ต้องทำการ Authenticate ใหม่ ส่วน 403 หมายถึง Token ใช้งานได้ปกติแต่ Scope ไม่เพียงพอ การ Login ซ้ำด้วย Scope เดิมจะส่งผลให้ล้มเหลวเหมือนเดิม ทางแก้คือ Client ต้องขอ Token ใหม่ที่มี Scope ครอบคลุมขึ้น"
+        },
+        {
+          "type": "table",
+          "caption": "แนวทางสำหรับ MCP Client ในการจัดการ Authorization Errors",
+          "headers": [
+            "Status",
+            "Meaning",
+            "Client response"
+          ],
+          "rows": [
+            [
+              "401 Unauthorized",
+              "ต้องมี Authorization หรือ Token ไม่ถูกต้อง",
+              "รัน Discovery แล้วขอรับ Token ใหม่"
+            ],
+            [
+              "403 Forbidden",
+              "Scope ไม่ถูกต้อง หรือ Permission ไม่เพียงพอ",
+              "อ่าน Challenge insufficient_scope แล้วทำ Step-up Authorization"
+            ],
+            [
+              "400 Bad Request",
+              "Authorization Request มีรูปแบบไม่ถูกต้อง (Malformed)",
+              "แก้ไข Request ให้ถูกต้อง ห้ามขอ Authorization ซ้ำ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Step-up Authorization ช่วยให้ Client เริ่มต้นขอสิทธิ์แบบแคบที่สุด (Narrow Grant) และค่อยขอ Scope เพิ่มเติมเมื่อมี Operation ที่จำเป็นต้องใช้เท่านั้น เมื่อได้รับ 403 Challenge ตัว Client จะทำ Re-authorization ด้วยผลลัพธ์แบบ Union ระหว่าง Scope เดิมที่เคยขอไว้กับ Scope ใหม่ที่ระบุมาใน Challenge เพื่อไม่ให้เสีย Permission เดิมไป จากนั้นจึง Retry คำขอเดิมซ้ำ หากการ Retry ยังล้มเหลวเกินกว่าสองสามครั้ง Client จะต้องถือเป็น Permanent Authorization Failure และหยุดการทำงานแบบ Loop ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "คำขอเริ่มต้นมักเป็นจุดที่ทำให้เกิด Over-broad Scopes (การขอ Scope กว้างเกินไป) โดย Client จะใช้ Scope Hint จาก 401 แรกที่ Server ส่งมา แต่หากไม่มี Hint ระบบจะขอทุก Scope ที่อยู่ในรายการ scopes_supported ดังนั้น Server ที่ไม่เคยส่ง Scope Hint จึงมักได้รับ Token ที่มี Scope ครบทั้งหมดตั้งแต่เริ่มเชื่อมต่อครั้งแรก สำหรับการตรวจสอบ (Audit) ให้สังเกต Server ที่การตอบกลับแบบ 401 ไม่ระบุ Scope รวมถึงตรวจสอบ Token ที่มี Write Scopes ไปแล้วก่อนที่จะมีการเรียกใช้งาน Operation เขียนใดๆ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เมื่อได้รับ 403 จาก MCP Server แปลว่า Token หมดอายุ Client จึงควรเริ่มขั้นตอน Login เดิมใหม่อีกครั้ง? (ทำไมถึงผิด): ไม่จริง: 403 หมายถึง Token ยังถูกต้อง แต่ Scope ไม่เพียงพอ Client จะต้องทำ Re-authorization โดยผสาน (Union) Scope เดิมเข้ากับ Scope ที่ระบุใน Challenge การรันกระบวนการ Login เดิมซ้ำจะได้เพียง Grant ระดับเดิมและล้มเหลวซ้ำ"
+        }
+      ]
+    }
+  ],
+  "questions": []
+}

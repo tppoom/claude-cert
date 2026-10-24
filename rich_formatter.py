@@ -219,24 +219,39 @@ def format_readable_content(p_th, p_raw="", is_first_para=False):
             """
         return f'<ol class="space-y-3.5 my-5 pl-1">{lis}</ol>'
 
-    # 2. Explicit Bullet list inside paragraph (e.g. "- ตัวแทน: โมเดล... - สภาพแวดล้อม: ที่ที่...")
-    bullet_parts = [b.strip().lstrip('-•* \t') for b in re.split(r'(?:^|\s+)[-•*]\s+', p_th) if b.strip().lstrip('-•* \t')]
-    if len(bullet_parts) >= 2:
-        lis = ""
-        for bp in bullet_parts:
-            m_colon = re.match(r'^([^:]{2,35}):\s*(.+)$', bp)
-            if m_colon:
-                term, desc = m_colon.group(1), m_colon.group(2)
-                item_content = f'<strong class="text-indigo-300 font-semibold">{highlight_tech_terms(term)}:</strong> <span class="text-slate-300">{highlight_tech_terms(desc)}</span>'
-            else:
-                item_content = f'<span class="text-slate-300">{highlight_tech_terms(bp)}</span>'
-            lis += f"""
-            <li class="flex items-start gap-3">
-              <span class="text-indigo-400 font-bold shrink-0 mt-1 text-sm">•</span>
-              <div class="grow text-[15px] sm:text-base leading-relaxed sm:leading-loose text-slate-300">{item_content}</div>
-            </li>
-            """
-        return f'<ul class="space-y-2.5 my-4 pl-1">{lis}</ul>'
+    # 2. Explicit Bullet list inside paragraph (e.g. "Intro text - item 1 - item 2")
+    if re.search(r'(?:^|\s+)[-•*]\s+', p_th):
+        has_lead = not re.match(r'^\s*[-•*]', p_th)
+        raw_parts = re.split(r'(?:^|\s+)[-•*]\s+', p_th)
+        raw_parts = [p.strip() for p in raw_parts if p.strip()]
+        
+        if has_lead and len(raw_parts) >= 2:
+            lead_text = raw_parts[0]
+            bullet_parts = raw_parts[1:]
+        elif not has_lead and len(raw_parts) >= 1:
+            lead_text = ""
+            bullet_parts = raw_parts
+        else:
+            lead_text = ""
+            bullet_parts = []
+            
+        if bullet_parts:
+            lis = ""
+            for bp in bullet_parts:
+                m_colon = re.match(r'^([^:]{2,35}):\s*(.+)$', bp)
+                if m_colon:
+                    term, desc = m_colon.group(1), m_colon.group(2)
+                    item_content = f'<strong class="text-indigo-300 font-semibold">{highlight_tech_terms(term)}:</strong> <span class="text-slate-300">{highlight_tech_terms(desc)}</span>'
+                else:
+                    item_content = f'<span class="text-slate-300">{highlight_tech_terms(bp)}</span>'
+                lis += f"""
+                <li class="flex items-start gap-3">
+                  <span class="text-indigo-400 font-bold shrink-0 mt-1 text-sm">•</span>
+                  <div class="grow text-[15px] sm:text-base leading-relaxed sm:leading-loose text-slate-300">{item_content}</div>
+                </li>
+                """
+            lead_html = f'<p class="text-[15px] sm:text-base text-slate-300 leading-relaxed sm:leading-loose mb-3 font-normal">{highlight_tech_terms(lead_text)}</p>' if lead_text else ""
+            return f'{lead_html}<ul class="space-y-2.5 my-4 pl-1">{lis}</ul>'
 
     # 3. Separate Warning/Caution if embedded in paragraph
     sents = split_thai_sentences(p_th)

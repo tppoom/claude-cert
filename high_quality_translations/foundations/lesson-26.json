@@ -1,0 +1,173 @@
+{
+  "title": "การคิดราคา Token, การนับ Token และการติดตามการใช้งานของ Claude",
+  "objectives": [
+    "ประเมินค่าใช้จ่ายต่อ Request จากจำนวน Input/Output Tokens และอัตราราคาต่อล้าน Token ของโมเดล",
+    "อธิบายกลไกราคาของ Batch discount, Fast mode, US-only inference และ Cache multipliers รวมถึงเงื่อนไขการคิดราคาร่วมกัน",
+    "นับจำนวน Input Tokens ล่วงหน้าด้วย count_tokens endpoint ก่อนส่ง Request จริง รวมถึงการเปรียบเทียบ Tokenizer เพื่อเตรียม Migration",
+    "ตรวจสอบยอดค่าใช้จ่ายจริงจากฟิลด์ usage ใน Response และ Usage and Cost Admin API ควบคู่กับ Rate limits"
+  ],
+  "key_concept": "Three-part input total — ระบบ Prompt caching เปิดให้ Request นำ Prefix ของ Prompt ที่บันทึกไว้ ณ จุด Cache breakpoint กลับมาใช้ซ้ำได้ ส่งผลให้ Response แยกรายงานจำนวน Input เป็น 3 ฟิลด์ตามอัตราคิดเงินที่ต่างกัน: Tokens ที่อ่านจาก Cache, Tokens ที่เขียนลง Cache และ Uncached tokens หลังจุด Breakpoint ล่าสุด โดยขนาดและต้นทุนของ Input ที่แท้จริงจะคำนวณได้จากผลรวมของทั้งสามส่วนนี้เท่านั้น",
+  "sections": [
+    {
+      "heading": "1. Input และ Output Tokens คิดราคาแยกกัน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude คิดค่าบริการตามจำนวน Token โดยราคาจะขึ้นอยู่กับทิศทางของข้อมูล [Tokens](lesson:5.1) คือหน่วยที่ Model ใช้อ่านและเขียน ข้อความหรือ Payload ทั้งหมดที่คุณส่งใน Request นับเป็น Input ส่วนข้อความทั้งหมดที่ Claude สร้างกลับมานับเป็น Output แต่ละ Model จะมีราคาแยกกันระหว่าง Input และ Output ในหน่วยดอลลาร์สหรัฐต่อ 1 ล้านโทเค็น ($/MTok)"
+        },
+        {
+          "type": "table",
+          "caption": "ราคา Base Token สำหรับ Model ปัจจุบัน (ต่อ 1 ล้านโทเค็น / MTok)",
+          "headers": [
+            "Model",
+            "Input",
+            "Output"
+          ],
+          "rows": [
+            [
+              "Claude Fable 5.1",
+              "$10 / MTok",
+              "$50 / MTok"
+            ],
+            [
+              "Claude Opus 5.5",
+              "$4 / MTok",
+              "$20 / MTok"
+            ],
+            [
+              "Claude Sonnet 5.5",
+              "$2 / MTok",
+              "$10 / MTok"
+            ],
+            [
+              "Claude Haiku 4.5",
+              "$1 / MTok",
+              "$5 / MTok"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ทุก Model ในตาราง ราคา Output Token จะแพงกว่า Input Token ถึง 5 เท่า จุดนี้เปลี่ยนวิธีประเมิน Cost ไปอย่างสิ้นเชิง เช่น Request บน Sonnet 5.5 ที่มี Input 10,000 Tokens และได้คำตอบกลับมา 2,000 Tokens: ค่า Input อยู่ที่ $0.02 และค่า Output ที่สั้นกว่ามากก็อยู่ที่ $0.02 เท่ากัน หากคุณคำนวณงบประมาณจากแค่ความยาวของ Prompt งานใดก็ตามที่มี Output ขนาดยาวจะมี Cost บานปลายกว่าที่คาดไว้แน่นอน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Input Token ไม่ได้มีแค่ข้อความที่คุณพิมพ์ ในการทำ Tool Use นั้น Input จะนับรวมพารามิเตอร์ tools (ชื่อ, description และ schema ของทุก Tool), บล็อก tool_use และ tool_result ทั้งหมดในประวัติ Conversation รวมถึง System Prompt พิเศษที่ API ใส่เข้ามาให้อัตโนมัติเมื่อมีการประกาศใช้ Tools นอกจากนี้ Server-side Tools เช่น Web Search จะมีค่าบริการต่อครั้งเพิ่มเติมจาก Token ปกติ ดังนั้น หากคุณใส่แคตตาล็อก Tool จำนวนมหาศาล คุณจะต้องจ่ายค่า Input เหล่านั้นซ้ำใหม่ในทุกๆ Turn"
+        }
+      ]
+    },
+    {
+      "heading": "2. Modifiers ที่ส่งผลต่ออัตราค่า Token",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ราคา Base Price เป็นเพียงจุดเริ่มต้น เพราะ Request Settings หลายตัวสามารถเป็นตัวคูณราคาได้: Batch API (ดูรายละเอียดใน [Message Batches API and realtime vs batch](lesson:2.3)) ลดราคาทั้ง Input และ Output ลง 50% แลกกับการประมวลผลแบบ Asynchronous; ในทางกลับกัน Fast Mode (ดูรายละเอียดใน [Effort levels and fast mode](lesson:5.3)) บน Claude Opus 5.5 จะคิดราคา $8 Input และ $40 Output ต่อ MTok ซึ่งแพงกว่าปกติ 2 เท่า; ส่วนการตั้งค่า inference_geo เป็น US-only บน Claude 4.6 ขึ้นไป จะเพิ่มตัวคูณ 1.1x ให้กับ Token ทุกประเภท"
+        },
+        {
+          "type": "paragraph",
+          "text": "อีก 3 รายการในตารางเกี่ยวข้องกับ Prompt Caching: ข้อความส่วน Prefix ของ Prompt ที่ซ้ำกันในหลาย Request สามารถ Cache เก็บไว้ได้ โดยคุณกำหนดจุดสิ้นสุดของ Prefix ด้วย breakpoint cache_control เมื่อ Request ถูกส่งมา ระบบจะตรวจว่า Prefix จนถึง breakpoint นั้นมีอยู่ใน Cache หรือยัง หากมี จะคิดเป็น Cache Read แต่ถ้ายังไม่มี ระบบจะประมวลผล Full Prompt แล้วบันทึก Prefix นั้นเป็น Cache Write"
+        },
+        {
+          "type": "table",
+          "caption": "Pricing Modifiers และเงื่อนไขการใช้งาน",
+          "headers": [
+            "Modifier",
+            "Effect on price",
+            "Limits"
+          ],
+          "rows": [
+            [
+              "Batch API",
+              "ลดราคา 50% ทั้ง Input และ Output Tokens",
+              "ไม่สามารถใช้ร่วมกับ Fast mode ได้"
+            ],
+            [
+              "Fast mode (Opus 5.5)",
+              "$8 / MTok (Input), $40 / MTok (Output)",
+              "ใช้งานได้เฉพาะบน First-party Claude API เท่านั้น"
+            ],
+            [
+              "US-only inference_geo",
+              "คูณ 1.1x สำหรับ Input, Output, Cache Writes และ Cache Reads",
+              "รองรับเฉพาะ Claude 4.6 ขึ้นไป"
+            ],
+            [
+              "5-minute cache write",
+              "1.25x ของราคา Base Input",
+              "คิดเฉพาะ Token ที่ถูก Write ลง Cache"
+            ],
+            [
+              "1-hour cache write",
+              "2x ของราคา Base Input",
+              "คิดเฉพาะ Token ที่ถูก Write ลง Cache"
+            ],
+            [
+              "Cache read (hit)",
+              "0.1x ของราคา Base Input (0.05x บน Opus 5.5, 0.025x บน Fable 5.1)",
+              "คิดเฉพาะ Token ที่ถูก Read จาก Cache"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Modifiers เหล่านี้สามารถใช้ทับซ้อนกันได้ (Stacking) ตัวคูณ Cache สามารถใช้ร่วมกับส่วนลด Batch API ได้ ดังนั้น Request แบบ Batch ที่อ่าน Cached Prefix จะได้รับส่วนลดทั้งสองต่อ ส่วน Fast Mode ก็สามารถใช้ร่วมกับ Caching และ Data Residency ได้ แต่ไม่สามารถใช้ร่วมกับ Batch API ได้ ทั้งนี้ Context Length ไม่ใช่ Modifier เพราะ Claude 4.6 ขึ้นไปคิดราคา Context Window เต็มขนาด 1M Tokens ที่อัตรา Base Price ปกติต่อ Token Request ที่ยาวจึงแพงขึ้นเพียงเพราะมีจำนวน Token มากขึ้นเท่านั้น ไม่ได้ถูกชาร์จเรตเพิ่มพิเศษ"
+        }
+      ]
+    },
+    {
+      "heading": "3. การนับ Token ก่อนส่ง Request (Counting tokens before you send)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Endpoint count_tokens ช่วยให้เช็กขนาด Input ของ Request ได้ล่วงหน้าโดยไม่ต้องรัน Model จริง รองรับโครงสร้าง Input เหมือนการสร้างข้อความตามปกติ (system prompt, tools, images และ PDFs) และจะ Return ค่า input_tokens กลับมาเพียงค่าเดียว จึงเหมาะมากสำหรับการประเมินค่าใช้จ่ายล่วงหน้า เพียงนับ Token จาก Request ตัวอย่างครั้งเดียวแล้วคูณด้วยปริมาณ Request ที่คาดการณ์ไว้ โดยไม่ต้องเสียค่า Inference แต่อย่างใด ทั้งนี้ Endpoint นี้เปิดให้ใช้งานฟรี แต่จะมีข้อจำกัด Requests-per-minute (RPM) แยกต่างหากตาม Usage Tier ของคุณ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "จำนวน Token ที่วัดจาก Model รุ่นเก่าจะยังคงเท่าเดิมเมื่อย้ายไปใช้ Model ที่ใช้ Tokenizer รุ่นใหม่กว่า? (ทำไมถึงผิด): ไม่จริง: Endpoint จะนับ Token โดยอิงตาม Tokenizer ของ Model ที่คุณส่งเข้าไปเสมอ ดังนั้นหากต้องการย้าย Model ควรถือ Request เดิมไปนับ Token บนทั้งสอง Model เพื่อเปรียบเทียบผลลัพธ์จริง"
+        },
+        {
+          "type": "paragraph",
+          "text": "การนับ Token มีข้อจำกัด 3 ประการ: 1) ไม่คำนึงถึง Caching แม้จะระบุบล็อก cache_control มาด้วย แต่ผลลัพธ์ที่ได้จะเป็นขนาด Input ดิบทั้งหมด ไม่ใช่ค่าใช้จ่ายจริงหลังหัก Cache Hits 2) Input บางประเภทที่ Messages API รับได้จะถูกปฏิเสธที่นี่ เช่น Server Tools ส่วนใหญ่, MCP connector รวมถึง Image หรือ Document blocks ที่ส่งผ่าน url หรือ file source (หากต้องการนับ Token ของ Image และ PDF ให้ส่งเป็น base64 แทน) 3) จำนวน Token ที่ได้ขึ้นอยู่กับ Model ที่ระบุใน Parameter"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความแตกต่างของ Model มีผลอย่างมากเมื่อทำ Migration ตัวอย่างเช่น Fable 5.1, Mythos 5.1, Fable 5 และ Mythos 5 ใช้งาน Tokenizer ที่เปิดตัวพร้อม Opus 4.7 ซึ่ง Prompt เดียวกันจะถูกแปลงแล้วมีขนาดใหญ่ขึ้นราว 30% เมื่อเทียบกับ Model รุ่นเก่า ส่งผลให้ Cost Dashboard ที่คำนวณจากตัวเลขเดิมประเมินค่าใช้จ่ายต่ำกว่าความเป็นจริง หากต้องการทราบส่วนต่างที่แท้จริง ให้นับ Request เดียวกันสองครั้ง เทียบระหว่าง Model ปัจจุบันกับ Model ใหม่ แล้วนำค่า input_tokens มาเปรียบเทียบกัน"
+        }
+      ]
+    },
+    {
+      "heading": "4. การติดตามค่าใช้จ่ายจริงและ Rate Limits (Tracking actual spend and how close you are to limits)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Object usage ในแต่ละ Response จะบันทึกสิ่งที่คุณถูกเรียกเก็บเงินจริง โดยฝั่ง Input จะแบ่งออกเป็น 3 ส่วน: cache_read_input_tokens (อ่านจาก Cache), cache_creation_input_tokens (เขียนลง Cache) และ input_tokens (Token ที่ไม่ได้ Cache ซึ่งอยู่ถัดจาก Breakpoint จุดสุดท้าย) ข้อผิดพลาดที่พบบ่อยคือการ Log แค่ input_tokens เพียงอย่างเดียว ตัวอย่างเช่น เอกสารที่ Cache ไว้ 200,000 Tokens บวกกับคำถาม 50 Tokens ฟิลด์ input_tokens จะแสดงเพียง 50 ทั้งที่ Input เข้าไปจริงถึง 200,050 Tokens"
+        },
+        {
+          "type": "paragraph",
+          "text": "Usage and Cost Admin API ช่วยให้ดึงข้อมูลภาพรวมทั้ง Organization ได้ โดยต้องใช้ Admin API key ซึ่ง Endpoint /v1/organizations/usage_report/messages จะ Return จำนวน Token แบ่งตาม Bucket ขนาด 1m, 1h หรือ 1d และสามารถ Filter หรือ Group by ตาม model, workspace, API key, service tier, inference_geo หรือ speed ได้ ส่วน Cost Report จะแสดงจำนวนเงินเป็น USD สำหรับทีม Finance ใช้วิเคราะห์กระทบยอดกับใบแจ้งหนี้ของ Anthropic ทั้งนี้ หน้า Usage และ Cost บน Console จะแสดงข้อมูลชุดเดียวกัน และ Export เป็น CSV ได้ทั้งคู่"
+        },
+        {
+          "type": "paragraph",
+          "text": "ฟิลด์ Input ทั้งสามตัวนี้ยังใช้ตรวจสอบว่าคุณเข้าใกล้ Rate Limits มากน้อยเพียงใด (อ้างอิงจาก [Rate limits, spend limits and service tiers](lesson:2.1)) โดยใน Model ส่วนใหญ่ input_tokens และ cache_creation_input_tokens จะถูกนับรวมใน Input Tokens per Minute (ITPM) แต่ cache_read_input_tokens จะไม่ถูกนับรวม ดังนั้น Cache Rate ที่สูงขึ้นนอกจากจะช่วยประหยัดต้นทุนแล้ว ยังช่วยลดภาระบน ITPM อีกด้วย ซึ่งหน้า Console Usage จะพล็อต Hourly Peak ITPM คู่กับ Cache Rate และ Limit ปัจจุบัน ทำให้เห็นผลกระทบทั้งสองอย่างได้ในชาร์ตเดียว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ฟิลด์ input_tokens ใน Response คือขนาด Input ทั้งหมดของ Request? (ทำไมถึงผิด): ไม่จริง: input_tokens แสดงเฉพาะ Token ที่ไม่ได้ Cache หลัง Cache Breakpoint จุดสุดท้ายเท่านั้น หากต้องการทราบขนาด Input ทั้งหมด ต้องนำ input_tokens + cache_read_input_tokens + cache_creation_input_tokens มารวมกัน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55618",
+      "question": "Pipeline สำหรับวิเคราะห์เอกสารทำ Cache เอกสารคู่มืออ้างอิงขนาด 40,000 tokens โดยใช้ ephemeral cache_control breakpoint ด้วยค่า default TTL โดยนักวิเคราะห์จะส่งคำถามต่อเนื่องเข้ามาเป็นช่วง ๆ (bursts) แต่ช่วงเว้นว่างระหว่างแต่ละ burst มักจะอยู่ที่ 8 ถึง 10 นาที ทีมงานพบว่าไม่เกิด cache reads สำหรับคำถามส่วนใหญ่ในรอบ burst ถัดไป ทำให้ต้องจ่ายค่า cache-write เต็มจำนวนซ้ำแล้วซ้ำเล่า การปรับเปลี่ยนแบบใดเหมาะสมกับรูปแบบการใช้งาน (usage pattern) นี้มากที่สุด?",
+      "options": [
+        "ตั้งค่า cache_control ttl เป็น \"1h\" เพื่อให้คู่มือยังคงอยู่ใน Cache ข้ามช่วงเวลาที่เว้นว่างนานระหว่าง burst ของนักวิเคราะห์ได้ และหลีกเลี่ยงการทำ cache writes ซ้ำทุก ๆ 5 นาที",
+        "ส่ง pre-warming request ที่ตั้งค่า max_tokens: 0 ทุก ๆ 5 นาที เพื่อให้ Cache เดิมได้รับการ Refresh ตลอดเวลาโดยไม่ต้องคำนึงถึงระยะเวลาที่เว้นว่าง",
+        "แบ่งคู่มือขนาด 40,000 tokens ออกเป็น 4 ส่วน โดยใส่ cache_control breakpoints ส่วนละ 10,000 tokens เพื่อให้คิดค่าบริการ cache write แต่ละก้อนเล็กลงและถูกลง",
+        "เพิ่มค่า context window ของโมเดล เพื่อให้ระบบเก็บรักษาคู่มือไว้ในหน่วยความจำฝั่ง server ระหว่าง session ของนักวิเคราะห์"
+      ],
+      "explanation": ""
+    }
+  ]
+}

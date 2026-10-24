@@ -1,0 +1,252 @@
+{
+  "title": "กลยุทธ์การทำ Retrieval ให้เหมาะกับโครงสร้างข้อมูลและรูปแบบ Query",
+  "objectives": [
+    "ตัดสินใจว่าควรใส่ Corpus ลงใน Prompt ร่วมกับ Caching หรือต้องใช้ระบบ Retrieval",
+    "เลือกใช้ระหว่าง Embeddings, BM25 หรือ Hybrid Search โดยพิจารณาจากโครงสร้างข้อมูลและ Query",
+    "เลือก Retrieval Stack โดย Trade-off ระหว่าง Accuracy, Latency ต่อ Query และต้นทุน",
+    "ตัดสินใจว่าเมื่อใด Agent ควรทำ Just-in-Time Retrieval ด้วย Tools แทนการใช้ Index ที่สร้างไว้ล่วงหน้า",
+    "ประยุกต์ใช้ตรรกะการ Matching เดียวกันนี้กับ Tool Catalogs และ Long-running Sessions"
+  ],
+  "key_concept": "Retrieval ที่เหมาะกับ Data Shape — ไม่มีวิธี Retrieval ใดดีที่สุดในทุกกรณี ให้เลือกจากเนื้อหาของ Corpus และพฤติกรรม Query ของผู้ใช้: ใส่ลง Prompt หากขนาดข้อมูลพอดี, ใช้ BM25 สำหรับ Exact Identifiers, ใช้ Embeddings สำหรับความหมาย (Semantic), ใช้ Weighted Blend สำหรับ Mixed Traffic และใช้ Agent ค้นหาผ่าน Tools แบบ On-demand เมื่อ Index มีโอกาสล้าสมัย (Stale)",
+  "sections": [
+    {
+      "heading": "1. เริ่มจากเช็กก่อนว่าข้อมูลทั้งหมดใส่ลง Prompt ได้หรือไม่",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Retrieval ถูกสร้างขึ้นมาเพราะชุดข้อมูลบางชุดมีขนาดใหญ่เกิน Context Window ดังนั้นคำถามแรกในการออกแบบคือ ข้อมูลของคุณใหญ่เกินไปจริงหรือไม่ หาก Knowledge Base มีขนาดไม่เกิน 200,000 Tokens (ประมาณ 500 หน้า) คุณสามารถยัดข้อมูลทั้งหมดลงไปใน Prompt ได้เลย ซึ่งจะตัดปัญหาเรื่อง Chunking, การอัปเดต Index ให้เป็นปัจจุบัน และความเสี่ยงที่ Retrieval จะดึงข้อความผิดออกไปทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Prompt Caching คือหัวใจสำคัญที่ทำให้การใส่ Full-Context มีราคาถูกลง Request แรกจะประมวลผล Prompt ทั้งหมดและทำ Cache ส่วน Prefix ไว้ จากนั้น Request ถัดๆ ไปที่ใช้ Prefix เดียวกันจะ Reuse ข้อมูลจาก Cache ทันที ช่วยลดทั้งเวลาประมวลผลและต้นทุน Anthropic ระบุว่าการทำ Caching สำหรับ Prompt ที่ใช้งานบ่อยช่วยลด Latency ได้มากกว่า 2 เท่า และลดค่าใช้จ่ายได้สูงสุดถึง 90% ตัวอย่างที่ดีที่สุดคือ Employee Handbook ที่ทุก Conversation ต้องอ่าน เพราะ Prefix จะเหมือนกันทุก Request"
+        },
+        {
+          "type": "paragraph",
+          "text": "การที่ข้อมูลสามารถใส่ลง Context Window ได้ ไม่ได้แปลว่าคุณควรจะใส่จนเต็ม ยิ่งจำนวน Token เพิ่มขึ้น Accuracy และ Recall ก็จะยิ่งลดลง ดังนั้นสิ่งที่คุณใส่ลงใน Context จึงสำคัญไม่แพ้ขนาดพื้นที่ว่าง เมื่อ Knowledge Base เติบโตจนเกินขนาดที่ใส่ได้ คุณจึงจำเป็นต้องใช้วิธี Retrieval ที่ Scale ได้ ซึ่งเนื้อหาส่วนที่เหลือจะว่าด้วยการเลือกวิธีที่เหมาะสม"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ทุก Knowledge Base ที่ใช้ทำ Grounding จำเป็นต้องมี RAG Pipeline ที่ทำ Chunking และ Vector Index? (ทำไมถึงผิด): ไม่จริง: หาก Corpus มีขนาดไม่เกินประมาณ 200,000 Tokens (~500 หน้า) สามารถใส่ลงใน Prompt ทั้งหมดได้โดยตรง และใช้ Prompt Caching เพื่อให้ทำงานได้เร็วและประหยัด ควรสร้าง Retrieval Pipeline ก็ต่อเมื่อข้อมูลมีขนาดใหญ่เกินกว่าจะใส่ลง Prompt เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "2. Embeddings เน้นความหมาย, BM25 เน้นคำที่ตรงกันเป๊ะ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Retriever พื้นฐานทั้งสองแบบมีจุดบอดที่ตรงข้ามกัน Embeddings จะแปลง Text เป็น Vectors เพื่อจัดอันดับ Chunk ที่มีความหมายใกล้เคียงกับ Query ให้อยู่ลำดับต้นๆ แม้จะใช้คำไม่เหมือนกันก็ตาม ซึ่งทำงานได้ดีกับ Semantic Relationships แต่อาจมองข้าม Exact Match ที่สำคัญไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "BM25 เป็น Lexical Ranking Function ที่ค้นหาคำหรือวลีที่ตรงกันเป๊ะกับ Query โดยต่อยอดมาจาก TF-IDF ที่ใช้วัดความสำคัญของคำในเอกสารแต่ละฉบับ แต่ BM25 มีการชดเชยเรื่อง Document Length และปรับ Saturation Function ของ Term Frequency ทำให้คำที่พบบ่อยไม่ส่งผลต่อ Ranking มากเกินไป จึงโดดเด่นมากสำหรับ Query ที่มี Unique Identifier หรือคำศัพท์เฉพาะทางเทคนิค"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น Query ว่า \"Error code TS-999\" ใน Technical Support Database โมเดล Embedding อาจดึงเนื้อหาเกี่ยวกับ Error Codes ทั่วไปกลับมา และพลาดหน้าเอกสารเฉพาะของ TS-999 ไป ในขณะที่ BM25 จะค้นหา String ที่ตรงกันเป๊ะและพบเอกสารทันที ในทางกลับกัน หาก User ตั้งคำถามด้วยสำนวนของตัวเองโดยไม่มีคำศัพท์ที่ตรงกับเอกสารเลย BM25 จะหาอะไรไม่เจอ แต่ Embeddings จะหาเจอด้วยความหมาย"
+        },
+        {
+          "type": "table",
+          "caption": "Retriever ที่เหมาะสมสำหรับ Query แต่ละรูปแบบ",
+          "headers": [
+            "Query shape",
+            "Stronger retriever",
+            "Reason"
+          ],
+          "rows": [
+            [
+              "Exact identifier เช่น Error code TS-999",
+              "BM25",
+              "ค้นหาตาม String ของข้อความที่ตรงกันเป๊ะ"
+            ],
+            [
+              "คำถามเชิง Concept ด้วยภาษาของผู้ใช้เอง",
+              "Embeddings",
+              "จัดอันดับตาม Semantic Similarity ไม่ได้ขึ้นกับคำที่ซ้ำกัน"
+            ],
+            [
+              "Traffic ผสม: มีทั้ง Identifiers และ Paraphrase",
+              "Embeddings + BM25 combined",
+              "ผสมผสานการ Match คำตรงตัวเข้ากับความเข้าใจเชิงความหมาย (Semantic)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Embedding Retrieval มี Setting หนึ่งที่มักตั้งค่าผิดกันบ่อยคือ input_type โดยต้องตั้งค่าเป็น query สำหรับคำถามของผู้ใช้ และตั้งเป็น document สำหรับข้อความใน Corpus เพราะแต่ละค่าจะ Prepend Instruction เฉพาะลงไปก่อนทำ Embedding เพื่อให้ได้ Vector ที่มีประสิทธิภาพสูงสุดสำหรับการ Retrieval หากละเลยหรือตั้งค่าเป็น None จะสูญเสียความแม่นยำตรงนี้ไป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "โมเดล Embedding ที่ดีจะค้นหา Exact Identifier เช่น Error Code ได้แม่นยำพอๆ กับการค้นหาแบบ Paraphrase? (ทำไมถึงผิด): ไม่จริง: Embeddings เน้นจับความหมาย (Semantic) จึงอาจพลาด String ที่ต้องตรงกันเป๊ะ ในขณะที่ BM25 จะ Match คำแบบตรงตัว (Literal) นี่จึงเป็นเหตุผลที่ Hybrid Search ต้องนำ BM25 เข้ามาเสริมสำหรับ Query ที่เน้น Identifier"
+        }
+      ]
+    },
+    {
+      "heading": "3. Hybrid Search และการจูนสัดส่วนให้เข้ากับข้อมูล",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Hybrid Search คือการรัน Retriever ทั้งสองแบบควบคู่กันแล้วนำผลลัพธ์มารวมกัน โดยมี Standard Pipeline ดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. แบ่ง Corpus เป็น Chunks (มักไม่เกินสองสามร้อย Tokens) 2. สร้างทั้ง TF-IDF Encodings และ Semantic Embeddings ให้ทุก Chunk 3. ดึง Top Chunks ด้วย Exact Match ผ่าน BM25 4. ดึง Top Chunks ด้วย Semantic Similarity ผ่าน Embeddings 5. รวมผลลัพธ์และตัดตัวซ้ำ (Deduplicate) ด้วย Rank Fusion 6. นำ Top-K Chunks ใส่เข้าไปใน Prompt"
+        },
+        {
+          "type": "paragraph",
+          "text": "ขั้นตอน Fusion คือจุดสำคัญในการปรับจูนให้เหมาะกับข้อมูล Reference Implementation ของ Anthropic จะดึง Top 150 Candidates จากแต่ละ Retriever แล้วนำมาผสานด้วย Weighted Reciprocal Rank Fusion โดยค่า Default คือ Semantic Search 80% และ BM25 20% ซึ่งต้องจูนตาม Use Case: หาก Corpus เต็มไปด้วยชื่อฟังก์ชัน, Part Numbers หรือ Error Codes ควรเพิ่มน้ำหนัก BM25 ให้มากขึ้น แต่ถ้าผู้ใช้มักพิมพ์คำถามแบบ Paraphrase ให้เพิ่มน้ำหนัก Semantic Search"
+        },
+        {
+          "type": "paragraph",
+          "text": "แม้อยู่ที่สัดส่วน 80/20 ฝั่ง Lexical ก็ยังมีบทบาทสำคัญมาก จากการทดสอบบน Codebase พบว่า BM25 มีส่วนช่วยในผลลัพธ์สุดท้ายถึง 39–45% (ขึ้นอยู่กับจำนวนผลลัพธ์ที่เก็บไว้) เนื่องจากโค้ดเต็มไปด้วย Exact Identifiers ซึ่งเป็นสิ่งที่ Embedding Models มักค้นหาพลาด"
+        },
+        {
+          "type": "paragraph",
+          "text": "ฝั่ง Embedding สามารถเลือกใช้ให้ตรงกับ Domain ข้อมูลได้เช่นกัน ปัจจุบันมี Domain-specific Models เช่น voyage-code-4 สำหรับ Code Retrieval และ Agentic Coding, voyage-law-2 สำหรับงานกฎหมาย และ voyage-finance-2 สำหรับการเงิน นอกจากนี้ Provider ที่รองรับ Continued Training บน Private Data ยังช่วยเรื่องคำศัพท์เฉพาะกลุ่มได้ ก่อนจะตัดสินใจเพิ่ม Retriever ตัวที่สองเพื่อแก้ปัญหาคำศัพท์เฉพาะ ให้ตรวจสอบก่อนว่ามี Domain Model ที่ตอบโจทย์อยู่แล้วหรือไม่"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ควรเริ่มตั้งค่าน้ำหนัก BM25 ที่เท่าไหร่เสมอ? (ทำไมถึงผิด): ไม่จริง: ไม่ควรใช้ค่า Default (20%) ตายตัวเสมอไป หากวิเคราะห์ชุด Query จริงแล้วพบว่ามี String ที่ต้อง Match แบบตรงตัว (เช่น ID, SKU หรือ Error Code) เป็นสัดส่วนสูง ควรปรับน้ำหนักเริ่มต้นของ BM25 ให้สูงขึ้นตามลักษณะข้อมูล"
+        }
+      ]
+    },
+    {
+      "heading": "4. การเลือก Full Stack ตาม Accuracy, Latency และ Cost",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "นอกเหนือจาก Plain Hybrid Search ยังมีอีก 2 เลเยอร์ที่สามารถเพิ่มเข้าไปได้ โดยแต่ละตัวมี Trade-off ด้านต้นทุน: [Contextual Retrieval (Contextual Embeddings และ Contextual BM25)](lesson:3.5) ซึ่งใช้ Claude แปะ Context สั้นๆ เฉพาะของ Chunk นั้นๆ ไว้ข้างหน้าก่อนนำไป Index และ [Reranking](lesson:3.5) ซึ่งใช้ Model เฉพาะทางมา Re-score Candidate ชุดใหญ่ แล้วคัดเลือกเฉพาะส่วนที่ดีที่สุดไว้"
+        },
+        {
+          "type": "table",
+          "caption": "Pass@k เมื่อเพิ่มแต่ละเทคนิคเข้าไป จากการประเมินบน Codebase (248 Queries)",
+          "headers": [
+            "Approach",
+            "Pass@5",
+            "Pass@10",
+            "Pass@20"
+          ],
+          "rows": [
+            [
+              "Baseline RAG",
+              "80.92%",
+              "87.15%",
+              "90.06%"
+            ],
+            [
+              "+ Contextual Embeddings",
+              "88.12%",
+              "92.34%",
+              "94.29%"
+            ],
+            [
+              "+ Hybrid Search (BM25)",
+              "86.43%",
+              "93.21%",
+              "94.99%"
+            ],
+            [
+              "+ Reranking",
+              "92.15%",
+              "95.26%",
+              "97.45%"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Contextual Retrieval จะคุ้มค่ามากเมื่อ Chunk มักสูญเสียบริบทเมื่อถูกตัดแยกออกจากเอกสาร เช่น รายงานผลประกอบการ (SEC Filings) ท่อนที่ระบุว่า \"รายได้ของบริษัทเติบโต 3% จากไตรมาสก่อนหน้า\" ไม่ได้ระบุทั้งชื่อบริษัทและช่วงเวลา ทำให้ Retriever ทั้งสองแบบไม่สามารถจับคู่กับคำถามเกี่ยวกับ ACME ใน Q2 2023 ได้ โดยต้นทุนส่วนนี้จะจ่ายเพียงครั้งเดียวตอน Ingestion (ประมาณ $1.02 ต่อ 1 ล้าน Document Tokens เมื่อใช้ Prompt Caching และราว $3 สำหรับ Dataset ของ Codebase ทั้งหมดข้างต้น) ส่วน Plain Hybrid Search นั้นไม่เสียค่า LLM Pass เลย แต่ต้องแบกรับภาระการรันและดูแล Elasticsearch เอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Reranking มีต้นทุนที่ต้องจ่ายในทุกๆ Query คือ Latency เพิ่มขึ้นราว 100–200 ms และค่า API Fees ประมาณ $0.002 ต่อ Query นอกจากนี้ยังมี Trade-off ภายในตัว: การ Score จำนวน Candidate มากขึ้นช่วยเพิ่ม Accuracy แต่ถ้า Score น้อยลงก็ช่วยลด Latency และ Cost รวมถึง Rerankers ยังแบ่งเป็น Tiers เช่น rerank-3 ให้ความแม่นยำสูงสุด ส่วน rerank-3-lite ปรับจูนมาเพื่อ Latency และ Cost ต่ำ"
+        },
+        {
+          "type": "paragraph",
+          "text": "จากผลลัพธ์สามารถสรุป 3 ทางเลือกหลัก: หากเป็นระบบ High-volume และ Cost-sensitive การใช้ Contextual Embeddings เพียงอย่างเดียวก็ทำ Pass@10 ได้ราว 92% โดยไม่มีค่าใช้จ่ายต่อ Query, สำหรับ Production System ทั่วไปที่เน้นความสมดุล ให้เพิ่ม Hybrid Search เพื่อดันไปที่ราว 93% โดยไม่เพิ่ม Per-query Fees, และหากต้องการ Maximum Accuracy โดยยอมรับ Latency ที่เพิ่มขึ้นได้ ให้ใส่ Reranking เพื่อแตะระดับ 95% สำหรับ Production ส่วนใหญ่แล้ว Contextual Embeddings ถือเป็นตัวเลือกที่คุ้มค่าที่สุดต่อเม็ดเงินที่จ่าย (Best Performance per Dollar)"
+        }
+      ]
+    },
+    {
+      "heading": "5. Just-in-time retrieval: ปล่อยให้ Agent ค้นหาข้อมูลด้วย Tools",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "แนวทางก่อนหน้านี้ล้วนตั้งอยู่บนสมมติฐานว่าต้องสร้าง Index ไว้ล่วงหน้าก่อนรับ Query แต่ Just-in-time retrieval จะตัดสมมติฐานนี้ทิ้งไป โดย Agent จะเก็บเพียง Reference ขนาดเบา เช่น File Paths, Stored Queries หรือ Web Links แล้วค่อยใช้ Tools ดึงข้อมูลเข้า Context เฉพาะเมื่อจำเป็นเท่านั้น ตัวอย่างเช่น Claude Code ที่ทำงานกับ Database ขนาดใหญ่: มันจะเขียน Query ที่เจาะจง บันทึกผลลัพธ์ไว้ และใช้คำสั่ง head หรือ tail เพื่อดู Output ขนาดใหญ่โดยไม่ต้องโหลด Object ทั้งหมดเข้า Context เลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางนี้ได้เปรียบมากเมื่อข้อมูลเปลี่ยนแปลงเร็วกว่ารอบการ Rebuild Index เช่น คำสั่ง glob และ grep ของ Claude Code ที่อ่านไฟล์สถานะล่าสุด ณ ปัจจุบัน จึงหลีกเลี่ยงปัญหา Stale Indexes และโครงสร้าง Syntax Trees ที่ซับซ้อนใน Codebase ที่ถูกแก้ไขตลอดวัน นอกจากนี้ ข้อมูลบริบทแวดล้อมก็มีความหมาย: ไฟล์ test_utils.py ในโฟลเดอร์ tests สื่อความหมายต่างจากไฟล์ชื่อเดียวกันใน src/core_logic/ โครงสร้างโฟลเดอร์ ข้อตกลงการตั้งชื่อ (Naming Conventions) และ Timestamps ล้วนช่วยให้ Agent ตัดสินใจได้ว่าจะเปิดไฟล์ไหนต่อไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "สิ่งที่ต้องแลกมาคือความเร็วและความแม่นยำ การสำรวจข้อมูลแบบ Run-time ช้ากว่าการค้นหาจากผลลัพธ์ที่ Precomputed ไว้ล่วงหน้า อีกทั้ง Agent ยังต้องมี Tools ที่เหมาะสมและได้รับ Guidance ที่ชัดเจน มิฉะนั้นอาจใช้ Tools ผิดพลาด หลงทางใน Dead Ends และทำให้ Context เต็มไปด้วย Noise ซึ่งความเสี่ยงหลังนี้อันตรายมาก เพราะความแม่นยำ (Accuracy) และ Recall จะลดลงทันทีเมื่อจำนวน Tokens เพิ่มขึ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "หลายระบบเลือกที่จะผสมผสานทั้งสองวิธี เช่น Claude Code จะโหลดไฟล์ CLAUDE.md เข้า Context ตั้งแต่เริ่มต้น แล้วใช้ grep สำหรับข้อมูลส่วนที่เหลือ สถาปัตยกรรมแบบไฮบริดนี้เหมาะกับเนื้อหาที่เปลี่ยนแปลงไม่บ่อย เช่น เอกสารทางกฎหมายหรือการเงิน: โดยจะโหลด Core Content ที่คงที่ไว้ล่วงหน้าเพื่อความเร็ว แล้วปล่อยให้ Agent สำรวจข้อมูลส่วนที่เหลือเมื่อจำเป็น"
+        }
+      ]
+    },
+    {
+      "heading": "6. ตรรกะเดียวกันสำหรับ Tool Catalogs และ Long Sessions",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Tool Definitions ก็นับเป็น Corpus รูปแบบหนึ่งเช่นกัน และคำถามแรกที่ต้องตอบยังคงเดิม: ข้อมูลพอดีกับ Context Window หรือไม่? ฟีเจอร์ Tool Search จะมาร์ก Definitions ด้วย defer_loading: true เพื่อให้โหลดเข้า Context เฉพาะเมื่อ Claude ค้นพบผ่านการ Search เท่านั้น ซึ่งเป็นรูปแบบหนึ่งของ Progressive Discovery vs Monolithic Context โดยมี Built-in Variants ให้ใช้งานสองแบบ ได้แก่ tool_search_tool_regex_20251119 และ tool_search_tool_bm25_20251119"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tool Search จะเพิ่ม Search Step เข้ามาก่อนการเรียก Tool แต่ละครั้ง จึงจะคุ้มค่าก็ต่อเมื่อ Context ที่ประหยัดได้และความแม่นยำในการเลือก Tool (Tool-selection Accuracy) มีน้ำหนักมากกว่า Latency ที่เพิ่มขึ้น เกณฑ์สัญญาณทั่วไปคือ เมื่อมี Definitions รวมกันมากกว่า 10K tokens หรือมี Tools มากกว่า 10 ตัวขึ้นไป แต่ถึงอย่างนั้น ก็ควรตั้งค่า Tools ที่ถูกเรียกใช้บ่อยที่สุด 3–5 ตัวให้เป็น Non-deferred เพื่อให้ Claude เรียกใช้งานได้ทันทีโดยไม่ต้อง Search หากระบบมี Tools ขนาดเล็กเพียง 8 ตัวที่เกือบทุก Request ต้องเรียกใช้อยู่แล้ว ซึ่งต่ำกว่าเกณฑ์ดังกล่าวมาก ให้โหลดเข้า Context โดยตรง การทำ Defer ไม่ว่าจะใช้ Regex, BM25 Search หรือซ่อนไว้หลัง Deferred MCP Toolset จะกลายเป็นการเพิ่ม Search Step ให้กับทุก Tool Call ที่ Claude ต้องเรียกใช้อยู่ดีโดยไม่จำเป็น"
+        },
+        {
+          "type": "paragraph",
+          "text": "การค้นหาด้วยความหมาย (Semantic Matching) สำหรับ Tools ทำงานเหมือนกับ Chunks ทุกประการ โดย Built-in Variants ทั้งสองตัวจะ Match จากคำหรือ Patterns ดังนั้นหาก Tool Descriptions สั้นและเชื่อมโยงกันผ่าน Embedding Space เท่านั้น ตัว BM25 จะมีคำที่ Match กันน้อยเกินไป ขณะที่ Broad Regex Wildcards ก็ไม่สามารถจับความหมายได้ ทางแก้คือให้สร้าง Custom Search Tool ที่ Query ไปยัง Embeddings Index แล้วส่งค่า tool_reference blocks กลับมาใน tool_result โดยทุก Tool ที่ถูกอ้างอิงยังต้องถูกนิยามไว้ใน Array tools ระดับบนสุดตามปกติ ซึ่งมักจะกำหนด defer_loading: true ไว้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agent Session ที่ทำงานต่อเนื่องยาวนานสามารถขยายขนาดจนล้น Context Window ได้เอง เช่น Research Agent ที่ดึงและวิเคราะห์เอกสารติดต่อกันหลายชั่วโมงจะสะสม History จนแน่นและล้นหน้าต่างบริบทในที่สุด สำหรับ Long-running Conversations และ Agentic Workflows แนวทางหลักในการจัดการคือ Server-side Compaction ซึ่งช่วยให้ Session ทำงานต่อได้แม้จะเกินขีดจำกัดเดิม โดยที่ Agent ไม่สูญเสียผลการวิเคราะห์ก่อนหน้า วิธีแก้อื่นๆ มักทำให้ปัญหาแย่ลง เช่น เนื่องจาก Context Window ต้องแชร์พื้นที่ระหว่าง History และ New Output การเพิ่ม max_tokens จึงยิ่งลดพื้นที่สำหรับ History หรือการ Re-upload เอกสารเก่าซ้ำในทุก Turn ก็จะยิ่งทำให้ Window เต็มเร็วขึ้น อ่านเพิ่มเติมได้ในเรื่อง Context Window Management"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Tool Search ช่วยประหยัด Context ได้เสมอ จึงควรทำ Defer ให้กับทุก Tool แม้แต่ใน Catalog ขนาดเล็กที่ถูกเรียกใช้เกือบทุก Request เหตุผลทางเทคนิค: Tool Search จะเพิ่ม Search Step เข้ามาก่อนการเรียก Tool แต่ละครั้ง ทำให้เกิด Latency โดยไม่จำเป็น ควรตั้งค่า Tools ที่ใช้บ่อยเป็น Non-deferred และหากเป็นชุด Tool ขนาดเล็กที่มีการเรียกใช้ซ้ำๆ เป็นประจำ ควรโหลดเข้า Context โดยตรงทั้งหมด\n\nคำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Built-in BM25 Tool Search มีประสิทธิภาพใกล้เคียงกับ Semantic Search เมื่อ Tool Descriptions มีข้อมูลน้อยและกระจัดกระจาย เหตุผลทางเทคนิค: BM25 เป็น Lexical Search (เน้นจับคู่คำตรงๆ) ไม่ใช่ Semantic หากต้องการค้นหาแบบจับคู่ผ่าน Embedding ต้องเขียน Custom Search Tool ที่ Query ไปยัง Vector/Embedding Index แล้วคืนค่าเป็น tool_reference blocks แทน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56816",
+      "question": "Ops Agent ภายในองค์กรมี Tools ทั้งหมด 8 ตัว (deploy, rollback, restart, status, logs, scale, alert, notify) โดยแต่ละตัวมีขนาดไม่เกิน 100 tokens และเกือบทุก Request จำเป็นต้องเรียกใช้ Tools เหล่านี้หลายตัวร่วมกัน แนวทางการตั้งค่า Tool (Tool-configuration approach) ข้อใดเหมาะสมที่สุดสำหรับกรณีนี้?",
+      "options": [
+        "เรียกใช้ Tools ทั้ง 8 ตัวโดยตรงผ่านการกำหนดค่า Standard tool definitions โดยไม่ต้องเปิดใช้งาน Tool search หรือ Deferred loading",
+        "เปิดใช้งาน BM25 tool search variant เพื่อให้ Claude ค้นหา Catalog ด้วย Natural language ก่อนการเรียกใช้ทุกครั้ง",
+        "เปิดใช้งาน Regex tool search variant และทำ Defer tools ทั้ง 8 ตัว เพื่อให้ Claude ค้นหาตาม Pattern ก่อนการเรียกใช้ทุกครั้ง",
+        "รวม Tools ทั้ง 8 ตัวไว้หลัง MCP connector เดียว และทำ Deferred loading สำหรับทั้ง Toolset"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56817",
+      "question": "Research Agent ทำงานต่อเนื่องเป็นเวลาหลายชั่วโมง โดยมีการดึงข้อมูลและสนทนาเกี่ยวกับเอกสารซ้ำๆ จนทำให้การสนทนานี้ใกล้ถึงขีดจำกัดของ Context window แต่ยังจำเป็นต้องอ้างอิงข้อค้นพบก่อนหน้า กลยุทธ์ใดสอดคล้องกับรูปแบบคำถาม (Query pattern) นี้?",
+      "options": [
+        "เปิดใช้งาน Server-side compaction เพื่อสรุปบทสนทนารอบก่อนหน้าโดยอัตโนมัติ ทำให้ Session ดำเนินต่อไปได้แม้เกินขีดจำกัด",
+        "เพิ่มค่า max_tokens ในแต่ละ Request เพื่อสำรองพื้นที่ Output เพิ่มเติมสำหรับผลลัพธ์การ Retrieval รอบใหม่",
+        "อัปโหลดเอกสารทั้งหมดที่เคยค้นพบซ้ำอีกครั้งในตอนเริ่มต้นของแต่ละ Turn เพื่อไม่ให้ข้อมูลสูญหายจาก History",
+        "สลับไปใช้ Model ที่มี Context window ขนาดเล็กลง เพื่อบังคับให้ผู้ใช้งานทำ Manual summarization บ่อยขึ้น"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56818",
+      "question": "Platform ต้องการให้ Claude ทำการค้นหา Tools (Tool discovery) โดยใช้ Embeddings index ที่มีอยู่เดิม แทนการใช้ Regex หรือ BM25 matching ในตัว เนื่องจากคำอธิบายของ Tools มีเนื้อหาไม่มาก (Sparse) แต่มีความเชื่อมโยงเชิงความหมาย (Semantically related) ผ่าน Embedding space การ Implement ข้อใดตอบโจทย์ความต้องการนี้?",
+      "options": [
+        "สร้าง Custom tool ที่ทำหน้าที่ค้นหา Embeddings search แล้วส่งคืน tool_reference blocks ภายใน tool_result เพื่อให้ Claude นำไป Expand ต่อ",
+        "เปิดใช้งาน BM25 tool search variant ในตัว เนื่องจาก BM25 ranking สามารถประมาณค่า Semantic similarity ของ Embedding ได้ใกล้เคียงมากพอ",
+        "เปิดใช้งาน Regex tool search variant ในตัว และพึ่งพา Wildcard patterns แบบกว้างเพื่อประมาณการทำ Semantic matching",
+        "ปิดการใช้งาน Tool search และโหลด Tool definitions ทั้งหมดไว้ล่วงหน้า เพื่อจะได้ไม่ต้องใช้ Embeddings index"
+      ],
+      "explanation": ""
+    }
+  ]
+}

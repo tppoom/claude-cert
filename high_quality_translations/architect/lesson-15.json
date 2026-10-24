@@ -1,0 +1,274 @@
+{
+  "title": "ปัญหา Capability Bloat ในการกำหนดค่า Tools ของ Agent",
+  "objectives": [
+    "อธิบายผลกระทบของ Tools ที่มากเกินไป ต่อ Context, Attention และความแม่นยำในการเลือก Tool ของ Agent",
+    "ตรวจสอบการตั้งค่า Agent เพื่อหา Tools และ MCP Servers ที่ซ้ำซ้อน ไม่ได้ใช้งาน หรืออธิบายหน้าที่ไม่ชัดเจน",
+    "รวม Tools ที่ซ้ำซ้อนให้เป็นระดับสูงขึ้น (Higher-level Tools) และจัด Namespace ตาม Service และ Resource",
+    "จำกัด Tools ของแต่ละ Agent และ Subagent ให้ตรงกับบทบาท โดยใช้ tools, disallowedTools, mcpServers และ Permission Modes",
+    "เลือกใช้ระหว่าง Consolidation, Scoping, Tool Search, Prompt Caching และ Context Editing ตามแหล่งที่มาของ Context Pressure"
+  ],
+  "key_concept": "Capability Bloat — ภาวะที่ Agent มี Tools มากเกินความจำเป็น ไม่ว่าจะเป็น Tools ที่ซ้ำซ้อน ไม่ได้ใช้งาน คำอธิบายคลุมเครือ หรือมาจาก MCP Servers ที่ไม่เคยเรียกใช้ Tool Definitions เหล่านี้จะแย่ง Context Window และเพิ่มตัวเลือกที่ Claude ต้องคัดออก ส่งผลให้ Agent เลือก Tool พลาดบ่อยขึ้น แทนที่จะทำงานได้มีประสิทธิภาพมากขึ้น",
+  "sections": [
+    {
+      "heading": "1. ต้นทุนและความเสียหายเมื่อ Agent มี Tools มากเกินไป (Tool Bloat)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Tool definition ที่คุณใส่เข้ามาจะกิน Context ทันทีตั้งแต่ก่อน Agent จะได้อ่าน Prompt ของ User ด้วยซ้ำ เพราะ Claude ต้องโหลดทั้งชื่อ คำอธิบาย (Description) และ Input schema ของทุก Tool ในทุกรอบ (Turn) ตัวอย่างเช่น Tools 50 ตัว อาจกินไปถึง 10,000–20,000 Tokens หรือในระบบ Multi-server ทั่วไปที่ต่อ GitHub, Slack, Sentry, Grafana และ Splunk พร้อมกัน อาจเสีย Context ไปราว 55,000 Tokens ให้กับ Tool definitions เพียงอย่างเดียว ทั้งที่ยังไม่ได้เริ่มทำงาน ซึ่ง Tokens ส่วนนี้จะแย่งพื้นที่ที่ต้องใช้สำหรับไฟล์, ข้อมูลผลลัพธ์จาก Tool (tool_result) และ Reasoning ของโมเดลโดยตรง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ผลกระทบไม่ได้มีแค่เรื่อง Context เต็มเร็วเท่านั้น แต่ Context ยังทำหน้าที่เป็น Attention Budget ของโมเดล ยิ่ง Token สะสมสูงขึ้น ประสิทธิภาพในการดึงข้อมูล (Recall) และการทำ Reasoning จะยิ่งลดลง แม้จะเป็น Tool ที่ Agent แทบไม่เคยเรียกใช้ แต่มันก็ยังดึง Attention ไปในทุก Request ยิ่งในการรันแบบ Long-running ข้อมูล Definition เหล่านี้จะเข้าไปแย่งชิงพื้นที่กับ tool_result blocks ที่เพิ่มขึ้นเรื่อยๆ จนส่งผลให้ Context เต็มและงานล้มเหลวก่อนจะเสร็จสิ้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "ต้นทุนที่สามคือความแม่นยำลดลงและความเสี่ยงในการตัดสินใจผิดพลาด เมื่อโหลด Tools พร้อมกันเกินประมาณ 30–50 ตัว ความแม่นยำที่ Claude จะเลือก Tool ได้ถูกต้องจะลดลงอย่างเห็นได้ชัด ยิ่งมี Tool ที่ทับซ้อนกัน (Overlap) ปัญหาก็ยิ่งหนักขึ้น เช่น ถ้ามี 2 Tools ที่ดูเหมือนจะตอบโจทย์ได้ทั้งคู่ Claude อาจเลือกผิดตัว ส่ง Parameters ผิด หรือใช้วิธีการแก้ปัญหาที่อ้อมค้อมเกินความจำเป็น การ Call ผิดพลาดหนึ่งครั้งทำให้เสียทั้ง Round-trip เพิ่มผลลัพธ์ที่ทำให้ Context สับสน และอาจทำ Action ที่ไม่พึงประสงค์บนระบบจริง Tool Bloat จึงไม่ได้กระทบแค่ค่าใช้จ่าย แต่ส่งผลโดยตรงต่อความปลอดภัย (Safety) ของระบบด้วย"
+        }
+      ]
+    },
+    {
+      "heading": "2. การวินิจฉัยและตรวจสอบ Tool Bloat ใน Configuration",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การทำ Bloat Review คือการตรวจสอบ Configuration เทียบกับ Workflow จริงของ Agent โดยตั้งคำถามสำคัญกับทุก Entry เสมอว่า: 'ถ้าระบบไม่มีตัวนี้ อะไรจะพังบ้าง?' ซึ่งมักจะพบปัญหา 4 รูปแบบนี้ซ้ำๆ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Overlapping tools: Tools 2 ตัวขึ้นไปที่ทำงานซ้ำซ้อนกัน เช่น list_users กับ search_users หรือการแยก Endpoint เป็น get-by-id กับ list ทั้งที่ในความเป็นจริงมักถูกเรียกคู่กันเสมอ\n- Unused tools: Tool definitions ที่ Agent ไม่เคยถูกเรียกใช้งานจริง มักเกิดจากการต่อ MCP Servers ทั้งระบบเผื่อไว้ล่วงหน้า (Just in case)\n- Vague descriptions: คำอธิบายที่คลุมเครือ จน Claude ไม่สามารถแยกความแตกต่างจาก Tools ข้างเคียงได้ หรือมักส่ง Parameters ผิดเรื่อยๆ\n- Over-connected MCP servers: MCP Servers ที่ถูกโหลดเข้ามาอัตโนมัติจาก Project files, User settings, Plugins หรือ Organization connectors โดยที่ Agent ตัวนั้นไม่ได้ตั้งใจจะใช้งาน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การวิเคราะห์จาก Transcripts และ Metrics จริง มีความแม่นยำกว่าการแค่นั่งอ่านไฟล์ Config ให้เก็บข้อมูลจำนวน Tool calls ทั้งหมด, Token consumption และ Tool errors ต่อ Task พร้อมทั้งอ่าน Log การเรียก Tool ดิบๆ แทนที่จะดูเฉพาะข้อความสรุปของ Agent รูปแบบที่พบจะบอกจุดที่ต้องแก้ได้ชัดเจน เช่น หากเกิด Tool error จาก Invalid parameters ติดต่อกัน แปลว่าต้องเขียน Description ให้เคลียร์ขึ้นและเพิ่ม Examples, Tools ที่ถูกเรียกตามลำดับเดิมเสมอควรถูกยุบรวมกัน (Merge), ส่วน Tools ที่ไม่เคยปรากฏใน Transcript เลย ควรตัดทิ้งทันที"
+        },
+        {
+          "type": "table",
+          "caption": "การวิเคราะห์พฤติกรรม Tool-call เพื่อตรวจจับ Bloat",
+          "headers": [
+            "สิ่งที่ตรวจพบ (Observation)",
+            "สาเหตุที่น่าจะเป็น (Likely Finding)",
+            "วิธีแก้ไขเบื้องต้น (First Remedy)"
+          ],
+          "rows": [
+            [
+              "Tools 3 ตัวเดิมถูกเรียกเป็นลำดับซ้ำๆ ในเกือบทุก Tasks",
+              "Tools มีความแตกย่อยเกินไป (Over-fragmented) จากการ Wrap แบบ 1:1 กับ API endpoints",
+              "Merge รวมเป็น Higher-level tool ตัวเดียว"
+            ],
+            [
+              "เกิด Tool errors บ่อยครั้งเนื่องจาก Invalid parameters",
+              "Description หรือ Schema คลุมเครือ ไม่ชัดเจน",
+              "เขียน Description ใหม่ และเพิ่ม Examples ประกอบ"
+            ],
+            [
+              "Claude สลับไปมาระหว่าง Tools คล้ายกัน 2 ตัวสำหรับ Request เดียวกัน",
+              "ฟังก์ชันทับซ้อนกัน (Overlap) หรือระบุ Purpose ไม่ชัดเจน",
+              "Merge รวม Tools เข้าด้วยกัน หรือทำ Namespacing เพื่อแบ่งขอบเขตให้ชัดเจน"
+            ],
+            [
+              "Tools ของ Server ที่เชื่อมต่อไว้ ไม่เคยปรากฏใน Transcripts เลย",
+              "Capabilities ส่วนเกินที่ไม่ได้ใช้งาน (Unused capability)",
+              "ตัดการเชื่อมต่อ Server นั้นออก หรือ Deny เครื่องมือของ Server นั้นสำหรับ Agent นี้"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ปัญหา Over-connection ต้องตรวจสอบแยกต่างหาก เพราะ MCP Servers สามารถถูกดึงเข้ามาได้จากหลายช่องทางพร้อมกัน ใน Agent SDK หากกำหนด `strict_mcp_config: true` ระบบจะโหลดเฉพาะ Servers ที่ส่งผ่าน `mcp_servers` เท่านั้น โดยจะไม่สนใจ `project.mcp.json`, User settings, Plugin-provided servers หรือ Connectors จาก claude.ai เลย ดังนั้นหากพบว่า Tool list มี Servers โผล่เข้ามาโดยไม่ได้ระบุใน Options แสดงว่ามันหลุดเข้ามาจากช่องทางเหล่านี้อย่างแน่นอน"
+        }
+      ]
+    },
+    {
+      "heading": "3. Consolidating and namespacing tools",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Consolidation ช่วยแก้ปัญหา Tool ทับซ้อนกัน โดยการออกแบบ Tools ตาม Task ที่ต้องทำแทนที่จะยึดตาม Endpoints ความผิดพลาดที่พบบ่อยคือการเขียน Tools ครอบฟังก์ชันเดิมหรือ API Endpoints แบบ 1:1 ส่งผลให้ Agent ต้อง Chain เรียกทีละตัว และโหลดข้อมูลผลลัพธ์ระหว่างทางทั้งหมดเข้า Context แต่การรวมศูนย์เป็น Tool เดี่ยวสามารถจัดการ discrete operations หรือเรียก API ภายในได้หลายครั้ง แล้วส่งคืนเฉพาะผลลัพธ์ที่ Task นั้นต้องการจริง ๆ"
+        },
+        {
+          "type": "table",
+          "caption": "Endpoint-shaped tools merged into task-shaped ones",
+          "headers": [
+            "Instead of",
+            "Implement",
+            "What the agent no longer has to do"
+          ],
+          "rows": [
+            [
+              "list_users, list_events, create_event",
+              "schedule_event",
+              "ไม่ต้องคำนวณหาเวลาว่างเองข้าม 3 calls"
+            ],
+            [
+              "read_logs",
+              "search_logs",
+              "ไม่ต้องอ่าน Log ทั้งหมดเพื่อค้นหาบรรทัดที่เกี่ยวข้อง"
+            ],
+            [
+              "get_customer_by_id, list_transactions, list_notes",
+              "get_customer_context",
+              "ไม่ต้องนำประวัติล่าสุดของลูกค้ามาประมวลผลรวมกันจาก 3 คำสั่ง"
+            ],
+            [
+              "list_contacts",
+              "search_contacts or message_contact",
+              "ไม่ต้องไล่ Scan ดู Contact ทุกรายการแบบ token by token"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Consolidating ให้ประโยชน์ 2 ต่อ: ข้อแรก ลดจำนวน Tool Definition ใน Context ช่วยคุมให้ต่ำกว่าช่วง 30–50 Tools ซึ่งเป็นจุดที่ความแม่นยำในการเลือก Tool เริ่มดรอป ข้อสอง งานที่เคยต้องพึ่ง Reasoning ของ Agent จะถูกย้ายไปจัดการใน Logic ของ Tool ทำให้ลดโอกาสเกิดข้อผิดพลาด ให้กำหนด Purpose ของแต่ละ Tool ให้ชัดเจนและแตกต่างจากตัวอื่น โดยแบ่ง Tool Boundaries ตามวิธีที่มนุษย์ทำงานจริง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Namespacing ใช้จัดการกับ Tools ที่จำเป็นต้องคงไว้ เมื่อ Agent เชื่อมต่อหลาย Server ให้จัดกลุ่ม Tools ด้วย Prefix ร่วม: ตาม Service (เช่น asana_search, jira_search) และระบุ Resource ย่อยภายใน Service (เช่น asana_projects_search, asana_users_search) ทำให้ Claude แยกแยะ Search Tools ออกจากกันได้ทันทีก่อนอ่าน Description MCP Client บางตัวจะเพิ่ม Prefix ให้อัตโนมัติ ทั้งนี้ ตำแหน่งของ Prefix (ไว้หน้าหรือหลังชื่อ) มีผลต่อผลประเมิน Tool Use ของแต่ละโมเดลต่างกันอย่างมีนัยสำคัญ ควรเลือก Naming Scheme จากการทำ Evaluation จริง ไม่ใช่เลือกตามความเคยชิน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การรวม Tools ต้องทำตาม Endpoints ของ API ดั้งเดิมเสมอ เหตุผลคือการออกแบบ Tool-use ที่มีประสิทธิภาพ ต้องยุบรวม Tools ที่ Agent มักจะเรียกต่อกันซ้ำๆ ให้กลายเป็น Task-shaped tool ตัวเดียว เพื่อตัดภาระการทำ Reasoning และลด Context bloat"
+        }
+      ]
+    },
+    {
+      "heading": "4. Scoping tools to each agent's role",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Scoping คือการจำกัดสิทธิ์ให้ Agent หรือ Subagent เข้าถึงเฉพาะ Tools ที่บทบาทนั้นจำเป็นต้องใช้ ใน Agent SDK สามารถตั้งค่าผ่านฟิลด์ tools ใน AgentDefinition ของแต่ละตัว Subagent จะไม่ถูกจำกัดสิทธิ์ให้แคบลงกว่าตัวแม่โดยอัตโนมัติ หากละเว้นฟิลด์ tools ไว้ มันจะ Inherit เครื่องมือทั้งหมดที่ Subagents มีสิทธิ์ใช้มาทันที เช่น Code Reviewer ที่สั่งรันโดย Lead Agent ที่มี Write, Edit และ Bash จะได้ทั้ง 3 สิทธิ์นี้ไปทั้งหมด เว้นแต่จะระบุ Scope ให้แคบลงในนิยามของมันเอง การเขียนระบุไว้ใน CLAUDE.md หรือการเปลี่ยน Permission Mode ของตัวแม่ ไม่สามารถเปลี่ยน Tool Set ของตัว Reviewer ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การตัดสิทธิ์สามารถทำได้ในระดับ Server เช่นกัน โดย disallowedTools รองรับ MCP Patterns: เช่น mcp__server หรือ mcp__server__* จะตัดทุก Tool ของ Server นั้นออก ส่วน mcp__* จะตัดทุก MCP Tools จากทุก Server Pattern อย่าง mcp__legacy__* ช่วยคัด Legacy Server ออกจาก Agent ตัวหนึ่งในขณะที่ตัวอื่นยังใช้ได้อยู่ นอกจากนี้ mcpServers ใน Agent Definition ยังช่วยระบุเจาะจงเฉพาะ Server ที่ Agent ตัวนั้นมีสิทธิ์ใช้ได้อีกด้วย ทั้งนี้ Server ไหนที่ไม่มี Agent ตัวใดใช้เลย ควรตัดการเชื่อมต่อออกทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Approving และ Scoping เป็นคนละส่วนกัน: allowedTools เป็นการ Pre-approve ให้ Tools รันได้โดยไม่ต้อง Prompt ขอการยืนยัน แต่ไม่ได้บล็อกไม่ให้ Claude เรียก Tool อื่น ส่วน Permission Mode จะเป็นตัวกำหนดพฤติกรรมเมื่อมีการเรียก Tool นอกรายการ ในโหมด default หากมี Tool Call ที่ต้องขอ Approval และไม่ตรงกับ Allow Rule ใดๆ คำขอจะถูกส่งต่อไปยัง canUseTool Callback ซึ่งไม่ตอบโจทย์บน CI Job ที่ไม่มีคนคอยกด แต่ในโหมด dontAsk หากมี Tool Call ใดที่ต้อง Prompt ขออนุมัติ ระบบจะ Deny ทันที และ canUseTool จะไม่ถูกเรียก การจับคู่ allowlist ร่วมกับ dontAsk จึงเป็นการคอนฟิกแบบ Closed Configuration ที่เหมาะกับ Headless Agent: รันได้เฉพาะ Tool ที่ระบุ และปฏิเสธ Tool อื่นทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "โหมดอื่นๆ จะทำงานตรงกันข้าม: bypassPermissions จะปล่อยให้ Tools รันได้โดยไม่ต้อง Prompt (ยกเว้น Actions พิเศษบางอย่าง) หากนำไปใช้คู่กับ Denylist เช่น Edit, Write และ Bash จะกลายเป็นแบบ Fail Open คือ Tool ใดๆ ที่ลืมใส่ไว้ในรายการจะถูกรันได้ทันที ส่วน acceptEdits จะ Auto-approve การแก้ไฟล์และจัดการ Filesystem ซึ่งเป็นสิ่งที่ไม่ควรมีใน Read-only Agent และ allowedTools: [\"*\"] จะ Pre-approve ทุกสิ่งล่วงหน้า ในการทำ Bloat Review รูปแบบเหล่านี้ถือเป็นการขยาย Attack Surface แทนที่จะจำกัดสิทธิ์"
+        },
+        {
+          "type": "paragraph",
+          "text": "Skills ก็ถือเป็นส่วนหนึ่งของ Tool Surface เช่นกัน Skill คือชุดคำสั่งแบบ Reusable ที่เก็บในไฟล์ SKILL.md ภายใต้โฟลเดอร์ skills/<name>/ ไฟล์จะขึ้นต้นด้วย Frontmatter ที่มี name: และ description: คั่นด้วยเครื่องหมาย --- ตามด้วยตัวคำสั่ง เมื่อเริ่ม Session ตัว Claude จะโหลดเฉพาะ Description สั้นๆ ของแต่ละ Skill เข้า Context ส่วนเนื้อหาฉบับเต็มจะถูกโหลดเข้ามาเมื่อ Skill นั้นถูกเรียกใช้งาน (ไม่ว่าจะเกิดจาก Claude เลือกใช้ตามความเหมาะสม หรือคนพิมพ์ /name) ดังนั้น ทุก Skill จึงเพิ่มรายการลงใน Listing นี้เสมอ ทั้งนี้ description และฟิลด์ when_to_use (Trigger Phrases หรือ Example Requests) จะถูกจำกัดความยาวรวมกันไว้ที่ 1,536 Characters เพื่อประหยัด Context หาก Skill ใดมี Side Effects และต้องการให้คนเป็นผู้ควบคุมการรัน ให้ระบุ disable-model-invocation: true ใน Frontmatter Claude จะไม่โหลด Skill นั้นอัตโนมัติหรือ Preload เข้า Subagents และจะรันได้เมื่อมีคนสั่งผ่าน /name เท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การเขียน Prompt ใน CLAUDE.md สั่งให้ Claude หลีกเลี่ยงหรือไม่ใช้ Tools บางตัว ถือเป็นการลด Tool Surface ได้ เหตุผลคือ Prompt ไม่สามารถตัดสิทธิ์การใช้งานได้ Tool Definitions ทั้งหมดจะยังคงค้างอยู่ใน Context และถูกเรียกใช้งานได้เสมอ วิธีการลด Capability ที่แท้จริงต้องทำผ่านการคอนฟิกระบบเท่านั้น เช่น Disconnect Server, กำหนด disallowedTools, ระบุ Scope ของ tools ให้แคบลง, กำหนด mcpServers บน Agent, ใช้โหมด dontAsk ร่วมกับ Allowlist หรือใส่ disable-model-invocation ใน Skills"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การใส่ชื่อ Tools ใน allowedTools จะเป็นการจำกัดให้ Agent ใช้งานได้แค่ Tools เหล่านั้น เหตุผลคือ allowedTools ทำหน้าที่แค่ Pre-approve สิทธิ์ล่วงหน้าเท่านั้น ไม่ได้บล็อก Tool อื่น การเรียก Tool นอกรายการจะหลุดไปเช็กกับ Permission Mode และ canUseTool ถ้าต้องการปิดกั้นแบบสมบูรณ์ ต้องใช้ Allowlist ควบคู่กับโหมด dontAsk หรือบล็อกด้วย disallowedTools | ไม่จริง: Subagent จะได้รับสิทธิ์ Tools ที่ถูกจำกัดให้แคบลงมาจาก Parent Agent โดยอัตโนมัติ เหตุผลคือถ้า Subagent Definition ไม่ได้ระบุฟิลด์ tools ไว้ มันจะ Inherit เครื่องมือทั้งหมดที่ Subagents มีสิทธิ์ใช้มาทันที หากต้องการกำหนดบทบาทเป็น Read-only จำเป็นต้องระบุ Scoped Tools ลงใน tools list ของตัว Subagent นั้นโดยตรง"
+        }
+      ]
+    },
+    {
+      "heading": "5. การเลือกวิธีแก้ปัญหาให้ตรงกับสาเหตุของ Context Bloat",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "วิธีแก้ปัญหา Bloat แต่ละวิธีออกแบบมาสำหรับแก้ปัญหาที่ต้นตอต่างกัน การวินิจฉัยปัญหาให้ถูกต้องจึงเป็นตัวกำหนดแนวทาง การทำ Merging, Namespacing และ Scoping จะเข้าไปเปลี่ยนชุดเครื่องมือที่ Agent ถือครอง ส่วนเทคนิคจัดการ Context อื่นๆ จะไม่แตะต้องชุดเครื่องมือ แต่จะปรับเปลี่ยนทิศทางการใช้ Token แทน ให้เลือกใช้วิธีการตามที่มาจริงของ Token หรือต้นตอของการเรียก Tool ผิดพลาด"
+        },
+        {
+          "type": "table",
+          "caption": "การจับคู่สาเหตุของปัญหาและวิธีแก้ไขที่ตรงจุด",
+          "headers": [
+            "สาเหตุของปัญหา",
+            "วิธีแก้ไข",
+            "ผลลัพธ์ที่เปลี่ยนไป"
+          ],
+          "rows": [
+            [
+              "เครื่องมือมีความทับซ้อนกัน หรือขอบเขตการทำงานคลุมเครือ",
+              "Consolidate and namespace",
+              "เครื่องมือน้อยลงและแบ่งขอบเขตชัดเจน ทำให้เลือกลงได้ง่ายขึ้น"
+            ],
+            [
+              "บทบาทหนึ่งถือครองเครื่องมือที่อีกบทบาทต้องใช้",
+              "Scope ด้วย tools, disallowedTools, mcpServers",
+              "Agent แต่ละตัวจะโหลดและเรียกใช้ได้เฉพาะเครื่องมือของตัวเองเท่านั้น"
+            ],
+            [
+              "มีชุดเครื่องมือขนาดใหญ่ (20+ tools) แต่ละ Turn ใช้จริงแค่ไม่กี่ตัว",
+              "Tool search",
+              "เก็บ Definition ไว้นอก Context จนกว่า Claude จะ Search หามาใช้"
+            ],
+            [
+              "ชุดเครื่องมือมีขนาดใหญ่แต่คงที่ และถูกส่งไปพร้อมกับ Request จำนวนมาก",
+              "Prompt caching",
+              "ลดต้นทุนการส่ง Definition ซ้ำๆ แต่จำนวน Token ยังคงเดิม"
+            ],
+            [
+              "บล็อก tool_result เก่าๆ สะสมมากขึ้นเรื่อยๆ ในบทสนทนาขนาดยาว",
+              "Context editing",
+              "ตัดผลลัพธ์เก่าที่ล้าสมัยออกจาก History"
+            ],
+            [
+              "การเรียก Tool ย่อยๆ ต่อเนื่องเป็นลูกโซ่ที่สามารถยุบเป็น Script เดียวได้",
+              "Programmatic tool calling",
+              "ผลลัพธ์ระหว่างทางจะไม่ถูกนำเข้าสู่บทสนทนา"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Programmatic tool calling จะแทนที่การเรียก Tool ต่อเนื่องหลายๆ ครั้งด้วย Script ชุดเดียว จากเดิมที่ต้องสลับส่ง tool_use และ tool_result ไปมา 5 รอบ Claude จะเขียนโค้ดบล็อกเดียวเพื่อเรียกใช้ทั้ง 5 ฟังก์ชัน แล้วรันบน Code Execution Sandbox ของ Anthropic โดยส่งเฉพาะผลลัพธ์สุดท้ายของ Script กลับมายังบทสนทนา ทำให้ผลลัพธ์ระหว่างทางไม่เข้ามารก History เหมาะกับ Chain ของ Tool ย่อยๆ ที่เรียกซ้ำและรันแบบ Batch ได้ แต่ไม่ได้ช่วยแก้ปัญหาเรื่อง Toolset ที่มีขนาดใหญ่เกินไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tool search ช่วยแก้ปัญหาการมี Tool Definition ใน Context มากเกินไป ไม่ได้แก้ปัญหาเรื่อง Tool ที่ทับซ้อนกัน โดย [Tool search (defer_loading, tool_reference, ENABLE_TOOL_SEARCH)](lesson:3.8) จะชะลอการโหลด Definition ไว้จนกว่า Claude จะค้นหา แม้จะแลกกับ Latency เพิ่มขึ้น 1 Turn ในการค้นหา Tool แต่ช่วยประหยัด Baseline Context ได้มหาศาล เหมาะอย่างยิ่งเมื่อมี Catalogue ขนาดใหญ่มากและแต่ละ Request ใช้เพียงไม่กี่ชิ้น แต่จะไม่ช่วยอะไรเลยหาก Tool 2 ชิ้นมีขอบเขตทับซ้อนกัน เพราะเมื่อ Search แล้วเจอทั้งคู่ Claude ก็จะสับสนในการเลือกเหมือนเดิม ดังนั้นปัญหาความทับซ้อนจึงต้องแก้ด้วย Merging และ Namespacing เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Prompt caching เป็นอีกหนึ่งวิธีที่มักถูกนำไปใช้ผิดวัตถุประสงค์ วิธีนี้ไม่ได้ช่วยลดจำนวน Token ใน Context ลง แต่ช่วยลดค่าใช้จ่ายของ Token ใน Request ถัดๆ ไป ดังนั้น Toolset ขนาดใหญ่ที่คงที่จะมีค่าใช้จ่ายถูกลง แต่ยังคงกินพื้นที่ Context Window และ Budget ด้านความสนใจ (Attention) เท่าเดิม ให้เลือกใช้เมื่อเจอปัญหาเรื่องค่าใช้จ่าย แต่หากปัญหาเกิดจากความแม่นยำในการเลือก Tool หรือ Context กำลังจะเต็ม ให้แก้ด้วยการ Merge, Scope หรือ Defer แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "วิธีแก้ปัญหาเหล่านี้สามารถใช้งานร่วมกันได้อย่างลงตัว สำหรับ Agent ที่รองรับ High-volume ลำดับขั้นตอนที่เหมาะสมคือเริ่มทำ Cache สำหรับ Tool Definition ตั้งแต่วันแรก จากนั้นเพิ่ม Tool search เมื่อชุดเครื่องมือเริ่มเกินประมาณ 20 ตัวหรือเริ่มเห็นการกิน Baseline Context ชัดเจน และค่อยเพิ่ม Context editing เมื่อบทสนทนายาวขึ้นจนผลลัพธ์ก่อนหน้าหมดความสำคัญ ทั้งนี้การทำ Merging และ Scoping ต้องทำเป็นอันดับแรกก่อนวิธีทั้งหมด เพราะ Tool ที่ถูกตัดออกไปตั้งแต่ต้น ย่อมไม่ต้องเสียต้นทุนในการ Defer, Cache หรือ Trim"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การเปิดใช้ Tool search ช่วยแก้ปัญหา Agent เลือก Tool ผิดเมื่อมี Tool สองตัวที่ทำงานคล้ายกันได้ (เพราะ Tool search ช่วยลดเฉพาะ Definition ที่โหลดล่วงหน้าใน Context แต่ไม่ได้ช่วยแยกขอบเขตของ Tool ที่ทับซ้อนกันหรือคลุมเครือ ซึ่งผลการค้นหาอาจคืนค่าทั้งสองตัวกลับมา ปัญหาความทับซ้อนต้องแก้ด้วย Merging และ Namespacing เท่านั้น)\n\nคำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การทำ Prompt caching กับ Toolset ขนาดใหญ่ช่วยแก้ปัญหา Context bloat ได้ (เพราะ Caching ช่วยลดเพียงค่าใช้จ่ายของ Definition ที่ส่งซ้ำ แต่ Token ทั้งหมดยังคงอยู่ใน Context ทำให้ไม่ได้ช่วยเพิ่มความแม่นยำในการเลือก Tool หรือเพิ่มพื้นที่ว่างใน Context Window ให้กับงานเลย)"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56754",
+      "question": "นักพัฒนาต้องการสร้าง Agent สำหรับทำ Code Review โดยมีเงื่อนไขว่าต้องไม่แก้ไขไฟล์หรือรันคำสั่ง Shell โดยเด็ดขาด แม้ว่า Claude จะประเมินว่าควรทำก็ตาม และต้องไม่ถอยกลับไปขอ Interactive Approval เพราะทำงานแบบ Headless บนระบบ CI การตั้งค่า configuration ใดตอบโจทย์นี้?",
+      "options": [
+        "กำหนด allowedTools: [\"Read\", \"Glob\", \"Grep\"] ร่วมกับ permissionMode: \"dontAsk\" เพื่อให้อนุญาตเฉพาะ Tools ที่ระบุไว้ และปฏิเสธ (Deny) รายการอื่นๆ ทั้งหมดทันที",
+        "กำหนด disallowedTools: [\"Edit\", \"Write\", \"Bash\"] ร่วมกับ permissionMode: \"bypassPermissions\" เพื่อบล็อก Tools ที่ระบุ ในขณะที่ Tools อื่นๆ ยังทำงานได้โดยไม่ต้องขออนุญาต",
+        "กำหนด allowedTools: [\"Read\", \"Glob\", \"Grep\"] ร่วมกับ permissionMode: \"default\" เพื่อให้ Tools ที่ไม่ได้ระบุถูกส่งต่อไปยัง canUseTool callback เพื่อขอยืนยัน",
+        "กำหนด permissionMode: \"acceptEdits\" โดยไม่ใส่รายการ allowedTools เพื่อให้การดำเนินการกับไฟล์ได้รับการอนุมัติล่วงหน้า แต่ Bash ยังคงต้องขอการยืนยัน"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56757",
+      "question": "Lead Agent ถูกกำหนด allowedTools: [\"Read\", \"Write\", \"Edit\", \"Bash\", \"Agent\"] สำหรับงาน Development กว้างๆ ของตัวเอง ขณะเดียวกันทีมต้องการสร้าง Code-reviewer Subagent ให้ทำได้แค่อ่านและค้นหาโค้ดเท่านั้น โดยห้ามเขียนไฟล์หรือรันคำสั่ง Shell ไม่ว่า Lead Agent จะมีสิทธิ์อะไรก็ตาม ควรตั้งค่า Subagent อย่างไรเพื่อบังคับใช้ข้อจำกัดนี้?",
+      "options": [
+        "กำหนดฟิลด์ tools: [\"Read\", \"Glob\", \"Grep\"] ใน AgentDefinition ของ Subagent นั้นๆ โดยแยกเป็นอิสระจาก allowedTools ของ Lead Agent",
+        "ใช้ allowedTools ของ Lead Agent ได้เลย เนื่องจาก Subagent จะสืบทอดสิทธิ์แบบ Strict Subset จาก Tools ที่ Lead Agent ได้รับอนุญาตเสมอ",
+        "ระบุใน CLAUDE.md ว่า Role ของ Reviewer เป็น Read-only เนื่องจาก Subagent จะโหลด Tool Permissions เดียวกันกับ Session ที่เรียกใช้งาน",
+        "กำหนด permissionMode ของ Lead Agent เป็น \"plan\" ทุกครั้งที่เรียก Code-reviewer Subagent ซึ่งจะจำกัดสิทธิ์การเข้าถึง Tools ของ Subagent นั้นโดยเฉพาะ"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56762",
+      "question": "ในการทำ Capability-bloat Review สำหรับ Agent Configuration ข้อใดต่อไปนี้ช่วยลด Tool Surface ที่ไม่จำเป็นของ Agent ได้อย่างถูกต้อง? (เลือกทุกข้อที่ถูกต้อง)",
+      "options": [
+        "ตัดการเชื่อมต่อ MCP Servers ที่ไม่เคยถูกเรียกใช้ในกระบวนการ Triage จริงของ Agent เพื่อนำออกจาก Session ทั้งหมด",
+        "จำกัดขอบเขตของ Deny Rules ไปยัง MCP Server แต่ละตัว เช่น disallowedTools: [\"mcp__legacy__*\"] แทนการเปิดให้เข้าถึงได้ทุก Server",
+        "ตั้งค่า disable-model-invocation: true บน Skill ใดก็ตามที่มีการทำ Side-effecting Action เพื่อให้ผู้ใช้เป็นคนสั่งรันแบบ Manual เท่านั้น",
+        "เพิ่มข้อความใน CLAUDE.md เพื่อขอให้ Claude หลีกเลี่ยงการใช้ Tools ที่ไม่เกี่ยวข้อง โดยยังคงเชื่อมต่อทุก MCP Server และ Tool Definition ไว้ตามเดิม",
+        "ตั้งค่า permissionMode: \"bypassPermissions\" เพื่อไม่ให้ผู้ตรวจสอบเห็น Prompt ขออนุมัติซ้ำๆ ในระหว่างทดสอบ Workflow",
+        "ให้สิทธิ์ allowedTools: [\"*\"] ควบคู่กับ disallowedTools สำหรับคำสั่งอันตราย เพื่อให้ Tools ส่วนใหญ่ได้รับการอนุมัติล่วงหน้าเป็นค่าเริ่มต้น"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,214 @@
+{
+  "title": "HIPAA, BAA และ Zero Data Retention สำหรับ Claude",
+  "objectives": [
+    "ระบุผู้ประมวลผล Prompts และ Outputs ในแต่ละแพลตฟอร์มของ Claude พร้อมทำความเข้าใจเงื่อนไขของมาตรการควบคุมที่เกี่ยวข้อง",
+    "ระบุขอบเขตและข้อยกเว้นของ Zero Data Retention (ZDR) พร้อมอธิบายสาเหตุที่ API ไม่ได้บล็อกฟีเจอร์ที่ไม่รองรับ ZDR โดยอัตโนมัติ",
+    "ตั้งค่า HIPAA Readiness, คาดการณ์ Request ที่ API จะปฏิเสธ และจัดการให้ข้อมูล PHI อยู่ภายใต้การคุ้มครองของ BAA",
+    "ประเมินสภาพแวดล้อมที่ Workflow สำหรับ PHI สามารถทำงานได้อย่างถูกต้องตามกฎหมาย และกำหนดให้บาง Workspace ที่เปิดใช้ ZDR เรียกใช้ Covered Model ได้โดยไม่กระทบ Workspace อื่น"
+  ],
+  "key_concept": "Data Processor — ผู้รับผิดชอบประมวลผล Prompts และ Outputs จะขึ้นอยู่กับแพลตฟอร์มที่เรียกใช้ Claude โดยบน Claude API, Claude Platform บน AWS และ Microsoft Foundry จะเป็น Anthropic ส่วน Amazon Bedrock และ Agent Platform ของ Google Cloud จะเป็นผู้ให้บริการคลาวด์ ทั้งนี้นโยบาย Data Retention และ BAA ของ Anthropic จะครอบคลุมเฉพาะข้อมูลที่ Anthropic เป็นผู้ประมวลผลเท่านั้น",
+  "sections": [
+    {
+      "heading": "1. ใครเป็นผู้ประมวลผลข้อมูล (Processor) คือตัวกำหนดเงื่อนไข Compliance",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ประเด็นด้าน Compliance ของ Claude เริ่มต้นจากจุดเดียวเสมอ: ใครเป็นผู้ประมวลผลข้อมูล (Data Processor) ใน Deployment นั้น หากใช้งานผ่าน Claude API (api.anthropic.com), Claude Platform on AWS หรือ Claude in Microsoft Foundry ทาง Anthropic จะเป็นผู้ประมวลผล Prompts และ Outputs เองโดยตรง นั่นหมายความว่าข้อกำหนดการจัดการข้อมูล 2 รูปแบบของ Anthropic ได้แก่ Zero Data Retention (ZDR) และ HIPAA readiness คือ Controls ที่คุณต้องขอและตั้งค่าเอง ส่วนบน Amazon Bedrock และ Google Cloud Agent Platform ตัว Cloud Provider จะเป็นผู้ประมวลผล Controls ที่เทียบเท่ากันจึงต้องดูจาก Retention และ Compliance Documentation ของผู้ให้บริการรายนั้นๆ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Platform on AWS คือจุดที่คนมักเข้าใจผิดบ่อยที่สุด แม้จะเรียกเก็บเงินผ่าน AWS Marketplace และเปิดใช้งานจาก AWS Console แต่ Anthropic เป็นผู้ดำเนินการระบบทั้งหมด และใช้ Data Retention Policy เดียวกันกับ First-party API ในขณะที่ Bedrock นั้น AWS จะเป็นผู้รัน Inference เอง หากแยกแยะ Deployment ผิดฝั่ง คุณจะอ้างอิงข้อกำหนด Compliance ผิดเจ้าทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "มีข้อตกลงพื้นฐานบางอย่างที่มีผลบังคับใช้เสมอแม้ไม่ได้ขอทั้งสองเงื่อนไขข้างต้น: ข้อมูลที่ Retained จะไม่มีวันถูกนำไปใช้เทรน Model โดยไม่ได้รับอนุญาตโดยชัดแจ้ง และ Conversation Content จะไม่ถูกเก็บไว้เป็นค่าเริ่มต้น (Default) ข้อยกเว้นคือ Covered Models ซึ่งมีข้อกำหนดต้องเก็บข้อมูลไว้ 30 วัน ทั้งนี้ หากฟีเจอร์ใดจำเป็นต้องจัดเก็บข้อมูล ให้ตรวจสอบระยะเวลา Retention จากหน้าเอกสารของฟีเจอร์นั้นๆ"
+        }
+      ]
+    },
+    {
+      "heading": "2. ขอบเขตของ Zero Data Retention (ZDR) และประเภท Request ที่ระบบไม่บล็อก",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ภายใต้เงื่อนไข ZDR ทาง Anthropic จะไม่เก็บ Prompts หรือ Responses ไว้ที่ At-rest Storage เลยหลังจากส่ง API Response กลับไปแล้ว คุณต้องยื่นขอ ZDR ผ่านทีมขายของ Anthropic และระบบจะเปิดใช้งานแยกเป็นราย Organization หากสร้าง Organization ที่สองภายใต้ Account เดียวกัน จะไม่ได้รับสิทธิ์ ZDR ตามไปด้วยโดยอัตโนมัติ ต้องให้ Account Team เปิดใช้งานแยกต่างหาก"
+        },
+        {
+          "type": "paragraph",
+          "text": "ZDR ครอบคลุมการใช้งานดังต่อไปนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Messages API และ Token Counting API สำหรับฟีเจอร์ที่ระบุว่า Eligible ใน Feature Eligibility Table\n- Claude Code ที่ใช้ API Keys จาก Commercial Organization ยกเว้นส่วน Metrics Logging: หากเปิดไว้ Usage Statistics จะได้รับการยกเว้นและอาจถูกจัดเก็บ\n- Claude Platform on AWS โดยต้องยื่นขอผ่าน Anthropic Account Representative"
+        },
+        {
+          "type": "paragraph",
+          "text": "ZDR ไม่ครอบคลุม Claude Console (รวมถึง Playground), Claude Managed Agents (Session Transcripts จะคงอยู่จนกว่าคุณจะสั่งลบ), แพ็กเกจระดับ Consumer (Free, Pro และ Max), ส่วน Interface ของ Claude Teams และ Enterprise, Claude for Excel หรือ Third-party Integrations ต่างๆ สำหรับ Claude Code บน Claude Enterprise จะมี ZDR Offering แยกเฉพาะของตัวเอง นอกจากนี้ ZDR Organizations จะไม่รองรับ CORS ดังนั้น Browser Apps จะต้องยิง Request ผ่าน Backend Proxy เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "ZDR เป็นเพียงข้อสัญญาในการจัดเก็บข้อมูล (Storage) ไม่ใช่ Request Filter ฟีเจอร์ที่ระบุว่า \"No\" มักเป็น Stateful: เช่น มีการเก็บ Jobs, Files หรือ Container State จึงไม่สามารถทำ Zero-retention ได้ แต่ตัว API จะยังคงรับ Request ตามปกติ ดังนั้นจึงไม่มีอะไรมาห้าม Developer ไม่ให้เรียกใช้ Code Execution ใน ZDR Workload หากต้องการให้ Workload เป็น ZDR 100% ทีมของคุณต้องตรวจสอบและควบคุมกันเอง เพราะตัว API จะไม่ช่วยบล็อกให้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ภายใต้ ZDR ตัว API จะไม่ปฏิเสธ (Reject) Request ที่ใช้ Non-eligible Features มีเพียงเงื่อนไข HIPAA readiness เท่านั้นที่จะ Reject Request ทันที สำหรับ ZDR นั้น Request จะยังคงทำงานได้ตามปกติ แต่ข้อมูลของฟีเจอร์ดังกล่าวจะอยู่ภายใต้ Retention Policy ประจำฟีเจอร์นั้นแทน"
+        }
+      ]
+    },
+    {
+      "heading": "3. HIPAA Readiness: BAA และข้อจำกัดฟีเจอร์ที่ API บังคับใช้",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "HIPAA Readiness คือข้อกำหนดสำหรับองค์กรที่ต้องประมวลผลข้อมูลสุขภาพที่ได้รับการคุ้มครอง (Protected Health Information: PHI) โดยจำเป็นต้องเซ็น Business Associate Agreement (BAA) และเปิดใช้งานสถานะ HIPAA บน Organization ทั้งนี้ กลไกการทำงานไม่ใช่การลบข้อมูลทิ้งทันที แต่เป็นการใช้มาตรการความปลอดภัยที่เข้มงวดและครอบคลุมกว่า ZDR ทั้ง Encryption, Access Controls และ Audit Logging องค์กรที่ประมวลผล PHI จึงใช้เพียง HIPAA Readiness ได้โดยไม่จำเป็นต้องเปิดใช้ ZDR ควบคู่กัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "องค์กรส่วนใหญ่สามารถเปิดใช้งานได้เองแบบ Self-serve ผ่าน Claude Console ในหน้า Data retention (platform.claude.com/settings/privacy) โดย Organization Admin ที่มีสิทธิ์ HIPAA Management จะเห็นการ์ด HIPAA Compliance สำหรับดาวน์โหลด BAA และ HIPAA Implementation Guide จากนั้นให้ตัวแทนทางกฎหมายที่มีอำนาจลงนามกดยอมรับข้อตกลง สิทธิ์การใช้งานจะผูกกับเวอร์ชัน BAA ที่ดาวน์โหลดโดยตรง มีผลบังคับใช้ทันทีและเป็นการตั้งค่าแบบถาวร (Admin ไม่สามารถปิดได้ในภายหลัง) ส่วนองค์กรที่ต้องการปรับแก้สัญญา BAA จะต้องดำเนินการผ่านทีม Sales เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อเปิดใช้งาน HIPAA Readiness แล้ว ระบบ API จะบังคับใช้ Enforce ตาม Eligible Feature List หาก Request ใดมีการเรียกใช้ฟีเจอร์ที่ไม่เข้าเกณฑ์ จะถูก Reject กลับมาด้วย 400 Error พร้อมระบุชื่อฟีเจอร์ที่มีปัญหาทันที วิธีแก้คือตัดฟีเจอร์นั้นออกแล้วยิง Request ใหม่อีกครั้ง ทั้งนี้ แม้ข้อความ Error จะระบุว่า \"without Zero Data Retention\" แต่เป็นเพียง Wording ของ API การเปิด ZDR จะไม่ช่วยแก้ปัญหานี้ ข้อยกเว้นเดียวคือ Client-side Tools ที่สถานะระบุว่าไม่ถูกบล็อกจะยังส่ง Request ได้ตามปกติ แต่การทำงานจะอยู่นอกขอบเขตความคุ้มครองของ HIPAA Readiness"
+        },
+        {
+          "type": "paragraph",
+          "text": "ระบบจะคุ้มครอง PHI เฉพาะในตำแหน่งที่กำหนดเท่านั้น ได้แก่ Message Content, รูปภาพและไฟล์ PDF ที่แนบ รวมถึง File Name และ Metadata ที่ผูกกับ Message ส่วน Workspace Name, ข้อมูล User, Billing Data และ Support Ticket ระบบไม่ได้ออกแบบมาให้รองรับ PHI นอกจากนี้ JSON Schemas ถือเป็นจุดอันตราย (Trap) สำคัญ เพราะเมื่อใช้งาน Structured Outputs หรือ Tools แบบ strict: true ทาง API จะ Compile แต่ละ Schema เป็น Grammar และแคชแยกไว้โดยไม่มีการป้องกันระดับ PHI จึงต้องระวังห้ามใส่ข้อมูลผู้ป่วยลงใน Property Names, Enum Values, Const Values และ Pattern Regex เด็ดขาด"
+        },
+        {
+          "type": "table",
+          "caption": "ความแตกต่างระหว่าง Zero Data Retention และ HIPAA Readiness บน Claude API Organization",
+          "headers": [
+            "หัวข้อ",
+            "Zero Data Retention",
+            "HIPAA Readiness"
+          ],
+          "rows": [
+            [
+              "การจัดการ Prompts และ Outputs",
+              "ไม่เก็บข้อมูลที่ Rest หลังส่ง Response เสร็จสิ้น",
+              "คุ้มครองข้อมูลด้วย Encryption, Access Controls และ Audit Logging แทนการลบข้อมูลทิ้งทันที"
+            ],
+            [
+              "วิธีการเปิดใช้งาน",
+              "ส่งคำขอผ่าน Anthropic Sales โดยเปิดใช้แยกเป็นราย Organization",
+              "เปิดใช้งานแบบ Self-serve ได้เองผ่านหน้า Console Data retention ด้วย BAA มาตรฐาน หรือติดต่อ Sales หากต้องเจรจาสัญญา"
+            ],
+            [
+              "เมื่อ Request มีฟีเจอร์ที่ไม่เข้าเกณฑ์ (Ineligible)",
+              "ยอมรับ Request โดยข้อมูลส่วนนั้นจะใช้ Retention Policy ตามฟีเจอร์นั้นๆ",
+              "ปฏิเสธ Request ด้วย 400 invalid_request_error ทันที"
+            ],
+            [
+              "การรองรับบน Claude Platform บน AWS และ Microsoft Foundry",
+              "รองรับ ZDR บน Claude Platform บน AWS เมื่อส่งคำขอ",
+              "ไม่รองรับ (Not available)"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "Organization ที่รองรับ HIPAA ต้องเปิดใช้งาน Zero Data Retention ด้วยเสมอ โดยเฉพาะเมื่อมี Error 400 ที่ระบุว่า \"without Zero Data Retention\"? (ทำไมถึงผิด): ไม่จริง: HIPAA Readiness มีมาตรการคุ้มครอง PHI ของตัวเองโดยไม่จำเป็นต้องลบข้อมูลทิ้งทันที และข้อความใน Error ไม่ได้หมายความว่าต้องเปิด ZDR วิธีแก้ทางเทคนิคที่ถูกต้องคือตัดฟีเจอร์ที่ไม่รองรับออกจาก Request"
+        }
+      ]
+    },
+    {
+      "heading": "4. ขอบเขตความคุ้มครอง PHI ภายใต้สัญญา BAA",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเซ็น BAA ไม่ได้ครอบคลุมผลิตภัณฑ์ Claude ทุกตัว แต่จะคุ้มครองเฉพาะ Organization ที่กดยอมรับสัญญา และเฉพาะฟีเจอร์ที่ระบุว่าเข้าเกณฑ์ (Eligible) เท่านั้น กรณีการใช้งานเหล่านี้ถือว่าอยู่นอกเหนือความคุ้มครอง แม้บริษัทจะเซ็น BAA แล้วก็ตาม:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Claude Console: แม้จะเปิด HIPAA Readiness ผ่าน Console Settings ได้ แต่การส่ง PHI ผ่านหน้า UI ของ Console รวมถึง Workbench จะไม่อยู่ในความคุ้มครอง\n- Consumer Plans: ไม่ครอบคลุม Claude Free, Pro และ Max ดังนั้นการที่บุคลากรทางการแพทย์แชร์บัญชี Pro เพื่อเปิดดูประวัติคนไข้จึงถือว่าผิดข้อตกลงและไม่ได้รับการคุ้มครอง\n- Claude Enterprise ก่อนเปิดใช้งาน: แผน Enterprise ทั่วไปยังไม่มีผลคุ้มครอง BAA จนกว่า Primary Owner จะเข้าไปเปิด HIPAA Compliance ภายใต้เมนู Data and privacy และกดยอมรับ BAA ให้เรียบร้อย\n- Beta Features และ Third-party Integrations: ฟีเจอร์ทดลองและระบบเชื่อมต่อภายนอกมักถูกยกเว้น สำหรับ Enterprise Skills และ Connector ใดๆ ที่ส่งข้อมูลออกไปยัง Third Parties นั้น Admin ที่เป็นผู้เปิดใช้งานจะต้องรับผิดชอบต่อความเสี่ยงเองทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Production Pipeline เช่น Clinical Summarization สถาปัตยกรรมที่ถูกต้องและสอดคล้องตามกฎระเบียบคือการสร้าง Dedicated Organization ที่เปิดใช้ HIPAA Readiness แยกไว้เฉพาะ แล้วเรียกใช้งาน Claude API โดยเลือกใช้เฉพาะ Eligible Features เท่านั้น ซึ่งระบบจะคอยดักจับ 400 Error ป้องกันไม่ให้มีฟีเจอร์ที่ไม่ผ่านเกณฑ์หลุดรอดเข้ามาใน Request"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Code ไม่อยู่ภายใต้ความคุ้มครอง HIPAA Readiness ของ API Organization ทั่วไป แต่สามารถรองรับได้บนแผน Claude Enterprise ที่ตั้งค่า HIPAA Ready แล้วเท่านั้น โดยมีเงื่อนไขว่า Primary Owner ต้องบังคับใช้ HIPAA Configuration และ Developer ต้อง Sign-in ด้วยบัญชี Enterprise พร้อมเชื่อมต่อตรงไปยัง Claude API เท่านั้น การใช้ Managed Settings จะช่วยล็อกไม่ให้สามารถเชื่อมต่อผ่านช่องทางอื่นได้"
+        },
+        {
+          "type": "table",
+          "caption": "รูปแบบการเชื่อมต่อของ Claude Code ที่รองรับภายใต้ Enterprise HIPAA Configuration",
+          "headers": [
+            "รูปแบบการเชื่อมต่อของ Claude Code",
+            "สถานะความคุ้มครอง (Eligible)"
+          ],
+          "rows": [
+            [
+              "บัญชี Claude Enterprise เชื่อมต่อตรงไปยัง Claude API",
+              "Yes"
+            ],
+            [
+              "Amazon Bedrock, Google Cloud's Agent Platform, Microsoft Foundry, Claude Platform บน AWS หรือ Claude Apps Gateway",
+              "No"
+            ],
+            [
+              "LLM Gateway หรือการ Custom ค่า ANTHROPIC_BASE_URL อื่นๆ",
+              "No"
+            ],
+            [
+              "API Key จาก Claude Console หรือ Federation Credentials",
+              "No"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อเปิดใช้ Configuration นี้ Claude Code จะปิดฟีเจอร์ที่อาจส่งข้อมูลออกภายนอกทั้งหมดโดยอัตโนมัติ ได้แก่ WebFetch (แต่ Web Search ยังทำงานได้), Cloud Sessions, Remote Control, คำสั่ง /feedback, คำสั่ง /bug และการ Publish Artifact นอกจากนี้ MCP Tool Search จะถูกปิดใช้งาน ทำให้ต้องโหลด MCP Tools เข้า Context ล่วงหน้าตั้งแต่ต้นแทน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เมื่อบริษัทเซ็น BAA แล้ว จะสามารถส่ง PHI ผ่านผลิตภัณฑ์หรือ Interface ใดๆ ของ Claude ภายใต้ Organization เดียวกันได้ทันที เช่น Console Workbench หรือ Enterprise แบบ Default? (ทำไมถึงผิด): ไม่จริง: สัญญา BAA คุ้มครองเฉพาะ Eligible Features ของ Organization ที่ระบุไว้เท่านั้น โดยไม่รวมหน้า Console และสำหรับ Enterprise จะยังไม่มีผลคุ้มครองจนกว่า Primary Owner จะกด Activate HIPAA ด้วยตนเอง"
+        }
+      ]
+    },
+    {
+      "heading": "5. การใช้งาน Covered Model ภายในองค์กรที่เปิดใช้ ZDR",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Fable 5.1, Claude Mythos 5.1, Claude Fable 5 และ Claude Mythos 5 จัดเป็น Covered Models ซึ่งมีเงื่อนไขบังคับใช้นโยบายเก็บรักษาข้อมูล 30 วัน (30-day data retention) จึงไม่สามารถใช้งานภายใต้ ZDR ได้ เว้นแต่จะได้รับอนุญาตอย่างชัดเจนจาก Anthropic ทั้งนี้ API จะไม่เปิด retention ให้โดยอัตโนมัติ หากมี Request ยิงไปยังโมเดลเหล่านี้จาก Organization หรือ Workspace ที่ค่า retention ไม่ตรงตามเงื่อนไข ระบบจะ Reject ทันทีด้วย 400 error"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากต้องการ Pilot ทดสอบ Covered Model โดยไม่ยกเลิก ZDR ทั้งระบบ ให้ใช้การตั้งค่า Workspace-level override โดยไปที่หน้า Data retention บน Console เลือก Workspace ที่ต้องการจาก Dropdown แล้วเลือก Standard data retention (30-day retention) จากนั้นกดบันทึกและกดยอมรับข้อตกลงในหน้าต่างยืนยัน (การตั้งค่าจะมีผลเมื่อกดยอมรับแล้วเท่านั้น) หลังจากนั้น Request ไปยัง Covered Model จาก Workspace ดังกล่าวจะยิงผ่านได้ตามปกติ ขณะที่ Workspace อื่นที่ไม่มีการ Override จะยังคงยึดตาม ZDR ระดับ Organization เช่นเดิม ข้อควรระวัง: ห้ามใช้ Default Workspace ในการ Pilot เนื่องจากจะถูกบังคับให้ยึดค่าตามระดับ Organization เสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "อย่านำ HIPAA readiness มาแก้ปัญหานี้ เพราะ HIPAA readiness เป็นข้อตกลงสำหรับจัดการข้อมูล PHI ซึ่งเมื่อเปิดใช้งานแล้วจะไม่สามารถปิดได้ และไม่ได้มีไว้เพื่อปลดล็อกโมเดล โดยใน Enterprise plan ที่รองรับ HIPAA และตั้งค่าเรียบร้อยแล้ว สมาชิกจะสามารถใช้งาน Covered Models ใน Claude Code และ Cowork ได้ภายใต้ข้อตกลง BAA"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Admin สามารถเปิดทดลองใช้ HIPAA readiness ชั่วคราวเพื่อปลดล็อกโมเดล แล้วค่อยปิดทีหลังได้หรือไม่? (ทำไมถึงผิด): ไม่จริง: HIPAA readiness มีผลทันทีและเป็นการเปิดถาวร ไม่สามารถปิดย้อนหลังได้ หากต้องการทำ Pilot ทดสอบ Covered Model ทางออกที่ถูกต้องทางเทคนิคคือการทำ per-workspace 30-day retention override แทน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56945",
+      "question": "สตาร์ทอัพด้าน Digital Health ต้องการส่งข้อมูลสุขภาพที่ได้รับการคุ้มครอง (Protected Health Information หรือ PHI) จากแบบฟอร์มรับผู้ป่วยผ่าน Claude เพื่อสรุป Clinical Notes ทีม Compliance ยืนยันว่า Anthropic ได้ลงนามใน Business Associate Agreement (BAA) ร่วมกับบริษัทแล้ว แต่จำเป็นต้องเลือกว่าส่วนใดของ Product Surface ของ Claude ที่สามารถประมวลผล PHI ได้อย่างถูกต้องตามกฎหมาย การ Deployment รูปแบบใดที่สอดคล้องตามข้อกำหนดของ BAA?",
+      "options": [
+        "Dedicated HIPAA-enabled Organization ที่เรียกใช้งาน Claude API โดยเปิดใช้งานเฉพาะฟีเจอร์ที่ BAA-eligible เท่านั้น",
+        "อินเทอร์เฟซ Workbench ของ Claude Console เนื่องจากยืนยันตัวตน (Authenticate) ผ่าน Organization เดียวกันกับ API",
+        "การแชร์การสมัครใช้งาน Claude Pro ร่วมกันระหว่างทีมแพทย์ สำหรับการค้นหา Chart คนไข้แบบ Ad hoc อย่างรวดเร็วระหว่างออกตรวจ",
+        "Claude Enterprise Workspace ค่าเริ่มต้น โดยไม่เปิดใช้งานการตั้งค่า HIPAA ภายใต้หมวด Data & Privacy"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56946",
+      "question": "องค์กรวิศวกรรมแห่งหนึ่งทำงานภายใต้ข้อตกลง Zero Data Retention (ZDR) มีทีมหนึ่งต้องการทดลองใช้ Covered Model ที่จำเป็นต้องเก็บรักษาข้อมูล 30 วัน (30-day Data Retention) ภายใน Workspace เดียว โดยไม่กระทบต่อสถานะ ZDR ของส่วนอื่นๆ ในองค์กร พวกเขาควรดำเนินการอย่างไร?",
+      "options": [
+        "เปิดใช้งาน 30-day Data Retention ใน Privacy Controls ของ Workspace นั้น ในขณะที่ Workspace อื่นๆ ยังคงใช้ ZDR ตามเดิม",
+        "ร้องขอให้ Anthropic ปิดการใช้งาน ZDR ทั้งองค์กร เพื่อให้ทุก Workspace สามารถเรียกใช้ Covered Model ได้",
+        "สลับ Workspace นั้นไปยังข้อตกลงแบบ HIPAA-ready แทน ZDR เพื่อปลดล็อก Covered Model",
+        "ส่งคำขอ (Requests) ภายใต้ ZDR ต่อไป และปล่อยให้ API ใช้นโยบาย Retention 30 วันกับ Workspace นั้นโดยอัตโนมัติ"
+      ],
+      "explanation": ""
+    }
+  ]
+}

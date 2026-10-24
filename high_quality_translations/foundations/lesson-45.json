@@ -1,0 +1,259 @@
+{
+  "title": "Built-in Tools, Custom Tools, Skills และ MCP: เลือกวิธีขยายขีดความสามารถของ Claude",
+  "objectives": [
+    "จำแนก Client Tools, Server Tools ที่ Anthropic ให้มา และ User-defined Tools จากผู้เขียน Schema และตำแหน่งที่โค้ดรัน",
+    "ตัดสินใจว่าเมื่อใด Built-in Tools ของ Agent เพียงพอ และเมื่อใดที่คุ้มค่าแก่การสร้าง Custom Tool",
+    "อธิบายว่า Progressive Disclosure ของ Skill ช่วยลดการโหลด Know-how ที่ไม่จำเป็นลงใน Context Window ได้อย่างไร",
+    "เลือกใช้ MCP, Skill หรือใช้ร่วมกันให้เหมาะกับโจทย์ พร้อมอธิบายผลกระทบต่อ Context Cost ของแต่ละแบบ"
+  ],
+  "key_concept": "Connections vs Know-how — Tools และ MCP Servers ให้ Claude เรียกใช้เพื่อ execute โค้ด (ทั้งแบบ local หรือ external system) ส่วน Skills ให้ Claude อ่านและปฏิบัติตามคู่มือหรือ reference โดยโหลดเฉพาะตอนที่จำเป็นต้องใช้ ซึ่งในระบบจริงมักต้องใช้งานร่วมกัน",
+  "sections": [
+    {
+      "heading": "1. เลือก Built-in tools ก่อน แล้วจึงใช้ Custom tools สำหรับ Domain Actions",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "คุณสามารถต่อขยายความสามารถของ Claude ได้ 4 ทาง: Tools สำเร็จรูปที่ Anthropic เตรียมไว้ให้, Tools ที่เขียนขึ้นเอง, Skills สำหรับเก็บ Know-how/Procedure และ MCP servers สำหรับเชื่อมต่อระบบภายนอก หากเลือกผิด คุณจะเสีย 2 อย่าง: เสียเวลาเขียน Code โดยไม่จำเป็น หรือเสีย Context window ไปโดยเปล่าประโยชน์ การแบ่งชั้นแรกเริ่มที่ Tool use ซึ่งเปิดให้ Claude เรียก Functions ที่คุณกำหนดเองหรือที่ Anthropic จัดเตรียมไว้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tools ที่ Anthropic จัดเตรียมไว้มี 2 ประเภท โดยแยกกันตาม \"จุดที่ Code ทำงาน\": Server tools เช่น web_search, web_fetch และ code_execution จะรันบน Infrastructure ของ Anthropic คุณจึงไม่ต้องเขียน Handler ฝั่ง Application ส่วน Anthropic-schema client tools เช่น bash และ text_editor จะทำงานต่างออกไป คือ Anthropic ออกแบบ Schema และเทรน Claude มาสำหรับสิ่งนี้ แต่ Application ของคุณยังคงเป็นตัวรันคำสั่งจริงและส่ง tool_result กลับไป ดังนั้นคำว่า \"Built-in\" บอกเพียงว่าใครเป็นผู้ออกแบบ แต่ไม่ได้บอกว่าใครเป็นผู้ Execute"
+        },
+        {
+          "type": "table",
+          "caption": "Tools 3 ประเภท จำแนกตามผู้ออกแบบ Schema และผู้ Execute คำสั่ง",
+          "headers": [
+            "ประเภท (Kind)",
+            "ผู้ออกแบบ Schema",
+            "ผู้ Execute คำสั่ง",
+            "ตัวอย่าง"
+          ],
+          "rows": [
+            [
+              "User-defined client tool",
+              "คุณ (Developer)",
+              "Application ของคุณ",
+              "get_weather"
+            ],
+            [
+              "Anthropic-schema client tool",
+              "Anthropic",
+              "Application ของคุณ",
+              "bash, text_editor"
+            ],
+            [
+              "Server tool",
+              "Anthropic",
+              "Infrastructure ของ Anthropic",
+              "web_search, web_fetch, code_execution, tool_search"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เริ่มต้นด้วย Built-in tools เสมอ ทั้ง Claude Code และ Agent SDK มี Tools สำหรับงานพื้นฐานของ Agent มาให้อยู่แล้ว เช่น Read, Edit, Write, Bash, Grep, Glob, WebFetch เป็นต้น สำหรับ SDK คุณสามารถเปิดใช้งานตามชื่อผ่าน allowed_tools หากมีงาน Refactor สั้นๆ ที่ต้องอ่านไฟล์ รัน Shell commands และค้นหา Codebase งานนี้ไม่จำเป็นต้องเขียน Code เพิ่มเลย ลำพังแค่ Bash ก็ยืดหยุ่นพอให้ Agent ทำงาน General-purpose บนเครื่องได้แล้ว นอกจากนี้ยังสามารถจำกัดจำนวน Built-in tools ได้ด้วยการส่ง Array เฉพาะตัวที่ต้องการ เพื่อไม่ให้ Tools ส่วนเกินเข้าไปเปลือง Context ของ Claude"
+        },
+        {
+          "type": "paragraph",
+          "text": "Custom tool ควรสร้างขึ้นเฉพาะเมื่อ Action นั้นเป็น Domain logic เฉพาะของคุณและ Agent ต้องเรียกใช้บ่อยๆ โครงสร้างของ Custom tool ประกอบด้วย name, description และ input_schema โดยฝั่ง Application ของคุณจะเป็นผู้รันคำสั่ง ใน Agent SDK คุณสามารถลงทะเบียน Custom tools ผ่าน In-process MCP server เพื่อให้ Claude เรียกใช้ Functions, ยิง API หรือจัดการ Business logic เฉพาะทาง ตัวอย่างคลาสสิกคือ Email agent ที่ต้องทำ fetchInbox และ searchEmails ซ้ำๆ จึงเหมาะที่จะทำเป็น Tools ทั้งนี้ควรคุมจำนวน Tools ให้น้อยเข้าไว้ เช่น แทนที่จะแยกเป็น create_pr, review_pr และ merge_pr ให้รวมเป็น Tool เดียวแล้วใช้ action parameter แยกย่อย ยิ่ง Tools น้อย Claude ยิ่งเลือกได้แม่นยำและลดความสับสนลง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ในเมื่อ Anthropic เป็นผู้กำหนด Schema ของ bash และ text_editor ตัว Anthropic ก็น่าจะเป็นผู้ Execute คำสั่งเหล่านั้นเองใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: ทั้งสองเป็น Client tools แม้ Anthropic จะเป็นผู้กำหนด Schema แต่ Application ของคุณยังคงต้องรันคำสั่งในเครื่องและส่ง tool_result กลับไป มีเพียง Server tools อย่าง web_search เท่านั้นที่รันบนระบบของ Anthropic"
+        }
+      ]
+    },
+    {
+      "heading": "2. Skills: คลังความรู้และขั้นตอนการทำงานที่โหลดเฉพาะเมื่อจำเป็น",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Skill จะแพ็ก \"ขั้นตอนการทำงาน (Procedure)\" ไม่ใช่การทำ Action เดี่ยวๆ โครงสร้างของมันคือ Directory ที่มีไฟล์ SKILL.md สำหรับเก็บ Instructions และ Metadata ร่วมกับ Scripts, Templates หรือ Reference files เสริม โดย Claude จะหยิบมาใช้โดยอัตโนมัติเมื่องานตรงกับเงื่อนไข เนื้อหาทั่วไปมักเป็น Deployment checklist, Code review workflow หรือ API style guide ซึ่งช่วยลดภาระการคัดลอก Prompt เดิมๆ วางใน Chat ทุกครั้งที่เริ่ม Session"
+        },
+        {
+          "type": "paragraph",
+          "text": "Required fields มีเพียง 2 ตัวคือ name และ description โดย name ยาวได้ไม่เกิน 64 ตัวอักษร (ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง) ส่วน description ยาวได้ไม่เกิน 1024 ตัวอักษร จุดสำคัญคือ description เพราะ Claude ใช้ข้อความนี้ Match กับคำสั่งของผู้ใช้เพื่อเลือกว่าจะ Trigger skill หรือไม่ จึงต้องระบุให้ชัดทั้ง \"ทำอะไร\" และ \"ต้องใช้เมื่อไหร่\" คำอธิบายกว้างๆ เช่น \"PDF helper\" ถือว่าไม่ผ่านเพราะไม่ได้ระบุ Trigger condition ที่ชัดเจน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Progressive disclosure คือการโหลด Skill แบบเป็นลำดับขั้น ไม่โหลดทั้งหมดในคราวเดียว: ตอน Startup ใน System prompt จะมีแค่ name และ description ของแต่ละ Skill เท่านั้น เมื่อ Request ตรงกับ Description ตัว Claude จะใช้ bash ไปอ่านไฟล์ SKILL.md จาก Filesystem เนื้อหาหลักถึงจะถูกดึงเข้าสู่ Context สำหรับไฟล์อื่นๆ จะถูกโหลดก็ต่อเมื่อใน Instruction มีการอ้างอิงถึง และจุดที่ประหยัดที่สุดคือ Scripts เพราะ Claude จะ Execute ผ่าน Bash และดึงเฉพาะ Output เข้าสู่ Context โดยไม่นำ Code ของสคริปต์เข้า Context เลย ทำให้ Skill สามารถแนบ API reference ขนาดใหญ่ได้โดยไม่เสีย Token ฟรี จนกว่าจะถูกเปิดอ่านจริงๆ"
+        },
+        {
+          "type": "table",
+          "caption": "ระดับการโหลด (Loading Levels) ทั้ง 3 ขั้นของ Skill",
+          "headers": [
+            "ระดับ (Level)",
+            "โหลดเมื่อใด",
+            "Token Cost",
+            "เนื้อหาที่โหลด"
+          ],
+          "rows": [
+            [
+              "Level 1: Metadata",
+              "ตลอดเวลา (เมื่อ Startup)",
+              "~100 tokens ต่อ Skill",
+              "name และ description จาก YAML frontmatter"
+            ],
+            [
+              "Level 2: Instructions",
+              "เมื่อ Skill ถูก Trigger",
+              "ต่ำกว่า 5k tokens",
+              "เนื้อหา SKILL.md พร้อมคำแนะนำและขั้นตอนการทำงาน"
+            ],
+            [
+              "Level 3+: Resources",
+              "โหลดตามความจำเป็น (On-demand)",
+              "ไม่มีค่าใช้จ่ายจนกว่าจะถูกเรียกอ่าน",
+              "ไฟล์เสริมที่แนบมา ส่วน Scripts จะรันผ่าน bash โดยนำเฉพาะ Output เข้าสู่ Context"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Skills ถูก Trigger ได้ 2 วิธี: พิมพ์คำสั่ง /<name> หรือปล่อยให้ Claude ตรวจจับความสอดคล้องกับ Description เอง สำหรับ Claude Code มันคือ Directory ธรรมดา โดยเก็บ Personal skills ไว้ที่ ~/.claude/skills/ และ Project skills ไว้ที่ .claude/skills/ โดยไม่ต้อง Upload แต่อย่างใด ส่วนบน Claude API จะทำงานภายใน Container ของ Code execution tool จึงจำเป็นต้องเปิดใช้งาน Tool นั้นด้วยเสมอ และเนื่องจาก Skill สามารถสั่งให้ Claude เรียก Tools หรือรัน Code ได้ จึงควรระมัดระวัง Skill จาก Source ภายนอกที่ไม่น่าเชื่อถือ เสมือนกับการติดตั้ง Software ใหม่ลงเครื่อง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การติดตั้ง Skills จำนวนมากจะทำให้ Context window เต็ม เพราะ Instructions ของทุก Skill จะถูกโหลดตั้งแต่ตอน Startup ใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: ตอน Startup ระบบจะโหลดเพียงแค่ name และ description เข้าสู่ Context เท่านั้น เนื้อหาตัวเต็มจะถูกโหลดเข้ามาก็ต่อเมื่อ Skill นั้นถูก Trigger ใช้งานจริงเท่านั้น / สคริปต์ที่แนบไว้ใน Skill จะกิน Context ตามความยาวของโค้ด เพราะ Claude ต้องอ่านโค้ดก่อนรันใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: Claude รันสคริปต์ที่แนบมาผ่าน bash โดยตรง และนำเฉพาะ Output ที่ได้จากการรันเข้าสู่ Context เท่านั้น ตัว Source code ของสคริปต์จะไม่ถูกดึงเข้าสู่ Context แต่อย่างใด"
+        }
+      ]
+    },
+    {
+      "heading": "3. MCP สำหรับการเชื่อมต่อ, Skills สำหรับกระบวนการทำงาน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใช้ MCP เมื่อ Claude จำเป็นต้องเข้าถึงระบบภายนอกที่ไม่สามารถมองเห็นได้โดยตรง และใช้ Skill เมื่อต้องการสอน Claude ให้รู้วิธีการทำงานบางอย่าง ทั้งนี้ MCP เป็น Protocol สำหรับเชื่อมต่อกับ Services ภายนอก ทำให้ Claude ได้รับ Tools และสิทธิ์เข้าถึงข้อมูล เช่น การส่งข้อความบน Slack, การ Query ข้อมูลจาก Database หรือการควบคุม Browser ส่วน Skill จะให้ความรู้, Workflows และเอกสารอ้างอิงแก่ Claude เกณฑ์ตัดสินใจง่ายๆ คือ หากคุณต้องคอย Copy ข้อมูลจากแท็บเบราว์เซอร์ที่ Claude มองไม่เห็น ให้เชื่อมต่อระบบนั้นผ่าน MCP Server แต่ถ้าคุณต้องคอยแปะ Playbook หลายขั้นตอนซ้ำๆ ลงใน Chat เป็นครั้งที่สาม ให้เปลี่ยนกระบวนการนั้นเป็น Skill (การสร้าง Server จะมีรายละเอียดใน [MCP server development](lesson:8.2))"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบระหว่าง MCP และ Skills",
+          "headers": [
+            "Aspect",
+            "MCP",
+            "Skill"
+          ],
+          "rows": [
+            [
+              "What it is",
+              "Protocol สำหรับเชื่อมต่อกับ Services ภายนอก",
+              "ความรู้, Workflows และเอกสารอ้างอิง"
+            ],
+            [
+              "Provides",
+              "Tools และการเข้าถึงข้อมูล",
+              "ความรู้, Workflows และเอกสารอ้างอิง"
+            ],
+            [
+              "Examples",
+              "Slack integration, Database queries, Browser control",
+              "Code review checklist, Deploy workflow, API style guide"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ทั้งสองตัวเลือกยังมีความแตกต่างกันอย่างมากในแง่ของ Context Cost ทุกสิ่งที่ Claude อ่านในแต่ละ Turn จะถูกนับรวมใน [Context Window budget](lesson:6.1) ซึ่งรวมถึง Tool Definitions ด้วย เนื่องจาก API จะนำ Tool Definitions ที่ส่งไปมารวมเข้าเป็น System Prompt โดย MCP Clients ส่วนใหญ่จะโหลด Tool Definitions ทั้งหมดขึ้นมาตั้งแต่แรก (Upfront) ทำให้ Agent ที่เชื่อมกับ Tools นับพันรายการต้องอ่าน Token หลายแสน Tokens ก่อนที่จะเห็นข้อความ Request ด้วยซ้ำ ในทางกลับกัน Skill จะใช้ Context เพียงประมาณ 100 Tokens จนกว่าจะถูกเรียกใช้งาน และหากปัญหาเกิดจากจำนวน Tools ที่มากเกินไป ฟีเจอร์ Tool Search จะช่วยให้ Claude โหลด Tools แบบ On-demand แทนการโหลดขึ้นมาทั้งหมดในคราวเดียว"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทาง Architecture ที่ทรงพลังที่สุดคือการใช้งานร่วมกัน โดย MCP Server รับหน้าที่เป็นตัวเชื่อมต่อ และ Skill สอนให้ Claude รู้จักวิธีใช้งานอย่างถูกต้อง ตัวอย่างเช่น Analytics Database: MCP จะเปิดให้ Claude ยิง Query ได้ แต่ไม่รู้ว่า Table ไหนสำคัญ หรือทีมมี Convention ในการ Join ข้อมูลอย่างไร Skill ที่รวบรวม Schema Notes และ Query Patterns จึงเข้ามาเติมเต็มส่วนนี้ โดยจะถูกโหลดเข้า Context เฉพาะตอนที่มีคำถามเกี่ยวกับ Database เท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "MCP และ Skills เป็นทางเลือกที่ใช้ทดแทนกันได้ สถาปัตยกรรมจึงต้องเลือกใช้อย่างใดอย่างหนึ่ง? (ทำไมถึงผิด): ไม่จริง: ทั้งสองถูกออกแบบมาเพื่อแก้ปัญหาคนละส่วนและทำงานร่วมกัน โดย MCP จัดการด้านการเชื่อมต่อ (Connection) ส่วน Skill จัดการด้านองค์ความรู้และวิธีใช้งาน (Know-how)"
+        }
+      ]
+    },
+    {
+      "heading": "4. การเลือกใช้งานระหว่าง Built-in Tools, Custom Tools, Skills และ MCP",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ให้พิจารณาตัวเลือกตามลำดับ Context Cost จากน้อยไปมากเสมอ ขั้นแรก ตรวจสอบว่า Built-in Tools ที่มีอยู่ครอบคลุมงานหรือไม่ ซึ่งงานส่วนใหญ่เช่น การอ่านไฟล์, แก้ไขไฟล์, รัน Shell Commands และ Search Code นั้น Built-in Tools รองรับอยู่แล้ว ขั้นถัดมา พิจารณาว่า Claude จำเป็นต้องเข้าถึงระบบภายนอกหรือไม่ หากใช่ ให้เชื่อมต่อผ่าน MCP แต่หาก Claude เข้าถึงทรัพยากรทุกอย่างได้อยู่แล้วแต่ยังทำขั้นตอนการทำงานผิดพลาด ให้สร้าง Skill สำหรับ Custom Tool ควรเขียนขึ้นเฉพาะเมื่อต้องการ Domain Action ที่ Agent ต้องเรียกใช้บ่อยครั้ง และไม่มี Tool ใดที่มีอยู่รองรับได้อย่างตรงจุด และเมื่อต้องการนำการตั้งค่าเหล่านี้ไปแชร์ให้ Repository อื่นใช้งานร่วมกัน ให้ Pack ทุกอย่างรวมกันเป็น Plugin ซึ่งเป็นกลไกหลักในการ Bundle และแจกจ่ายฟีเจอร์เหล่านี้"
+        },
+        {
+          "type": "table",
+          "caption": "เกณฑ์การเลือกประเภท Extension และผลกระทบต่อ Context Cost",
+          "headers": [
+            "Extension",
+            "Gives Claude",
+            "Wins when",
+            "Context cost"
+          ],
+          "rows": [
+            [
+              "Built-in tool (Read, Edit, Bash, Grep)",
+              "ความสามารถทั่วไปเกี่ยวกับไฟล์, Shell และการค้นหา",
+              "งานคือการอ่าน แก้ไข รันคำสั่ง และค้นหาโค้ด",
+              "กิน Context เท่ากับ Definitions ของ Tools ที่เปิดใช้งานไว้"
+            ],
+            [
+              "Custom tool",
+              "Domain Action เฉพาะทางที่ผูกกับฟังก์ชันหรือ API ของคุณ",
+              "Agent ต้องทำ Action นั้นบ่อยๆ และไม่มี Built-in ใดรองรับได้ตรงจุด",
+              "กิน Context เท่ากับ Definition ของมันในทุกๆ Request"
+            ],
+            [
+              "Skill (SKILL.md)",
+              "กระบวนการทำงาน (Procedure) หรือเอกสารอ้างอิง",
+              "คุณต้องคอยแปะ Playbook หรือ Workflow เดิมๆ ซ้ำๆ",
+              "กิน Context เฉพาะ Description ในแต่ละ Session; โหลด Body เต็มเฉพาะตอนถูกเรียกใช้"
+            ],
+            [
+              "MCP server",
+              "Tools และข้อมูลจากระบบภายนอก",
+              "Claude ต้องการข้อมูลหรือ Actions ที่ไม่สามารถเข้าถึงได้ด้วยวิธีปกติ",
+              "กิน Context เท่ากับ Tool Definitions ทั้งหมด ซึ่งมักจะถูกโหลดขึ้นมาตั้งแต่แรก (Upfront)"
+            ],
+            [
+              "Plugin",
+              "ชุด Bundle ที่รวมฟีเจอร์เหล่านี้เข้าด้วยกัน",
+              "ต้องการแชร์ Setup เดียวกันนี้ให้ Repository อื่นใช้งาน",
+              "กิน Context เท่ากับผลรวม Cost ของฟีเจอร์ทั้งหมดที่ถูก Bundle ไว้"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "ข้อสอบ Scenario มักจะให้โจทย์ความต้องการมา แล้วถามหา Extension ที่เบาที่สุด (Lightest fitting)? (ทำไมถึงผิด): ไม่จริง: การเลือก Extension ต้องดูโจทย์เป็นหลัก—หากไม่มีระบบภายนอกและไม่มี Custom Domain Logic คำตอบคือ Built-in Tools เสมอ, หากโจทย์ระบุถึงขั้นตอนการทำงาน (Procedure) หรือ Style Guide ให้เลือก Skill, หากโจทย์ระบุชื่อ Service เช่น Slack, Jira หรือ Database ให้เลือก MCP, และหากโจทย์ระบุทั้ง Service และข้อกำหนดวิธีใช้งาน (Conventions) ร่วมกัน คำตอบที่ถูกต้องคือต้องใช้ทั้งคู่"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55798",
+      "question": "ทีม Platform มักจะคัดลอก checklist สำหรับ deploy ขึ้น production ซึ่งมีหลายขั้นตอนมาวางใน chat ทุกครั้งที่มีการปล่อย release ใหม่ และบางขั้นตอนมักถูกข้ามไปเนื่องจากพิมพ์ด้วยมือ วิธีใดเหมาะสมที่สุดในการแก้ปัญหานี้ใน Claude Code?",
+      "options": [
+        "บันทึก checklist นั้นเป็น Skill ที่เรียกใช้งานผ่าน slash command เช่น /deploy",
+        "ใส่ checklist ทั้งหมดลงเป็นบล็อกถาวรภายใน CLAUDE.md",
+        "กำหนดค่า MCP server เพื่อเปิดให้เข้าถึง checklist ในฐานะ resource",
+        "สร้าง custom tool ที่มี handler ทำหน้าที่พิมพ์ checklist ลงใน transcript"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55799",
+      "question": "ทีมวิศวกรมี Slack bot ภายในองค์กรที่ทำงานได้อยู่แล้ว โดยจัดการเรื่อง OAuth ผ่าน Slack MCP server ของ Anthropic ตอนนี้พวกเขาต้องการให้ Claude Code โพสต์ release notes ไปยัง channel หนึ่ง สิ่งที่พวกเขาควรทำแทนการเขียน custom tool ขึ้นมาใหม่ทั้งหมดคืออะไร?",
+      "options": [
+        "เชื่อมต่อกับ Slack MCP server ที่มีอยู่เดิมเพื่อให้ Claude นำ messaging tools และ authentication เดิมมาใช้ซ้ำ",
+        "เขียน custom tool ที่ handler ทำการ implement ตัว Slack Web API client และ flow การ refresh OAuth ขึ้นมาใหม่",
+        "สร้าง Skill ที่มีตัวอย่างคำขอ Slack API แบบ hard-coded เพื่อนำมาคัดลอกด้วยตนเอง",
+        "ใช้ Bash tool ที่มีมาให้ในตัวเพื่อเรียกใช้ curl ไปยัง Slack API endpoints จาก shell"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55797",
+      "question": "สตาร์ทอัพด้าน Fintech กำลังสร้าง support agent ภายในด้วย Claude Agent SDK โดย agent ต้องค้นหายอดคงเหลือในบัญชีจากบริการ proprietary ledger ที่เข้าถึงได้ผ่าน internal REST gateway เท่านั้น และยังไม่มี MCP server หรือ SDK สาธารณะใดๆ แนวทางใดเหมาะสมกับความต้องการนี้มากที่สุด?",
+      "options": [
+        "กำหนด custom tool ที่เรียกใช้ internal REST gateway แล้วลงทะเบียนผ่าน in-process MCP server",
+        "พึ่งพา WebFetch tool ที่มีมาให้ในตัวเพื่อ query ไปยัง gateway โดยตรงจาก prompt ของ agent",
+        "เขียน Skill ที่ระบุ schema ของ ledger เอาไว้ และคาดหวังให้ Claude วิเคราะห์ยอดคงเหลือจาก memory",
+        "ค้นหา MCP server จาก community ที่อาจมีความสามารถในการดึงยอดคงเหลือของ ledger ที่คล้ายคลึงกัน"
+      ],
+      "explanation": ""
+    }
+  ]
+}

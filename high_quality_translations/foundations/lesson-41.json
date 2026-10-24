@@ -1,0 +1,167 @@
+{
+  "title": "การกำหนด Tools สำหรับ Claude: Schemas, คำอธิบาย และการออกแบบ Tool Set",
+  "objectives": [
+    "จำแนก Tool เป็น user-defined client, Anthropic-schema client หรือ server-executed พร้อมระบุสิ่งที่ Application ต้องจัดการในแต่ละแบบ",
+    "เปรียบเทียบ client-side และ server-side tools: ใครรันโค้ด ใครคุม loop และสิ่งที่ส่งกลับมา (tool_use และ tool_result vs. server_tool_use, pause_turn, mixed turns)",
+    "เขียน Tool Definition ที่ประกอบด้วย name, description, input_schema และตัวเลือกเสริมอย่าง input_examples และ strict",
+    "เขียน Tool Description เพื่อชี้นำให้ Claude เลือกใช้ Tool ได้อย่างถูกต้อง",
+    "ประยุกต์ใช้แนวทางของ Anthropic ในการสร้าง Tool Set: consolidation, namespacing และ high-signal responses",
+    "ตั้งค่า tool_choice และ server tool entries ให้ถูกต้อง รวมถึงข้อจำกัดในการทำ forced tool use"
+  ],
+  "key_concept": "Tool Use เปรียบเสมือนสัญญา (Contract) — คุณประกาศว่ามี Operation ใดบ้างและกำหนดรูปแบบ Input ส่วน Claude จะตัดสินใจว่าจะเรียกใช้เมื่อใดและส่ง Structured Request กลับมา โดย Claude ไม่เคยรันโค้ดด้วยตัวเอง แต่เป็น Application ของคุณหรือ Server ของ Anthropic ที่นำไปรันจริงแล้วส่งผลลัพธ์กลับมา",
+  "sections": [
+    {
+      "heading": "1. Tools รันที่ไหน กำหนดสิ่งที่คุณต้องสร้าง (Where a tool runs decides what you build)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Tool Use (หรือ Function Calling) เปิดให้ Claude เรียกใช้งานฟังก์ชันที่คุณกำหนดเองหรือที่ Anthropic เตรียมไว้ให้ ก่อนจะเริ่มเขียน Schema สิ่งสำคัญที่สุดคือต้องตัดสินใจว่าโค้ดของ Tool จะรันที่ไหน ซึ่งจะแบ่งความรับผิดชอบของ Application คุณออกเป็น 3 กลุ่มหลัก: 1) User-defined client tools ใช้บ่อยที่สุด คุณต้องเขียน Schema รันโค้ดเอง และส่งผลลัพธ์กลับ 2) Anthropic-schema client tools (memory, bash, text_editor, computer, browser) ทำงานแบบเดียวกับกลุ่มแรก แต่ใช้ Schema มาตรฐานที่ Anthropic กำหนดไว้ และ 3) Server-executed tools (web_search, web_fetch, code_execution, tool_search) รันบน Infrastructure ของ Anthropic โดยตรง คุณจึงไม่ต้องสร้าง tool_result ส่งกลับไปเอง"
+        },
+        {
+          "type": "table",
+          "caption": "การแบ่ง 3 กลุ่มของ Tools และสิ่งที่ Application ของคุณต้องจัดการ",
+          "headers": [
+            "Approach",
+            "When to use it",
+            "What you handle"
+          ],
+          "rows": [
+            [
+              "User-defined client tools",
+              "Business Logic เฉพาะตัว, Internal APIs, ข้อมูลภายในของระบบ",
+              "การรันโค้ด (Execution) และจัดการ Agentic Loop"
+            ],
+            [
+              "Anthropic-schema client tools",
+              "งาน Development ทั่วไป (bash, แก้ไขไฟล์, ควบคุม Desktop และ Browser)",
+              "การรันโค้ด (Execution); Claude จะเรียกใช้ได้แม่นยำและเสถียรมากเพราะโมเดลถูกเทรนมากับ Schema เหล่านี้โดยเฉพาะ"
+            ],
+            [
+              "Server-executed tools",
+              "Web search, Code sandbox, Web fetch",
+              "ไม่ต้องรันโค้ดเอง ทำหน้าที่แค่อ่านผลลัพธ์ที่ได้กลับมา"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ทำไมถึงควรใช้ bash schema ของ Anthropic แทนการเขียน Shell tool ขึ้นมาเอง? เพราะ Claude ได้รับการ Optimize ผ่าน Trajectory จำลองงานจริงจำนวนมากที่ใช้ Signature เหล่านี้ ทำให้เรียกใช้งานได้แม่นยำกว่า และสามารถ Recover จาก Error ได้ดีกว่าการใช้ Tool ที่คุณเขียนขึ้นมาเองใหม่"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อสรุปการทำงาน ทั้ง 3 กลุ่มจะยุบเหลือเพียง 2 แบบ: Client-side vs. Server-side tools โดย Client-side tools (ทั้ง User-defined และ Anthropic-schema) รันบนฝั่ง Application ของคุณ เมื่อ Claude ส่ง response กลับมาด้วย stop_reason: \"tool_use\" พร้อม tool_use block โค้ดของคุณต้องรันฟังก์ชันนั้นๆ แล้วส่ง tool_result block กลับไป และเนื่องจากโมเดลไม่สามารถรันโค้ดบนเครื่องของคุณได้ ทุกการเรียกจึงต้องเป็น Round trip โดย Application ของคุณจะเป็นตัวขับเคลื่อน while loop ตราบเท่าที่ stop_reason ยังคงเป็น tool_use หาก Tool พัง ให้รายงานผ่าน is_error: true ส่วน Server-side tools จะรันบน Infrastructure ของ Anthropic ภายใน Loop ของฝั่งเซิร์ฟเวอร์เอง Response จะส่งกลับมาเป็น server_tool_use block แสดงสิ่งที่รันไปและผลลัพธ์ที่ได้ คุณไม่ต้องสร้าง tool_result และไม่ต้องคอยดัก is_error เอง มีเพียง 2 กรณีพิเศษที่ต้องระวัง: 1) หาก Server loop ทำงานชนขีดจำกัด (Iteration limit) Response จะมี stop_reason: \"pause_turn\" คุณต้องส่ง Conversation ทั้งหมดกลับไปใหม่ (รวมถึง Paused response และ Tools ชุดเดิม) เพื่อให้ Claude ทำงานต่อ 2) หาก Claude สั่งรันทั้ง Server tool และ Client tool พร้อมกันแบบ Parallel API จะยังไม่รัน Server tool ทันที แต่จะส่ง stop_reason: \"tool_use\" พร้อม server_tool_use block ที่ยังไม่มีผลลัพธ์ ให้คุณส่ง tool_result ของ Client tool กลับไปก่อนโดยคง Tools array เดิมไว้ จากนั้น API จะนำ Server tool ที่พักไว้ไปรันต่อให้อัตโนมัติ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Server-side tools ไม่ได้จัดการเหมือน Client-side tools เพราะไม่ต้องสร้าง tool_result หรือคอยเซ็ต is_error เอง เนื่องจาก Server tools รันใน Loop ของ Anthropic และตอบกลับมาเป็น server_tool_use block ทั้งหมด จุดที่ต้องระวังมีเพียง 2 กรณีคือ การจัดการ stop_reason: \"pause_turn\" และรอบที่เกิดการเรียกแบบผสมระหว่าง Server กับ Client tools พร้อมกัน"
+        }
+      ]
+    },
+    {
+      "heading": "2. โครงสร้างของ Tool Definition (Anatomy of a tool definition)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "คุณประกาศ Client tools ใน Parameter ระดับ Top-level ชื่อ tools ของ Request โดย User-defined tool ต้องมี name ที่ตรงกับ Regex ^[a-zA-Z0-9_-]{1,128}$, มี description แบบ Plaintext และมี input_schema ซึ่งเป็น JSON Schema object สำหรับระบุ Parameters ซึ่งเบื้องหลังการทำงาน API จะแปลง Definition เหล่านี้ไปเป็น System Prompt พิเศษ ทำให้ทุกข้อความที่คุณเขียนลงไปจะกลายเป็น Context ให้กับ Claude ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "มี Optional fields สำคัญอีก 2 ตัวที่ช่วยให้การเรียก Tool เสถียรและแม่นยำยิ่งขึ้น: 1) input_examples เป็น Array ของข้อมูล Input ตัวอย่าง มีประโยชน์สูงสุดกับ Parameter ที่เป็น Nested objects หรือไวต่อรูปแบบ Format (ทุกตัวอย่างต้อง Validate ผ่าน input_schema ไม่เช่นนั้นจะได้ HTTP 400, ใช้ Prompt tokens เพิ่มขึ้น และไม่รองรับบน Server tools หรือ Toolset กลุ่ม Computer use / Browser use) และ 2) strict: true เปิดใช้งาน Grammar-constrained sampling เพื่อการันตีว่า Input ที่ได้จะตรงกับ Schema 100% เช่น คุณจะได้ passengers: 2 ที่เป็น Number เสมอ และไม่มีทางได้ String \"two\" หลุดรอดมา"
+        }
+      ]
+    },
+    {
+      "heading": "3. การเขียน Description เพื่อชี้นำการเลือก Tool",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude ตัดสินใจว่าจะเรียกใช้ Tool หรือไม่จาก Request ของ User และ Description ของ Tool นั้นๆ โดย Description ที่ดีต้องระบุ 4 องค์ประกอบ: Tool ทำงานอะไร, ควรใช้และไม่ควรใช้เมื่อใด, ความหมายของแต่ละ Parameter และข้อจำกัด (เช่น ข้อมูลที่ Tool ไม่ได้ส่งคืนกลับมา) ทั้งนี้ Anthropic แนะนำให้เขียนอย่างน้อย 3–4 ประโยคต่อหนึ่ง Tool หรือมากกว่านั้นหากเป็น Tool ที่ซับซ้อน ซึ่งต่างจาก Description แบบแย่ๆ ที่เขียนสั้นๆ แค่ \"Gets the stock price for a ticker.\""
+        },
+        {
+          "type": "exam_trap",
+          "text": "หาก Claude เลือก Tool ผิดตัว หรือเรียกใช้นอก Scope ให้เปิด Strict Mode หรือเพิ่ม Parameters? (ทำไมถึงผิด): ไม่จริง: Strict Mode การันตีได้แค่ Schema/Shape ของ Input เท่านั้น แต่การที่ Claude จะเลือก Tool ไหนและเมื่อใดขึ้นอยู่กับ Description ล้วนๆ ดังนั้นวิธีแก้คือการเขียน Description ใหม่เพื่อกำหนด Scope ระบุขอบเขตการใช้งาน (When not to use) และแจกแจงสิ่งที่ Tool ส่งกลับมาอย่างชัดเจน"
+        }
+      ]
+    },
+    {
+      "heading": "4. การออกแบบ Tool Set ที่รองรับการ Scale",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "แม้ Tool แต่ละตัวจะออกแบบมาดี แต่เมื่อนำมารวมกันก็อาจสร้างความสับสนได้ Anthropic จึงกำหนดกฎการสร้าง Tool ไว้ 3 ข้อ: 1) Consolidate: การยุบรวม Tool เช่น ใช้ Tool เดียวที่มี Parameter กำหนด Action ย่อมดีกว่าแยกย่อยเป็น create_pr, review_pr และ merge_pr เพราะยิ่ง Tool น้อย โอกาสเลือกผิดก็ยิ่งลดลง 2) Namespace: เมื่อมี Tool ข้ามหลาย Service ให้ตั้ง Prefix นำหน้าด้วยชื่อ Service เสมอ เช่น github_list_prs หรือ slack_send_message ซึ่งสำคัญมากเมื่อใช้ร่วมกับ Tool Search 3) Return high-signal results: ส่งคืนเฉพาะ ID ที่เสถียรและสื่อความหมาย (เช่น Slugs หรือ UUIDs) พร้อมทั้งคัดเฉพาะ Fields ที่ Claude ต้องใช้ใน Step ถัดไปเท่านั้น การคืน Response ที่เทอะทะจะทำให้เปลือง Context โดยใช่เหตุ"
+        },
+        {
+          "type": "paragraph",
+          "text": "นอกจากนี้ควรประเมินก่อนเสมอว่า Task นั้นจำเป็นต้องใช้ Tool จริงหรือไม่ Tool เหมาะสำหรับงานที่มี Side Effects, งานดึงข้อมูลใหม่หรือข้อมูลภายนอก, Output ที่ต้องการ Fixed Shape แน่นอน และการเชื่อมต่อกับระบบเดิม แต่ไม่เหมาะกับงานประเภท Summarization, One-shot Q&A หรือ Task เล็กๆ ที่เสียเวลาไปกับ Extra Round Trip มากกว่า กฎเหล็กของ Anthropic คือ: หากคุณต้องมานั่งเขียน Regex เพื่อดึง Decision ออกมาจาก Output ของ Model นั่นแสดงว่า Decision นั้นควรส่งผ่าน Tool Call ตั้งแต่แรก"
+        }
+      ]
+    },
+    {
+      "heading": "5. การกำหนดค่า Request สำหรับระบบภายนอก: tool_choice และ Server Tools",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Request ยังสามารถควบคุมได้ว่า Claude *ควรเรียกใช้ Tools หรือไม่* โดยค่าเริ่มต้นของ tool_choice คือ auto ซึ่ง Claude จะตัดสินใจเองในแต่ละ Turn คุณสามารถกระตุ้นได้ผ่าน System Prompt เช่น \"Use the tools to investigate before responding.\" เพื่อเพิ่มโอกาสในการเรียกใช้ แต่หากต้องการบังคับให้เรียกใช้ Tool แทนการพึ่งพา Prompt ให้กำหนดค่า tool_choice โดยตรง นอกจากนี้การเพิ่ม disable_parallel_tool_use: true จะจำกัดให้ Claude เรียกใช้ Tool ได้สูงสุดเพียง 1 ครั้งต่อ Turn เท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "ตัวเลือกทั้ง 4 รูปแบบของ tool_choice",
+          "headers": [
+            "tool_choice",
+            "พฤติกรรมการทำงาน (Behavior)"
+          ],
+          "rows": [
+            [
+              "auto",
+              "Claude ตัดสินใจเองว่าจะเรียกใช้ Tool หรือไม่ (ค่าเริ่มต้นเมื่อมีการส่ง tools เข้าไป)"
+            ],
+            [
+              "any",
+              "Claude ต้องเรียกใช้ Tool ตัวใดตัวหนึ่งที่กำหนดไว้ แต่ไม่เจาะจงว่าเป็นตัวไหน"
+            ],
+            [
+              "tool",
+              "Claude ต้องเรียกใช้ Tool ที่ระบุชื่อไว้เท่านั้น"
+            ],
+            [
+              "none",
+              "Claude ไม่สามารถเรียกใช้ Tool ใดๆ ได้ (ค่าเริ่มต้นเมื่อไม่ได้ส่ง tools เข้าไป)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การบังคับ Tool มีข้อแลกเปลี่ยน: หากใช้ any หรือ tool ตัว API จะทำ Prefill ใน Turn ของ Assistant ส่งผลให้ Claude ไม่เขียนคำอธิบายใดๆ ก่อน Tool_use Blocks นอกจากนี้ Forced Tool Use ยังไม่รองรับในทุกกรณี โดย Manual Extended Thinking จะปฏิเสธ any และ tool ทันที อีกทั้งโมเดล Claude Opus 5.5, Claude Sonnet 5.5, Claude Fable 5.1 และ Claude Mythos 5.1 จะส่ง Error 400 หากใช้ any หรือ tool ซึ่งบนโมเดลเหล่านี้ แนะนำให้ใช้ auto ร่วมกับ Strict Tool Use หรือใช้ Structured Outputs แทน สำหรับ Server Tools มีการตั้งค่าที่ง่ายมาก โดยเปิดใช้งานผ่าน Date-versioned Type และสำหรับ Remote MCP Server ตัว MCP Connector สามารถเชื่อมต่อจาก Messages API ได้โดยตรงโดยไม่ต้องมี MCP Client แยก"
+        },
+        {
+          "type": "exam_trap",
+          "text": "tool_choice: tool เป็นวิธีที่ใช้บังคับเรียก Tool เสมอในทุกกรณี? (ทำไมถึงผิด): ไม่จริง: โมเดลบางรุ่นปฏิเสธค่านี้และคืนค่า 400 Error (เช่น Opus 5.5, Sonnet 5.5, Fable 5.1 และ Mythos 5.1) รวมถึง Manual Extended Thinking ก็ไม่รองรับเช่นกัน ซึ่งบนกรณีเหล่านี้ต้องใช้ auto ร่วมกับ Strict Tool Use หรือ Structured Outputs แทน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55779",
+      "question": "Client tool แบบ custom ชื่อ `fetch_invoice` มีการเรียก downstream billing API แต่ในระหว่างที่มีโหลดพุ่งสูง API เริ่มส่ง HTTP 503 กลับมา ทีมวิศวกรต้องการให้ Claude รับรู้ถึงข้อผิดพลาดนี้ อธิบายให้ผู้ใช้เข้าใจ และไม่นำเนื้อหา response 503 ไปประมวลผลเป็นข้อมูลใบแจ้งหนี้ (invoice data) ที่ถูกต้อง ควรสร้าง `tool_result` สำหรับการเรียกนี้อย่างไร?",
+      "options": [
+        "ส่งคืนบล็อก `tool_result` โดยกำหนด `tool_use_id` เป็น id ของการเรียกเดิม, `content` อธิบายข้อผิดพลาด 503 พร้อมแนะนำช่วงเวลา retry, และกำหนด `is_error` เป็น `true`",
+        "ส่งคืนบล็อก `tool_result` โดยกำหนด `content` เป็น raw 503 response body และละเว้น `is_error` เพื่อให้ Claude อนุมานข้อผิดพลาดจากเนื้อหาเอาเอง",
+        "ข้ามการส่งคืน `tool_result` สำหรับ `tool_use_id` นั้น แล้วส่งบล็อก `text` ธรรมดาที่อธิบายเรื่องระบบขัดข้องแทน",
+        "ส่งคืนบล็อก `tool_result` โดยให้ `content` ว่างเปล่า และกำหนด `is_error` เป็น `false` เพื่อให้การสนทนาดำเนินต่อไปได้โดยไม่แจ้งเตือนเรื่องข้อผิดพลาด"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55778",
+      "question": "แอปพลิเคชันต้องการการันตีว่า Claude จะต้องเรียก tool ชื่อ `submit_refund` ในทุกๆ turn ของ workflow step ที่กำหนด และต้องไม่มีการเรียก tool อื่นมาแทนที่ ควรใช้การตั้งค่า `tool_choice` แบบใดเพื่อให้ได้ผลลัพธ์นี้?",
+      "options": [
+        "`{\"type\": \"tool\", \"name\": \"submit_refund\"}`",
+        "`{\"type\": \"any\"}`",
+        "`{\"type\": \"auto\"}` ร่วมกับ instruction ใน user message ที่ระบุให้เลือกใช้ `submit_refund`",
+        "`{\"type\": \"none\"}` พร้อมกับวาง tool นั้นไว้เป็นลำดับแรกในอาร์เรย์ `tools`"
+      ],
+      "explanation": ""
+    }
+  ]
+}

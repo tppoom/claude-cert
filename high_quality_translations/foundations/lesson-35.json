@@ -1,0 +1,152 @@
+{
+  "title": "Guardrail Layering และ Content Policy สำหรับ Claude Applications",
+  "objectives": [
+    "อธิบายเหตุผลที่ User Input และ Third-party Content ต้องใช้ Guardrail แต่ละ Layer แยกจากกัน",
+    "ประยุกต์ใช้การควบคุมตาม Content Policy: Harmlessness Screening, Input Validation, Value-based System Prompts และการจัดการ Repeat Offenders",
+    "จัดโครงสร้าง Tool Content ที่ไม่น่าเชื่อถือให้ Claude มองเป็น Data พร้อมคัดกรอง Tool Outputs ก่อนที่ Claude จะนำไปประมวลผลต่อ",
+    "ผสานแต่ละ Layer เป็น Defense in Depth, ทำ Red Teaming ก่อน Deploy และแยกแยะความแตกต่างระหว่าง Prompted Guardrails กับ Deterministic Guardrails"
+  ],
+  "key_concept": "Guardrail Layering (Defense in Depth) — ไม่มีระบบควบคุมเดี่ยวใดป้องกันการ Misuse ได้ทั้งหมด การ Deploy ที่ปลอดภัยต้องซ้อนทับ Layer อิสระร่วมกัน: คัดกรอง Input, Hardened System Prompt, จัดการ Untrusted Content เชิงโครงสร้าง, คัดกรอง Tool Output, จำกัด Privileges ให้แคบที่สุด และทำ Monitoring เพื่อให้ Layer ถัดไปสามารถดักจับการโจมตีได้เมื่อ Layer ก่อนหน้าหลุดรอด",
+  "sections": [
+    {
+      "heading": "1. ทำไม Guardrails ต้องมีหลาย Layer: Threat Models 2 รูปแบบ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "แม้ Claude จะมีภูมิคุ้มกันต่อการถูกล่อลวงให้ละเมิด Guidelines ในตัวอยู่แล้ว แต่แอปพลิเคชันที่นำไป Deploy จำเป็นต้องมี Guardrails ของตัวเองเพิ่มเติม เพื่อควบคุมไม่ให้เกิดการใช้งานที่ขัดต่อ Terms of Service หรือ Usage Policy ของ Anthropic ซึ่งเป็น Content Policy ที่ระบบของคุณต้องบังคับใช้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกใช้กลไกควบคุมขึ้นอยู่กับว่าใครคือผู้โจมตี โดยแบ่ง Threat Models ออกเป็น 2 รูปแบบหลัก: รูปแบบแรก ผู้ใช้งานหน้าแอปพลิเคชันคือผู้โจมตีโดยตรง พยายามเขียน Jailbreak หรือทำ Direct Prompt Injection เพื่อเลี่ยงกฎ รูปแบบที่สอง ผู้ใช้งานเป็นฝั่งที่เชื่อถือได้ (Trusted User) แต่ Claude ต้องไปอ่านเนื้อหาจากภายนอกแทนผู้ใช้ ซึ่งเนื้อหานั้นแฝงคำสั่งโจมตีไว้ การคัดกรองแค่หน้า Chat Box ไม่สามารถป้องกันเว็บเพจที่มีเนื้อหาเป็นพิษได้ และการ Escaping ผลลัพธ์จาก Tool ก็กันผู้ใช้ที่จงใจโจมตีไม่ได้เช่นกัน ระบบ Production จึงต้องมี Guardrails ทั้งสองด้านซ้อนทับกันเป็น Layer"
+        },
+        {
+          "type": "table",
+          "caption": "Threat Models 2 รูปแบบและจุดที่ผู้โจมตีเข้าถึง",
+          "headers": [
+            "Threat model",
+            "ผู้โจมตีคือใคร",
+            "ช่องทางการโจมตี"
+          ],
+          "rows": [
+            [
+              "Jailbreak / Direct Prompt Injection",
+              "ผู้ใช้งานของแอปพลิเคชัน",
+              "Input ที่ผู้ใช้พิมพ์เข้ามาโดยตรง"
+            ],
+            [
+              "Indirect Prompt Injection",
+              "บุคคลภายนอก (ผู้ใช้คือ Trusted User)",
+              "Web pages, อีเมล, เอกสาร หรือผลลัพธ์ของ Tool ที่ Claude นำมาประมวลผล"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "2. การบังคับใช้ Content Policy บน User Input",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ในกรณีที่ผู้ใช้คือผู้โจมตี มีกลไกควบคุม 4 ระดับที่นำมาใช้ร่วมกันได้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "Harmlessness Screens: ก่อนส่ง Input ไปยัง Main Conversation ให้ส่งไปคัดกรองด้วย Lightweight Model อย่าง Claude Haiku 4.5 เสียก่อน โดยใช้ Structured Outputs เพื่อรับค่าที่ประมวลผลต่อได้ทันที เช่น `is_harmful: true/false` สำหรับนำไปทำ Branching Logic ในโค้ด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Input Validation: กรอง Input เพื่อตรวจหา Injection Patterns ที่พบบ่อย หรือสร้าง LLM Screening กว้างๆ โดยป้อนตัวอย่างข้อความ Jailbreak ให้โมเดลเรียนรู้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Prompt Engineering: ฝัง Content Policy ลงใน System Prompt ระบุค่านิยมและกฎเกณฑ์ที่ Assistant ต้องยึดถืออย่างชัดเจน เช่น Integrity, Compliance, Privacy และการเคารพทรัพย์สินทางปัญญา พร้อมทั้งกำหนดข้อความปฏิเสธ (Refusal Words) ที่แน่นอนให้โมเดลใช้ตอบกลับเมื่อเกิดการละเมิด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Respond to Repeat Offenders: หากตรวจพบว่าผู้ใช้รายเดิมพยายาม Trigger ให้เกิด Refusal ซ้ำๆ ให้แจ้งเตือนว่ากำลังละเมิด Usage Policies และพิจารณาใช้มาตรการ Throttling (จำกัดอัตราการเรียกใช้) หรือระงับการใช้งาน (Ban)"
+        }
+      ]
+    },
+    {
+      "heading": "3. การจัดการ Untrusted Content จาก Tools",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สำหรับการรับมือ Indirect Injection แนวทางป้องกันหลักคือระดับ Structural: ออกแบบ Architecture ให้ Claude แยกแยะระหว่าง Instructions กับ Data ได้อย่างเด็ดขาด โดยผสานเลเยอร์การป้องกันร่วมกันดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. ส่ง Untrusted Content เข้าทาง Tool Results เท่านั้น เพราะ Claude ถูก Train ให้ระแวงและตั้งข้อสงสัยต่อคำสั่งที่พบในจุดนี้ 2. ระบุบริบทและที่มาของ Content อย่างชัดเจน เช่น ใส่ใน Tool Description หรือตัว Result โดยตรง (เช่น \"body of an inbound email from an unknown sender\") เพื่อช่วยให้ Claude ตัดสินใจได้ว่าควรระวังข้อความที่ดูเหมือนคำสั่งมากน้อยเพียงใด 3. ประกาศ Security Policy ไว้ใน System Prompt โดยกำชับว่า Tool Content ถือเป็น Untrusted Data และห้าม Override คำสั่งหลักโดยเด็ดขาด 4. ทำ JSON-encode กับ Third-party Strings เสมอ การ Escape จะช่วยตีกรอบ Boundary ชัดเจน ป้องกันไม่ให้ Attacker ปิด Quote หรือ Tag เพื่อหลุดออกมาสั่งการใน Instruction Context 5. อย่าใส่ Instructions ของตัวเองลงใน Tool Results เพราะ Claude อาจมองข้ามหรือจัดว่าเป็น Injection ให้ส่งเป็น User Turn ถัดจาก tool_result แทน (หรือใช้ Mid-conversation System Message สำหรับ Models ที่รองรับ) 6. ตรวจกรอง Tool Outputs โดยรัน Raw Output ผ่าน Claude Haiku 4.5 Classifier เพื่อเช็คแฟล็ก injection_suspected หากเป็นจริง ให้ส่ง Error หรือสรุปเนื้อหาแบบ Strip ข้อมูลทิ้งแทนที่จะส่ง Raw Content พร้อมพิจารณาแจ้งเตือน User"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การใส่ Follow-up Instructions ของเราเองไว้ใน tool_result เป็นวิธีที่สะดวกในการคุม Control Flow ของ Claude หลังเรียก Tool เสร็จ เพราะ Claude มอง Content ใน Tool Result เป็น Untrusted Data คำสั่งที่ใส่ลงไปจึงอาจถูกเพิกเฉยหรือถูกมองว่าเป็น Injection Attempt ทางที่ถูกต้องคือต้องส่งคำสั่งมาใน User Turn ถัดไป"
+        }
+      ]
+    },
+    {
+      "heading": "4. การผสานเลเยอร์, การทำ Red-teaming และ Deterministic Enforcement",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างระบบระดับ Enterprise ของ Anthropic อย่าง AcmeFinBot (Financial-advisor Bot) ได้นำเลเยอร์เหล่านี้มาผสานร่วมกัน: System Prompt จะกำหนด Regulatory Directives ชัดเจน (Validate คำขอตามกฎเกณฑ์ SEC/FINRA, ปฏิเสธ Insider Trading, ไม่เปิดเผยข้อมูลส่วนบุคคลหรือข้อมูลทางการเงิน), มี harmlessness_screen Tool กรองทุก Query ล่วงหน้า และมี Fixed Refusal Message สำหรับคำขอที่ผิดกฎ โดยแยกเลเยอร์ชัดเจนระหว่าง Content Policy, Input Screening และ Refusal Handling"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางปฏิบัติที่ครอบคลุมตลอด Lifecycle มี 2 ขั้นตอน: ก่อน Deploy ให้ทำ Red-team กับ Agent ของตนเอง โดยป้อนเอกสาร อีเมล และ Tool Outputs ที่จงใจฝัง Injection แล้วทดสอบว่า Claude เพิกเฉยต่อคำสั่งแฝงเหล่านั้น รวมถึงระบบ Screen และขั้นตอน Confirmation สามารถดักจับสิ่งที่หลุดรอดได้จริง และหลัง Deploy ให้คอยมอนิเตอร์และวิเคราะห์ Outputs เพื่อหาร่องรอย Injection ที่อาจสำเร็จ แล้วนำ Feedback มาปรับปรุง Prompts, Data Validation และ Filters อย่างต่อเนื่อง"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางทั้งหมดที่กล่าวมาทำงานผ่าน Model Layer ซึ่งแม้ Prompts และ Classifiers จะช่วยลดความเสี่ยง แต่ไม่ได้รับประกัน 100% Claude Code จึงมี Deterministic Enforcement Layers นอกตัว Model เข้ามาเสริม: PreToolUse Hook สามารถสั่ง Block การเรียก Tool ได้ทันทีก่อนที่คำสั่งจะทำงาน ส่วน PostToolUse Hook ไม่สามารถ Block ได้เพราะ Tool รันเสร็จสิ้นไปแล้ว ขณะที่ Permission Deny Rules ใช้สั่งห้ามเรียกใช้ Tool นั้นๆ อย่างเด็ดขาด และ ConfigChange Hooks ใช้สำหรับ Audit หรือ Block การเปลี่ยนแปลง Settings ระหว่าง Session ยกเว้น policy_settings ที่ระบบไม่อนุญาตให้ Block"
+        },
+        {
+          "type": "paragraph",
+          "text": "Hooks เหล่านี้ไม่ได้จำกัดอยู่แค่ Claude Code CLI แต่ Agent SDK ยังรองรับ Filesystem Hooks เดียวกันจาก settings.json รวมถึงรองรับ Programmatic Hooks ที่ส่ง Callback Functions เข้าไปใน query() ทำให้นักพัฒนาสามารถนำ PreToolUse Check ไปเป็น Gatekeeper ควบคุม Tool Calls ใน Custom Applications ที่สร้างขึ้นเองได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Identity เป็นอีกหนึ่ง Deterministic Layer สำหรับ Shared Workloads หรือ Automated Workloads เช่น CI/CD และ Production Services ซึ่ง Organization Admin ควรกำหนด Service Account ให้เฉพาะ เพื่อให้ Workload มี Identity เป็นของตัวเองแทนที่จะแชร์ API Key ของบุคคล และสามารถยกระดับความปลอดภัยด้วย Workload Identity Federation ที่เปลี่ยนจากการใช้ Static Keys มาเป็นการแลก Short-lived Tokens ผ่าน Identity Provider โดย Federation Rule จะเป็นตัวคัดกรอง Identity ที่อนุญาตให้ทำ Authentication จึงควรกำหนดเงื่อนไขให้ Match เฉพาะ Workflow Runs ที่เชื่อถือได้เท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: PostToolUse Hook สามารถทำหน้าที่เป็น Guardrail ป้องกันไม่ให้ Tool อันตรายทำงานได้ เพราะ PostToolUse ทำงานหลังจาก Tool รันเสร็จสิ้นไปเรียบร้อยแล้ว จึงไม่สามารถยับยั้งการทำงานได้ หากต้องการป้องกันแบบ Deterministic ต้องใช้ PreToolUse Hook เพื่อสั่ง Block Tool Call ล่วงหน้าก่อนรันเท่านั้น"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55697",
+      "question": "ทีมพัฒนากำลังสร้าง customer support agent ที่อนุญาตให้ Claude เรียกใช้ tool ชื่อ `search_tickets` โดยต้องการป้องกันผู้ไม่ประสงค์ดี (adversarial users) ที่พยายามโน้มน้าวให้ผู้ช่วยหลุดออกจากขอบเขตงาน support ไปตอบคำถามที่ไม่เกี่ยวข้อง และก่อนที่จะส่ง conversation turn หลักไปยัง Claude ทีมต้องการระบบตรวจสอบที่รวดเร็วและประหยัดค่าใช้จ่าย เพื่อคัดกรอง abusive input ที่เห็นได้ชัดเจนออกไปก่อน พวกเขาควรใช้วิธีใด?",
+      "options": [
+        "เรียกใช้ lightweight model เพื่อทำ classification ข้อความของผู้ใช้ที่ส่งเข้ามา โดยใช้ constrained structured output ก่อนที่ข้อความจะไปถึงการสนทนาหลัก เพื่อคัดกรอง abusive input ออกล่วงหน้า",
+        "ใช้ regular expression เพื่อกรองคำต้องห้าม (banned words) กับผลลัพธ์สุดท้ายของผู้ช่วยเท่านั้น เนื่องจากการตรวจสอบหลังการ generate สามารถตรวจจับรูปแบบที่ไม่เหมาะสมทั้งหมดจาก input ได้",
+        "เรียกใช้ full-size Claude อีกตัวเพื่อประมวลผล conversation history ทั้งหมดซ้ำอีกครั้งด้วย maximum thinking effort เนื่องจากระดับการ reasoning ที่สูงกว่าจะให้ผลการจำแนกความปลอดภัยที่แม่นยำเสมอ",
+        "ใส่คำสั่งลงใน `tool_result` content ของ `search_tickets` เพื่อสั่งให้ Claude ปฏิเสธคำขอนอกเรื่อง เนื่องจาก `tool_result` content มีระดับสิทธิ์ (authority) เทียบเท่ากับ system prompt"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55701",
+      "question": "Organization admin กำลังกำหนดสิทธิ์การเข้าถึงให้พนักงานใหม่ ซึ่งมีหน้าที่เพียงแค่สร้างและหมุนเวียน (rotate) API keys สำหรับ workspace ของทีม โดยไม่มีความจำเป็นต้องจัดการสมาชิกอื่นในองค์กรหรือดูแลเรื่อง billing ควรต้องกำหนด organization-level role ใดจึงจะสอดคล้องกับหลักการ least privilege ที่สุด?",
+      "options": [
+        "developer เนื่องจากให้สิทธิ์เข้าถึง Workbench และจัดการ API keys ได้ โดยไม่ได้รับสิทธิ์จัดการสมาชิกหรือ billing",
+        "admin เนื่องจากเป็น role เดียวที่มีความสามารถในการจัดการ API keys ในระดับ organization",
+        "billing เนื่องจากในลำดับขั้นของ role การจัดการ API keys จะถูกรวมอยู่ในการจัดการข้อมูล billing",
+        "user เนื่องจาก base role นี้เพียงพอต่อการทำทุกงานที่เกี่ยวข้องกับ API ใน Claude Console organization อยู่แล้ว"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55702",
+      "question": "ทีม platform กำลังพัฒนาระบบอัตโนมัติสำหรับ onboarding และ offboarding ให้กับ contractors ที่ต้องการ programmatic, non-human access ไปยัง Claude API โดยกำหนด scope ตาม workload ที่ระบุ และหลีกเลี่ยงการใช้ long-lived personal API keys คอนเซปต์ใดของ Admin API ที่ถูกออกแบบมาเพื่อรองรับ use case ของ non-human identity นี้?",
+      "options": [
+        "Service accounts ที่ยืนยันตัวตนผ่าน Workload Identity Federation และถูก map ไปยัง specific scopes ผ่าน federation rules",
+        "Personal Admin API keys ที่แชร์ร่วมกันในทีม contractor เนื่องจาก Admin API keys ถูกออกแบบมาสำหรับการแชร์ใช้งานร่วมกันหลายคน",
+        "Organization invites พร้อมสิทธิ์ admin role เนื่องจาก invite เป็นกลไกเดียวในการอนุญาต programmatic access",
+        "The billing role เนื่องจากเป็น role ที่ Anthropic กำหนดไว้สำหรับการทำงานของ automated, non-human workloads"
+      ],
+      "explanation": ""
+    }
+  ]
+}

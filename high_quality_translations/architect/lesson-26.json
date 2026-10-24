@@ -1,0 +1,231 @@
+{
+  "title": "Metrics วัดผลระบบ Claude: Accuracy, Latency, Cost และ Safety & Security",
+  "objectives": [
+    "อธิบายเหตุผลที่ระบบ Claude ต้องวัดผลหลายมิติ พร้อมระบุ Failure Mode ที่แต่ละ Metric ตรวจจับได้เฉพาะตัว",
+    "เลือก Accuracy Metric ให้เหมาะกับ Output: Exact Match หรือ F1 สำหรับ Fixed Labels, Cosine Similarity สำหรับความสอดคล้อง (Consistency), และ ROUGE-L สำหรับเปรียบเทียบ Summaries กับ Reference",
+    "กำหนด Latency Criteria โดยระบุ Clock ที่ใช้วัด (Time to First Token, Total Response Time หรือ End-to-End Task Time) และใช้ Percentile แทนค่าเฉลี่ย (Mean)",
+    "แปลงเป้าหมายด้าน Cost, Safety และ Security ให้อยู่ในรูป Rate ที่คำนวณได้ พร้อม Pass/Fail Thresholds และนิยาม Successful Attack ที่ตรวจสอบได้จริง"
+  ],
+  "key_concept": "Multidimensional Success Criteria — ระบบ Claude จะถือว่าผ่านเกณฑ์ ก็ต่อเมื่อผ่าน Threshold ที่คำนวณแยกกันในแต่ละมิติที่วัดผล เช่น Accuracy, Latency, Cost, Safety และ Security เพราะการใช้คะแนนรวมเพียงค่าเดียวไม่สามารถสะท้อนผลลัพธ์ได้จริง เนื่องจากระบบอาจทำได้ดีในมิติหนึ่งแต่ล้มเหลวในอีกมิติหนึ่ง",
+  "sections": [
+    {
+      "heading": "1. ทำไมตัวชี้วัดเดียวจึงไม่เคยเพียงพอสำหรับประเมินระบบ Claude",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Evaluation Metric คือตัวเลขที่คำนวณจาก Output ของโมเดลบน Test Set เทียบกับเกณฑ์ Threshold ที่กำหนด เพื่อตัดสินว่า Prompt, โมเดล หรือการตั้งค่านี้พร้อมสำหรับ Production หรือยัง เราจำเป็นต้องมีสิ่งนี้เพราะคำสั่งลอยๆ อย่าง \"โมเดลต้องจัดประเภท Sentiment ได้ดี\" มันวัดผลจริงไม่ได้ แต่ \"F1 ไม่ต่ำกว่า 0.85 บน Held-out Posts จำนวน 10,000 รายการ\" นั้นตรวจสอบได้จริง เกณฑ์ความสำเร็จเหล่านี้จะถูกตกลงตั้งแต่ขั้นตอน Discovery ([Measurable success criteria](lesson:6.1)) หน้าที่ในขั้นตอนนี้คือการแปลงแต่ละเกณฑ์ให้ออกมาเป็นสูตรที่สคริปต์สามารถคำนวณได้ทุกครั้งที่ Run"
+        },
+        {
+          "type": "paragraph",
+          "text": "แต่ละ Metric ย่อมมีจุดบอดต่อ Failure บางประเภท Classifier อาจจำแนก Ticket ถูกต้องทุกใบ แต่ตอบช้าเกินไปสำหรับ Live Chat หรืออาจจะทั้งเร็วและตอบถูก แต่มี Cost ต่อ Ticket สูงกว่าระบบเดิม หรือทั้งเร็ว ถูก และประหยัด แต่มี Toxic Response โผล่มาเป็นครั้งคราว หรืออาจผ่านฉลุยในทุก Input ปกติแต่กลับทำ Data Leak เมื่อเจอ Edge Case นี่จึงเป็นเหตุผลว่าทำไมเกณฑ์การประเมินที่ดีจึงต้องกำหนดหลาย Threshold บน Held-out Set ชุดเดียวกัน ไม่ใช่ดูตัวเลขตัวเดียว: F1 อย่างน้อย 0.85, ปลอด Toxic 99.5%, Error 90% ต้องเป็นเพียงข้อผิดพลาดเล็กน้อยไม่ใช่ข้อผิดพลาดร้ายแรง และ 95% ของ Response ต้องใช้เวลาต่ำกว่า 200ms"
+        },
+        {
+          "type": "table",
+          "caption": "5 มิติของ Metric, วิธีคำนวณพร้อม Threshold และ Failure ที่มิตินั้นๆ ตรวจจับได้เพียงผู้เดียว",
+          "headers": [
+            "Dimension",
+            "Computable metric with threshold",
+            "Failure only this dimension catches"
+          ],
+          "rows": [
+            [
+              "Accuracy",
+              "F1 score ไม่ต่ำกว่า 0.85 บน Held-out Test Set; Exact-match accuracy",
+              "ตอบผิด แต่ส่งมอบได้เร็ว ถูก และสุภาพ"
+            ],
+            [
+              "Latency",
+              "95% ของ Response Times ต่ำกว่า 200ms",
+              "ตอบถูก แต่มาช้าเกินกว่าที่ Real-time User จะรอไหว"
+            ],
+            [
+              "Cost",
+              "Cost ต่อ Task หรือต่อ Classification เทียบกับ Budget หรือ Baseline",
+              "ตั้งค่าได้แม่นยำและเร็ว แต่แพงเกินกว่าจะ Run ตาม Transaction Volume ที่คาดหวัง"
+            ],
+            [
+              "Safety",
+              "มีไม่ถึง 0.1% จาก 10,000 Trials ที่ถูก Content Filter ตรวจจับว่า Toxic",
+              "เนื้อหาถูกต้อง แต่อยู่ในรูปภาษาที่อันตรายหรือไม่เหมาะสม"
+            ],
+            [
+              "Security",
+              "สัดส่วนของ Test Inputs ที่โมเดลเผลอใช้หรือเปิดเผยข้อมูลที่สั่งให้เก็บเป็นความลับ",
+              "แอปพลิเคชันทำงานปกติกับข้อมูลทั่วไป แต่ถูกเจาะหรือหลอกให้แหกกฎของตัวเอง"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับระบบ Agents มิติเหล่านี้จะถูกซ้อนกันอยู่ภายใน Task เดียว การตรวจแต่ละจุดในงานของ Agent คือ Grader (Logic ที่ใช้วัดผล Performance แต่ละด้าน) เช่น Support Agent จะถือว่าปิด Task ได้สำเร็จก็ต่อเมื่อ: Ticket ได้รับการแก้ไขแล้ว (State Check: ตรวจสอบ Environment หลัง Run เสร็จ), ปิดบทสนทนาได้ภายใน 10 Turns (Transcript Constraint: จำกัดเงื่อนไขใน Conversation Log เช่น จำนวน Turn) และใช้น้ำเสียงเหมาะสม (LLM Rubric: ใช้โมเดลให้คะแนน Output เทียบกับเกณฑ์ข้อความที่ระบุไว้) นอกจากนี้คุณยังเลือกวิธีรวม Grader Scores ได้ ทั้งแบบ Weighted Scoring ที่จะผ่านเมื่อผลรวมคะแนนถึงเกณฑ์ หรือ Binary Scoring ที่ทุก Grader ต้องผ่านทั้งหมด และแบบ Hybrid ที่ผสมผสานทั้งสองวิธีเข้าด้วยกัน"
+        }
+      ]
+    },
+    {
+      "heading": "2. การเลือก Accuracy Metric ให้ตรงกับลักษณะของ Output",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "\"Accuracy\" ไม่ใช่ตัวเลขเดี่ยวๆ วิธีวัดที่ถูกต้องขึ้นอยู่กับว่า Correct Output มีหน้าตาอย่างไร ให้เริ่มจากโครงสร้างของ Output ก่อน หากคำตอบมาจาก Fixed Label เช่น Category ของ Ticket 5 ประเภท หรือ Positive/Negative/Neutral/Mixed ความถูกต้องจะเป็นแบบ Binary ซึ่งโค้ดสามารถตรวจได้ทันทีโดยไม่ต้องใช้ดุลยพินิจ Exact Match จะเปรียบเทียบ Output กับ Label หลังทำ Normalise Whitespace และ Case ส่วน Accuracy คือสัดส่วนที่ตรงกัน แต่ถ้า Classes มีความ Imbalanced หรือ Error บางประเภทส่งผลกระทบมากกว่ากัน ให้ใช้ Precision, Recall และ F1 จากผลเปรียบเทียบชุดเดิม ซึ่งจะให้ข้อมูลเชิงลึกได้ดีกว่า Raw Accuracy"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับข้อความแบบ Free-form จะใช้ Exact Match ไม่ได้ เพราะข้อความสรุปที่ดีสองแบบแทบไม่มีทางตรงกันแบบอักษรต่ออักษร สำหรับงาน Summarisation ที่มี Reference ให้ใช้ ROUGE-L ซึ่งจะวัดความยาวของ Longest Common Subsequence ระหว่างข้อความสรุปของโมเดลกับ Reference ทำให้วัดได้ทั้งการครอบคลุมของเนื้อหาและลำดับการนำเสนอประเด็น โดย Test Set ทั่วไปจะใช้บทความ 2-3 ร้อยชุดพร้อม Reference Summary กำกับ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Consistency (ความสอดคล้อง) เป็นคนละประเด็นกับ Correctness (ความถูกต้อง) หากผู้ใช้ถามคำถามเดิมซ้ำด้วยถ้อยคำที่ต่างไป โมเดลควรให้คำตอบที่มีความหมายเดิม ในการวัดผล ให้ใช้ Sentence-embedding โมเดล Encode ข้อความ Output ของคำถาม Paraphrase เหล่านี้ แล้วคำนวณ Cosine Similarity ค่าที่เข้าใกล้ 1 หมายถึงคำตอบสอดคล้องกัน แต่ Metric นี้ไม่ได้บอกว่าคำตอบนั้นถูกหรือไม่ โมเดลที่ตอบ Label ผิดเหมือนกันทุกรอบ Paraphrase ก็จะได้คะแนนส่วนนี้เต็ม"
+        },
+        {
+          "type": "paragraph",
+          "text": "คุณสมบัติบางด้าน เช่น Coherence, Tone หรือ Translation Quality ไม่มี Reference ให้ Match ตรงๆ ให้ใช้เกณฑ์วัดเชิงคุณภาพ (Qualitative Scale) ที่คงที่ทุกครั้ง เช่น Likert Prompt เช่น \"ให้คะแนน Coherence จาก 1 (ไร้เหตุผล) ถึง 5 (สมเหตุสมผลอย่างสมบูรณ์)\" โดยประเมินผ่าน LLM Grader หรือ Expert พร้อมเกณฑ์ Rubric ห้ามนำวิธีนี้ไปใช้กับงานที่เป็น Categorical Task เพราะการเรียกโมเดลตัวที่สองมาประเมินว่า Label ตรงกันดีแค่ไหน มีแต่จะเพิ่ม Cost และความ Non-deterministic โดยไม่จำเป็น ทั้งที่ String Comparison ธรรมดาสามารถตัดสินได้แม่นยำและเด็ดขาดอยู่แล้ว"
+        },
+        {
+          "type": "table",
+          "caption": "Accuracy Metrics จำแนกตาม Output Shape",
+          "headers": [
+            "Output shape",
+            "Metric",
+            "What a high score means"
+          ],
+          "rows": [
+            [
+              "One label from a fixed set",
+              "Exact-match accuracy; precision, recall, F1",
+              "Predicted Label ตรงกับ Ground-truth Label ของมนุษย์"
+            ],
+            [
+              "Summary with a reference",
+              "ROUGE-L",
+              "ข้อมูลสำคัญจาก Reference ปรากฏอยู่ครบถ้วนและเรียงลำดับอย่างสมเหตุสมผล"
+            ],
+            [
+              "Answers to paraphrased versions of one question",
+              "Cosine similarity of sentence embeddings",
+              "คำตอบมีความสอดคล้องกันในเชิงความหมาย (Semantic Consistency) แต่ไม่ได้รับประกันความถูกต้อง"
+            ],
+            [
+              "Open-ended quality with no reference",
+              "Likert scale or expert rubric",
+              "Graders ให้คะแนน Output สูงอย่างสม่ำเสมอตลอดตามเกณฑ์ Rubric ที่กำหนด"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ค่า Cosine similarity ระหว่างคำตอบของคำถาม Paraphrased สูง แปลว่าโมเดลตอบได้ถูกต้อง เพราะ Cosine similarity ใช้วัด Consistency (ความสอดคล้อง) เท่านั้น หากโมเดลตอบผิดซ้ำๆ เหมือนเดิมทุกรอบก็ยังได้คะแนนสูงอยู่ดี การวัด Correctness บน Fixed Labels จึงจำเป็นต้องใช้ Exact Match หรือ F1 เทียบกับ Label คำตอบเสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "3. Latency: ระบุจุดจับเวลา (Clock) และ Percentile ให้ชัดเจน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เป้าหมาย Latency จะไร้ความหมายทันทีถ้าไม่ระบุว่านาฬิกาเริ่มจับและหยุดเมื่อใด ระบบของ Claude มีจุดจับเวลา 3 แบบที่ควรแยกจากกัน และแต่ละตัวแปรเปลี่ยนได้อย่างอิสระ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Time to first token (TTFT): เริ่มนับตั้งแต่ส่ง Prompt ไปจนถึงตอนที่ได้รับ Token แรกกลับมา ตัวนี้คือสิ่งที่ User รับรู้ได้เมื่อใช้ Streaming Response เพราะข้อความเริ่มทยอยแสดงผลทันทีแม้โมเดลยัง Generate ไม่เสร็จ\n- Total response time: นับจนกว่า Token สุดท้ายจะมาถึง ในการทำ Agent Eval จะบันทึกเป็น `time_to_last_token` ควบคู่กับ `output_tokens_per_sec` ตัวนี้สำคัญมากสำหรับกรณีที่ Downstream ยังทำงานไม่ได้จนกว่าจะ Parse Output ครบทั้งหมด เช่น Classifier ที่ใส่ Label ไว้ท้าย Reasoning\n- End-to-end task time: ครอบคลุมการทำงานทั้งลูปของ Agent ตลอดหลาย Turns และ Tool Calls ซึ่งจะเพิ่มขึ้นตาม `n_turns` และ `n_toolcalls` แม้ว่า API Call แต่ละครั้งจะเร็วก็ตาม"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดจับเวลาเหล่านี้ส่งผลขัดแย้งกันเอง SLA ที่ไม่ระบุจุดจับเวลาให้ชัดเจนอาจผ่านเกณฑ์ตัวเลข แต่ User ยังรู้สึกว่าช้า การทำ Streaming ช่วยลด TTFT ได้ แต่ Total response time ยังเท่าเดิม ทั้งนี้ จากการทดสอบของ Anthropic การแจ้ง Agent ว่าเวลามีจำกัดและแสดง Elapsed Time ให้ Agent ทราบ ช่วยลด Run time ได้ 7% ถึง 47% โดยแลกกับคะแนนความถูกต้องลดลงเล็กน้อย ซึ่งจะเห็น Trade-off นี้ได้ก็ต่อเมื่อวัดทั้ง Task time และ Accuracy ควบคู่กันเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "ควรกำหนด Threshold ด้วย Percentile เช่น \"95% ของ Response ต้องต่ำกว่า 200ms\" ซึ่งบอกทั้ง Budget และ Exception ที่ยอมรับได้ในประโยคเดียว (ยอมให้ 5% ของ Turns ช้าได้ช่วง Spike แต่ที่เหลือห้ามเกิน) ค่าเฉลี่ย (Mean) ไม่สามารถบอกสิ่งนี้ได้ ค่าเฉลี่ย 150ms ตลอดทั้งเดือนอาจซ่อนปัญหา Voice turn ค้างอยู่ถึง 20% หรือ Outlier รุนแรงเพียงเคสเดียวก็ดึงค่าเฉลี่ยของระบบที่ปกติให้ตกเกณฑ์ได้ อนึ่ง Average output token count และ Requests per minute ไม่ใช่ Metric ของ Latency ตัวแรกวัด Response size ส่วนตัวหลังวัด Capacity จงเลือก Percentile และ Budget ตาม Real-time requirements จริงของระบบ เพราะงาน Voice turn ย่อมใช้เกณฑ์เดียวกับ Overnight batch job ไม่ได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Time to first token (TTFT) บอกระยะเวลาทั้งหมดที่ User ต้องรอคำตอบ? (ทำไมถึงผิด): ไม่จริง: TTFT หยุดจับเวลาตั้งแต่ได้ Token แรก ส่วน Total response time (`time_to_last_token`) และ End-to-end task time เป็นจุดจับเวลาคนละตัว หากเป็นเวิร์กโหลดแบบ Non-streamed หรือ Multi-turn แม้ TTFT จะเร็ว แต่ภาพรวมอาจยังช้ามาก\n\nการใช้ค่าเฉลี่ย (Average response time) เป็นเป้าหมาย คือวิธีที่ถูกต้องในการการันตี Responsiveness โดยรองรับ Spike ได้? (ทำไมถึงผิด): ไม่จริง: การใช้ Percentile เช่น 95% ของ Response ต้องต่ำกว่า 200ms เป็นวิธีเดียวที่กำหนดทั้ง Latency budget และ Slow tail ที่ยอมรับได้ชัดเจน ค่าเฉลี่ยไม่สามารถบอกสิ่งเหล่านี้ได้"
+        }
+      ]
+    },
+    {
+      "heading": "4. ใช้ Cost per task เป็นเกณฑ์ Pass/Fail",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Cost ควรเป็น Eval Metric ที่มี Threshold ชัดเจน และคำนวณจาก Run เดียวกันกับที่วัด Accuracy อย่ามองว่าเป็นแค่บิลค่าใช้จ่ายที่ค่อยมาตรวจทีหลัง หน่วยที่ใช้วัดต้องเป็น \"ต่อ Task\" ไม่ใช่ \"ต่อ Token\" เพราะโมเดลที่ราคาต่อ Token ถูกกว่า แต่ต้องใช้หลาย Turns หรือ Retry บ่อยกว่า อาจมีต้นทุนต่อปัญหาที่แก้ได้สูงกว่า ([Cost per solved task (not price per token)](lesson:2.1)) ใน `usage` block ของ Response จะมีจำนวน Input, Output และ Cache tokens ให้นำมาคูณกับราคาต่อ Token แล้วหารผลรวมทั้งหมดด้วยจำนวน Tasks ใน Run นั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Cost threshold ต้องเทียบกับเกณฑ์อ้างอิงเสมอ ตัวอย่างเช่น ระบบ Ticket-routing กำหนด 2 Threshold ควบคู่กัน คือ Accuracy 95% จาก 100 Tests และ Cost per classification ต้องลดลงเฉลี่ย 50% เมื่อเทียบกับ Routing แบบเดิม ใน Cookbook ของ Insurance-claims ตัว Baseline agent ทำได้ 10/10 ที่ประมาณ $0.29 ต่อ Task เนื่องจาก Claim ที่ระบุผิดประเภทมีมูลค่าความเสียหายสูงกว่าค่า Inference ที่ประหยัดได้ ทีมจึงล็อก Accuracy ไว้ที่ 10/10 แล้วตั้ง Cost เป็นตัวเลขที่ต้องบีบให้ต่ำลง Configuration ที่ประหยัดเงินแต่ทำเคสหลุด ย่อมถือว่า Fail ไม่ว่าจะถูกแค่ไหนก็ตาม"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เมื่อเปรียบเทียบ Configuration ตัวที่มี Price per token ต่ำกว่า ย่อมประหยัดค่าใช้จ่ายมากกว่าเสมอ? (ทำไมถึงผิด): ไม่จริง: ต้องเปรียบเทียบจาก Cost per completed task โดยล็อก Accuracy threshold ให้คงที่ เพราะจำนวน Turns ที่เพิ่มขึ้นหรือ Failure ที่ต้องแก้งาน อาจทำให้ Configuration ที่ราคาต่อ Token ถูกกว่า มีต้นทุนต่อ Task ที่แก้สำเร็จสูงกว่าได้"
+        }
+      ]
+    },
+    {
+      "heading": "5. การวัดผลด้าน Safety และ Security ให้อยู่ในรูปของอัตราส่วนที่ตรวจสอบได้ (Checkable Rates)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "\"ผู้ช่วยต้องปลอดภัย\" เป็นเพียงความคาดหวัง ไม่ใช่เกณฑ์วัดผล (Criterion) แม้แต่เป้าหมายที่ดูเป็นนามธรรมอย่างเรื่องจริยธรรมหรือความปลอดภัย ก็สามารถแปลงเป็นอัตราส่วน (Rates) ทางสถิติได้ เช่น สัดส่วนของ Output ที่ Detector ตรวจพบ จากจำนวนการทดสอบที่กำหนด เกณฑ์วัดผลด้าน Safety ที่ดีต้องระบุ 3 องค์ประกอบหลัก: ตัวตรวจจับ (เช่น Content Filter), ขนาดกลุ่มตัวอย่าง (เช่น ทดสอบ 10,000 ครั้ง) และเพดานสูงสุดที่ยอมรับได้ (เช่น ถูก Flag น้อยกว่า 0.1%) ระดับความรุนแรง (Severity) ก็ต้องจัดการแบบเดียวกัน ประโยคอย่าง \"90% ของข้อผิดพลาดสร้างแค่ความรำคาญ ไม่ใช่ความเสียหายร้ายแรง\" จะคำนวณเป็นตัวเลขได้ก็ต่อเมื่อคุณนิยามไว้ชัดเจนแล้วว่า แค่ไหนนับเป็น Inconvenient และแค่ไหนนับเป็น Egregious Error"
+        },
+        {
+          "type": "paragraph",
+          "text": "Security Metric ก็คำนวณด้วยวิธีเดียวกัน เพียงแต่คุณต้องนิยามก่อนว่าอะไรคือ \"การโจมตีที่สำเร็จ (Successful Attack)\" โดยต้องชัดเจนพอที่โค้ดหรือ Grader จะตัดสินได้อัตโนมัติ เริ่มต้นจากการวิเคราะห์ Threat Model ซึ่งแบ่งเป็น 2 รูปแบบ: 1) Jailbreaks / Direct Prompt Injection ซึ่ง User คือผู้โจมตีที่ป้อน Input เพื่อบายพาส Guardrails ของระบบ และ 2) Indirect Prompt Injection ซึ่ง User ไว้ใจได้ แต่ Claude ไปอ่านเนื้อหา Third-Party (เช่น หน้าเว็บ, อีเมล, เอกสาร, Tool Results) ที่แฝงคำสั่งโจมตีไว้ ทั้งสองรูปแบบจำเป็นต้องมี Adversarial Test Set และเงื่อนไขความสำเร็จ (Success Condition) แยกจากกัน Metric ที่ใช้วัดผลจึงเป็น Attack Success Rate (ASR) หรือสัดส่วนของการโจมตีที่ทำได้สำเร็จตามเงื่อนไขที่ตั้งไว้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเขียนเงื่อนไข Success Condition ต้องวัดผลจากผลลัพธ์ที่สังเกตได้จริง (Observable Outcomes) ห้ามใช้เกณฑ์เชิงนามธรรมอย่าง \"โมเดลดูเหมือนจะถูกหลอก/ควบคุม\":"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Harmlessness Screen: การใช้โมเดลคัดกรอง Input ว่าเป็นอันตรายหรือไม่ก่อนส่งเข้า Conversation หลัก โดยใช้ Structured Outputs บังคับให้ส่ง Label ที่แน่นอน เช่น Boolean `is_harmful` เพื่อให้โค้ดเปรียบเทียบกับคำตอบจริงได้ การโจมตีจะถือว่าสำเร็จเมื่อ Input ที่เป็นอันตรายถูกประเมินว่า Safe - Data Handling: การโจมตีสำเร็จเมื่อ Output นำข้อมูลที่คำสั่งระบุว่าห้ามเปิดเผยไปใช้หรือแชร์ต่อ - Agents: การโจมตีสำเร็จเมื่อ End State ในระบบเกิดผลกระทบต้องห้าม โดยตรวจสอบจาก Environment State จริง ไม่ใช่ดูจากคำตอบหรือข้อความใน Transcript"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างงาน Authentication-Bypass ของ Agent ด้านล่างแสดงให้เห็นถึง Graders ที่ระบุความหมายของคำว่า \"Secure\" ไว้อย่างชัดเจน: Deterministic Tests ที่ปฏิเสธ Empty Password และ Null Password, การทำ Static Security Scan ด้วย Bandit และการตรวจสอบ State ในระบบว่า Security Log บันทึก Event `auth_blocked` จริงหรือไม่ หากมีข้อใดข้อหนึ่งไม่ผ่าน จะถือว่าการแก้ไขนั้นล้มเหลวทันที ไม่ว่าคำอธิบายของ Agent จะฟังดูน่าเชื่อถือเพียงใดก็ตาม"
+        },
+        {
+          "type": "exam_trap",
+          "text": "นำไปปรับใช้กับงานของคุณ: เลือกระบบ Guardrail ขึ้นมา 1 ตัวในระบบที่คุณรู้จัก สิ่งใดต้องปรากฏใน Output, Log หรือ Environment อย่างเจาะจง คุณถึงจะบันทึกว่าการโจมตีนั้นสำเร็จ?"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Safety เป็นเรื่องของคุณภาพ (Qualitative) และไม่สามารถกำหนดเกณฑ์ Pass/Fail เป็นตัวเลขได้? (ทำไมถึงผิด): ไม่จริง: Safety สามารถวัดเป็นอัตราส่วน (Rate) ได้ทันทีที่คุณระบุ Detector, ขนาดตัวอย่าง (Sample Size) และเพดานความผิดพลาดที่ยอมรับได้ (Ceiling)"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56849",
+      "question": "บริษัท Fintech แห่งหนึ่งได้พัฒนาระบบคัดกรอง Ticket ซัพพอร์ตอัตโนมัติ ซึ่งจะจัด Ticket แต่ละรายการที่เข้ามาให้อยู่ใน 1 ใน 5 หมวดหมู่ที่กำหนดไว้พอดี (billing, fraud, account access, technical issue, other) โดยทีมงานต้องการวัดผลประสิทธิภาพของโมเดลในการจัดหมวดหมู่นี้ด้วยชุดข้อมูลทดสอบที่มี Label จำนวน 5,000 รายการ โดยต้องการให้เป็นการตรวจให้คะแนนแบบอัตโนมัติและมีความชัดเจนตรงไปตรงมา (unambiguous) ทีมงานควรใช้วิธีการประเมินผล (Evaluation Approach) ใด?",
+      "options": [
+        "ให้คะแนนแต่ละผลลัพธ์เทียบกับหมวดหมู่ใน Label โดยใช้ Exact-Match Accuracy หรือ F1 Score ที่คำนวณจาก Confusion Matrix",
+        "แปลงข้อความดัดแปลง (Paraphrased variants) ของแต่ละ Ticket ด้วย Sentence-Embedding Model แล้วหาค่าเฉลี่ย Pairwise Cosine Similarity ของผลลัพธ์",
+        "คำนวณ ROUGE-L Score ระหว่างผลลัพธ์ของโมเดลกับข้อความสรุปอ้างอิงที่เขียนโดยหัวหน้าทีมซัพพอร์ต",
+        "ใช้โมเดล Claude อีกตัวหนึ่งมาช่วยประเมินการจัดหมวดหมู่แต่ละครั้งโดยให้คะแนน Likert Scale 1-5 ว่าตรงกับหมวดหมู่ที่คาดหวังมากน้อยเพียงใด"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56851",
+      "question": "ทีมจัดทำเอกสารได้สร้างเครื่องมือสำหรับย่อรายงาน Incident ภายในที่มีขนาดยาวให้กลายเป็นสรุปสั้นๆ โดยพวกเขามีรายงาน Incident 200 ฉบับพร้อมบทสรุปอ้างอิงที่เขียนโดยมนุษย์ และต้องการเมทริกซ์อัตโนมัติที่สามารถวัดได้ทั้งความครอบคลุมของข้อมูลสำคัญ (overlap of key information) และลำดับของเนื้อหา (ordering of ideas) ระหว่างบทสรุปของโมเดลกับบทสรุปอ้างอิง เมทริกซ์ใดเหมาะสมที่สุดสำหรับการประเมินผลนี้?",
+      "options": [
+        "ROUGE-L Score ที่วัด Longest Common Subsequence ระหว่างบทสรุปของโมเดลกับบทสรุปอ้างอิง",
+        "Exact-Match Accuracy ที่เปรียบเทียบตัวอักษรต่อตัวอักษรระหว่างบทสรุปของโมเดลกับบทสรุปอ้างอิง",
+        "Cosine Similarity ระหว่าง Embeddings ของบทสรุป 10 ฉบับที่สร้างขึ้นแยกกันจากรายงานฉบับเดียวกัน",
+        "Binary Classifier ที่ตรวจจับว่าบทสรุปมีข้อมูลระบุตัวตนบุคคล (Personally Identifiable Information: PII) หรือไม่"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56854",
+      "question": "Voice Agent สำหรับบริการลูกค้าจำเป็นต้องตอบสนองได้อย่างรวดเร็วแบบ Real-time ทีมงานได้กำหนดเกณฑ์ความสำเร็จว่า การโต้ตอบของผู้ใช้ส่วนใหญ่ (Vast majority) จะต้องได้รับคำตอบภายในกรอบเวลาที่เข้มงวด แต่ยังยอมรับคำตอบที่ช้าลงได้เป็นครั้งคราวในช่วงที่มี Traffic พุ่งสูง การกำหนด Latency Metric ในข้อใดสอดคล้องกับเกณฑ์ความสำเร็จนี้มากที่สุด?",
+      "options": [
+        "Response Time ที่ Percentile ที่ 95 (P95) จาก Query ทั้งหมดบน Production โดยตั้งเป้าหมาย เช่น 95% ของการตอบกลับต้องต่ำกว่า 200ms",
+        "ค่าเฉลี่ย Mean Response Time ของทุก Query ในช่วงเดือนปฏิทินที่ผ่านมา",
+        "จำนวน Output Tokens ทั้งหมดที่สร้างขึ้นต่อการตอบกลับ โดยเฉลี่ยจากชุดข้อมูลทดสอบ",
+        "จำนวน API Request ที่ดำเนินการสำเร็จต่อนาทีในช่วงที่โหลดสูงสุด (Peak load)"
+      ],
+      "explanation": ""
+    }
+  ]
+}

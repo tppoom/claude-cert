@@ -1,0 +1,163 @@
+{
+  "title": "ตัวเลือกโมเดล Claude: Thinking, Effort Levels และ Fast Mode",
+  "objectives": [
+    "แยกความแตกต่างระหว่าง Extended Thinking (กำหนด budget_tokens เอง) กับ Adaptive Thinking พร้อมระบุโมเดลที่รองรับแต่ละแบบ",
+    "อธิบายการคิดค่าบริการและการนับ Thinking Tokens รวมถึงกรณีที่ซ่อนการแสดงผล (Omitted Display)",
+    "ตั้งค่าพารามิเตอร์ Effort และเลือกระดับที่เหมาะสมกับ Workload",
+    "อธิบายผลกระทบและข้อจำกัดของการเปิดใช้งาน Fast Mode"
+  ],
+  "key_concept": "การปรับแต่งพฤติกรรมโมเดล Claude ผ่าน Thinking Tokens, Effort Levels และ Fast Mode เพื่อควบคุมประสิทธิภาพ ความลึกในการให้เหตุผล และต้นทุนให้เหมาะกับ Workload",
+  "sections": [
+    {
+      "heading": "1. Extended thinking and adaptive thinking",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "โมเดลที่ตอบแบบรอบเดียวจบ (one pass) ต้องตอบให้ถูกทันทีโดยไม่มีพื้นที่ทดเลข Thinking จึงเข้ามาทลายข้อจำกัดนี้ เมื่อเปิดใช้งาน Thinking ตัว Claude จะคิดวิเคราะห์ปัญหาก่อนตอบ: ทั้งเรียบเรียงโจทย์ใหม่ ลองหาแนวทางแก้ ตรวจสอบผลลัพธ์ระหว่างทาง และตัดทางเลือกที่ไม่เวิร์กทิ้ง กระบวนการคิดนี้จะถูกส่งมาใน Thinking content blocks ก่อน Response text จึงช่วยเพิ่มประสิทธิภาพอย่างมากในงาน Math, Coding, Analysis และ Agentic tasks ขนาดยาว ทั้งนี้ ข้อความที่เห็นใน Thinking block เป็นเพียง Summary ของการคิด ไม่ใช่ Raw Chain of Thought ทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "การกำหนดค่าทำได้ 2 แบบ: Extended thinking เป็นรูปแบบเดิมแบบ Manual โดยส่ง type: \"enabled\" พร้อมกำหนด budget_tokens คงที่ ซึ่งถูก Deprecated บน Opus 4.6 และ Sonnet 4.6 แล้ว ส่วนบน Claude 4.7 ขึ้นไป หากส่ง budget_tokens จะได้ 400 error ทันที อีกแบบคือ Adaptive thinking (type: \"adaptive\") ที่ Claude จะตัดสินใจเองว่าจะคิดเมื่อไหร่และคิดลึกแค่ไหน โดยอิงจากค่า effort และความซับซ้อนของ Prompt หากเป็นคำถามง่ายๆ ก็จะตอบกลับทันที สำหรับ Claude Opus 5.5, Fable 5.1 รวมถึงตระกูล Fable และ Mythos 5 นั้น Adaptive thinking จะเปิดใช้งานตลอดเวลาและไม่สามารถปิดได้"
+        },
+        {
+          "type": "table",
+          "caption": "พฤติกรรมของแต่ละโมเดลกับการตั้งค่า Thinking รูปแบบต่างๆ",
+          "headers": [
+            "Model",
+            "No thinking field",
+            "\"adaptive\"",
+            "\"enabled\" with budget_tokens"
+          ],
+          "rows": [
+            [
+              "Claude Opus 5.5",
+              "Adaptive thinking",
+              "Adaptive thinking",
+              "400 error"
+            ],
+            [
+              "Claude Opus 4.8",
+              "Thinking off",
+              "Adaptive thinking",
+              "400 error"
+            ],
+            [
+              "Claude Sonnet 4.6",
+              "Thinking off",
+              "Adaptive thinking",
+              "Extended thinking (deprecated)"
+            ],
+            [
+              "Claude Haiku 4.5",
+              "Thinking off",
+              "400 error",
+              "Extended thinking"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Thinking มีค่าใช้จ่ายเสมอ Reasoning tokens จะคิดเงินในเรต Output tokens และนับรวมในโควตา max_tokens จึงต้องเผื่อ Tokens ไว้สำหรับทั้ง Thinking และ Response text เสมอ สำหรับฟิลด์ display มีไว้ควบคุมเพียงว่าจะแสดง Summary หรือไม่ โดยค่า \"omitted\" (เป็นค่า Default บน Claude 5, Opus 4.7 และ 4.8) จะคืนค่า thinking field เป็นค่าว่างและช่วยลด Latency ของ First text token เมื่อใช้ Streaming แต่ระบบยังคง Generate และคิดเงินค่า Thinking ครบทุก Token นอกจากนี้ เรายังปรับการ Trigger ของ Adaptive thinking ได้ผ่าน System Prompt หาก Prompt ยาวทำให้ Claude เผลอคิดเยอะกับคำถามง่ายๆ ให้เพิ่ม Instruction สั่งให้ตอบตรงๆ ทันทีหากการคิดไม่ได้ช่วยปรับปรุงคุณภาพคำตอบอย่างมีนัยสำคัญ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การตั้งค่า thinking display เป็น \"omitted\" ไม่ได้ช่วยลดต้นทุน Token เพราะ Omitted display เพียงแค่ข้ามการ Stream ข้อความ Thinking เพื่อลด Latency เท่านั้น แต่ Reasoning tokens ทุกตัวยังถูก Generate และคิดเงินตามจริงทั้งหมด"
+        }
+      ]
+    },
+    {
+      "heading": "2. Effort levels: how many tokens Claude spends",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "พารามิเตอร์ effort ใช้กำหนดขอบเขตปริมาณ Tokens ที่ Claude จะใช้ในแต่ละ Response เพื่อให้โมเดลเดียวสามารถ Trade-off ระหว่างความละเอียดรอบคอบกับความคุ้มค่าของ Token ได้ กำหนดผ่าน output_config.effort โดยมีผลกับ Output tokens ทุกรูปแบบ ทั้ง Response text, Tool calls พร้อม Arguments และ Thinking tokens เมื่อเปิดใช้งาน Thinking อยู่ ด้วยเหตุนี้ effort จึงทำงานได้เสมอไม่ว่าจะเปิดหรือปิด Thinking และระดับ effort ที่ต่ำกว่าจะส่งผลให้ Tool calls กระชับและมีจำนวนครั้งน้อยลงด้วย สำหรับโมเดลที่ปิด Adaptive thinking ไม่ได้ เช่น Opus 5.5 ค่า effort จะกลายเป็นเครื่องมือหลักในการคุมระดับการคิดและ Cost ของ Request"
+        },
+        {
+          "type": "paragraph",
+          "text": "โมเดลส่วนใหญ่จะมี Default เป็น high ยกเว้น Claude Opus 5.5 ที่ Default เป็น medium ดังนั้นหากไม่ได้ระบุ effort จะทำงานที่ระดับต่ำกว่า Opus 5 อยู่หนึ่งระดับ นอกจากนี้ แต่ละโมเดลรองรับระดับ effort ไม่เท่ากัน โดย max และ xhigh จะมีเฉพาะในโมเดลรุ่นใหม่ๆ และโมเดลที่มี max บางตัวอาจไม่มี xhigh ทั้งนี้ เมื่อใช้งานระดับสูง แนะนำให้ตั้งค่า max_tokens ไว้ให้สูงพอ เพราะ max_tokens เป็น Hard limit รวมของทั้ง Thinking และ Response text"
+        },
+        {
+          "type": "table",
+          "caption": "ระดับ Effort และ Use Case ที่เหมาะสม",
+          "headers": [
+            "Level",
+            "Description",
+            "Typical use case"
+          ],
+          "rows": [
+            [
+              "max",
+              "ปลดล็อกศักยภาพสูงสุด ไม่จำกัดการใช้ Token",
+              "งานที่ต้องใช้การคิดวิเคราะห์เชิงลึกขั้นสุด"
+            ],
+            [
+              "xhigh",
+              "เพิ่มขีดความสามารถสำหรับงานระยะยาว (Long-horizon)",
+              "งาน Agentic และ Coding ที่รันต่อเนื่องยาวนาน (เกิน 30 นาที)"
+            ],
+            [
+              "high",
+              "ใช้ Token ตามที่งานต้องการ เป็นค่า Default ของโมเดลส่วนใหญ่",
+              "งาน Complex reasoning, โจทย์ Coding ที่ซับซ้อน และ Agentic tasks ทั่วไป"
+            ],
+            [
+              "medium",
+              "เน้นความสมดุลและประหยัด Token เป็นค่า Default บน Claude Opus 5.5",
+              "งาน Agentic ที่ต้องการ Balance ทั้ง Speed, Cost และ Performance"
+            ],
+            [
+              "low",
+              "เน้นความคุ้มค่าสูงสุด โดยแลกกับขีดความสามารถที่ลดลงบางส่วน",
+              "งานง่ายๆ ที่ต้องการความเร็วสูงสุดและ Cost ต่ำสุด เช่น งานของ Subagents"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Effort ไม่ได้ใช้สำหรับคุม Thinking budget เพียงอย่างเดียว แต่มีผลกับ Output tokens ทั้งหมด รวมถึง Response text และ Tool calls จึงทำงานได้เสมอไม่ว่าจะเปิดหรือปิด Thinking"
+        }
+      ]
+    },
+    {
+      "heading": "3. Fast mode: โมเดลเดิม แต่ Output เร็วยิ่งขึ้น",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Fast mode เป็นฟีเจอร์ Research Preview ที่ช่วยเพิ่มความเร็ว Output สูงสุดถึง 2.5 เท่า (Output tokens per second) สำหรับ Claude Opus 5.5, Opus 5 และ Opus 4.8 โดยคิดราคาแบบพรีเมียม ฟีเจอร์นี้ไม่ใช่โมเดลคนละตัว แต่รันบน Model Weights เดิมและมีพฤติกรรมเหมือนเดิมทุกประการบน Inference Configuration ที่เร็วกว่า ทำให้ยังคงความสามารถระดับ Opus ไว้ได้โดยไม่ต้องดาวน์เกรดไปใช้โมเดลที่เล็กลง เปิดใช้งานโดยกำหนด `speed: \"fast\"` และส่ง Beta Header `fast-mode-2026-02-01`"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดที่ความเร็วเพิ่มขึ้นเป็นเรื่องสำคัญ: Fast mode เพิ่ม Output tokens per second ไม่ได้ลด Time to first token จึงคุ้มค่ากับการ Generate ข้อความขนาดยาวและเห็นผลชัดเจนที่สุดเมื่อใช้ร่วมกับ Streaming หากปัญหาของคุณคือความล่าช้าก่อน Token แรกจะถูกส่งออกมา Fast mode จะไม่ใช่เครื่องมือที่ตอบโจทย์ นอกจากนี้ Effort และ Fast mode ยังทำงานคนละส่วนกัน โดย Effort จะควบคุมจำนวน Token ที่ Claude สร้าง ส่วน Fast mode จะควบคุมความเร็วที่แต่ละ Token ถูกส่งออกมา"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Fast mode สลับไปใช้โมเดลที่เล็กลงและเร็วกว่า ทำให้ต้องแลกความฉลาดกับความเร็ว? (ทำไมถึงผิด): ไม่จริง: Fast mode ใช้ Model Weights และมีพฤติกรรมเดิมทุกประการบน Inference Configuration ที่เร็วกว่า มีเพียงความเร็ว Output และราคาเท่านั้นที่เปลี่ยนไป"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55538",
+      "question": "ทีมที่ใช้งาน Claude Sonnet 5 ต้องการการันตี Latency ที่ต่ำที่สุดสำหรับคิวรีแบบ Simple Lookup โดยการปิดการทำงานของ Reasoning โดยสมบูรณ์ใน Request เหล่านั้น แต่การละเว้น (Omit) ค่า Config ของ thinking ไม่สามารถทำสิ่งนี้ได้ พวกเขาควรทำอย่างไรแทน?",
+      "options": [
+        "ละเว้น (Omit) พารามิเตอร์ thinking ออกจากทุก Request โดยสิ้นเชิง",
+        "กำหนด type ของ thinking เป็น enabled พร้อมระบุค่า budget_tokens ไว้อย่างชัดเจน",
+        "กำหนด type ของ thinking เป็น disabled ไว้อย่างชัดเจนใน Request",
+        "กำหนดค่า effort เป็น low โดยปล่อยพารามิเตอร์ thinking ไว้ตามเดิม"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55539",
+      "question": "Prompt Engineer กำลังสร้างงาน Extraction ที่ต้องส่งผลลัพธ์ตาม Format ที่กำหนดอย่างสม่ำเสมอ รวมถึงในกรณีที่เป็น Edge Cases ที่ซับซ้อนด้วย พวกเขาต้องการวิธีที่น่าเชื่อถือที่สุดในการควบคุม Format และโครงสร้างคำตอบของ Claude โดยใช้ตัวอย่าง (Demonstrations) คุณภาพสูงจำนวนไม่มาก พวกเขาควรทำอย่างไร?",
+      "options": [
+        "ใส่ตัวอย่างที่หลากหลายจำนวน 3 ถึง 5 ตัวอย่างซึ่งสะท้อน Use Case จริงและครอบคลุม Edge Cases โดยครอบด้วยแท็ก example",
+        "ใส่ตัวอย่างสั้นๆ เพียงตัวอย่างเดียวโดยไม่ใส่แท็กครอบ และปล่อยให้ Claude อนุมาน Format เอง",
+        "ข้ามการใส่ตัวอย่างไปเลย แล้วเขียนข้อกำหนด (Specification) อธิบายทีละขั้นตอนอย่างละเอียดแทน",
+        "ใส่ตัวอย่างที่แทบจะเหมือนกันตั้งแต่ 15 ตัวอย่างขึ้นไป เพื่อตอกย้ำ Pattern แคบๆ เพียง Pattern เดียวให้ชัดเจนที่สุด"
+      ],
+      "explanation": ""
+    }
+  ]
+}

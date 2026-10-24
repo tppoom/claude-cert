@@ -1,0 +1,155 @@
+{
+  "title": "การจัดการ Session และ Plugins ใน Claude Code อย่างมีประสิทธิภาพ",
+  "objectives": [
+    "เลือกใช้ระหว่าง /compact (แบบกำหนด focus), /clear หรือ delegate ให้ Subagents เมื่อ Session เริ่มหลุดโฟกัสหรือบวมเกินไป",
+    "ประเมินได้ว่าข้อมูลใดจะยังคงอยู่และข้อมูลใดจะสูญหายหลังทำ Compaction",
+    "อธิบายองค์ประกอบภายใน Plugin ของ Claude Code รวมถึงผลกระทบต่อ Context Window, ระดับความน่าเชื่อถือ (Trust), การติดตั้งตาม Scopes ต่างๆ และกลไกที่ Agent SDK ใช้โหลด Plugin"
+  ],
+  "key_concept": "Session Hygiene และ Plugin Management ใน Claude Code",
+  "sections": [
+    {
+      "heading": "1. Compact, clear หรือ delegate: กฎการรักษาสุขอนามัยของ Session (Session Hygiene Rule)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ยิ่ง Session ของ Claude Code ยาวขึ้น ประสิทธิภาพจะยิ่งลดลงอย่างคาดเดาได้ บทสนทนาเก่าๆ จะดันไฟล์ที่ต้องใช้ถัดไปหลุดจาก Context และคุณต้องเสียค่า Tokens ส่วนนี้ในทุกข้อความ Session Hygiene จึงหมายถึงการเลือก 1 ใน 3 ตัวเลือกในแต่ละจุดเปลี่ยนของงาน: Compaction แทนที่บทสนทนาด้วยสรุปแบบมีโครงสร้าง, Context Isolation ด้วย Subagents ให้ชิ้นงานแยกไปรันใน Context Window ของตัวเอง, หรือ /clear เพื่อเริ่มบทสนทนาใหม่ทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกขึ้นอยู่กับว่างานถัดไปเกี่ยวข้องกับงานเดิมหรือไม่: หากยังทำงานเดิมแต่งานเริ่มบวม ให้ใช้ /compact พร้อมระบุ Focus เช่น `/compact focus on the auth bug fix` ก่อนเริ่มเฟสใหม่ที่ยาว สรุปที่ได้จะเก็บเฉพาะประเด็นที่คุณระบุแทนที่จะให้ระบบสุ่มเดา, หากเป็นงานใหม่ที่ไม่เกี่ยวข้องกัน ให้ใช้ /clear, หากงานถัดไปเป็นการอ่านโค้ดจำนวนมาก เช่น งาน Research ทั่วทั้ง Codebase ให้ส่งไปที่ Subagent เนื้อหาไฟล์จะอยู่เฉพาะใน Window ของ Subagent และส่งกลับมาเพียงข้อความสรุปพร้อม Metadata Trailer ขนาดเล็กเท่านั้น, และหากมีสัญญาณรบกวน (Noise) แค่บางช่วง ให้ใช้ /rewind สรุปเฉพาะส่วนที่เลือกได้"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือกแนวทาง Session Hygiene",
+          "headers": [
+            "Move",
+            "Use it when",
+            "What the session keeps"
+          ],
+          "rows": [
+            [
+              "/compact focus on …",
+              "ยังทำงานเดิมต่อ แต่ Context เริ่มบวม",
+              "สรุปแบบมีโครงสร้างที่เน้นตาม Focus ที่คุณระบุ"
+            ],
+            [
+              "/clear",
+              "กำลังเปลี่ยนไปทำงานอื่นที่ไม่เกี่ยวข้องกัน",
+              "เริ่มบทสนทนาใหม่หมด ไม่เหลือข้อมูลเก่า"
+            ],
+            [
+              "Delegate to a subagent",
+              "งานถัดไปต้องอ่านไฟล์เยอะ หรือเป็นงาน Research",
+              "เฉพาะสรุปและ Metadata trailer ขนาดเล็ก"
+            ],
+            [
+              "/rewind → Summarize from here / up to here",
+              "มี Noise หรือเนื้อหาที่ไม่จำเป็นแค่บางส่วน",
+              "สรุปเฉพาะส่วนนั้น ส่วนที่เหลือยังคงเดิม"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เนื้อหาเริ่มต้นส่วนใหญ่จะถูกโหลดกลับมาหลังการ Compaction แต่ควรตรวจสอบให้แน่ใจว่าอะไรบ้างที่ไม่กลับมา: System Prompt และ Output Style ยังคงอยู่, CLAUDE.md ที่ Root โปรเจกต์, Unscoped Rules และ Auto Memory จะถูกโหลดซ้ำจากดิสก์ รวมถึง Plan จาก Plan Mode ก็กลับมาเช่นกัน, ส่วน Path-scoped Rules และ Nested CLAUDE.md จะกลับมาเมื่อ Claude อ่านไฟล์ที่ตรงเงื่อนไขในครั้งถัดไป, Claude Code จะอ่านซ้ำสูงสุด 5 ไฟล์ล่าสุดที่ Claude เคยอ่านหรือแก้ไข (เรียงจากที่แก้ไขล่าสุดก่อน) และเนื้อหาของ Skills ที่เคยถูกเรียกใช้จะกลับมาภายใต้ Token Cap ที่กำหนด นอกเหนือจากนี้ เช่น คำสั่งเฉพาะกิจที่คุณพิมพ์ในแชตเมื่อชั่วโมงก่อน จะรอดมาได้ก็ต่อเมื่ออยู่ในสรุปเท่านั้น หากต้องการให้คำสั่งอยู่ยาวหลัง Compaction ต้องใส่ไว้ใน CLAUDE.md ทั้งนี้การ Resume เซสชันเก่าก็ใช้หลักการเดียวกัน: \"Resume from summary\" จะรัน /compact ทันที ส่วน \"Resume full session as-is\" จะประมวลผล History ทั้งหมดใหม่ตั้งแต่ต้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ก่อนเปลี่ยนไปทำงานที่ไม่เกี่ยวข้องกัน ควรใช้ /compact เพื่อให้ Claude เก็บ Memory บีบอัดของงานก่อนหน้าไว้ (เหตุผล: งานที่ไม่เกี่ยวข้องกันต้องใช้ /clear เท่านั้น การเก็บประวัติเก่าไว้แม้จะอยู่ในรูปสรุป ก็ยังไปแย่งพื้นที่ไฟล์ของงานถัดไปและเสีย Tokens เพิ่มโดยเปล่าประโยชน์ในทุกข้อความ)"
+        },
+        {
+          "type": "paragraph",
+          "text": "แอปพลิเคชันที่สร้างบน Agent SDK จะจัดการเซสชันผ่าน Options แทนการใช้ UI Picker: แต่ละ Result Message จะส่ง `session_id` กลับมา ให้บันทึกแยกรายผู้ใช้หรือราย Job แล้วส่งเป็น `resume` เพื่อกลับไปยังบทสนทนานั้นอย่างแม่นยำ, ส่วน Option `continue` จะเปิดเซสชันล่าสุด ซึ่งเหมาะกับสคริปต์แบบ Single-user เท่านั้น แต่ในเซอร์วิสแบบ Multi-user เซสชันล่าสุดอาจเป็นของผู้อื่น จึงต้องใช้ `resume` พร้อม ID ที่บันทึกไว้เสมอ, หากต้องการแตก Branch โดยไม่กระทบเซสชันเดิม ให้ตั้ง `forkSession` ขณะ Resume ตัว SDK จะสร้าง `session_id` ใหม่และคงเซสชันเดิมไว้, และการตั้ง `persistSession: false` จะปิดการบันทึกเซสชันลงดิสก์ ทำให้ไม่สามารถ Resume ได้ในภายหลัง"
+        }
+      ]
+    },
+    {
+      "heading": "2. ส่วนประกอบของ Plugin และต้นทุนที่ต้องแลก (Costs)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code Plugin จะแพ็กรวมส่วนขยายหลายชนิดไว้ในตัวติดตั้งเดียว ได้แก่ Commands, Agents, Skills, Hooks รวมถึง MCP และ LSP Servers ซึ่งแต่ละส่วนส่งผลต่อเซสชันต่างกัน การติดตั้ง Plugin จึงเป็นการตัดสินใจสองเรื่องพร้อมกันเสมอ: เรื่อง Context Cost และเรื่อง Trust (ความปลอดภัย)"
+        },
+        {
+          "type": "table",
+          "caption": "การทำงานของแต่ละส่วนประกอบใน Plugin บนเครื่องของคุณและบน Claude",
+          "headers": [
+            "Component",
+            "What it does"
+          ],
+          "rows": [
+            [
+              "Hooks",
+              "รันเป็น Shell Command ตามจุด Lifecycle ต่างๆ ด้วยสิทธิ์ User เต็มรูปแบบ และอยู่นอก Sandbox"
+            ],
+            [
+              "MCP and LSP servers",
+              "Claude Code จะเชื่อมต่อไปยัง MCP Servers เพื่อดึง Tools มาให้ Claude, โดย Stdio Server จะรันเป็นโปรเซสที่ Claude Code สั่งเปิด และ Claude Code ยังสั่งเปิด Language Servers ตามที่ประกาศไว้ด้วย"
+            ],
+            [
+              "bin/ directory",
+              "ถูกเพิ่มเข้าไปใน PATH ของ Shell บน Bash Tool"
+            ],
+            [
+              "Skills, commands, agents",
+              "ถูกโหลดเข้า Context ของ Claude ในฐานะ Instructions"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ต้นทุนทาง Context จะเกิดขึ้นตั้งแต่ก่อนคุณเริ่มพิมพ์ข้อความแรก คำอธิบายของ Skill และชื่อของ MCP Tool จะถูกโหลดตอนเริ่มต้นทุกเซสชัน สำหรับ Plugin ใน Official Marketplace ของ Anthropic จะมีหน้าจอแสดงการประเมิน Token สองค่า: \"Every turn\" (ปริมาณ Token ที่เพิ่มเข้าไปในทุกข้อความ) และ \"When invoked\" (ปริมาณ Token ที่ Skills และ Agents เพิ่มเข้ามาเมื่อถูกโหลดใช้งาน) จังหวะการโหลดก็มีความสำคัญ หากการเปิดใช้งาน Plugin กลางเซสชันจะทำให้ Prompt Cache ใช้งานไม่ได้ คำสั่ง /reload-plugins จะแจ้งเตือนและระงับการโหลดไว้ชั่วคราว (Pending)"
+        },
+        {
+          "type": "paragraph",
+          "text": "ประเด็นความไว้วางใจ (Trust) ไม่ได้จบลงแค่ตอนกดติดตั้ง Permission Rules ของคุณยังคงมีผลเมื่อมีการเรียกใช้ MCP Tool หรือไฟล์ Executable ใน `bin/` ของ Plugin แต่สำหรับ Hooks จะรันเองโดยไม่มี Prompt ถามและใช้สิทธิ์ User เต็มของคุณ ยิ่งไปกว่านั้นหากเปิด Auto-update บน Marketplace ไฟล์ที่คุณเคย Review ไปแล้วอาจถูกแก้ไขใน Background ได้ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "แหล่งที่มาของ Plugin จะเป็นตัวกำหนดระดับความเข้มงวดในการ Review: Marketplace ภายใต้ชื่อทางการของ Anthropic จะถือว่าเป็น Official, ภายใต้หมวดหมู่ Community ถือเป็น Community, และ Marketplace อื่นๆ ทั้งหมด (รวมถึงที่เพื่อนร่วมงานหรือในองค์กรสร้างขึ้น) จะถือเป็น Third-party ทั้งหมด ก่อนติดตั้งควรอ่านสรุปการติดตั้งว่า Plugin จะเพิ่มอะไรเข้ามาบ้าง หลังติดตั้งแล้ว สามารถใช้ `claude plugin uninstall` เพื่อถอนการติดตั้ง และใส่ Flag `--keep-data` เพื่อเก็บโฟลเดอร์ข้อมูลใน `~/.claude/plugins/data/` ไว้ ทั้งนี้เมื่อรันแบบ `claude -p` จะไม่สามารถใช้คำสั่ง `/plugin` ได้ แต่ Plugin ที่เคยติดตั้งไว้แล้วจะยังคงถูกโหลดตามปกติ และคุณสามารถจัดการผ่าน Shell ด้วยคำสั่ง `claude plugin` แทน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Hooks และ MCP Servers ของ Plugin จะรันอยู่ภายใน Sandbox ของ Claude Code ทำให้การติดตั้ง Plugin มีความเสี่ยงต่ำ (เหตุผล: ทั้งสองอย่างรันอยู่นอก Sandbox โดยเฉพาะ Command Hooks ที่รันด้วยสิทธิ์ User เต็มรูปแบบของคุณ)"
+        }
+      ]
+    },
+    {
+      "heading": "3. Plugin scopes และช่องทางที่โหลด Plugin",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ขอบเขตการติดตั้ง (Scope) กำหนดว่า Plugin จะมีผลกับใครบ้าง โดย `user` scope (ค่า Default) จะเปิดใช้งานทุก Project บนเครื่องของคุณ ส่วน `project` scope จะเปิดใช้งานสำหรับทุกคนที่ทำงานใน Repository นั้น ขณะที่ `local` scope จะมีผลเฉพาะตัวคุณใน Repository นี้เท่านั้น นอกจากนี้ Scope ที่มีลำดับความสำคัญ (Precedence) สูงกว่าสามารถ Override Scope อื่นได้ เช่น คำสั่ง `claude plugin disable formatter --scope local` จะปิด Plugin ที่เปิดไว้ในระดับ Project สำหรับคุณคนเดียว ทั้งนี้ใน Claude Code สามารถติดตั้ง Plugin ได้จาก Terminal, Desktop App, VS Code และ Cloud Sessions ส่วน claude.ai chat และ Cowork จะจัดการ Plugin ผ่านช่องทางของตัวเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Agent SDK จะไม่มีขั้นตอนการติดตั้ง โดยคุณกำหนด Plugin Directories ผ่าน Option `plugins` ซึ่งรองรับเฉพาะ `type: \"local\"` เท่านั้น และ Relative Path จะ Resolve อิงตาม Option `cwd` เสมอ คุณสามารถตรวจสอบ `init` message เพื่อยืนยันว่าโหลดอะไรเข้ามาบ้าง โดยจะแสดงรายการ Plugins และ Skills ของ Plugin ซึ่งจะมีชื่อ Plugin นำหน้าเป็น Prefix เช่น `my-plugin:greet` (เวลาเรียกใช้งานก็ต้องใช้ชื่อที่มี Prefix นี้เช่นกัน) หาก Application ของคุณจัดการ MCP Connections ของ Plugin เองอยู่แล้ว ให้ตั้งค่า `skipMcpDiscovery` (TypeScript) ตัว SDK จะโหลดเฉพาะ Skills, Hooks, Agents และ Commands ของ Plugin แต่จะข้ามการโหลด MCP Servers"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55463",
+      "question": "ผลิตภัณฑ์ SaaS แบบ multi-tenant ทำงานโดยใช้หนึ่ง Agent SDK session ต่อหนึ่งบทสนทนาของผู้ใช้งาน (end-user) และต้องการกลับไปยังบทสนทนาของผู้ใช้คนใดคนหนึ่งได้อย่างแม่นยำในภายหลัง แม้ว่า session นั้นจะไม่ใช่ session ล่าสุดที่มีการใช้งานบนเซิร์ฟเวอร์ และแม้กระทั่งหลังจาก process มีการ restart วิธีจัดการ session ข้อใดตรงกับความต้องการนี้?",
+      "options": [
+        "ดึง ID ของแต่ละ session จาก result message และบันทึกแยกไว้ต่อผู้ใช้แต่ละคน จากนั้นส่ง ID ดังกล่าวไปให้ `resume` เมื่อผู้ใช้กลับเข้ามา แทนที่จะพึ่งพา `continue`",
+        "กำหนด `continue_conversation=True` (หรือ `continue: true`) ในทุกคำขอ เนื่องจากคำสั่งนี้จะ resume session ล่าสุดของผู้ใช้ที่ถูกต้องเสมอ ไม่ว่าจะมี session อื่นกำลังทำงานอยู่กี่ session ก็ตาม",
+        "พึ่งพา `fork_session=True` ในทุกๆ follow-up request เพราะการ fork จะรับประกันว่า session ใหม่จะสืบทอดประวัติบทสนทนาทั้งหมดของผู้ใช้ที่ตั้งใจไว้อย่างถูกต้อง",
+        "หลีกเลี่ยงการทำ session persistence โดยสิ้นเชิง แล้วส่ง transcript บทสนทนาฉบับเต็มเป็น prompt text ใหม่ในทุกคำขอ เนื่องจาก SDK ไม่รองรับการกลับไปยัง session เก่าที่เฉพาะเจาะจง"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55464",
+      "question": "Agent ได้วิเคราะห์ authentication module ของ codebase ใน session ที่มีอยู่เดิมและสร้างแผน migration โดยใช้ JWT เรียบร้อยแล้ว ตอนนี้ทีมต้องการสำรวจแนวทางทางเลือกที่ใช้ OAuth2 แยกออกไปเป็นอีกแนวทางหนึ่ง โดยไม่สูญเสียความสามารถในการกลับมาทำ thread เดิมที่โฟกัส JWT ต่อในภายหลัง แนวทางใดตอบโจทย์ทั้งสองข้อนี้?",
+      "options": [
+        "Resume session เดิมด้วย `fork_session=True` (หรือ `forkSession: true`) พร้อมกับ prompt ของ OAuth2 ซึ่งจะสร้าง session ใหม่ที่มีสำเนาประวัติบทสนทนาเดิม โดยยังคง session ID และประวัติของ session เดิมไว้โดยไม่เปลี่ยนแปลง",
+        "Resume session เดิมโดยตรงด้วย prompt ของ OAuth2 เพราะการ resume จะคง state ก่อนหน้าไว้ภายใต้ ID ใหม่อยู่แล้ว และทำสำเนาแยกที่ไม่มีการแก้ไขไว้ให้อัตโนมัติ",
+        "เริ่ม session ใหม่ทั้งหมดโดยไม่ใช้ตัวเลือก `resume` หรือ `fork_session` แล้วคัดลอกผลการวิเคราะห์ JWT มาวางใน prompt ใหม่อีกครั้ง เพื่อให้ทั้งสอง thread มี context ร่วมกัน",
+        "กำหนด `continue: true` สำหรับคำขอ OAuth2 เพราะคำสั่ง continue จะ branch ออกเป็น session ID ใหม่อัตโนมัติเมื่อหัวข้อของ prompt มีการเปลี่ยนแปลงจากรอบก่อนหน้า"
+      ],
+      "explanation": ""
+    }
+  ]
+}

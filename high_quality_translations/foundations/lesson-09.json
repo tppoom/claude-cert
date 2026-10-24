@@ -1,0 +1,216 @@
+{
+  "title": "กลไกการทำงานของ Claude Messages API: requests, state, tools, streaming และ vision",
+  "objectives": [
+    "อ่านและแยกแยะ Messages API response: content blocks, stop_reason และ usage",
+    "จัดการ conversation state ฝั่ง client และส่งต่อในทุก request โดยไม่กระทบ prompt cache",
+    "รัน client-side tool loop พร้อมส่งคืน thinking blocks กลับไปโดยไม่แก้ไข",
+    "รับและจัดการ streamed response แบบ event-by-event หรือใช้ SDK รวมผลลัพธ์อัตโนมัติ",
+    "ส่งรูปภาพทั้งแบบ inline, URL หรือผ่าน Files API file_id",
+    "ระบุความแตกต่างของ request เมื่อเรียกใช้ Claude ผ่าน Google Cloud หรือ Amazon Bedrock"
+  ],
+  "key_concept": "Stateless Messages API — Messages API ไม่มีการเก็บ memory ระหว่าง call โดย application ต้องเก็บประวัติ conversation ทั้งหมด และส่งบริบทก่อนหน้า ทั้ง turns, tool results และ images ไปในทุก request",
+  "sections": [
+    {
+      "heading": "1. โครงสร้างของ Messages Request และ Response",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Messages API ช่วยให้คุณเข้าถึง Model ได้โดยตรง และเป็น Endpoint หลักสำหรับสร้าง Agent Loop ของคุณเอง ในแต่ละ Call จะประกอบด้วย 3 ส่วนสำคัญที่จำเป็นต้องส่งเสมอ: model, max_tokens (เพดานจำกัดความยาว Token ของคำตอบ) และ messages list ที่แต่ละ Entry ต้องระบุ role (user หรือ assistant) พร้อมกับ content สำหรับ Instruction กลางที่ต้องการให้มีผลตลอดการสนทนา ให้ใส่ไว้ในฟิลด์ระดับบนสุดอย่าง system นอก List ดังกล่าว"
+        },
+        {
+          "type": "paragraph",
+          "text": "Response ที่ได้กลับมาจะเป็น Assistant Message 1 ข้อความ ซึ่ง content จะเป็น Array ของ Typed Blocks ไม่ใช่ String ธรรมดา หากเป็นคำตอบทั่วไปจะเป็น Text Block เดี่ยวๆ แต่ Array นี้ยังสามารถบรรจุ tool_use blocks และ thinking blocks ได้ด้วย ดังนั้นโค้ดที่อ่านค่า content[0].text ตรงๆ จะพังทันทีเมื่อเปิดใช้ฟีเจอร์เหล่านั้น นอกจากนี้ยังมีอีก 2 ฟิลด์สำคัญที่ใช้สำหรับ Control Flow ในโค้ด: stop_reason ใช้บอกเหตุผลที่การ Generate สิ้นสุดลง (end_turn, max_tokens, stop_sequence, tool_use หรือ refusal) และ usage ที่รายงาน input_tokens กับ output_tokens สำหรับคำนวณ Context Size และคิดค่าบริการ"
+        },
+        {
+          "type": "paragraph",
+          "text": "หาก stop_reason เป็น max_tokens หมายความว่าคำตอบถูกตัดจบเนื่องจากชนเพดาน Token ที่ตั้งไว้ ไม่ใช่คำตอบที่สมบูรณ์ ในกรณี refusal ตัว Response จะแนบ Object stop_details ที่ระบุ Policy Category ที่ถูกละเมิดมาให้ด้วย เพื่อให้คุณนำไปบันทึก Log หรือแจ้งเหตุผลแก่ผู้ใช้ได้อย่างถูกต้อง"
+        }
+      ]
+    },
+    {
+      "heading": "2. Conversation State ถูกจัดการอยู่ที่ฝั่งโค้ดของคุณ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "API เป็นแบบ Stateless ไม่มี Session ในตัว แอปพลิเคชันของคุณจึงต้องทำหน้าที่เป็น Conversation Store เอง หลังได้รับ Response แต่ละครั้ง คุณต้อง Append ข้อความของ Assistant เข้าไปใน List ตามด้วยเทิร์นถัดไปของ User แล้วส่ง List ทั้งหมดกลับไปใหม่ การเข้าถึง Data ก็ใช้หลักการเดียวกัน หากต้องการให้ Claude เห็นข้อมูลใน Turn 7 (เช่น เอกสาร, ภาพ Screenshot หรือ Tool Result จาก Turn 2) ข้อมูลเหล่านั้นต้องถูกแนบไปใน Request ของ Turn 7 เสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "เนื่องจากคุณเป็นผู้จัดการ History เอง คุณจึงสามารถปรับแต่งสิ่งต่างๆ ได้ เช่น Assistant Turn ไม่จำเป็นต้องมาจาก Claude เสมอไป การสร้าง Synthetic Few-shot Exchange ก็ถือเป็น Input ที่ถูกต้อง ใน Model รุ่นเก่าอย่าง Claude Sonnet 4.5 การใส่ Assistant Message ไว้ท้ายสุดจะทำงานเป็น Prefill เพื่อให้ Claude ตอบต่อจากจุดนั้น (เช่น Prefill ด้วย 'The answer is' คู่กับ max_tokens: 1 จะได้ตัวอักษรชอยส์ตัวเดียว) แต่ห้ามใช้ Pattern นี้กับโค้ดใหม่เด็ดขาด เพราะ Claude Opus 4.6 ปฏิเสธ Prefilled Assistant Turn แล้ว และ Migration Checklist ของ Opus 5.5 ก็ระบุให้ตัดออกอย่างชัดเจน สำหรับ Model ยุคใหม่อย่าง Claude Opus 5.5 และ Sonnet 5.5 คุณสามารถเพิ่มข้อความ role: \"system\" หลัง User Turn เพื่อแทรก Instruction ระหว่างทางได้ แต่ข้อความนี้ต้องไม่อยู่เป็น Entry แรกใน messages"
+        },
+        {
+          "type": "paragraph",
+          "text": "Prompt Caching ช่วยนำ History ที่ต้องส่งซ้ำๆ กลับมาใช้ใหม่ การใส่ cache_control Marker บน Content Block จะเป็นการตั้ง Cache Breakpoint ซึ่งทุกอย่างตั้งแต่ต้นจนถึง Block นั้นจะกลายเป็น Reusable Prefix ในส่วน usage ของ Response ตัว cache_read_input_tokens จะนับ Token ที่อ่านจาก Cached Prefix นั้น ส่วน cache_creation_input_tokens จะนับ Token ที่เพิ่งถูกเขียนลง Cache ใหม่ หากจำนวน Read ค้างอยู่ที่ 0 เสมอ แสดงว่า Prefix ไม่เคยซ้ำกันเลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "การส่ง Full History ซ้ำทุกครั้งคือเหตุผลที่ทำให้ [Prompt Caching](lesson:5.4) คุ้มค่า แต่มันมีข้อแม้สำคัญในการสร้าง Request: ตัว Prefix ต้องเหมือนกันแบบ Byte-identical เพราะ Cache Key เกิดจาก Hash ของ Prompt จนถึง Breakpoint หากมีสิ่งใดเปลี่ยนแปลงก่อนถึงจุดนั้น เช่น Timestamp ใน System Prompt, การเรียงลำดับ Tool List ใหม่ หรือการแก้ไขเทิร์นก่อนหน้า จะทำให้เกิด Cache Miss ทันที ดังนั้นควรวางส่วนที่เปลี่ยนแปลงบ่อยไว้ท้ายสุดเสมอ ส่วน Mid-conversation System Message จะถูก Append ต่อท้าย History จึงไม่กระทบ Cached Prefix ที่อยู่ข้างหน้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "อายุของ Cache ถูกกำหนดผ่าน Marker โดยค่าเริ่มต้นคือ 5 นาที (TTL จะถูกรีเฟรชฟรีทุกครั้งที่มีการเรียกใช้) และเริ่มนับตั้งแต่เริ่ม Request ดังนั้น Response แบบ Streaming ที่ใช้เวลานานจะกินเวลา Cache ไปด้วย หากระบุ \"ttl\": \"1h\" ใน cache_control จะขอ Cache อายุ 1 ชั่วโมงแทน ทั้งนี้ การ Write Cache จะมีราคาสูงกว่าปกติ: เพิ่มขึ้น 25% สำหรับแบบ 5 นาที และ 2 เท่าของ Base Input Price สำหรับแบบ 1 ชั่วโมง ซึ่ง Cache แบบยาวจะคุ้มค่าเมื่อ Request เข้ามาห่างกันเกิน 5 นาที หรือ Response ใช้เวลาประมวลผลนานจนเกิน Window ปกติ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เมื่อ Claude เคยเห็นภาพหรือเอกสารในเทิร์นก่อนหน้าแล้ว เทิร์นถัดไปสามารถอ้างอิงถึงได้เลยโดยไม่ต้องส่งซ้ำอีก? (ทำไมถึงผิด): ไม่จริง: API ทำงานแบบ Stateless และไม่เก็บข้อมูลข้าม Call ใดๆ ทั้งสิ้น ตัวรูปภาพหรือการอ้างอิง file_id จะต้องถูกแนบไว้ใน History ของทุก Request ที่จำเป็นต้องใช้ข้อมูลนั้นเสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "3. Tool calls และ thinking blocks ใน request loop",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเรียกใช้ Tool ทำงานบน Request cycle แบบ Stateless เช่นเดิม โดย Claude จะไม่รันอะไรเองทั้งสิ้น เมื่อต้องการเรียกใช้ Tool ตัว API จะส่ง response กลับมาพร้อม stop_reason: \"tool_use\" และบล็อก tool_use อย่างน้อยหนึ่งบล็อก ซึ่งระบุ tool name และ arguments ในรูปแบบ JSON object ฝั่งโค้ดของคุณจะต้องรันการทำงานนั้น แล้วส่ง output กลับไปเป็น tool_result block ใน user message ใหม่ โดยต่อท้ายไว้ที่ตำแหน่งล่าสุดของ history ทั้งหมด (หลัง assistant turn ที่ร้องขอ Tool) ทำ Loop ซ้ำไปเรื่อยๆ ตราบใดที่ stop_reason ยังคงเป็น tool_use หากเป็นค่าอื่นจะถือว่าสิ้นสุด Loop สำหรับรายละเอียดการเขียน Tool schemas ศึกษาต่อได้ที่ [Tool implementation](lesson:8.1)"
+        },
+        {
+          "type": "paragraph",
+          "text": "Server tools มีกลไกการทำงานที่ต่างออกไป สำหรับ web_search, web_fetch, code_execution และ tool_search ทาง Anthropic จะเป็นผู้รันโค้ดให้เอง คุณจึงไม่ต้องสร้าง tool_result ใดๆ โดย response จะแสดง server_tool_use block สำหรับสิ่งที่ถูกรัน ทั้งนี้ Server-side loop มีการจำกัดรอบการทำงาน (iteration cap) หากแตะลิมิตนี้ API จะตอบกลับมาพร้อม stop_reason: \"pause_turn\" ซึ่งคุณสามารถส่ง conversation เดิมต่อได้โดยรวม paused response นั้นเข้าไปด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "[Extended and adaptive thinking](lesson:5.3) จะเพิ่ม thinking blocks เข้ามาใน content ของ assistant ซึ่งแต่ละบล็อกจะมี signature กำกับไว้ ใน Tool loop คุณต้องส่งบล็อกเหล่านี้กลับไปในสภาพเดิมทุกประการ แม้ว่า thinking text ในบล็อกนั้นจะว่างเปล่าก็ตาม วิธีที่ปลอดภัยที่สุดคือ append ข้อความของ assistant กลับไปทั้งก้อนตามที่ได้รับมา ห้ามกรองบล็อกตาม type และห้ามประกอบบล็อกขึ้นมาใหม่ เพราะ API จะปฏิเสธทันทีด้วย HTTP 400 error หาก thinking blocks ถูกแก้ไข เรียงลำดับใหม่ หรือตัดทอนทิ้งไปบางส่วน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Thinking blocks เป็นเพียงข้อความสำหรับแสดงผล UI ดังนั้นใน Tool loop จึงสามารถตัดทิ้ง หรือเลือกส่งกลับไปเฉพาะ tool_use blocks ได้ — ความจริงคือ Thinking blocks ต้องถูกส่งกลับไปให้ครบถ้วนสมบูรณ์รวมถึง signatures เสมอ หากมีการแก้ไข เรียงลำดับใหม่ หรือตัดทอนทิ้ง API จะตอบกลับด้วย HTTP 400 error ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "บน Claude Opus 5.5 ฟีเจอร์ Thinking จะถูกเปิดใช้งานเสมอ: ทุก Request จะรันด้วย Adaptive thinking ทำให้ Response ใดๆ ก็ตามสามารถเริ่มต้นด้วย thinking blocks ได้ ทั้งนี้ Thinking tokens จะถูกคิดค่าบริการในฐานะ Output tokens แม้จะไม่มีการส่ง thinking text กลับมา และยังนับรวมใน max_tokens ซึ่งเป็น Hard limit ของทั้ง thinking และข้อความตอบกลับร่วมกัน ดังนั้นค่า max_tokens เดิมที่เคยตั้งไว้สำหรับโมเดลแบบไม่มี thinking อาจทำให้คำตอบถูกตัดจบกลางคันได้ ซึ่งคู่มือการย้ายระบบแนะนำให้ตั้งต้นที่ 64k เมื่อใช้ effort ระดับ xhigh หรือ max"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความลึกของการคิดจะถูกควบคุมผ่านพารามิเตอร์ effort แทนการระบุ thinking budget ให้ตั้งค่า output_config={\"effort\": \"medium\"} (ค่าเริ่มต้นของ Opus 5.5) และปรับลดลงหากต้องการลดการใช้โทเคนกับ thinking โดยรูปแบบเดิมอย่าง thinking: {\"type\": \"enabled\", \"budget_tokens\": N} ถูกแทนที่ด้วย thinking: {\"type\": \"adaptive\"} ร่วมกับ effort หรือไม่ต้องส่งฟิลด์ thinking เลย สำหรับโมเดลที่ยังใช้ Manual extended thinking ตัว budget จะถูกนับรวมใน max_tokens เช่นกัน นอกจากนี้ การแสดงผลยังขึ้นอยู่กับการตั้งค่า: thinking.display มีค่าเริ่มต้นเป็น \"omitted\" บล็อกที่ได้จึงมีฟิลด์ thinking ว่างเปล่าพร้อมกับ signature ให้ตั้งเป็น \"summarized\" หากต้องการอ่านสรุป และควรถือว่าฟิลด์นี้มีไว้เพื่อแสดงผลเท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "4. การทำ Streaming responses ด้วย Server-Sent Events",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เมื่อตั้งค่า \"stream\": true การตอบกลับจะส่งมาในรูปแบบ Server-Sent Events (SSE) ช่วยให้ UI สามารถแสดงผลข้อความได้แบบเรียลไทม์ขณะกำลัง Generate นอกจากนี้ Streaming ยังจำเป็นอย่างยิ่งแม้ไม่ได้แสดงผลบนหน้าจอ เพราะหากตั้งค่า max_tokens ไว้สูง SDK จะบังคับใช้ Streaming เพื่อป้องกัน HTTP timeouts โดยตัว accumulation helper ของ SDK จะสตรีมอยู่เบื้องหลังและส่งมอบ Message object ที่สมบูรณ์แบบเดียวกับที่ได้จาก messages.create()"
+        },
+        {
+          "type": "table",
+          "caption": "ลำดับ Event ของ Streamed message หนึ่งรายการ",
+          "headers": [
+            "Event",
+            "ข้อมูลที่ส่งมา (Payload)"
+          ],
+          "rows": [
+            [
+              "message_start",
+              "Message object ที่ยังมี content ว่างเปล่า"
+            ],
+            [
+              "content_block_start / content_block_delta / content_block_stop",
+              "Content block หนึ่งรายการที่ประกอบขึ้นจาก deltas โดย index จะตรงกับตำแหน่งใน content array สุดท้าย"
+            ],
+            [
+              "message_delta",
+              "การเปลี่ยนแปลงระดับบนสุด เช่น stop_reason และ output usage"
+            ],
+            [
+              "message_stop",
+              "สิ้นสุด Stream"
+            ],
+            [
+              "ping / error",
+              "สัญญาณ Keep-alive ที่ส่งมาได้ทุกช่วง หรือ Error กลางสตรีม เช่น overloaded_error"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "บล็อกแต่ละประเภทจะสตรีม delta ที่ต่างกัน: text_delta จะส่งข้อความย่อยๆ, บล็อก tool_use จะสตรีม input_json_delta ซึ่งเป็นชิ้นส่วน Partial JSON string คุณจึงต้องรวบรวมให้ครบแล้วค่อย Parse เมื่อ content_block_stop มาถึง หรือเลือกใช้ Streaming helper ของ SDK ที่ช่วย Parse ให้อัตโนมัติขณะสตรีม, Thinking จะสตรีมมาในรูปแบบ thinking_delta ตามด้วย signature_delta หนึ่งครั้งก่อนปิดบล็อก ซึ่ง signature นี้คือสิ่งที่ Tool loop ข้างต้นต้องส่งกลับไป นอกจากนี้ Error สามารถเกิดขึ้นกลางสตรีมได้ เช่น overloaded_error ซึ่งเทียบเท่ากับ HTTP 529 และเนื่องจากอาจมีการเพิ่ม Event ประเภทใหม่ๆ ในอนาคต ตัว Parser จึงควรข้าม Event ที่ไม่รู้จักแทนที่จะปล่อยให้โปรแกรม Crash"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: input_json_delta แต่ละตัวที่สตรีมมาในบล็อก tool_use เป็น JSON object ที่สมบูรณ์และสามารถ Parse ใช้งานได้ทันที — ความจริงคือ ตัว deltas เป็นเพียงเศษ String บางส่วนของ JSON เท่านั้น คุณต้องรวบรวมชิ้นส่วนทั้งหมดแล้วค่อย Parse เมื่อถึง content_block_stop หรือใช้ Streaming helper ของ SDK ในการจัดการ"
+        }
+      ]
+    },
+    {
+      "heading": "5. การส่ง Images และ Files: Inline, URL หรือ File ID",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Image จะถูกส่งเป็น Content block รูปแบบหนึ่งใน User turn โดยระบุ source ได้ 3 แบบ: base64 (ฝัง Bytes ตรงๆ พร้อมระบุ media_type), url (ชี้ไปยัง URL ของรูปภาพ) หรือ file (อ้างอิงไฟล์ที่อัปโหลดไว้ล่วงหน้าผ่าน Files API) รองรับฟอร์แมต image/jpeg, image/png, image/gif และ image/webp ทั้งนี้ควรวาง Image block ไว้ก่อนหน้า Text ที่จะถามเสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "เนื่องจาก API ทำงานแบบ Stateless การส่งรูปภาพแบบ Inline จึงกิน Overhead สูง เช่น หาก Turn 1 ส่ง Screenshot 2 รูป แล้ว Turn 3 ถามถึง \"รูปแรก\" ระบบจะต้องส่ง base64 ทั้งหมดซ้ำเข้าไปใหม่ใน Turn 3 ทุกรอบ การใช้ Files API จึงช่วยแก้ปัญหานี้: อัปโหลดครั้งเดียว ได้ file_id กลับมา แล้ว Turn ต่อๆ ไปก็ส่งแค่อ้างอิง ID สั้นๆ ในประวัติ History วิธีนี้ใช้กับเอกสารอย่าง PDF ได้เช่นกัน พร้อมทั้งรองรับการ List, Retrieve และ Delete ไฟล์"
+        }
+      ]
+    },
+    {
+      "heading": "6. ความแตกต่างเมื่อเรียกใช้ Claude ผ่าน Cloud Providers",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเลือกใช้งาน Claude ผ่าน Cloud Provider มักขึ้นอยู่กับข้อกำหนดด้าน Data residency และสถาปัตยกรรมระบบ ซึ่งส่งผลต่อการเขียนโค้ดเรียก API ตัวอย่างเช่น บน Google Cloud Agent Platform โครงสร้าง Request body จะคล้ายกับ Messages API เกือบทั้งหมด ต่างกันแค่ 2 จุด: Model ID จะถูกย้ายจาก Body ไปอยู่ที่ Endpoint URL และ API version จะย้ายมาอยู่ใน Body โดยใช้ฟิลด์ anthropic_version"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบ Messages API request กับ Claude บน Google Cloud Agent Platform",
+          "headers": [
+            "จุดเปรียบเทียบ",
+            "Claude API",
+            "Agent Platform"
+          ],
+          "rows": [
+            [
+              "ตำแหน่งระบุ Model",
+              "ฟิลด์ model ใน Request body",
+              "ระบุใน Google Cloud endpoint URL"
+            ],
+            [
+              "API version",
+              "ส่งผ่าน Header",
+              "ระบุใน Body ด้วยฟิลด์ anthropic_version เป็น vertex-2023-10-16"
+            ],
+            [
+              "SDK",
+              "Anthropic client SDK มาตรฐาน",
+              "SDK เดียวกันพร้อมระบุ vertex extra: pip install -U \"anthropic[vertex]\""
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Model ID จะแตกต่างกันไปตามแต่ละ Platform: บน Amazon Bedrock (สำหรับรุ่นตามคู่มือ Opus 4.6 หรือเก่ากว่า) จะต้องส่ง Inference Profile แทน Base Model ID เช่น ระบุ Regional prefix นำหน้า Bedrock ID (เช่น us.anthropic.claude-sonnet-4-5-20250929-v1:0) หรือส่งเป็น Inference Profile ARN เต็มๆ นอกจากนี้ ความพร้อมใช้งานของแต่ละ Model (Availability) จะขึ้นอยู่กับ Region และรอบวันหมดอายุ (Lifecycle / Retirement dates) จะถูกกำหนดโดย Cloud Provider เอง จึงอาจไม่ตรงกับ Claude API ฝั่ง Anthropic โดยตรง อีกทั้งพฤติกรรมบางฟีเจอร์ก็ต่างกัน เช่น Prompt Caches บน Claude API จะถูกแยกตาม Workspace (Per-workspace) แต่บน Bedrock และ Google Cloud จะแยกตาม Organization (Per-organization)"
+        },
+        {
+          "type": "paragraph",
+          "text": "Client SDK และกระบวนการ Authentication ก็แตกต่างกันตาม Platform เช่นกัน: สำหรับ Bedrock (รุ่น Opus 4.6 ลงไป) ให้ติดตั้ง anthropic[bedrock] แล้วใช้คลาส AnthropicBedrock ซึ่งรับ AWS keys, AWS credential providers มาตรฐาน หรือ Bearer token ผ่าน Environment variable ชื่อ AWS_BEARER_TOKEN_BEDROCK ส่วนรุ่น Opus 4.7 เป็นต้นไปจะรันบน Claude in Amazon Bedrock โดยใช้ AnthropicBedrockMantle ที่ค้นหา Credential ตามลำดับ Precedence มาตรฐานของ AWS และใช้ ID ที่ขึ้นต้นด้วย prefix anthropic. (เช่น anthropic.claude-opus-5-5) สำหรับ Google Cloud ให้ใช้ AnthropicVertex โดยส่ง project_id และ region (ตั้งเป็น global เพื่อทำ Dynamic routing ให้ได้ Availability สูงสุด) พร้อม Authenticate ล่วงหน้าด้วย gcloud auth application-default login"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55439",
+      "question": "ระบบ Compliance-document assistant มีการส่งคู่มืออ้างอิงขนาด 40,000 token เดียวกันเป็น cached context แต่ผู้ใช้งานมักจะถามคำถามห่างกันประมาณ 20-30 นาที ซึ่งเกินกว่า default cache lifetime การปรับแต่ง caching configuration แบบใดเหมาะสมกับ access pattern นี้มากที่สุด?",
+      "options": [
+        "กำหนด `ttl` ของ ephemeral cache breakpoint บนบล็อกคู่มืออ้างอิงเป็น `\"1h\"` โดยยอมรับ write cost ที่สูงขึ้นเพื่อแลกกับความถี่ในการ re-write ที่ลดลงในช่วง idle gap ที่ยาวนาน",
+        "เพิ่ม explicit `cache_control` breakpoint ตัวที่สองต่อจากคู่มือทันที เพื่อให้แคช 5 นาทีทำการ refresh ตัวเองโดยอัตโนมัติระหว่างที่ผู้ใช้เว้นช่วงการถามคำถาม",
+        "เปลี่ยนไปใช้ automatic caching โดยเพิ่ม top-level `cache_control` flag เพียงตัวเดียว ซึ่งจะขยาย default lifetime ให้ตรงกับช่วงเวลา gap ที่ยาวที่สุดระหว่าง requests",
+        "ลดขนาดคู่มือให้ต่ำกว่า 1,024 tokens เพื่อไม่ให้ติดเงื่อนไข minimum cacheable threshold และทำให้ข้อมูล entry นั้น persist ค้างอยู่ได้ไม่จำกัดระหว่าง calls"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55440",
+      "question": "Developer ได้ตั้งค่า `thinking={\"type\": \"enabled\", \"budget_tokens\": 32000}` ควบคู่กับ `max_tokens=16000` แล้ว request เกิด validation error วิธีแก้ปัญหาที่ถูกต้องคืออะไร?",
+      "options": [
+        "ลด `budget_tokens` ให้น้อยกว่า `max_tokens` เนื่องจาก thinking budget จะต้องอยู่ภายใต้เพดานรวมของ output tokens เสมอ",
+        "ลบพารามิเตอร์ `max_tokens` ออกทั้งหมด เนื่องจาก extended thinking requests จะคำนวณเพดาน output ให้อัตโนมัติจาก thinking budget",
+        "เปลี่ยน `budget_tokens` เป็นค่า negative offset จาก `max_tokens` เพื่อให้ API สามารถคำนวณพื้นที่ที่เหลือสำหรับ final text response ได้",
+        "เพิ่ม `max_tokens` ให้เป็นสองเท่าของ `budget_tokens` พอดี ซึ่งเป็น fixed ratio ที่ API บังคับใช้ระหว่าง thinking tokens กับ final output tokens"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "title": "การเลือก Monitoring Strategy สำหรับ Claude: OpenTelemetry, Usage Reports หรือ Gateway",
+  "objectives": [
+    "ประเมินความจำเป็นในการใช้ OpenTelemetry Pipeline แบบเต็มรูปแบบ เทียบกับการใช้ Usage & Cost API, Analytics Dashboard หรือผลรวม Session Usage",
+    "ใช้ Granularities และ Grouping ของ Usage & Cost API เพื่อจำแนกค่าใช้จ่ายตาม Workspace",
+    "ตรวจสอบและกำหนดขีดจำกัด (Caps) ค่าใช้จ่ายต่อผู้ใช้สำหรับ Claude Code บน Amazon Bedrock, Google Cloud Agent Platform หรือ Microsoft Foundry",
+    "คำนวณและจัดสรร TPM / RPM ขององค์กรจากอัตราการใช้งานต่อผู้ใช้ให้เหมาะกับขนาดทีม"
+  ],
+  "key_concept": "",
+  "sections": [
+    {
+      "heading": "1. เมื่อ OpenTelemetry อาจเกินความจำเป็นสำหรับคุณ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเลือกเครื่องมือ Monitoring ให้เริ่มต้นจากคำถามที่คุณต้องการคำตอบ การวาง OpenTelemetry pipeline หมายถึงคุณต้องดูแล Collector, Backend และจัดการ Content decisions ซึ่งคุ้มค่าก็ต่อเมื่อคุณต้องการข้อมูลระดับ Per-user token counts, Costs, Tool activity หรือ Traces ของแต่ละ Run แต่คำถามส่วนใหญ่ต้องการน้อยกว่านั้นมาก เช่น ค่าใช้จ่ายต่อ Workspace, จำนวน Developer ที่ใช้งาน Claude Code ในสัปดาห์นี้ หรือค่าใช้จ่ายของ Agent แต่ละ Session ทั้งหมดนี้ตอบได้โดยไม่ต้องติดตั้ง Collector ใดๆ เลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "Anthropic มีตัวเลือกแบบ Lightweight บิลต์อินมาให้อยู่แล้ว: ตัว Message stream ของ Agent SDK จะรายงาน Token และ Cost data ที่ Application อ่านตรงได้ทันที, Managed Agents session จะมี Usage object ที่ระบุ Token counts, Active seconds และ List cost มาให้ โดยมี Session.usage event คอยส่ง Snapshot เดียวกันนี้ผ่าน Stream จึงไม่ต้องคอย Poll, สำหรับระดับ Organization สามารถใช้ Usage & Cost API เพื่อดู Usage และ Cost แยกตาม Workspace, Model และ API key, ส่วน Claude Code บน Team หรือ Enterprise plan ก็มี Analytics dashboard สำหรับตรวจเช็ก Adoption ได้โดยตรง"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือกเครื่องมือที่ใช้งบ/ทรัพยากรน้อยที่สุดให้ตรงกับคำถามที่ต้องการ",
+          "headers": [
+            "คำถาม",
+            "เครื่องมือ",
+            "ต้องมี Backend ของตัวเองไหม?"
+          ],
+          "rows": [
+            [
+              "Agent แต่ละ Session มีค่าใช้จ่ายเท่าไหร่?",
+              "Session usage field หรือ session.usage event",
+              "ไม่จำเป็น (No)"
+            ],
+            [
+              "แต่ละ Workspace มีค่าใช้จ่ายเท่าไหร่ แยกตาม Model?",
+              "Usage & Cost API (cost_report, usage_report/messages)",
+              "ไม่จำเป็น (No)"
+            ],
+            [
+              "มี Developer ใช้งาน Claude Code จำนวนกี่คน?",
+              "Analytics dashboard (daily active users, sessions)",
+              "ไม่จำเป็น (No)"
+            ],
+            [
+              "User, Team หรือ Tenant ใดเรียกใช้ Tools ไหนบ้าง และทำไม Run ถึงพัง?",
+              "OpenTelemetry metrics, events และ traces",
+              "ต้องมี (Yes)"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "การนำไปประยุกต์ใช้ / คำถามหลอกที่พบบ่อย? (ทำไมถึงผิด): ไม่จริง: การมอนิเตอร์และวิเคราะห์ค่าใช้จ่ายของ Agent ทุกรูปแบบจำเป็นต้องตั้งค่า OpenTelemetry Collector เสมอ (เหตุผล: หากต้องการเพียงแค่ Session cost, Workspace spend หรือ DAU ของ Claude Code สามารถใช้ Built-in features เช่น Agent SDK Session usage, Usage & Cost API หรือ Analytics dashboard ได้ทันทีโดยไม่ต้อง Deploy Collector หรือ Backend เพิ่มเติม)"
+        }
+      ]
+    },
+    {
+      "heading": "2. การติดตามและจัดสรรค่าใช้จ่ายด้วย Usage & Cost API",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Usage & Cost API ออกแบบมาเพื่อตอบโจทย์ระดับ Organization โดยใช้ Admin API key โดยไม่ต้องตั้ง Infrastructure เอง มี 2 Endpoints หลัก: usage_report/messages คืนค่า Token counts แบบ Bucket ละ 1 นาที, 1 ชั่วโมง หรือ 1 วัน และ cost_report คืนค่าเป็นสกุล USD รองรับเฉพาะ Daily bucket เท่านั้น หากต้องการทำ Workspace chargeback ให้จัดกลุ่มค่าใช้จ่ายตาม workspace_id และ description โดย Usage ที่ผูกกับ Default Workspace จะมีค่า workspace_id เป็น null"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อจำกัดของ API นี้จะชี้ให้เห็นว่าเมื่อใดที่ไม่ควรนำมาใช้งาน: ข้อมูลมักจะแสดงผลหลัง Request เกิดขึ้นประมาณ 5 นาที และตัว API รองรับการ Poll ได้ไม่เกิน 1 ครั้งต่อนาทีสำหรับการใช้งานต่อเนื่อง ซึ่งเหมาะกับ Dashboard และ Budget alerts ทั่วไป แต่ไม่เหมาะกับ Live debugging นอกจากนี้ API ยังไม่มี Concept เรื่อง Individual user หน้า Usage และ Cost บน Console จึงไม่สามารถแยก Spend รายบุคคลได้ และการเลี่ยงบาลีด้วยการออก 1 API key ต่อ 1 Developer จะติดคอขวดด้าน Performance limits ดังนั้น หากต้องการดู Cost ของ Claude Code แยกราย User ให้ใช้ Claude Code Analytics API แทน"
+        }
+      ]
+    },
+    {
+      "heading": "3. Per-user attribution บน Bedrock, Agent Platform และ Foundry",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ช่องทาง Billing ของ Claude Code จะเป็นตัวกำหนดว่า Monitoring tools ใดสามารถมองเห็น Traffic ได้ โดยระบบ Dashboard ของ Anthropic แต่ละตัวจะเห็นเฉพาะช่องทาง Billing ของตัวเองเท่านั้น เช่น Spend report ใน Org analytics จะครอบคลุมเฉพาะการตัด Usage-credit บนแพลน Team และ Enterprise ส่วน Console Workspace spend limits จะคุมเฉพาะการใช้งาน Console API ทั้งนี้คำสั่ง /usage-credits จะเปิดหน้า Settings ของ claude.ai หรือหน้าตั้งค่าของ Organization (หรือส่งคำขอไปยัง Admin) แต่หาก Request วิ่งตรงไปยัง Amazon Bedrock, Google Cloud Agent Platform หรือ Microsoft Foundry ระบบฝั่ง Anthropic ทั้งหมดจะไม่สามารถมองเห็น Traffic เหล่านี้ได้เลย"
+        },
+        {
+          "type": "table",
+          "caption": "จุดดู Spend, การจำกัด Cap spend และการทำ Per-user reporting ตาม Setup แต่ละแบบ",
+          "headers": [
+            "Setup",
+            "ดู Spend",
+            "จำกัด Cap spend",
+            "Per-user reporting"
+          ],
+          "rows": [
+            [
+              "Claude for Teams หรือ Enterprise",
+              "Spend report ใน Org analytics",
+              "Spend limits ใน Admin settings",
+              "ไฟล์ CSV จาก Spend report; Enterprise Analytics API (เฉพาะแพลน Enterprise)"
+            ],
+            [
+              "Claude Console (API)",
+              "หน้า Console usage",
+              "Workspace spend limits",
+              "Console dashboard, Claude Code Analytics API"
+            ],
+            [
+              "Amazon Bedrock, Google Cloud Agent Platform หรือ Microsoft Foundry",
+              "Cloud billing console ของ Cloud provider",
+              "Budget controls ของ Cloud provider",
+              "OpenTelemetry หรือ LLM gateway"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับการใช้งานผ่าน Cloud providers เครื่องมือที่เหมาะสมขึ้นอยู่กับว่าต้องการเพียง Visibility หรือต้องการ Enforce limits ด้วย: การ Export OpenTelemetry จากเครื่อง Developer จะได้ทั้ง Per-user token counts, Costs และ Tool activity ไม่ว่าจะใช้ Provider ใดก็ตาม แต่ทำได้เพียงออก Report เท่านั้น ไม่สามารถ Enforce cap ได้ หากต้องการแบ่งสถิติตาม Developer หรือ Team ให้ตั้งค่า Environment variable `OTEL_RESOURCE_ATTRIBUTES` เพื่อแนบ Tag แบบ `key=value` (เช่น `team.id=platform`) เข้ากับ Metric datapoints ของ Claude Code โดยใช้เครื่องหมายจุลภาคคั่นคู่ตัวแปรและห้ามมีช่องว่าง ส่วนการใช้ Self-hosted Claude apps gateway วางไว้หน้า Provider จะช่วยทั้งเรื่อง Per-user usage attribution, OTLP token metrics รวมถึง Enforce per-user spend limits ได้จริง โดย Gateway จะ Block request ทันทีเมื่อ Developer ใช้เกินโควตาจนกว่าจะถึงรอบ Reset ถัดไป สำหรับ Generic LLM gateway อย่าง LiteLLM สามารถ Track spend ราย Key ได้ แต่เป็นของ Third-party ที่ไม่เกี่ยวข้องกับ Anthropic และยังไม่ผ่าน Security audit"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เมื่อ Admin เปิดใช้งานแล้ว Analytics dashboard หรือ Console workspace limits จะครอบคลุม Claude Code traffic ที่ยิงผ่าน Amazon Bedrock ด้วย? (ทำไมถึงผิด): ไม่จริง: Traffic ที่ยิงผ่าน Cloud provider จะมองเห็นได้จาก Cloud billing console และถูกจำกัดด้วย Budget controls ของ Cloud provider นั้นๆ เท่านั้น ส่วน Per-user attribution และการตั้ง Cap จะต้องใช้ OpenTelemetry หรือ Gateway (เช่น Self-hosted Claude apps gateway) เข้ามาจัดการแยกต่างหาก"
+        }
+      ]
+    },
+    {
+      "heading": "4. การคำนวณขนาด TPM และ RPM ตามขนาด Organization",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Rate limits ถูกกำหนดที่ระดับ Organization ดังนั้นการ Rollout ใช้งาน Claude Code จึงต้องคำนวณโควตารวมทั้งระบบ ไม่ใช่คิดแยกเป็นรายคน วิธีประเมินขนาดคือให้นำจำนวน Developer ทั้งหมดไปคูณกับตัวเลข TPM (Tokens-Per-Minute) และ RPM (Requests-Per-Minute) ต่อคนตาม Tier ขนาดทีม ทั้งนี้ตัวเลขสัดส่วนต่อคนจะลดลงอย่างมีนัยสำคัญเมื่อทีมมีขนาดใหญ่ขึ้น ดังนั้นการนำตัวเลขจาก Small pilot มาคูณขยายตรงๆ จะทำให้ประเมินความต้องการ Resource ของ Large organization สูงเกินจริง"
+        },
+        {
+          "type": "table",
+          "caption": "ค่า TPM และ RPM ต่อคนที่แนะนำสำหรับ Claude Code ตามขนาดทีม",
+          "headers": [
+            "Team size",
+            "TPM per user",
+            "RPM per user"
+          ],
+          "rows": [
+            [
+              "1-5 users",
+              "200k-300k",
+              "5-7"
+            ],
+            [
+              "5-20 users",
+              "100k-150k",
+              "2.5-3.5"
+            ],
+            [
+              "20-50 users",
+              "50k-75k",
+              "1.25-1.75"
+            ],
+            [
+              "50-100 users",
+              "25k-35k",
+              "0.62-0.87"
+            ],
+            [
+              "100-500 users",
+              "15k-20k",
+              "0.37-0.47"
+            ],
+            [
+              "500+ users",
+              "10k-15k",
+              "0.25-0.35"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างการคำนวณ: Pilot project ขนาด 15 คน จัดอยู่ในกลุ่ม 5–20 คน ใช้โควตา 100k–150k TPM ต่อคน หากนำตัวเลขนี้ไปคูณสเกลตรงๆ สำหรับ 300 คน จะได้สูงถึง 30M–45M TPM แต่ในความเป็นจริง สำหรับทีม 300 คนจะต้องใช้เกณฑ์ของ Tier 100–500 คน ซึ่งอยู่ที่ 15k–20k TPM และ 0.37–0.47 RPM ต่อคน หรือคิดเป็นยอดรวมประมาณ 4.5M–6M TPM และ 111–141 RPM เท่านั้น นอกจากนี้ หากใช้งานผ่าน Console account ควรแยก Workspace เฉพาะสำหรับ Claude Code เพื่อแยก Usage และ Rate limits ออกจาก Workload อื่นๆ โดย Workspace limits สามารถกำหนดให้ต่ำกว่า Organization limits ได้ แต่ห้ามตั้งสูงกว่าเด็ดขาด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "สามารถนำค่า TPM ต่อคนที่วัดได้จาก Small pilot ไปคูณกับจำนวน Developer ทั้งหมดเพื่อคำนวณโควตาของ Organization ได้โดยตรง? (ทำไมถึงผิด): ไม่จริง: ค่าเฉลี่ย TPM และ RPM ต่อคนตามคำแนะนำจะลดลงเรื่อยๆ เมื่อทีมมีขนาดใหญ่ขึ้น สำหรับ Organization ขนาด 300 คน จะต้องอิงจากตารางแถว 100–500 คน ไม่ใช่คูณขยายจากตัวเลขของ Small team"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56805",
+      "question": "บริษัทแห่งหนึ่งใช้งาน Claude Code ผ่าน Amazon Bedrock และพบว่าไม่มีการแสดงเมตริกค่าใช้จ่าย (cost) หรือ token แยกตามราย developer บนแดชบอร์ดที่โฮสต์โดย Anthropic เลย ซึ่งต่างจาก Claude Console workspace เดิมของพวกเขา แต่ฝ่ายการเงินยังคงต้องการการแจกแจงค่าใช้จ่ายแบบระบุตัวตนผู้ใช้ (per-user spend attribution) รวมถึงการบังคับใช้วงเงินจำกัดรายบุคคล (per-user caps) ทีมแพลตฟอร์มควร deploy อะไรเพื่อตอบโจทย์นี้?",
+      "options": [
+        "self-hosted Claude apps gateway วางไว้หน้า Bedrock เพื่อเพิ่มการติดตามการใช้งานแบบ per-user, OTLP token metrics และ per-user spend limits เนื่องจาก Bedrock เองไม่ได้ส่งข้อมูลเหล่านี้ไปยัง Anthropic",
+        "Claude for Enterprise analytics dashboard ที่ claude.ai/analytics/claude-code ซึ่งจะรวมค่าใช้จ่ายของ Bedrock แบบเดียวกับ Console spend ทันทีที่ admin เปิดใช้งาน",
+        "รันคำสั่ง /usage-credits บนเครื่องของ developer แต่ละคน ซึ่งจะกำหนดขีดจำกัดค่าใช้จ่ายรายเดือนระดับองค์กร และครอบคลุมการ deploy บน Bedrock ทั้งหมดโดยอัตโนมัติ",
+        "ฟีเจอร์ workspace spend limit ใน Claude Console โดยนำไปใช้กับ workspace ที่เชื่อมต่อกับ Bedrock เนื่องจาก Console workspace limits มีระบุไว้ในเอกสารว่าควบคุมการใช้งานครอบคลุมทุก providers อย่างสม่ำเสมอ"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56804",
+      "question": "องค์กรแห่งหนึ่งกำลังขยายการใช้งาน Claude Code จาก developer 15 คน เป็นประมาณ 300 คน และต้องการจัดสรรโควตา Tokens-Per-Minute (TPM) และ Requests-Per-Minute (RPM) ในระดับองค์กร มี junior admin เสนอให้นำตัวเลข TPM-per-user ของกลุ่ม 15 คนเดิมมาคูณด้วย 300 ตรงๆ เหตุใดวิธีนี้จึงไม่ถูกต้อง และ admin ควรทำอย่างไรแทน?",
+      "options": [
+        "ค่า TPM/RPM per-user จะลดลงเมื่อขนาดองค์กรใหญ่ขึ้น เนื่องจากมีสัดส่วนผู้ใช้งานพร้อมกัน (concurrently active) ลดลงตาม scale ดังนั้น admin ควรคูณด้วยตัวเลข per-user ที่ต่ำกว่าสำหรับ tier 300 คน ไม่ใช่ใช้ตัวเลขของกลุ่ม 15 คน",
+        "คำแนะนำ TPM/RPM per-user จะคงที่เสมอไม่ว่าจะปรับขนาดองค์กรเท่าใด ดังนั้นการคูณโดยใช้ตัวเลขกลุ่ม 15 คนของ admin จึงถูกต้องแล้ว และไม่จำเป็นต้องปรับเปลี่ยนใดๆ เพิ่มเติมก่อน rollout",
+        "Rate limits ถูกบังคับใช้แยกตามรายผู้ใช้ (individual user) มากกว่าในระดับองค์กร ดังนั้นการวางแผน aggregate TPM/RPM จึงไม่จำเป็นเมื่อ developer แต่ละคนได้รับการตั้งค่า individual allocation ไว้อยู่แล้ว",
+        "การคำนวณขนาด TPM/RPM จำเป็นเฉพาะกับการ deploy บน Bedrock และ Vertex เท่านั้น ดังนั้นองค์กรที่ยืนยันตัวตนผ่าน Claude Console จึงสามารถละเว้นตัวเลข per-user เหล่านี้ระหว่างการวางแผน rollout ได้อย่างปลอดภัย"
+      ],
+      "explanation": ""
+    }
+  ]
+}

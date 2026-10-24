@@ -1,0 +1,304 @@
+{
+  "title": "การเลือกระหว่าง MCP, Direct Tools และ Agent-to-Agent Integration",
+  "objectives": [
+    "เลือกใช้งานระหว่าง Direct Tool/CLI call, MCP Server และ Hand-off ไปยัง Agent อื่น เพื่อเชื่อมต่อกับระบบปลายทางที่กำหนด",
+    "อธิบายมาตรฐานของ MCP รวมถึง 3 Primitives หลัก และ Transport แบบ stdio กับ Streamable HTTP",
+    "เชื่อมต่อ MCP Server เข้ากับ Claude Code, Agent SDK และ Messages API MCP Connector พร้อมเข้าใจข้อจำกัดของแต่ละรูปแบบ",
+    "เลือก Claude Surface (Claude Code CLI, Agent SDK, Client SDK, Managed Agents) ที่ตอบโจทย์แต่ละ Workflow",
+    "ระบุ Use Case ที่เหมาะกับ Agent-to-Agent Delegation มากกว่าการใช้ Tool หรือ MCP Server พร้อมเข้าใจข้อมูล Input และ Output ของ Delegated Agent"
+  ],
+  "key_concept": "MCP Server ในฐานะจุดเชื่อมต่อส่วนกลาง (Shared Integration Point) — MCP Server รวมศูนย์ Tools, Resources และ Prompts ผ่านโปรโตคอลมาตรฐานเดียว ทำให้ Client ใดๆ (Claude Code, Agent SDK, Messages API Connector) สามารถเสียบใช้งานได้ทันทีโดยไม่ต้องเขียนโค้ด Integration ใหม่ การตัดสินใจเลือกวิธี Integration จึงขึ้นอยู่กับว่าความคุ้มค่าของการ Reuse นั้นคุ้มพอที่จะรัน Server แยกออกมาหรือไม่",
+  "sections": [
+    {
+      "heading": "1. สามวิธีในการเชื่อมต่อ Claude เข้ากับระบบภายนอก (Three ways to connect Claude to a system)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เมื่อใดก็ตามที่ Claude ต้องเชื่อมต่อกับระบบภายนอก เช่น Database, Issue Tracker หรือ Build Server ทาง Architect สามารถเลือกใช้ได้ 3 รูปแบบ: Direct Tool ที่ Application นิยามและรันขึ้นมาเอง, MCP Server หรือเชื่อมต่อไปยัง Agent ตัวอื่นที่ดูแลระบบนั้นโดยตรง ทั้งสามวิธีสามารถบรรลุเป้าหมายเดียวกันได้ แต่ต่างกันตรงที่ว่าใครเป็นผู้ดูแล Integration, สามารถนำไปใช้ซ้ำในหลาย Clients ได้หรือไม่ และระบบปลายทางต้องใช้ Judgement หรือการตัดสินใจมากน้อยเพียงใด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Direct Tool Use เป็นเส้นทางที่สั้นและตรงที่สุด โดย Application ของคุณจะนิยาม Tool ด้วย `input_schema`, Claude จะส่ง `tool_use` block กลับมา จากนั้น Code ฝั่งคุณจะรัน Operation นั้นแล้วส่ง `tool_result` กลับไป (สำหรับรายละเอียดว่าโค้ดส่วนนี้รันที่ไหน สามารถดูต่อได้ที่ [Who executes tools: client tools versus server tools](lesson:1.2)) ตัวเลือกนี้ตอบโจทย์ที่สุดเมื่อ Application หนึ่งตัวเป็นเจ้าของระบบนั้นเพียงผู้เดียว และคุณเป็นผู้ควบคุม Schema ทั้งหมด ซึ่ง CLI ก็จัดอยู่ในรูปแบบนี้เช่นกัน เช่น Anthropic มี Bash Tool Schema ให้ แต่ Application ของคุณยังคงเป็นตัวรันแต่ละคำสั่งเอง ข้อเสียคือ Integration นี้จะฝังแน่นอยู่ภายใน Application เท่านั้น Client อื่น (เช่น Session ของ Claude Code บนเครื่อง Developer) จะไม่สามารถนำไปใช้ซ้ำได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "MCP Server ย้ายส่วน Integration ออกมาจาก Application แล้วหุ้มไว้ด้วย Protocol มาตรฐาน ทำให้ Server ตัวเดียวสามารถให้บริการกับ MCP Client ใดๆ ก็ได้ และ Client หนึ่งตัวก็สามารถเชื่อมต่อหลายๆ Server ร่วมกันได้ MCP Server แต่ละตัวจะมองเห็นเฉพาะข้อมูลที่จำเป็นต่อการทำงานเท่านั้น เพราะ Full Conversation จะยังคงอยู่กับฝั่ง Host วิธีนี้เหมาะอย่างยิ่งเมื่อคุณต้องการให้หลายๆ Interface เข้าถึงความสามารถเดียวกันได้ หรือเมื่อ Vendor ของระบบนั้นมี MCP Server สำเร็จรูปมาให้ใช้งานโดยไม่ต้องสร้างเองตั้งแต่ต้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agent-to-agent Hand-off เป็นตัวเลือกที่ถูกต้องเมื่อระบบปลายทางต้องใช้การคิดและตัดสินใจ (Judgement) ของตัวเอง ไม่ใช่แค่การเรียก Function Call ธรรมดา เช่น การทำ Security Review, การเขียน Test หรือการใช้ Specialist เฉพาะทางที่มี System Prompt และ Toolset เป็นของตัวเอง ฝั่ง Lead Agent จะทำการ Delegate งานออกไปแล้วรอรับสรุปผลจาก Specialist แทนที่จะต้องคุม Control Flow ทุกขั้นตอนด้วยตัวเอง (สามารถศึกษาความแตกต่างระหว่าง Subagents, Agent Teams และ Workflows เพิ่มเติมได้ที่ [Subagents vs agent teams vs workflows across Managed Agents, Agent SDK and Claude Code](lesson:1.4))"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน Managed Agents ตัว Specialist จะเป็นได้ทั้ง Predefined Agent ที่ระบุไว้ล่วงหน้าใน Block `multiagent` ของ Lead Definition หรือเป็น Inline Agent ที่ตัว Lead นิยามขึ้นแบบ Dynamic ตอนสั่ง Delegate งาน Subagent แต่ละตัวจะทำงานแยก Thread กันใน Session ของตัวเองอย่างชัดเจน ทำให้ Working Context ไม่ปะปนกับ Lead Context นอกจากนี้ การ Delegate รองรับเพียงระดับเดียว (One level deep) Specialist จึงไม่สามารถส่งต่องานไปยัง Agent อื่นอีกทอดหนึ่งได้ ควรเลือกใช้รูปแบบนี้แทน Tool หรือ MCP Server เมื่อระบบต้องการการ Reasoning และคาดหวังให้ Lead ได้รับ Report กลับมาแทนที่จะเป็น Raw Result ดิบๆ"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือก Mechanism สำหรับเชื่อมต่อระบบ",
+          "headers": [
+            "Mechanism",
+            "Who maintains the integration",
+            "Wins when"
+          ],
+          "rows": [
+            [
+              "Direct tool (your input_schema, your code)",
+              "Application ของคุณ เป็นผู้รันแต่ละ Call และส่ง `tool_result` กลับไป",
+              "Application เดียวเป็นเจ้าของระบบ และคุณเป็นผู้ควบคุม Schema เองทั้งหมด"
+            ],
+            [
+              "MCP server",
+              "Server แยกต่างหาก ที่ MCP Client ใดๆ ก็สามารถเชื่อมต่อได้",
+              "ต้องการให้หลาย Clients เรียกใช้ Capability เดียวกัน หรือมี Vendor Server ให้ใช้งานอยู่แล้ว"
+            ],
+            [
+              "Another agent",
+              "Agent ตัวอื่นที่มี Model, System Prompt, Tools, MCP Servers และ Skills เป็นของตนเอง",
+              "ระบบปลายทางต้องใช้ Reasoning และ Toolset ในการจัดการปัญหา ไม่ใช่แค่การเรียกใช้งานครั้งเดียวจบ"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Agent-to-agent Delegation ไม่สามารถ Chain ต่อกันเป็นลำดับชั้นลึกๆ ได้ เนื่องจากการ Delegate ของ Subagents รองรับเพียงระดับเดียว (One level deep) Specialist จึงส่งต่องานให้ Agent อื่นต่อไม่ได้ สถาปัตยกรรมที่ถูกต้องและรองรับคือรูปแบบ Wide Fan-out ที่กระจายงานออกจาก Lead Agent ตัวเดียวเท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "2. มาตรฐานของ MCP: Primitives และ Transports (What MCP standardises: primitives and transports)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "MCP ได้กำหนดมาตรฐานของ Primitives 3 รูปแบบที่ Server สามารถ Expose ออกมาได้ โดยแต่ละแบบจะมีฝั่งที่ถือสิทธิ์ควบคุม (Control) แตกต่างกันอย่างชัดเจน จุดแยกนี้สำคัญมากในการเปรียบเทียบ MCP กับ Plain Tool ธรรมดา เพราะ Tool ปกติจะครอบคลุมเพียงแค่แถวแรกของตารางเท่านั้น ส่วน Resources และ Prompts จะมอบ Context และ Templates สำเร็จรูปที่ฝั่ง Client หรือ User สามารถเลือกดึงเข้ามาใช้งานได้ตามต้องการ"
+        },
+        {
+          "type": "table",
+          "caption": "MCP Server Primitives และผู้ถือสิทธิ์ควบคุม",
+          "headers": [
+            "Primitive",
+            "Control",
+            "Example"
+          ],
+          "rows": [
+            [
+              "Tools",
+              "Model-controlled",
+              "API POST requests, การเขียนไฟล์"
+            ],
+            [
+              "Resources",
+              "Application-controlled",
+              "เนื้อหาในไฟล์, Git history"
+            ],
+            [
+              "Prompts",
+              "User-controlled",
+              "Slash Commands, Menu options"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Server และ Client มีการทำ Capability Negotiation ก่อนเสมอ ฝั่ง Server ต้องประกาศว่ารองรับ Tools ก่อน Client จึงจะสามารถสั่งรัน Tools ได้ และฝั่ง Client ก็ต้องประกาศรองรับ Sampling Support ก่อน Server จึงจะร้องขอการ Sampling ได้ กลไกนี้ช่วยให้ทั้งสองฝั่งสามารถเพิ่มฟีเจอร์ใหม่ๆ ตามรอบการพัฒนาของตนเองได้อย่างอิสระ นอกจากนี้ Protocol ยังรองรับการสื่อสารแบบสองทิศทาง (Bidirectional): ใน Claude Code ตัว MCP Server สามารถทำหน้าที่เป็น Channel คอย Push ข้อความจาก Telegram, Discord หรือ Webhook Events เข้ามาใน Session ได้โดยตรง แตกต่างจาก Direct Tool ที่ Claude ทำได้เพียงแค่รอให้สั่งเรียกใช้งานก่อนจึงจะตอบกลับ"
+        },
+        {
+          "type": "paragraph",
+          "text": "MCP ทำงานบน 2 Transports หลัก ซึ่งเป็นตัวกำหนดว่า Client ประเภทใดบ้างที่จะสามารถเชื่อมต่อเข้ามาได้ แบบแรกคือ `stdio` โดย Client จะ Spawn ตัว Server เป็น Subprocess และรับส่งข้อความ JSON-RPC แบบ Newline-delimited ผ่าน `stdin` และ `stdout` ตัว Server สามารถพ่น Log ออกทาง `stderr` ได้ แต่ห้ามเขียนอะไรลง `stdout` เด็ดขาดนอกจากข้อความ MCP ที่ถูกต้องตามรูปแบบ `stdio` จึงเป็น Transport หลักสำหรับ Local Server ที่รันบน Laptop ของ Developer แบบที่สองคือ Streamable HTTP ซึ่งตัว Server จะเป็น Remote Endpoint ฝั่ง Client จะส่ง JSON-RPC ผ่าน HTTP POST ไปยัง Endpoint นั้น แล้ว Server จะตอบกลับเป็น JSON Object ก้อนเดียวหรือเป็น SSE (Server-Sent Events) Stream นอกจากนี้ Client ยังสามารถเปิด GET Stream ค้างไว้เพื่อให้ Server สามารถส่ง Event หรือ Message แจ้งเตือนกลับมาได้ทันทีโดยไม่ต้องรอให้ Request ถามก่อน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Remote Server ต้องแบกรับภาระงานด้านความปลอดภัยที่ Subprocess แบบ Local ไม่จำเป็นต้องมี โดยจะต้อง Validate `Origin` Header ในทุกๆ Connection เพื่อป้องกันการโจมตีแบบ DNS Rebinding หากรันแบบ Local ควร Bind เข้ากับ `127.0.0.1` แทนที่จะเป็น `0.0.0.0` พร้อมทั้งตรวจสอบ Authentication ในทุก Connection เสมอ ดังนั้น การแปลง Local `stdio` Server ไปเป็น Production HTTP Service จึงเป็นงานด้าน Infrastructure และ Deployment เต็มรูปแบบ ไม่ใช่แค่การเปลี่ยน Config Toggle เพียงอย่างเดียว"
+        }
+      ]
+    },
+    {
+      "heading": "3. การเชื่อมต่อ MCP Server ใน Claude Code",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code ทำหน้าที่เป็น MCP Client เต็มรูปแบบ จึงสามารถเชื่อมต่อกับ Server ผ่าน Transport รูปแบบใดก็ได้ โดยระบุผ่านแฟล็ก --transport สิ่งที่คุณได้รับจะเป็นตัวบอกประเภทของ Transport: หากเป็น URL เช่น https://mcp.example.com/mcp หมายถึงเป็น Remote Server แต่ถ้าเป็นคำสั่งรัน เช่น npx -y @example/mcp-server หมายถึงรันอยู่บน Local Machine ของคุณ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Config ที่คัดลอกมาจาก Client อื่นมักจะมาในรูปแบบ JSON บล็อก mcpServers ซึ่งสามารถส่งให้คำสั่ง claude mcp add-json ได้โดยตรง ข้อผิดพลาดที่พบบ่อยคือ: Claude Code จะมอง Entry ที่ไม่มีการระบุ type เป็น stdio server เสมอ ดังนั้น Entry ที่มีแค่ url แต่ไม่มี \"type\": \"http\", \"sse\" หรือ \"ws\" จะทำงานล้มเหลว และเมื่อจบ Session ทาง Claude Code จะสั่งหยุด stdio server ทั้งหมดที่รันขึ้นมา โดยบน macOS และ Linux จะส่งสัญญาณ SIGINT ตามด้วย SIGTERM และ SIGKILL"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใช้คำสั่ง claude mcp list, claude mcp get <name> และ Slash Command /mcp เพื่อตรวจดูว่า Server เชื่อมต่ออยู่, รอการอนุมัติ (Pending Approval) หรือถูก Disable ไว้ ทั้งนี้ Project-scoped Server ที่กำหนดใน .mcp.json จะคงสถานะ Pending ไว้จนกว่าจะมี Developer เปิดใช้งาน claude แบบ Interactive และกดยอมรับ สำหรับการรันแบบ Headless (claude -p) จะเข้มงวดกว่าเดิม คือจะเชื่อมต่อเฉพาะ Server ที่ส่งผ่าน Command Line เท่านั้น เช่น ผ่านแฟล็ก --mcp-config"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การใส่แค่ url ในบล็อก mcpServers ก็เพียงพอแล้วที่จะทำให้ Claude Code มองว่า Server นั้นเป็น Remote Server? (ทำไมถึงผิด): ไม่จริง: Claude Code จะมอง Entry ที่ไม่ระบุ type เป็น stdio เสมอ ดังนั้นหากเป็น Remote URL จำเป็นต้องระบุ type เป็น http, sse หรือ ws กำกับไว้ด้วย"
+        }
+      ]
+    },
+    {
+      "heading": "4. การเลือกใช้งาน Surface: Claude Code CLI, Agent SDK, Client SDK หรือ Managed Agents",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "จุดที่คุณจะติดตั้ง MCP Server ขึ้นอยู่กับว่า Surface ใดเป็นตัวรัน Agent ดังนั้นจึงควรเลือก Surface ให้เหมาะสมก่อน โดยทั้ง 4 ตัวเลือกมีความแตกต่างกันหลักๆ ที่ว่า ใครเป็นผู้เขียน Agent Loop และมีคนคอย Monitor ระหว่างที่ระบบกำลังรันอยู่หรือไม่"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบ Claude Surfaces และ Use Case ที่เหมาะสม",
+          "headers": [
+            "Surface",
+            "สิ่งที่มีให้",
+            "เหมาะสำหรับ"
+          ],
+          "rows": [
+            [
+              "Claude Code CLI",
+              "Terminal Interface ออกแบบมาสำหรับการใช้งานแบบ Interactive ในชีวิตประจำวัน",
+              "Developer โต้ตอบโดยตรง คอยดูการทำงานทีละขั้นตอน และกดอนุมัติคำสั่งที่มีความเสี่ยงแบบ Manual"
+            ],
+            [
+              "Agent SDK",
+              "Library ที่รันไบนารีของ Claude Code โดยมาพร้อม Built-in Tools, ระบบ Permissions, Sessions และ Hooks ในตัว",
+              "Process บน Python หรือ TypeScript เช่น งาน CI Job ที่ต้องการ Agent Loop โดยไม่ต้องเขียนโค้ดจัดการ Tool เองตั้งแต่ต้น"
+            ],
+            [
+              "Client SDK",
+              "การเรียกใช้งาน Claude API โดยตรง โดยคุณต้องเขียน Tool Loop ขึ้นมาเอง หรือเลือกใช้ Beta Tool Runner",
+              "กรณีที่ต้องการ Full Control ควบคุมทุก Request และการจัดการ tool_result ด้วยตัวเองทั้งหมด"
+            ],
+            [
+              "Managed Agents",
+              "ระบบรัน Agent แบบ Hosted ที่จัดการ Agent Loop ให้ภายใน Sandbox ทั้งแบบ Anthropic-managed หรือ Self-hosted",
+              "กรณีที่ต้องการให้ Anthropic โฮสต์และรัน Agent ให้ โดยกำหนดค่าและตั้งค่าผ่าน Claude API"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Client SDK และ Agent SDK อาจฟังดูคล้ายกัน แต่มีการแบ่งความรับผิดชอบของงานต่างกันมาก ใน Client SDK โค้ดของคุณจะต้องคอยเช็ค stop_reason, รันบล็อก tool_use แต่ละตัว และส่งผลลัพธ์กลับไปเอง ซึ่งเป็นโค้ด Boilerplate ที่ทีมทำ Pipeline ส่วนใหญ่ไม่อยากเขียน แต่ใน Agent SDK จะมี Loop นี้มาให้แล้ว พร้อมด้วย Tools พื้นฐานอย่าง Read, Edit, Bash รวมถึงระบบ Permission ที่คอยตัดสินว่า Tool ใดรันได้ทันทีและ Tool ใดต้องขออนุมัติ สำหรับงาน CI สามารถใช้รูปแบบ Headless เช่น claude -p \"Find and fix the bug in auth.py\" --allowedTools \"Read,Edit,Bash\" เพื่อ Pre-approve สิทธิ์ล่วงหน้า ทำให้ทำงานได้โดยไม่ต้องมีคนคอยตอบ Prompt"
+        },
+        {
+          "type": "paragraph",
+          "text": "การอนุมัติแบบ Interactive คือจุดตัดสินใจสำคัญในการเลือกใช้ CLI เช่น Developer ที่กำลังดีบัก Build ที่พัง แล้วต้องการเห็นทุกไฟล์ที่ Claude เปิดดู รวมถึงคอยอนุมัติคำสั่งที่อันตราย จะเหมาะกับการรัน Terminal Session โดยไม่ต้องเขียนโค้ดเชื่อมต่อใดๆ ส่วน SDK Script ที่รันตาม Schedule จะไม่มีคนคอยเฝ้า ขณะที่ Managed Agents จะรัน Session อยู่ใน Sandbox และการต่อตรงผ่าน Messages API จะไม่มี Terminal Interface ให้ใช้งานเลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน Agent SDK จะส่ง MCP Server เข้าไปผ่าน Option mcpServers ของฟังก์ชัน query() โดย Tools จาก Server จะถูกตั้งชื่อในฟอร์แมต mcp__<server>__<tool> ซึ่งเป็นรูปแบบชื่อที่ใช้ Match กับ allowedTools"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Client SDK มี Agent Loop เตรียมไว้ให้แล้ว ทำให้ Pipeline ที่สร้างขึ้นไม่ต้องเขียนโค้ดจัดการ Tool เอง? (ทำไมถึงผิด): ไม่จริง: Client SDK บังคับให้คุณต้องเขียน Tool Loop จัดการเองทั้งหมด (หรือใช้ Beta Tool Runner) แต่ Agent SDK ต่างหากที่เป็น Library ที่เตรียมทั้ง Agent Loop และ Built-in Tools มาให้พร้อมใช้ทันที"
+        }
+      ]
+    },
+    {
+      "heading": "5. The Messages API MCP connector: remote servers only",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "MCP connector ช่วยให้ Messages API request เชื่อมต่อไปยัง remote MCP server ได้โดยตรงโดยไม่ต้องมี MCP client แยกต่างหาก เนื่องจากฝั่ง Anthropic เป็นผู้ initiate connection เอง จึงมีข้อจำกัดที่เข้มงวด: Server ต้องเข้าถึงได้แบบ public ผ่าน HTTP (ใช้ Streamable HTTP หรือ SSE) และ URL ต้องขึ้นต้นด้วย https:// เท่านั้น ฝั่ง API ไม่มี process สำหรับรัน stdio server ดังนั้นหากพัฒนา local server ไว้บนเครื่อง ต้อง deploy ขึ้นเป็น remote server ก่อนนำมาใช้ใน production นอกจากนี้ยังรองรับเฉพาะ tool calls เท่านั้น ไม่รองรับ resources และ prompts ของ MCP server"
+        },
+        {
+          "type": "paragraph",
+          "text": "การกำหนดค่าใน request จะแยกเป็น 2 ส่วน: 1) mcp_servers array สำหรับระบุ connection details ได้แก่ type (ปัจจุบันรองรับเฉพาะ \"url\"), url, name และ authorization_token (OAuth) แบบ optional 2) tools array กำหนด mcp_toolset ที่อ้างอิงไปยังชื่อ server นั้น โดย server name แต่ละตัวต้องถูกอ้างอิงโดย toolset เดียวเท่านั้น ทั้งนี้ toolset ยังใช้กำหนดการเปิดใช้งาน tools ทั้งหมด หรือระบุ allowlist/denylist ได้ และ 1 request สามารถเชื่อมต่อได้หลาย servers ปัจจุบัน connector ยังอยู่ภายใต้ beta flag"
+        },
+        {
+          "type": "paragraph",
+          "text": "การแปลงฟังก์ชันของ server ให้เป็น client tools ก็สามารถเชื่อมต่อระบบได้เช่นกัน แต่จะเปลี่ยนผู้รับผิดชอบการ execute: backend ของคุณต้องรัน function call และส่ง tool_result กลับมาเอง ทำให้ query logic ย้ายเข้ามาอยู่ใน application และไม่สามารถแชร์ server ให้ client อื่นใช้ร่วมกันได้ ควรเลือกใช้ connector เมื่อ server เป็น remote ที่เปิด public ได้และต้องการให้ API จัดการ MCP round trip ให้ แต่ควรเลือกใช้ client tools เมื่อระบบต้องเป็น private อยู่ภายใน backend ของคุณเท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "การเชื่อมต่อ MCP server บนแต่ละ Surface",
+          "headers": [
+            "Surface",
+            "วิธีการเชื่อมต่อ (How you attach)",
+            "Transports ที่รองรับ"
+          ],
+          "rows": [
+            [
+              "Claude Code",
+              "claude mcp add, add-json หรือ --mcp-config สำหรับ claude -p",
+              "stdio, http, sse, ws"
+            ],
+            [
+              "Agent SDK",
+              "mcpServers option ใน query()",
+              "Local และ remote เช่น type: \"http\""
+            ],
+            [
+              "Messages API",
+              "mcp_servers ร่วมกับ mcp_toolset ใน tools",
+              "Streamable HTTP หรือ SSE ผ่าน https:// เท่านั้น; รองรับเฉพาะ tool calls"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "Messages API MCP connector สามารถรัน local stdio server ได้หากระบุ command หรือ path ของ process? (ทำไมถึงผิด): ไม่จริง: Connector รองรับเฉพาะ server แบบ public ที่เชื่อมต่อผ่าน HTTP (Streamable HTTP หรือ SSE) ด้วย https:// URL เท่านั้น หากเป็น stdio server ต้องนำไป deploy เป็น remote server ก่อน | การเชื่อมต่อ server ผ่าน MCP connector จะเปิดให้ Claude เข้าถึงทั้ง tools, resources และ prompts ของ server ได้ทั้งหมด? (ทำไมถึงผิด): ไม่จริง: Connector รองรับเฉพาะส่วน tool calls ตาม MCP specification เท่านั้น หากต้องการใช้งาน resources และ prompts จำเป็นต้องใช้ full MCP client อย่าง Claude Code"
+        }
+      ]
+    },
+    {
+      "heading": "6. When the system is better reached as another agent",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "บางระบบเหมาะกับการดีไซน์เป็น Agent แยกตัว มากกว่าการผูกเป็น Tool ตัว Tool หรือ MCP server ให้ผลลัพธ์ทีละ function โดยที่ agent ผู้เรียกยังต้องแบกรับ reasoning ทั้งหมด ในขณะที่การสร้าง predefined agent จะมาพร้อม model, system prompt, tools, MCP servers และ skills ของตัวเอง การส่งต่องาน (hand-off) ให้ subagent จึงเป็นการมอบหมายทั้งการตัดสินใจ (judgement) พร้อมกับชุด integrations ที่จำเป็นสำหรับการทำงานนั้นไปพร้อมกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น: Lead agent ต้องการทำ code review และ test writing หากผูก review tools และ test runner ทั้งหมดไว้ที่ lead agent จะทำให้ context บวมและ prompt instruction ไม่โฟกัส การ route งานไปยัง reviewer agent และ test-writer agent ซึ่งมี focused prompt และ tools ของตัวเอง จะช่วยแยกขอบเขตความรับผิดชอบ (separation of concerns) ให้ชัดเจน หลักการนี้ใช้กับ MCP server เช่นกัน: หากระบบใดจำเป็นเฉพาะสำหรับ specialist ให้ attach ไปที่ specialist agent นั้นโดยตรง ไม่ใช่ที่ orchestrator/lead agent"
+        },
+        {
+          "type": "paragraph",
+          "text": "คุณสมบัติสำคัญ 2 ข้อที่มีผลต่อการออกแบบ: 1) Agents ภายใน Managed Agents session จะแชร์ sandbox, filesystem และ vault credentials ร่วมกัน ดังนั้นการ hand-off งานจึงไม่ได้ isolate permission แต่เป็นการ isolate context เนื่องจาก agent แต่ละตัวจะรันใน session thread และ history ของตัวเอง 2) Thread ของ subagent จะ persist อยู่ ทำให้ lead agent สามารถส่ง follow-up เพื่อทำงานต่อเนื่องกับ specialist ที่ยังจำ context ก่อนหน้าได้ ควรเลือกใช้ Agent แทน MCP server เมื่อการสื่อสารกับระบบนั้นต้องมี multi-turn interaction ไม่ใช่แค่การ request แล้วรอผลลัพธ์แบบเที่ยวเดียวจบ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "นำไปปรับใช้กับการทำงานจริง: ลองเลือกระบบที่ทีมของคุณเชื่อมต่อกับ Claude อยู่ในปัจจุบัน ระบบนั้นถูกเรียกจาก application เดียว, ถูกแชร์ข้ามหลาย client, หรือต้องใช้ reasoning ในการตัดสินใจของตัวเอง? เงื่อนไขเหล่านี้ชี้ไปที่แนวทางสถาปัตยกรรมใดใน 3 รูปแบบ (Client Tools, MCP Connector, หรือ Subagent)?"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เชื่อมต่อ Remote MCP Server เข้ากับ Claude Code และตรวจสอบสถานะการทำงาน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56826",
+      "question": "ทีม Platform กำลังสร้างขั้นตอนใน CI pipeline อัตโนมัติ โดย Claude ต้องอ่านไฟล์ใน repository, รันคำสั่งทดสอบ (test commands) และแก้ไขโค้ดวนซ้ำไปเรื่อยๆ จนกว่าการทดสอบจะผ่าน โดยที่ทีมไม่ต้องเขียนโค้ดตรรกะขึ้นมาเองเพื่อ parse บล็อก tool_use และส่ง tool results กลับเข้าไป แนวทางการ Integrate แบบใดตอบโจทย์ความต้องการนี้ได้ดีที่สุด?",
+      "options": [
+        "ใช้ Claude Agent SDK ซึ่งมี agent loop ในตัว, มาพร้อม built-in tools เช่น Read, Edit และ Bash รวมถึงจัดการ execution ของ tools ให้โดยอัตโนมัติ",
+        "ใช้ Anthropic Client SDK และเขียน loop ขึ้นมาเองเพื่อตรวจเช็ก stop_reason, รันแต่ละบล็อกของ tool_use และส่ง results กลับไปยัง Messages API",
+        "ใช้ Claude Code CLI แบบ interactive ในแต่ละรอบของ pipeline เพื่อให้วิศวกรกดยืนยันการแก้ไขไฟล์ทุกครั้งก่อนดำเนินการ",
+        "ใช้ MCP connector เพื่อเปิด repository ให้เป็น remote MCP server และให้ Messages API เรียก tool definitions ผ่าน HTTPS"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56827",
+      "question": "วิศวกรต้องการ debug บิลด์ที่ล้มเหลวแบบ interactive โดยการคุยกับ Claude ใน terminal พร้อมทั้งดูไฟล์ที่ถูกเปิดทีละไฟล์ และกดยืนยันคำสั่งที่มีความเสี่ยงเป็นรายกรณี (ad hoc) โดยไม่ต้องเขียนโค้ด integration เลย ตัวเลือกใดเหมาะสมที่สุดสำหรับ workflow นี้?",
+      "options": [
+        "Claude Code CLI ซึ่งรันแบบ interactive ใน terminal เพื่อดูและกดยืนยันแต่ละขั้นตอนได้แบบสดๆ",
+        "Claude Agent SDK ที่ฝังอยู่ในสคริปต์ Python และรันแบบ headless ตามตารางเวลา",
+        "Managed Agents REST API ซึ่งรัน session บน sandbox ที่โฮสต์โดย Anthropic",
+        "MCP connector ที่ตั้งค่าไว้ในคำขอของ Messages API พร้อมกำหนด denylist สำหรับ tools ที่มีผลกระทบทำลายข้อมูล"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56825",
+      "question": "บริษัท Fintech ต้องการให้ Claude เรียก tools ที่โฮสต์อยู่บน Postgres query service ภายใน ปัจจุบัน service นี้เปิดให้ใช้งานเฉพาะ local stdio-based MCP server บนแล็ปท็อปของนักพัฒนาเท่านั้น แต่แอปพลิเคชันบน production ต้องการให้ Claude เรียกใช้งานได้โดยตรงจากฝั่ง server-side ผ่าน Messages API โดยไม่ต้องรันโปรเซส MCP client แยกต่างหาก ทีมควรดำเนินการอย่างไร?",
+      "options": [
+        "Deploy ตัว query service ให้เป็น remote MCP server ที่เข้าถึงได้ผ่าน HTTPS โดยใช้ Streamable HTTP หรือ SSE จากนั้นให้อ้างอิงในอาร์เรย์ mcp_servers",
+        "คง stdio server เดิมไว้ แล้วระบุ path ของ local process ลงในอาร์เรย์ mcp_servers โดยตรง เพื่อให้ Messages API สั่ง spawn โปรเซสขึ้นมาสำหรับแต่ละ request ที่เข้ามา",
+        "Wrap ฟังก์ชันของ stdio server ให้กลายเป็น client-side tool definition เพื่อให้ Claude เรียกใช้ผ่านกลไก tool_use มาตรฐาน แทนการตั้งค่า MCP ใดๆ",
+        "อัปโหลด tool schema ของ stdio server ขึ้นไปยัง Files API เพื่อให้ Claude สามารถดึงและนำกลับมาใช้ใหม่ได้โดยอัตโนมัติก่อนเริ่มแต่ละ conversation turn"
+      ],
+      "explanation": ""
+    }
+  ]
+}

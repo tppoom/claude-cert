@@ -1,0 +1,165 @@
+{
+  "title": "Agent ทำงานในฐานะใคร: Per-user Credentials และ Permission Layers",
+  "objectives": [
+    "อธิบายช่องโหว่ความปลอดภัยเมื่อ Agent ใช้ Shared Service Credential แทน Per-user Credentials",
+    "เก็บ Credentials อยู่นอก Boundary ของ Agent ด้วย Egress Injection และ Isolated Proxy",
+    "วิเคราะห์ว่า Permission Layers ใดของ Agent SDK ยังคงมีผลภายใต้ bypassPermissions และจุดที่ canUseTool callback จะไม่ถูกเรียกทำงาน"
+  ],
+  "key_concept": "การกำหนดสิทธิ์และตัวตนของ Agent ผ่าน Per-user Credentials พร้อมแยกเก็บ Credential นอก Agent Boundary และทำความเข้าใจพฤติกรรมของ Agent SDK Permission Layers",
+  "sections": [
+    {
+      "heading": "1. Shared Service Identity เทียบกับ Acting on Behalf of Each User",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Tool Call ที่ Agent เรียกใช้งานจะต้องรันภายใต้ Identity ใด Identity หนึ่งเสมอ บ่อยครั้งที่ Identity นั้นมักเป็น Shared Service Credential บัญชีเดียวที่แชร์ร่วมกันทุก Users ซึ่งก่อให้เกิดช่องโหว่ 2 ข้อหลักคือ 1) สิทธิ์เกิน: แต่ละ User จะเข้าถึงข้อมูลได้เท่าที่ Credential นั้นเข้าถึงได้ ไม่ใช่สิทธิ์ที่แท้จริงของตัวเอง และ 2) ตรวจสอบไม่ได้: Downstream Audit Logs จะบันทึกเป็นชื่อ Service Account เดียวกันทั้งหมด ทำให้ระบุไม่ได้ว่า End User คนใดเป็นผู้สั่งการ แนวทางที่ปลอดภัยกว่าคือออกแบบให้ Agent ดำเนินการในฐานะตัวแทนของผู้ใช้แต่ละคน (Act on behalf of each user) โดยถือ Token ที่ออกให้ User รายนั้นๆ โดยเฉพาะ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Managed Agents ออกแบบโมเดลนี้ไว้ใน Vaults โดย Vault คือที่เก็บชุด Credential สำหรับ End User หนึ่งคน คุณ Register ไว้ครั้งเดียวและส่ง ID ของมันเข้าไปตอนสร้าง Session ดังนั้น Agent Definition จึงแชร์ร่วมกันได้ ขณะที่ Credentials จะถูกสลับเปลี่ยนตาม Session จริง สำหรับ MCP Credentials (mcp_oauth, static_bearer) จะผูกด้วย mcp_server_url และถูก Inject เข้าไปโดยอัตโนมัติเมื่อ Agent เชื่อมต่อไปยัง Server นั้น โดยกรณี mcp_oauth ทาง Anthropic จะช่วย Refresh Access Token ให้แทนคุณอัตโนมัติหากมี Refresh Block ระบุไว้ ทั้งนี้ ค่า Credential จะเป็น Write-only เสมอ และไม่มีทางถูกอ่านย้อนกลับผ่าน API ส่วนบน Claude Code นั้น Managed MCP Configuration ก็ใช้แพทเทิร์นเดียวกัน คือรองรับ OAuth หรือ Per-user Headers เพื่อให้แต่ละ User สามารถ Authenticate ในฐานะตัวเองได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Runtime Rules 3 ข้อที่กำหนดว่า Tool Call จะใช้ Identity ของใคร ซึ่งหากมองข้ามไปอาจทำให้เกิดช่องโหว่ได้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- หากไม่มี Credential ใดตรงกับ Server URL: ระบบจะพยายามเชื่อมต่อแบบ Unauthenticated และจะ Error ก็ต่อเมื่อ Server นั้นบังคับ Authenticate เท่านั้น ดังนั้นหาก Server อนุญาต Anonymous Access ระบบจะแอบดึงข้อมูล Anonymous กลับมาอย่างเงียบๆ\n- หากมีหลาย Vaults ที่มี Credential ตรงกัน: Vault แรกที่ Match จะชนะเสมอ (First match wins) ดังนั้นหากส่ง Shared Vault เข้ามาก่อน User Vault ทุก Call จะรันด้วย Shared Identity ทันที\n- ใน Multi-agent Sessions: Vault Credentials จะถูกแชร์และมีผลกับทุก Thread นั่นคือทุก Subagent ที่ประกาศใช้งาน Server นั้นใน Definition จะทำงานในฐานะ User คนเดียวกันทั้งหมด"
+        }
+      ]
+    },
+    {
+      "heading": "2. การเก็บ Credentials ไว้นอก Security Boundary ของ Agent",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Agent ที่อ่านเนื้อหาจาก Untrusted Content มีความเสี่ยงต่อการถูก Prompt Injection สูง หาก Agent ถือ Secret ไว้ คำสั่งที่ถูก Inject อาจสั่งให้ส่ง Secret นั้นออกไปภายนอกได้ การแก้ไขที่ปลอดภัยที่สุดคือต้องมั่นใจว่า Agent จะไม่มีวันถือ Secret นั้นไว้เลย ซึ่งเป็นหลักการทำงานของ Vault Environment-variable Credentials โดย Sandbox จะถือเพียง Opaque Placeholder เท่านั้น และจะถูกสลับเป็นค่าจริงตอน Egress ขาออก ทำให้ตัว Agent ไม่มีทางมองเห็น Secret จริง ยิ่งไปกว่านั้น การตั้งค่า injection_location เป็นแบบ header-only จะยิ่งจำกัดขอบเขตความเสี่ยงได้ดีขึ้น เนื่องจาก Request Body มักถูกสร้างขึ้นจากเนื้อหาที่ Agent กำลังประมวลผลอยู่ จึงเป็น Attack Surface ที่เปิดกว้างกว่า"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Substitution จะมีผลเฉพาะกับ Request ขาออกเท่านั้น หาก Client นำ Secret ที่เก็บไว้ไปยิงขอ Session Token (เช่น ผ่าน OAuth Client-credentials Grant) ตัว Token ที่ตอบกลับมาจะเข้ามาใน Sandbox แบบ Unredacted (ไม่มีการเซนเซอร์) ดังนั้น สำหรับ Flow ที่ต้องมีการ Exchange แนะนำให้จัดการ Exchange Token เองนอก Sandbox แล้วค่อยนำ Token ที่ได้ไปบันทึกลงใน Vault"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับระบบ Self-hosted Agent SDK สามารถใช้คอนเซปต์เดียวกันได้ผ่าน Proxy ที่อยู่นอก Container ของ Agent โดยรัน Container ด้วยแฟล็ก --network none เพื่อตัด Network Interface ทั้งหมดออก แล้ว Mount ต่อผ่าน Unix Socket เข้ากับ Proxy บน Host แทน ตัว Proxy จะทำหน้าที่ Inject Credentials, บังคับใช้ Endpoint Allowlist และ Log ทุก Request ทำให้ Agent มองเห็นแค่ Tool Interface เท่านั้น หากเกิด Prompt Injection แล้วพยายามส่ง Request ไปยังโดเมนของผู้โจมตี ก็จะไม่มี Network Path ให้ไปได้ เว้นแต่จะวิ่งผ่าน Proxy ที่คอยปฏิเสธคำขอเหล่านี้ไว้แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "รายละเอียด 2 ข้อสำคัญที่ชี้วัดว่า Proxy จะป้องกันได้จริงหรือไม่: 1) การ Inject Credential เข้าไปใน HTTPS Traffic แปลว่า Proxy ต้องถอดอ่านเนื้อหา Request ได้ ดังนั้น Proxy ต้องทำ TLS Termination (เช่น ใช้ mitmproxy) และติดตั้ง CA Certificate ของ Proxy ลงใน Trust Store ของ Agent เพราะหากเป็น Forward Proxy ธรรมดา มันจะทำได้แค่ Relay Encrypted Tunnel โดยไม่สามารถ Inspect หรือ Inject อะไรได้เลย 2) การเซ็ต Environment Variable HTTP_PROXY / HTTPS_PROXY เพียงอย่างเดียวไม่ใช่ Security Boundary เพราะ Tool บางตัวไม่ได้อ่านค่าตัวแปรเหล่านี้ เช่น คำสั่ง ssh หรือ Database Drivers ส่วนใหญ่จะข้ามไป ดังนั้นการตัด Network Interface ออกทั้งหมดจึงเป็นการบังคับใช้ Boundary ไม่ว่า Tool จะทำงานอย่างไรก็ตาม นอกจากนี้ ควรกำหนด Service Account ของ Agent ด้วยสิทธิ์ IAM แบบ Least Privilege (ห้ามให้สิทธิ์กว้างเกินไป) และ Route Sensitive Access ทั้งหมดผ่าน Proxy เท่าที่เป็นไปได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ข้อสอบออกบ่อย: สำหรับโจทย์เรื่อง Data Exfiltration ให้เลือก Security Controls ที่ได้ผลเสมอโดยไม่ขึ้นกับการตัดสินใจของ Model เช่น การตัด Direct Network Interface, การ Inject Credentials ไว้นอก Boundary และการใช้ TLS-terminating Proxy ที่สามารถ Inspect Traffic ได้ จำไว้ว่าการให้ IAM สิทธิ์กว้าง, การพึ่งพาแค่ Proxy Environment Variables หรือการไว้ใจดุลยพินิจของตัว Model จะพังทลายทันทีเมื่อ Model ถูก Prompt Injection หลอกสำเร็จ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้งค่า HTTP_PROXY และ HTTPS_PROXY เพียงพอแล้วที่จะบังคับให้ Traffic ทั้งหมดของ Agent วิ่งผ่าน Credential-injecting Proxy? (ทำไมถึงผิด): ไม่จริง: Tool บางตัว (เช่น ssh และ Database Drivers) จะละเลยและไม่สนใจ Proxy Variables อีกทั้ง Proxy ทั่วไปที่ไม่ได้ทำ TLS Termination จะไม่สามารถมองเห็นข้อมูลภายในเพื่อ Inject Credentials ได้ ทางแก้ที่ถูกต้องคือต้องตัด Network Interface ของ Agent ทิ้งทั้งหมด (--network none) และทำ TLS Termination ที่ตัว Proxy"
+        }
+      ]
+    },
+    {
+      "heading": "3. Permission Layer ชั้นไหนที่เป็นคนตัดสิน Tool Call จริงๆ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Credentials กำหนดขอบเขตสิ่งที่ Agent สามารถเข้าถึงได้ แต่ Permission Flow ของ Agent SDK คือตัวควบคุมว่า Call ไหนจะถูกยิงออกไปจริง ลำดับการประเมิน (Evaluation Sequence) นี้เป็นลำดับตายตัว หากมีขั้นตอนใดตัดสิน (Resolve) Call นั้นได้แล้ว กระบวนการจะจบลงทันที (First-match wins) ดังนั้น หากวาง Security Control ไว้ท้ายลำดับ มันจะมองเห็นเฉพาะ Call ที่ไม่ถูกจัดการโดยขั้นตอนก่อนหน้าเท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "ลำดับการประเมิน Permission ของ Agent SDK: ขั้นตอนแรกที่ตัดสิน Call ได้จะเป็นผู้ชนะ",
+          "headers": [
+            "Step",
+            "What it does",
+            "Under bypassPermissions"
+          ],
+          "rows": [
+            [
+              "1. Hooks",
+              "รัน Custom Code เพื่อ Allow, Deny หรือ Modify Request",
+              "ยังคงรันตามปกติ และผล Deny จะถูกบังคับใช้เสมอ"
+            ],
+            [
+              "2. Deny rules",
+              "บล็อก Call ที่ตรงตามเงื่อนไข (disallowed_tools)",
+              "ยังคงถูกบังคับใช้ตามปกติ"
+            ],
+            [
+              "3. Ask rules",
+              "ส่ง Call ที่ตรงตามเงื่อนไขไปขออนุมัติ",
+              "ยังคงส่ง Call ต่อไปยัง canUseTool"
+            ],
+            [
+              "4. Permission mode",
+              "การอนุมัติระดับ Mode-based",
+              "อนุมัติทุกอย่างที่ผ่านมาถึงขั้นตอนนี้ ยกเว้น rm/rmdir บน Critical Path"
+            ],
+            [
+              "5. Allow rules",
+              "อนุมัติ Tools ที่ระบุไว้อัตโนมัติ (allowed_tools)",
+              "แทบจะไม่มี Call ตกมาถึงขั้นตอนนี้"
+            ],
+            [
+              "6. canUseTool callback",
+              "ขออนุมัติตอน Runtime เมื่อไม่มีขั้นตอนก่อนหน้าใดตัดสิน Call",
+              "จะได้รับเฉพาะ Call ที่หลุดรอด (Fall through) มาเท่านั้น"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ลำดับขั้นนี้ช่วยอธิบายช่องโหว่ด้าน Audit ที่พบบ่อย: หลายทีมตั้งค่า permission_mode=\"bypassPermissions\" แล้วใส่ canUseTool callback เพื่อดัก Log คำขอและสั่ง Deny การเข้าถึง Credentials Directory แต่ Callback นี้แทบไม่เคยถูกเรียกใช้งานเลย เพราะมันจะทำงานเฉพาะเมื่อคำขอหลุดมาถึงจุดที่ต้อง Prompt ถามเท่านั้น Call ที่ถูก Auto-approve ไปก่อนหน้าด้วย allowedTools, Allow Rules หรือ Permission Mode จะไม่วิ่งมาถึง canUseTool ทำให้ Logic ฝั่ง Deny ถูกข้าม และ Audit Log พลาดข้อมูลส่วนใหญ่ไป หากต้องการ Control ที่มองเห็นทุก Call ต้องนำไปใส่ไว้ใน Hook เพราะ Hooks ทำงานเป็นลำดับแรกสุด และผลการตัดสินจะถูกบังคับใช้ในทุก Mode"
+        },
+        {
+          "type": "paragraph",
+          "text": "ภายใต้ bypassPermissions ขั้นตอนที่ทำงานก่อน Mode Check ยังคงมีผลบังคับใช้ ทั้ง Deny Rules, Explicit Ask Rules และ Hooks ยังทำงานตามปกติ: Deny จาก Hook จะถูกบังคับใช้เสมอ และ Ask Rule ก็ยังส่ง Call ไปให้ canUseTool เช่นเดิม นอกจากนี้ disallowed_tools ยังคงทรงพลัง หากระบุชื่อเปล่าๆ เช่น \"Bash\" จะเป็นการตัด Tool นั้นออกจาก Request ทันที ทำให้ Claude ไม่สามารถเรียกใช้ได้เลย ส่วน Scoped Rule เช่น \"Bash(rm *)\" ก็จะ Deny Call ที่เข้าเงื่อนไขในทุก Mode ในทางกลับกัน allowed_tools ไม่ได้ช่วยป้องกันอะไรในจุดนี้ เพราะเป็นเพียงลิสต์ระบุ Tool สำหรับ Auto-approve เท่านั้น ไม่ได้จำกัดว่า Claude จะใช้ได้เฉพาะ Tool ในลิสต์ และ Plan Mode ก็ไม่ใช่รูปแบบย่อยของ Bypass เพราะใน Plan Mode คำสั่ง File-edit และ Shell-write จะถูกส่งไปยัง canUseTool เสมอโดยไม่สนใจ Allow Rules"
+        },
+        {
+          "type": "paragraph",
+          "text": "ขอบเขตการเข้าถึง Tool (Tool Reach) ก็เป็นเรื่องของ Authorization เช่นกัน Agent ที่สามารถโหลด MCP Server ใดๆ ก็ได้ อาจเรียกใช้ Tool ที่ไม่เคยผ่านการรีวิวมาก่อน ทางแก้คือจำกัดตั้งแต่การกำหนดว่า Server และ Tool ใดบ้างที่สามารถมีตัวตนอยู่ได้ ผ่าน [controlling MCP servers, plugins and hooks through policy](lesson:7.1) ในระดับ SDK และ Settings การใช้ Deny Rule เพียงข้อเดียวสามารถปิดกั้นทุก MCP Tools ข้ามทุก Server ได้ จนกว่าจะมีการ Approve รายตัว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: canUseTool callback ทำหน้าที่เป็น Safety Net ที่คอยดักตรวจสอบทุก Tool Call ในทุก Permission Mode — เหตุผลคือ canUseTool ทำงานเป็นลำดับสุดท้าย และจะถูกเรียกเฉพาะ Call ที่ขั้นตอนก่อนหน้าไม่ได้ตัดสินเท่านั้น Call ที่ถูก Approve ไปแล้วโดย allowedTools, Allow Rules หรือ bypassPermissions จะไม่มีทางวิ่งมาถึง ดังนั้นการตรวจสอบที่ต้องเห็นทุก Call จำเป็นต้องใช้ Hook เท่านั้น | ไม่จริง: การระบุลิสต์ Tool แบบจำกัดใน allowed_tools จะบังคับให้ Agent ใช้ได้เฉพาะ Tool เหล่านั้น แม้อยู่ภายใต้ bypassPermissions — เหตุผลคือ allowed_tools มีหน้าที่แค่ Auto-approve เท่านั้น Tool อื่นที่ไม่อยู่ในลิสต์ยังคงถูกเรียกใช้ได้ตามปกติ หากต้องการตัดสิทธิ์หรือปฏิเสธ ต้องใช้ disallowed_tools ซึ่งมีผลบังคับใช้ในทุก Mode เสมอ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56771",
+      "question": "Security architect กำลังออกแบบระบบ Agent SDK deployment ที่ต้องประมวลผลเอกสารจาก third-party ที่ไม่น่าเชื่อถือ (untrusted) และต้องป้องกันการรั่วไหลของข้อมูลรับรอง (credential exfiltration) แม้ว่าจะเกิด prompt injection ที่หลอกให้ agent พยายามส่งข้อมูลไปยัง endpoint ของผู้โจมตีก็ตาม การผสมผสานของ controls ใดต่อไปนี้ที่ทำงานร่วมกันเพื่อจัดการกับภัยคุกคามนี้ได้ โดยทราบอยู่แล้วว่าทราฟฟิกที่เข้ารหัสด้วย TLS ผ่าน plain forward proxy ทั่วไปนั้นไม่สามารถตรวจสอบหรือทำการ inject credentials ลงไปได้? (เลือก 3 ข้อ)",
+      "options": [
+        "รัน agent ภายใน container ด้วยแฟล็ก --network none และ route ทุก outbound calls ผ่าน Unix socket ไปยัง proxy บน host เพื่อให้ agent ไม่มี direct network interface ใดๆ เลย",
+        "เก็บ credentials ไว้นอก security boundary ของ agent โดยสิ้นเชิง แล้วทำการ inject credentials ที่ฝั่ง proxy เพื่อให้ agent ส่งเฉพาะ request ที่ไม่มี secret พื้นฐานติดไปด้วยเท่านั้น",
+        "Deploy ตัว TLS-terminating proxy โดยให้ agent's environment ไว้วางใจ CA certificate ของ proxy เพื่อให้สามารถตรวจสอบทราฟฟิก HTTPS ที่เข้ารหัส และ inject credentials ก่อนทำการ re-encryption ได้",
+        "ตั้งค่าเฉพาะ environment variables HTTP_PROXY และ HTTPS_PROXY เพียงอย่างเดียว เนื่องจากทุก tool ที่ agent เรียกใช้งานจะปฏิบัติตามตัวแปรเหล่านี้ และ standard forward proxy ทั่วไปสามารถ inject credentials เข้าไปใน encrypted tunnel ได้",
+        "กำหนด broad IAM permissions ให้กับ agent process โดยตรง เพื่อให้สามารถเข้าถึง downstream service ใดๆ ได้ด้วยตัวเอง โดยไม่ต้องพึ่งพาว่ามี proxy พร้อมใช้งานหรือเข้าถึงได้หรือไม่",
+        "พึ่งพา built-in judgment ของตัวโมเดลเองในการหลีกเลี่ยงการติดต่อไปยังโดเมนที่น่าสงสัย แทนที่จะบังคับใช้ network-level boundary ที่คงอยู่โดยไม่ขึ้นกับการตัดสินใจของตัวโมเดล"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56768",
+      "question": "ขณะที่กำลังทำ audit การ integration ของ Agent SDK คุณพบการตั้งค่า allowed_tools=[\"Read\", \"Glob\", \"Grep\", \"Bash\"] ร่วมกับ permission_mode=\"bypassPermissions\" และมี canUseTool callback ที่คอย log ทุก request พร้อมทั้ง deny การกระทำใดๆ ที่เข้าถึง credentials directory โดย developer เชื่อว่า callback นี้คือ safety net ของพวกเขา ผลการ audit ควรได้ข้อสรุปว่าอย่างไร?",
+      "options": [
+        "Callback นี้ถูก shadowed: การเรียกใช้งานที่ได้รับอนุมัติตั้งแต่ขั้นตอนก่อนหน้าตามลำดับ รวมถึงทุกสิ่งที่ bypassPermissions อนุมัติ จะไม่ถูกส่งไปถึง canUseTool เลย หากต้องการตรวจสอบทุก call จำเป็นต้องใช้ PreToolUse hook แทน",
+        "Callback ทำงานได้ตามที่ตั้งใจไว้ เพราะ bypassPermissions ส่งผลเฉพาะกับ tools ที่ไม่ได้ระบุไว้ใน allowed_tools เท่านั้น และเนื่องจาก Bash ไม่เคยถูก allow อย่างชัดเจน จึงยังคงส่งมาถึง callback อยู่",
+        "Callback ทำงานได้ตามที่ตั้งใจไว้ เพราะ canUseTool จะถูก invoke เป็นลำดับแรกเสมอ ก่อนที่จะมีการพิจารณา permission mode หรือ allow rules ใดๆ",
+        "Callback ถูก shadowed เฉพาะกับ MCP tools ที่มี metadata flag เป็น requiresUserInteraction เท่านั้น ในขณะที่ built-in tools ทั่วไปอย่าง Bash ยังคงส่งมาถึง callback ตามที่คาดไว้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56774",
+      "question": "CISO ที่กำลังตรวจสอบการ rollout ของ Agent SDK พบว่า permission_mode ถูกตั้งค่าเป็น bypassPermissions ใน batch-processing pipeline และต้องการทราบว่ายังมี authorization controls ใดบ้าง (หากมี) ที่ยังคงควบคุม agent ภายใต้โหมดนี้ จากหลักการประเมินผลของ bypassPermissions ข้อความใดต่อไปนี้ถูกต้อง? (เลือก 2 ข้อ)",
+      "options": [
+        "Hooks ยังคงถูก execute และ hook ที่ deny การเรียกใช้งานก็ยังคงมีผลบังคับใช้ เนื่องจาก hooks จะถูก evaluate ก่อนขั้นตอน permission mode ใน flow",
+        "Explicit ask rule ที่ถูกกำหนดค่าไว้ใน settings.json ยังคงบังคับให้การเรียกใช้งานต้องผ่าน canUseTool callback แม้ว่าโหมดนี้จะ auto-approve ให้เป็นปกติก็ตาม",
+        "allowed_tools ยังคงจำกัดอย่างมีนัยสำคัญว่า tools ใดที่จะได้รับการ auto-approved ดังนั้นการระบุเฉพาะ tools ที่จำกัดไว้จะช่วยให้ bypassPermissions มีผลแค่กับ tools เหล่านั้น",
+        "disallowed_tools สำหรับชื่อ tool ทั้งหมดจะไม่มีผลใดๆ เมื่อ bypassPermissions ทำงานอยู่ เนื่องจากโหมดนี้ถูกออกแบบมาเพื่อ override ทุก layer ของ permission system",
+        "plan permission mode และ bypassPermissions จะให้ behavior ที่เหมือนกันทุกประการสำหรับ file-edit tools เนื่องจากทั้งคู่ทำการ approve หรือ deny การ edit ที่ขั้นตอนการประเมินเดียวกันในท้ายที่สุด"
+      ],
+      "explanation": ""
+    }
+  ]
+}

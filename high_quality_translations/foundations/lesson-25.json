@@ -1,0 +1,165 @@
+{
+  "title": "โหมด Thinking ของ Claude และ Breaking Changes ระหว่างรุ่นโมเดล",
+  "objectives": [
+    "ระบุโมเดลที่รองรับ Adaptive Thinking, Extended Thinking แบบกำหนด Budget และเงื่อนไข Request ที่แต่ละโมเดลปฏิเสธ",
+    "เลือกการตั้งค่า Thinking Display ได้อย่างเหมาะสมโดยคำนึงถึงผลกระทบต่อ Latency และต้นทุน",
+    "ระบุพารามิเตอร์ของ Request ที่โมเดลรุ่นใหม่จะปฏิเสธด้วยรหัส 400 Error",
+    "ตรวจจับการเปลี่ยนแปลงพฤติกรรมของโมเดลที่ทำให้ Code พังโดยไม่มีการแจ้งเตือน Error เมื่อสลับรุ่นโมเดล"
+  ],
+  "key_concept": "การทำความเข้าใจความแตกต่างของโหมด Thinking ระหว่างแต่ละโมเดลของ Claude รวมถึง Breaking Changes และพฤติกรรมที่เปลี่ยนไป เพื่อย้ายระบบและปรับแต่งการเรียกใช้งานได้อย่างถูกต้องและมีประสิทธิภาพ",
+  "sections": [
+    {
+      "heading": "1. Adaptive and extended thinking แยกตาม Model",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Thinking ช่วยให้ Claude คิดและแก้ปัญหาก่อนตอบ โดยจะเรียบเรียงคำถาม ทดลองแนวทาง ตรวจสอบผลลัพธ์ระหว่างทาง และตัดทางเลือกที่ไม่เวิร์กทิ้ง จึงมีประโยชน์มากกับงานคำนวณ, Coding, บทวิเคราะห์ และ Agentic Tasks ระยะยาว แต่มีค่าใช้จ่ายเพิ่มเติม: Thinking Tokens คิดราคาเป็น Output Tokens เสมอแม้ไม่ได้แสดงผลให้อ่าน และนับรวมในโควตา max_tokens"
+        },
+        {
+          "type": "paragraph",
+          "text": "การตั้งค่า Thinking ทำได้ 2 รูปแบบ: 1) Adaptive thinking (type: \"adaptive\") ให้ Claude ตัดสินใจเองว่าจะคิดเมื่อไรและลึกแค่ไหน โดยควบคุมระดับผ่าน effort 2) Extended thinking (type: \"enabled\" พร้อม budget_tokens) สำหรับกำหนด Token Budget ด้วยตัวเอง ต้องตั้งค่าอย่างน้อย 1,024 Tokens และน้อยกว่า max_tokens โดยค่านี้เป็นเพียงเป้าหมาย (Target) ไม่ใช่ Hard Cap ส่วน max_tokens ยังคงเป็น Hard Limit ของ Output รวมทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "Effort ถูกกำหนดผ่าน Request Parameter output_config.effort เพื่อคุมจำนวน Tokens ที่ Claude จะใช้ในแต่ละ Response (รวม Thinking) แบ่งเป็น 5 ระดับจากน้อยไปมาก: low, medium, high, xhigh และ max ซึ่งแต่ละ Model รองรับระดับที่ต่างกัน และมีค่า Default ไม่เหมือนกัน"
+        },
+        {
+          "type": "table",
+          "caption": "พฤติกรรมของแต่ละ Model ตามการตั้งค่า Thinking",
+          "headers": [
+            "Model",
+            "No thinking field",
+            "\"adaptive\"",
+            "\"enabled\" with budget_tokens",
+            "\"disabled\""
+          ],
+          "rows": [
+            [
+              "Claude Opus 5.5",
+              "Adaptive thinking",
+              "Adaptive thinking",
+              "400 error",
+              "400 error"
+            ],
+            [
+              "Claude Sonnet 5.5",
+              "Adaptive thinking",
+              "Adaptive thinking",
+              "400 error",
+              "400 error (ให้ใช้ \"between_tools\")"
+            ],
+            [
+              "Claude Opus 4.8",
+              "Thinking off",
+              "Adaptive thinking",
+              "400 error",
+              "Thinking off"
+            ],
+            [
+              "Claude Sonnet 4.6",
+              "Thinking off",
+              "Adaptive thinking",
+              "Extended thinking (deprecated)",
+              "Thinking off"
+            ],
+            [
+              "Claude Haiku 4.5",
+              "Thinking off",
+              "400 error",
+              "Extended thinking",
+              "Thinking off"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การรองรับแบ่งตาม Generation ของ Model: บน Opus 5.5, Sonnet 5.5 และ Fable 5.1 ระบบจะเปิด Adaptive thinking เป็นค่าเริ่มต้นโดยไม่ต้อง Config และ Reject การกำหนด Budget ด้วยตนเอง ส่วน Opus 4.8 และ 4.7 จะปิด Thinking ไว้จนกว่าจะส่ง \"adaptive\" ขณะที่ Claude Haiku 4.5 จะตรงข้ามคือ Reject \"adaptive\" และรองรับเฉพาะ Extended thinking ผ่าน budget_tokens เท่านั้น ดังนั้นหาก Workload ต้องการคุม Thinking Budget ให้แน่นอนด้วยราคาต่อ Token ต่ำสุด Haiku 4.5 คือคำตอบ"
+        }
+      ]
+    },
+    {
+      "heading": "2. การเลือกผลลัพธ์ Thinking Output ที่ส่งกลับมา",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Thinking จะถูกส่งกลับมาใน thinking Content Blocks ก่อนส่วน Text แม้จะเปิดให้มองเห็นได้ แต่ก็เป็นเพียง Summary ของกระบวนการคิด ไม่ใช่ Raw Chain of Thought ทั้งนี้ ฟิลด์ display ใช้ควบคุมรูปแบบผลลัพธ์ที่ส่งกลับมา โดยใช้ได้ทั้ง Adaptive และ Extended thinking มี 3 ค่า:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- \"summarized\" ส่งกลับเป็น Summary ที่อ่านเข้าใจได้ เป็นค่า Default บน Claude Opus 4.6, Sonnet 4.6, Haiku 4.5 และ Model รุ่นก่อนหน้า\n- \"omitted\" ส่ง Block กลับมาโดยปล่อยฟิลด์ thinking ว่างไว้พร้อม Encrypted Signature เป็นค่า Default บน Opus 5.5, Sonnet 5.5, Fable 5.1, Opus 5, Opus 4.8 และ Opus 4.7\n- \"updates\" (beta) ปล่อยฟิลด์ thinking ว่างไว้เช่นกัน แต่จะส่ง Progress Notes สั้นๆ ที่บาง Model เขียนไว้ระหว่าง Tool Calls กลับมา"
+        },
+        {
+          "type": "paragraph",
+          "text": "\"omitted\" ช่วยลด Latency แต่ไม่ลดค่าใช้จ่าย เมื่อทำ Streaming ตัว Server จะข้าม Thinking Text แล้วส่งเฉพาะ Signature ทำให้เริ่มส่งคำตอบจริงได้เร็วขึ้น แต่คุณยังต้องจ่ายค่า Thinking Tokens ครบทุก Token และหาก UI ของคุณต้องแสดงเหตุผลให้ User เห็น การใช้ \"omitted\" จะทำให้ดูเหมือนระบบค้างก่อนจะมีข้อความปรากฏ จึงควรตั้งเป็น \"summarized\" เพื่อแสดง Progress ให้เห็น ทั้งนี้ ไม่ว่าจะเลือกค่าใด ต้องส่ง thinking Blocks เดิมกลับไปแบบไม่แก้ไขใน Multi-turn Conversations เสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้ง display เป็น \"omitted\" ช่วยลดค่าใช้จ่าย Thinking? (ทำไมถึงผิด): ไม่จริง: omitted แค่ข้ามการส่ง Thinking Text กลับมาเพื่อช่วยให้ Time to First Text Token เร็วขึ้นเท่านั้น แต่ Thinking Tokens ทั้งหมดยังคงถูกคิดเงินตามปกติ"
+        }
+      ]
+    },
+    {
+      "heading": "3. Request settings ที่โมเดลรุ่นใหม่ปฏิเสธ (Reject)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การย้ายระบบเดิมที่เคยใช้งานได้มาเป็น Claude Opus 5.5 หรือ Sonnet 5.5 อาจทำให้ Request ที่เคยถูกต้องกลายเป็น Error 400 ข้อผิดพลาดเหล่านี้สังเกตเห็นได้ชัดเจน จึงแก้ไขได้ง่าย โดยโมเดลเหล่านี้จะปฏิเสธ Settings ต่อไปนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- thinking: {\"type\": \"enabled\", \"budget_tokens\": N} ให้เปลี่ยนมาคุมระดับ Thinking depth ด้วย effort แทน\n- thinking: {\"type\": \"disabled\"} สำหรับ Opus 5.5 จะไม่สามารถปิด Thinking ได้เลย ส่วน Sonnet 5.5 ค่าต่ำสุดที่ตั้งได้คือ \"between_tools\"\n- การตั้งค่า temperature, top_p หรือ top_k ที่ไม่ใช่ค่า Default\n- การใส่ Prefilled assistant turn ไว้ท้าย messages\n- การตั้ง tool_choice เป็น type any หรือ tool (บน Sonnet 5.5 จะถูกปฏิเสธแม้แต่บน Token counting endpoint)\n- การเรียกใช้ tool computer_20251124 สำหรับ Opus 5.5 บน Claude API และ Google Cloud ให้เปลี่ยนไปใช้ toolset computer_toolset_20260801 แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "between_tools จะระงับ Thinking ในตอนเริ่มต้น แต่ยังคงเปิดให้คิดระหว่าง Tool calls ได้: โมเดลจะข้ามการ Deliberation ก่อนเริ่มทำงาน แต่สเตตัสสั้นๆ ที่เขียนระหว่างรัน Tool จะถูกส่งกลับมาเป็น Thinking blocks ให้เลือกใช้เมื่อต้องการให้ Request ตอบกลับทันทีโดยไม่ต้องใช้การ Deep reasoning ตั้งแต่แรก ทั้งนี้หากไม่มีการเรียก Tools เลย Response จะมีเพียงข้อความ text ล้วน"
+        },
+        {
+          "type": "paragraph",
+          "text": "between_tools มีข้อจำกัดเฉพาะตัว: รองรับเฉพาะระดับ effort แบบ low, medium และ high เท่านั้น หากส่งค่า xhigh หรือ max จะได้ Error 400 กลับมาทันที ถ้าต้องการใช้สองระดับดังกล่าวต้องเปลี่ยนไปใช้ Adaptive thinking ดังนั้นโค้ดที่พอร์ตมาจาก Sonnet 5 ที่เคยจับคู่ disabled กับ xhigh จึงจำเป็นต้องแก้ไข 2 จุด ไม่ใช่แค่จุดเดียว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: บน Claude Sonnet 5.5 โหมด between_tools สามารถใช้งานได้กับทุกระดับ effort เหมือนกับ Adaptive thinking — ความเป็นจริงคือ between_tools รองรับเฉพาะ low, medium และ high เท่านั้น หากตั้งเป็น xhigh หรือ max จะได้ Error 400 ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "การบังคับเรียก Tool (Forced tool calls) บนโมเดลรุ่นใหม่ต้องเปลี่ยนวิธี: ให้ส่ง tool_choice: {\"type\": \"auto\"}, กำหนด strict: true ให้กับ Tool เพื่อคุม Input ให้ตรงกับ Schema และระบุใน Prompt เพื่อบอกโมเดลว่าต้องเรียกใช้ Tool ตอนไหน โดยเมื่อตั้งเป็น auto โมเดลจะสามารถตอบกลับได้โดยไม่จำเป็นต้องเรียก Tool เลย"
+        }
+      ]
+    },
+    {
+      "heading": "4. พฤติกรรมที่เปลี่ยนไปและทำให้โค้ดพังโดยไม่แจ้ง Error",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "บั๊กที่ร้ายแรงที่สุดของการไมเกรตคือ Request ยังคงได้ Status 200 กรณีที่พบบ่อยสุดเกิดจาก Thinking ที่ถูกเปิดใช้งานโดยอัตโนมัติ Request ที่เคยรันได้โดยไม่คิดบนโมเดลรุ่นก่อน ตอนนี้จะเปิดคิดเอง ทำให้ Response อาจเริ่มต้นด้วย Thinking block ส่งผลให้โค้ดที่อ่าน content[0].text ตรงๆ หรือ Stream handler ที่มองว่า Block แรกเป็นข้อความ Text เสมอพังทันที ให้แก้โดยตรวจสอบและเลือก Block จากฟิลด์ type แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเปลี่ยนแปลงนี้ยังกระทบ Token budget ด้วย: max_tokens ยังคงเป็น Hard limit ที่นับรวมทั้ง Thinking และ Text เข้าด้วยกัน ดังนั้น Limit ที่เคยตั้งไว้พอดีสำหรับ Output ที่เป็นคำตอบเพียงอย่างเดียวอาจทำให้ Response ถูกตัดจบกลางคันได้ ยิ่งไปกว่านั้น Thinking จะถูกคิดเงินเป็น Output cost ต่อ Request จึงเพิ่มขึ้นตามไปด้วย หากใช้ระดับ xhigh หรือ max ควรเริ่มตั้ง max_tokens ไว้ที่ 64k เป็นอย่างน้อย นอกจากนี้ค่า Default ยังเปลี่ยนไป: Opus 5.5 เปลี่ยนมาใช้ Default เป็น medium effort (ขณะที่ Opus 5 เดิมเป็น high) จึงควรกำหนดค่า effort ให้ชัดเจนและทำ Effort sweep ใหม่อีกครั้งแทนที่จะยกการตั้งค่าเดิมมาใช้ ส่วนโค้ดที่เคย Parse ข้อความ Thinking จะได้ Empty string กลับมา เพราะค่า display ถูกปรับให้เป็น \"omitted\" โดยปริยาย"
+        },
+        {
+          "type": "paragraph",
+          "text": "การสลับโมเดลระหว่าง Conversation จะดรอป Thinking blocks ทิ้งอย่างเงียบๆ โดยไม่แจ้งเตือน: Claude Sonnet 5.5 ไม่สามารถอ่าน Thinking blocks จากโมเดลตระกูล Opus 5, Opus 5.5, Fable หรือ Mythos ได้ API จะตัด Block เหล่านั้นออกและยังคงส่ง Status 200 กลับมาตามปกติ พร้อมทั้งไม่คิดเงินสำหรับ Block ที่ถูกตัดออกไป หากทำ Router เพื่อ Fallback จาก Opus 5.5 ไปยังโมเดลอื่น ต้องเตรียมรับมือว่าโมเดลปลายทางจะทำงานต่อโดยไม่มี Context การ Reasoning ก่อนหน้าจาก Opus 5.5"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: หากการสลับโมเดลระหว่าง Conversation ทำให้ข้อมูล Thinking ก่อนหน้าหายไป API จะส่ง Error กลับมา — ความเป็นจริงคือ Thinking blocks ที่โมเดลใหม่ไม่รองรับจะถูกตัดออกทันทีโดยไม่มีการแจ้งเตือน Request ยังคงได้ Status 200 และ Block ที่ถูกตัดออกจะไม่ถูกนำไปคิดเงิน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55579",
+      "question": "ทีมงานได้อัปเกรดการเชื่อมต่อระบบ (Integration) จาก claude-opus-4-6 ไปเป็น claude-opus-4-8 โดยไม่ได้แก้ไขโค้ดใดๆ การเรียกใช้งาน API เดิมที่กำหนด thinking: {type: \"enabled\", budget_tokens: 10000} ล้มเหลวและเกิดข้อผิดพลาด 400 Error วิธีแก้ไขที่ถูกต้องคืออะไร?",
+      "options": [
+        "เปลี่ยน thinking block เป็น {type: \"adaptive\"} และกำหนดค่า effort ผ่าน output_config",
+        "คง budget_tokens ไว้ แต่ห่อ (wrap) ไว้ข้างในออบเจกต์ manual_thinking ตัวใหม่",
+        "ลบฟิลด์ thinking ออกทั้งหมด แล้วใช้ fixed reasoning depth ของ Opus 4.8 แทน",
+        "ดาวน์เกรดกลับไปใช้ claude-opus-4-6 เนื่องจาก Opus 4.8 ไม่รองรับ reasoning อีกต่อไป"
+      ],
+      "explanation": ""
+    }
+  ]
+}

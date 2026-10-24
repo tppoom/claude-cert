@@ -1,0 +1,115 @@
+{
+  "title": "Workload identity federation และลำดับความสำคัญของ SDK Credential",
+  "objectives": [
+    "อธิบายการทำงานร่วมกันของ Service Account, Federation Issuer และ Federation Rule ในการ Authenticate โดยไม่ต้องใช้ Static Key",
+    "ไล่เรียงกระบวนการ Federated Token Exchange ตั้งแต่ IdP-issued JWT ไปจนถึง Short-lived sk-ant-oat01 Token",
+    "ระบุ Credential ที่ SDK เลือกใช้เมื่อตรวจพบหลายตัวใน Environment"
+  ],
+  "key_concept": "กลไกการยืนยันตัวตน Workload ผ่าน Identity Federation และลำดับ Precedence ของ SDK Credential",
+  "sections": [
+    {
+      "heading": "1. การเปลี่ยนจาก Static Keys มาใช้ Federated Identity",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Production workloads บน AWS, Google Cloud, Azure, Kubernetes หรือ CI ต่างมี Identity ที่ออกให้โดย Platform อยู่แล้ว Workload Identity Federation (WIF) จึงช่วยให้ Workload นำ Identity นั้นมาใช้กับ Claude API ได้โดยตรง โดย Workload จะส่ง OIDC JWT ที่ลงนามโดย Identity Provider (IdP) ของตนเองมาแลกกับ Short-lived Access Token ของ Anthropic ที่ผูกกับ Service Account ทำให้ไม่ต้องสร้าง แจกจ่าย หรือคอย Rotate ค่า `sk-ant-api...` อีกต่อไป จึงไม่มี Long-lived Secret ให้รั่วไหล ทั้งนี้ Federated Token ให้สิทธิ์เข้าถึง Claude API Endpoints เทียบเท่ากับ API Keys ทุกประการ แต่ต่างกันที่อายุการใช้งาน: หากหลุดไปจะใช้ได้เพียงไม่กี่นาที ไม่ใช่ตลอดไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "การตั้งค่า Trust Relationship บน Anthropic Console ใช้ 3 Resources หลัก ซึ่งทำหน้าที่กำหนดว่า: Token ที่ลงนามโดย Issuer X และมี Claims ตรงตามเงื่อนไข Y สามารถสวมสิทธิ์ (Act as) เป็น Service Account Z ได้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Service Account (`svac_...`): Non-human Identity ที่ไม่มีอีเมล รหัสผ่าน หรือ Console Login โดย Default จะเป็นสมาชิกของ Default Workspace และสามารถเพิ่มเข้า Workspace อื่นๆ ที่ต้องการได้\n- Federation Issuer (`fdis_...`): ตัวลงทะเบียน OIDC Provider โดยระบุค่า `iss` ที่ตรงเป๊ะ และ JWKS Source สำหรับตรวจสอบ Signature ปกติทีมจะลงทะเบียน 1 Issuer ต่อ 1 Environment\n- Federation Rule (`fdrl_...`): ตัวเชื่อมความสัมพันธ์ระหว่าง Issuer และ Service Account โดยกำหนด Match Conditions (อย่างน้อยหนึ่งค่า: `subject_prefix`, `audience`, Exact Claims หรือ CEL Expression), กำหนด Target Service Account, OAuth Scope (Default คือ `workspace:developer`) และ `token_lifetime_seconds` ระหว่าง 60 ถึง 86400 วินาที"
+        },
+        {
+          "type": "paragraph",
+          "text": "การอนุมัติสิทธิ์ (Access Approval) เกิดขึ้นที่ Federation Rule โดยเงื่อนไขทั้งหมดใน Rule ต้องผ่าน (Pass) ตัว Client จะระบุ Rule ID ชัดเจนในทุก Request ที่ขอแลก Token และ Anthropic จะไม่มีการค้นหา Rule อื่นมาเทียบแทน การตั้งค่าทั้งหมดนี้ต้องใช้สิทธิ์ Admin, Owner หรือ Primary Owner นอกจากนี้ การ Audit ยังทำได้ง่ายขึ้น เพราะ Workspace Key เป็นแค่ Credential เดียว แต่ Service Account สามารถมี Credential ได้หลายชุด ทำให้ตรวจสอบย้อนหลังได้ชัดเจนว่า Workload ไหนเข้ามาทำงานใน Identity ใด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การใช้ WIF จะปลอดภัยไร้กังวล 100% เสมอไปหรือไม่? (ทำไมถึงผิด): ไม่จริง: ความปลอดภัยของ Federation ขึ้นอยู่กับ IdP ต้นทางที่ลงนาม JWT หากคุณยังใช้ Static Cloud Credential ในการสร้าง Token จาก IdP ก็เท่ากับนำ Long-lived Secret กลับเข้ามาในระบบอยู่ดี (แค่ขยับไปอยู่ Upstream 1 Hop) ดังนั้นจึงต้องใช้งาน WIF ควบคู่กับ Security Controls ของ IdP เสมอ เช่น Conditional Access, MFA, IP Allowlists และ Audit Logging"
+        }
+      ]
+    },
+    {
+      "heading": "2. ขั้นตอนการแลก JWT เป็น Claude Token ของ Workload",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "โดยทั่วไป Workload จะได้รับ JWT จาก Platform มาโดยอัตโนมัติ เช่น Kubernetes Projected Service-Account Token, Google Cloud Metadata Server, Azure IMDS หรือ GitHub Actions OIDC Endpoint จากนั้น SDK จะส่ง JWT ดังกล่าวไปที่ `POST /v1/oauth/token` ผ่าน RFC 7523 `jwt-bearer` Grant พร้อมแนบ Rule ID, Organization ID และ Service Account ID ทาง Anthropic จะตรวจสอบ Signature เทียบกับ JWKS ของ Issuer และตรวจสอบ Claims เทียบกับ Rule หากผ่านทั้งคู่ จะส่ง `sk-ant-oat01-...` Bearer Token กลับมา ซึ่ง SDK จะใช้ Token นี้แนบไปกับทุก Request และจัดการแลก Token ใหม่อัตโนมัติก่อนที่ Token เดิมจะหมดอายุ"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางปฏิบัติที่ดีที่สุด (Recommended Form) สำหรับ Production คือไม่ต้องส่ง Arguments ผ่านโค้ดเลย ให้ Build Container Image เพียงตัวเดียว แล้วตั้งค่า Environment Variables แทน ได้แก่ `ANTHROPIC_FEDERATION_RULE_ID`, `ANTHROPIC_ORGANIZATION_ID`, `ANTHROPIC_SERVICE_ACCOUNT_ID`, `ANTHROPIC_WORKSPACE_ID` และ `ANTHROPIC_IDENTITY_TOKEN_FILE` ตัว SDK จะอ่าน Token File ใหม่ทุกครั้งที่มีการแลก Token ทำให้ Projected Token ที่ถูก Rotate บน Disk อัปเดตใหม่อยู่เสมอ ทั้งนี้ Workspace จะถูกเลือกตั้งแต่ตอนแลก Token (Exchange Time) และต้องเป็น Workspace ที่ Service Account นั้นสังกัดอยู่เท่านั้น หากต้องการเปลี่ยน Workspace จะต้องทำ Token Exchange ใหม่ ไม่สามารถสลับผ่าน Header ได้"
+        }
+      ]
+    },
+    {
+      "heading": "3. ลำดับการเลือก Credential ที่ SDK ใช้งานจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "SDK ตรวจสอบ Credential ตามลำดับคงที่และจะเลือกใช้ค่าแรกที่พบ โดยไม่รวมค่าจากหลายแหล่ง (no merge) และไม่แจ้งเตือนเมื่อเกิดข้อขัดแย้ง Credential เก่าที่ค้างอยู่ในระบบจึงอาจถูกนำมาใช้ระบุ Identity ใน Request โดยที่คุณไม่รู้ตัว"
+        },
+        {
+          "type": "table",
+          "caption": "ลำดับการ Resolve Credential ของ SDK",
+          "headers": [
+            "Order",
+            "Source",
+            "What to know"
+          ],
+          "rows": [
+            [
+              "1",
+              "Constructor argument (api_key=, auth_token=, credentials=)",
+              "มีสิทธิ์สูงสุดเสมอ เหนือกว่าทุกแหล่ง"
+            ],
+            [
+              "2",
+              "ANTHROPIC_API_KEY หรือ ANTHROPIC_AUTH_TOKEN",
+              "บัง (Shadow) Federation ทั้งหมด; ต้อง unset ออกเมื่อทำการ Migrate"
+            ],
+            [
+              "3",
+              "ANTHROPIC_PROFILE",
+              "โหลด Profile ตามชื่อที่ระบุ หากไม่พบจะ Throw Error ทันที ไม่ใช่การ Fallback ข้ามไปข้อถัดไป"
+            ],
+            [
+              "4",
+              "Federation environment variables",
+              "ต้องมีครบทั้ง Rule ID, Organization ID, Service Account ID และ Identity Token หรือ Token File"
+            ],
+            [
+              "5",
+              "Active profile",
+              "ดึงค่าจาก active_config หากไม่มีจะ Fallback ไปใช้ Profile ชื่อ default"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดผิดพลาดที่พบบ่อยตอน Migrate มี 2 ประการ: 1) Federation ในข้อ 4 จะทำงานเมื่อมี Environment Variables ครบทั้ง 4 ตัวเท่านั้น แม้ SDK จะอ่าน ANTHROPIC_WORKSPACE_ID ด้วยแต่ไม่นับรวมในเงื่อนไขนี้ ดังนั้นหากขาด Service Account ID ไป SDK จะข้าม Federation ไปเงียบๆ ทันที 2) การทำงานร่วมกันระหว่าง Profile และ Environment Variables: เมื่อ Profile ถูกโหลดแล้ว Environment Variables จะใช้เติมเต็มเฉพาะฟิลด์ที่ Profile ไม่ได้ระบุไว้เท่านั้น และไม่มีทาง Override ค่าที่ Profile กำหนดไว้แล้วได้เลย"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? เมื่อตั้งค่า Federation Environment Variables แล้ว SDK จะเลือกใช้ค่านี้ก่อน ANTHROPIC_API_KEY ที่มีอยู่เดิม (ทำไมถึงผิด): ไม่จริง: SDK จะตรวจสอบ ANTHROPIC_API_KEY ก่อนเสมอและมีลำดับสูงกว่า Federation จะเริ่มทำงานได้ก็ต่อเมื่อ unset ตัวแปร ANTHROPIC_API_KEY ออกไปแล้วเท่านั้น"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55742",
+      "question": "ทีมแพลตฟอร์มกำหนดค่า federation rule โดยตั้งค่า `subject_prefix` เป็น `system:serviceaccount:prod:worker` และไม่ได้กำหนด `claims` หรือ `condition` matchers เพิ่มเติม เมื่อมี JWT ส่งมาจากคลัสเตอร์ที่มี `sub` เป็น `system:serviceaccount:staging:worker-2` ถามว่า JWT นี้จะได้รับการยอมรับ (accept) จาก rule ดังกล่าวหรือไม่ เพราะเหตุใด?",
+      "options": [
+        "ไม่ได้รับการยอมรับ เนื่องจาก subject ไม่ได้ขึ้นต้นด้วย `system:serviceaccount:prod:worker` โดย namespace `staging` ไม่ผ่านเงื่อนไข prefix match แม้ว่าส่วนท้ายของข้อความจะมีความคล้ายกันก็ตาม",
+        "ได้รับการยอมรับ เนื่องจาก `subject_prefix` ตรวจสอบเพียงแค่ว่า subject มีกลุ่มข้อความที่คั่นด้วย colon ครบตามที่กำหนดอยู่ตำแหน่งใดก็ได้ใน string โดยไม่สนใจลำดับ",
+        "ได้รับการยอมรับ เนื่องจากเมื่อละเว้น `claims` และ `condition` ระบบจะ fallback ไปจับคู่ที่ `audience` เพียงอย่างเดียว ซึ่ง workload ใดๆ ในคลัสเตอร์เดียวกันก็ผ่านเงื่อนไขนี้ได้",
+        "ไม่ได้รับการยอมรับ เนื่องจาก federation rule บังคับให้ต้องกำหนดค่าอย่างน้อย 2 ใน 3 ตัวเลือก ได้แก่ `subject_prefix`, `claims` หรือ `condition` ดังนั้น rule นี้จึงไม่ถูกต้อง (invalid) และจะปฏิเสธ JWT ทุกกรณี"
+      ],
+      "explanation": ""
+    }
+  ]
+}

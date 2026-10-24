@@ -1,0 +1,147 @@
+{
+  "title": "หลักการ Least Privilege และ Sandboxing สำหรับ Claude Agents",
+  "objectives": [
+    "กำหนด Permission Rules สำหรับ Agent โดยเริ่มจาก Default Deny และตรวจจับ Pattern ที่ครอบคลุมเกินขอบเขตที่ต้องการ",
+    "อธิบายว่าเหตุใด Command-Pattern Rules เพียงอย่างเดียวจึงไม่พอในการจำกัด Command และจุดที่ Sandbox เข้ามารับช่วงต่อ",
+    "ตั้งค่า Filesystem และ Network Boundaries ของ Sandbox พร้อมระบุ Process และ Tool ที่อยู่นอกเหนือการควบคุม",
+    "ป้องกันไม่ให้ Agent เข้าถึง Credential Files และ Secret Environment Variables"
+  ],
+  "key_concept": "การจำกัดสิทธิ์ Agent ด้วยหลักการ Least Privilege ผ่าน Permission Rules ร่วมกับ Sandboxing เพื่อจำกัดการเข้าถึง Filesystem, Network และ Credentials อย่างรัดกุม",
+  "sections": [
+    {
+      "heading": "1. Least privilege: กำหนด rules เริ่มต้นจาก deny",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Guardrails บนฝั่ง Prompt มีโอกาสถูก bypass เสมอหากเจอ input ที่ฉลาดพอ การใช้หลัก Least privilege จึงช่วยจำกัดขอบเขตความเสียหาย: Agent ที่ถือเฉพาะ Tools, Paths และ Credentials ที่จำเป็นสำหรับงานจริง จะทำให้ Prompt Injection ทำอันตรายได้น้อยมาก และหลักการนี้ยังช่วยป้องกันข้อผิดพลาดที่ตัว Agent ทำเองได้เช่นเดียวกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน Claude Code เรากำหนดสิ่งนี้ผ่าน Permission rules โดย Allow rules จะรัน Tool ทันทีโดยไม่ถาม, Ask rules จะถามยืนยันทุกครั้ง และ Deny rules จะบล็อก Tool นั้นโดยสิ้นเชิง ([Permission rules: allow, ask and deny](lesson:7.1)) สำหรับแนวทาง Least privilege ให้เริ่มจาก Deny เป็นค่าตั้งต้น แล้วเปิด Allow เฉพาะสิ่งที่งานต้องใช้เท่านั้น เช่น Build agent ต้องการคำสั่ง Build และ Commit แต่ไม่จำเป็นต้องมีสิทธิ์ Push ไปยัง Remote หรือทีมที่ไม่ใช้ MCP servers เลย ก็สามารถบล็อกทั้งหมดได้ด้วย Deny rule รายการเดียวอย่าง mcp__*"
+        },
+        {
+          "type": "paragraph",
+          "text": "การใช้ Wildcard อาจขยายขอบเขตของ Rule กว้างเกินกว่าที่คิด สัญลักษณ์ * ใช้แทนข้อความใดๆ ในตำแหน่งนั้น ดังนั้น Bash(git * main) จึง match ทุก Git subcommand ซึ่งรวมถึง git -c core.fsmonitor=<script> diff main ด้วย (แฟล็ก -c สามารถสั่งให้ Git รันโปรแกรมใดๆ ตามที่ระบุได้) นอกจากนี้ การเว้นวรรคเพียงช่องเดียวก็ส่งผลต่อผลลัพธ์การ match เช่น Bash(ls *) จะไม่ match คำสั่ง lsof แต่ Bash(ls*) จะ match ดังนั้นเวลาเขียน Allow rule ควรตรวจสอบเสมอว่า Wildcard เปิดสิทธิ์ให้คำสั่งอื่นหลุดรอดเข้าไปด้วยหรือไม่"
+        }
+      ]
+    },
+    {
+      "heading": "2. ขีดจำกัดในการป้องกันของ Command-pattern rules",
+      "items": [
+        {
+          "type": "table",
+          "caption": "คำสั่งที่ Bash deny pattern บล็อกได้ และรูปแบบที่หลุดรอดไปได้",
+          "headers": [
+            "Rule",
+            "คำสั่งที่บล็อกได้ (Stops)",
+            "คำสั่งที่หลุดรอด (Doesn't stop)"
+          ],
+          "rows": [
+            [
+              "Bash(curl *)",
+              "curl https://example.com",
+              "/usr/bin/curl https://example.com, sh -c 'curl https://example.com'"
+            ],
+            [
+              "Bash(rm *)",
+              "rm -rf build/",
+              "/bin/rm -rf build/, bash -c 'rm -rf build/'"
+            ],
+            [
+              "Bash(git push *)",
+              "git push origin main",
+              "git -C. push origin main, git 'push' origin main"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Pattern rules เหมาะสำหรับการแสดงเจตนา (Intent) แต่เป็นมาตรการที่อ่อนเกินไปในการสกัดกั้นคำสั่งที่พยายามเลี่ยงการควบคุม ให้มองว่า Pattern rules เป็นเพียงการป้องกันชั้นแรก (First layer) เท่านั้น โดย Sandbox ในหัวข้อถัดไปจะทำหน้าที่บังคับใช้ขีดจำกัดด้าน Filesystem และ Network กับทุกคำสั่งที่รันใน Sandbox ไม่ว่าจะเขียนคำสั่งรูปแบบใดก็ตาม และ Deny rules แบบชัดเจนจะยังคงมีผลบังคับใช้ภายใน Sandbox เช่นกัน นอกจากนี้ Audit logging ยังทำหน้าที่เป็น Detective control ชั้นหลังสุดที่คอยบันทึกสิ่งที่ Agent ทำจริง เพื่อตรวจจับและหาทางแก้ไขกรณีที่มีการ Bypass เกิดขึ้น ([Audit events and their routing](lesson:4.6))"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Deny rule เช่น Bash(rm *) สามารถบล็อกการลบไฟล์ด้วย rm ได้ทุกรูปแบบ? (ทำไมถึงผิด): ไม่จริง: Bash rules จะ match ตามข้อความสตริงของคำสั่งเท่านั้น คำสั่งที่ระบุ Full path หรือ Shell wrapper อย่าง bash -c จึงสามารถหลุดรอดไปได้ นี่จึงเป็นเหตุผลว่าทำไมต้องมี Sandbox ซ้อนไว้อีกชั้นเพื่อบังคับใช้สิทธิ์ในระดับ OS"
+        }
+      ]
+    },
+    {
+      "heading": "3. Sandboxing the filesystem and network",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Sandbox ในตัวของ Claude Code จะจำกัดสิทธิ์ของ Shell commands ว่าสามารถเข้าถึงไฟล์และ Network hosts ใดได้บ้าง โดยใช้ Seatbelt บน macOS และ bubblewrap บน Linux/WSL2 สำหรับค่า Default นั้น ฝั่ง Write และ Network จะถูกจำกัดไว้อย่างเข้มงวด แต่ฝั่ง Read และ Environment variables จะค่อนข้างเปิดกว้าง ซึ่งเป็นจุดสำคัญที่คุณต้องกำหนดค่าเพิ่มเติมเอง"
+        },
+        {
+          "type": "table",
+          "caption": "Sandbox defaults สำหรับคำสั่ง Bash และ Settings ที่ใช้ควบคุม",
+          "headers": [
+            "การเข้าถึง (Access)",
+            "ค่าเริ่มต้น (Default)",
+            "การปรับแต่ง (Change it with)"
+          ],
+          "rows": [
+            [
+              "Writes",
+              "Working directory, temp directory แยกตาม User และไดเรกทอรีที่ถูกเพิ่มเข้ามา",
+              "filesystem.allowWrite, filesystem.denyWrite"
+            ],
+            [
+              "Reads",
+              "แทบทั้งเครื่อง รวมถึง ~/.ssh และ ~/.aws/credentials",
+              "filesystem.denyRead, credentials"
+            ],
+            [
+              "Network",
+              "ผ่าน Proxy ที่คอยตรวจสอบ Allowed domains เท่านั้น (เริ่มต้นว่างเปล่า)",
+              "network.allowedDomains, network.deniedDomains"
+            ],
+            [
+              "Environment variables",
+              "สืบทอด (Inherited) มาจาก Claude Code ทั้งหมด รวมถึง Secrets ต่างๆ",
+              "credentials, CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สิทธิ์การ Read มักเป็นจุดที่ต้องตั้งค่า Least privilege ด้วยตนเอง เช่น การบล็อกสิทธิ์ระดับ Home directory แล้วเปิดให้เข้าถึงเฉพาะ Project directory เพื่อให้ Agent เห็นเฉพาะโค้ดที่ต้องใช้เท่านั้น ทั้งนี้ Deny และ Allow มีลำดับการทำงานที่ชัดเจน: สิทธิ์ Allow ที่เฉพาะเจาะจงกว่าจะเปิดสิทธิ์ในส่วนที่เคยถูก Deny ได้ แต่ถ้า Deny อยู่ภายใต้สิทธิ์ Allow ที่กว้างกว่า Deny จะยังมีผลเสมอ ตัวอย่างเช่น allowRead: [\"~/\"] ควบคู่กับ denyRead: [\"~/**/.env\"] จะช่วยป้องกันไม่ให้เข้าถึงไฟล์ .env ทุกตัวได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ต้องระวังขอบเขตของ Sandbox ให้ดี: Built-in tools อย่าง Read, Edit, Write, WebFetch และ WebSearch จะอิงตาม Permission rules ไม่ใช่ Sandbox settings ส่วน Command hooks, Local MCP servers และคำสั่ง Helper อื่นๆ จะรันด้วยสิทธิ์ทั้งหมดของคุณ คำสั่งที่ตรงกับเงื่อนไขใน excludedCommands จะถูกรันนอก Sandbox (Unsandboxed) เสมอ และ Claude อาจขอรันคำสั่งที่ล้มเหลวใหม่อีกครั้งนอก Sandbox ได้ ซึ่งหากมี Allow rule ที่ตรงกัน เช่น Bash(curl *) ระบบจะอนุมัติการ Retry นอก Sandbox โดยอัตโนมัติทันที เพื่อป้องกันเหตุการณ์นี้ ให้เพิ่ม Ask rule เช่น Bash(dangerouslyDisableSandbox:true) หรือตั้งค่า allowUnsandboxedCommands เป็น false นอกจากนี้ Repository ปลายทางไม่สามารถลดทอนความปลอดภัยได้จากภายใน เพราะ Project settings ไม่มีสิทธิ์ปิดการทำงานของ Filesystem isolation"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การเพิ่ม path ใน sandbox denyRead จะป้องกันไม่ให้ Built-in Read tool ของ Claude เปิดไฟล์นั้นด้วยหรือไม่? (ทำไมถึงผิด): ไม่จริง: Sandbox settings ควบคุมเฉพาะคำสั่ง Bash เท่านั้น ส่วน Built-in tools สำหรับไฟล์และเว็บจะอิงตาม Permission rules ดังนั้นจึงต้องตั้ง Deny rules แยกต่างหากสำหรับ Tools เหล่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "4. Keeping secrets out of the agent's reach",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Secret ใดก็ตามที่ Agent อ่านได้ อาจถูก Prompt injection โจมตีและส่งออกไปภายนอกได้ โดยค่า Default คำสั่งใน Sandbox ยังคงสามารถอ่านไฟล์ Credential อย่าง ~/.ssh ได้ และยังสืบทอด Environment variables ทั้งหมดมาจาก Claude Code ด้วย แต่การกำหนด credentials block จะช่วยป้องกันทั้งสองช่องทาง: โดย files entries จะบล็อก Credential paths และ envVars entries จะคัดชื่อ Tokens ที่ระบุออกจาก Environment ของคำสั่ง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตำแหน่งของ Configuration File เป็นตัวตัดสินว่าการตั้งค่าจะมีผลหรือไม่ Claude Code จะเพิกเฉยต่อ credentials entries ที่อยู่ใน Project หรือ Local settings เพื่อป้องกันไม่ให้ Repository ที่ clone มาแก้ไขค่านั่นเอง ดังนั้นจึงควรตั้งค่าไว้ใน User หรือ Managed settings เท่านั้น และเมื่อ Managed settings ถูกกำหนดค่า sandbox.filesystem หรือปฏิเสธไฟล์ Credential ไว้ จะมีเพียง Managed settings เท่านั้นที่แก้ไขคีย์นั้นได้ ซึ่งช่วยให้ Restriction ของ Administrator มีผลบังคับใช้ในทุกเครื่องเสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Security layers แต่ละชั้นทำงานแยกจากกันอย่างอิสระ ซึ่งสำคัญมากเมื่อมีใครสั่งปิด Filesystem isolation เพราะ File deny blocks จะหยุดทำงานทันทีเนื่องจากอาศัยชั้น Filesystem ในการบังคับใช้ แต่ Environment-variable deny และ Mask entries จะยังคงทำงานต่อไป เพราะการ Scrubbing ไม่ได้ขึ้นอยู่กับชั้นดังกล่าว นอกจากนี้การตั้งค่า CLAUDE_CODE_SUBPROCESS_ENV_SCRUB จะบังคับเปิด Filesystem isolation ไว้เสมอ โดยไม่สนใจการตั้งค่า filesystem.disabled ใดๆ แม้จะถูกกำหนดมาจาก Managed settings ก็ตาม"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง (Practise it for real)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เปิดใช้งาน Claude Code sandbox โดยปิด unsandboxed fallback แล้วทดสอบยืนยันว่าระบบบล็อกการเขียนไฟล์นอกโฟลเดอร์ Project รวมถึงการเข้าถึง Network โดยตรง"
+        }
+      ]
+    }
+  ],
+  "questions": []
+}

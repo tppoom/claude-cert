@@ -1,0 +1,186 @@
+{
+  "title": "Compaction และการทำ Context Isolation ด้วย Subagents",
+  "objectives": [
+    "เลือกใช้ On-demand Compaction, Threshold Compaction หรือ Custom Summarizer ให้เหมาะกับโจทย์ของแอปพลิเคชัน",
+    "วิเคราะห์ข้อมูลที่หลงเหลือหลังทำ Compaction ใน Claude Code และ Agent SDK พร้อมทั้งควบคุมเนื้อหาสำคัญที่ Summary ต้องเก็บไว้",
+    "ใช้ Subagents แยก Intermediate Work ออกจาก Context ของ Main Agent และกำหนดขอบเขตการทำงานด้วยฟิลด์ใน AgentDefinition"
+  ],
+  "key_concept": "การบริหารจัดการ Context Window ด้วย Compaction Strategy และการตัดทอน Context ผ่าน Subagents เพื่อเพิ่มประสิทธิภาพการทำงานของ Agent",
+  "sections": [
+    {
+      "heading": "1. Compaction: การสรุปบทสนทนาย้อนหลังบน Server",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Pruning เหมาะสำหรับลบข้อมูลที่ไม่จำเป็นทิ้ง เช่น ผลลัพธ์เครื่องมือ (stale tool results) หรือ old thinking แต่สำหรับบทสนทนายาวๆ ที่ยังมีข้อมูลสำคัญซึ่งไม่จำเป็นต้องเก็บไว้ครบทุกคำ Compaction คือคำตอบ โดยระบบจะแทนที่ข้อความรอบก่อนหน้าด้วยข้อความสรุปที่ Claude เขียนขึ้นบน Server ทำให้ไม่ต้องเขียนโค้ดทำ Summarization เอง คู่มือ Context Windows ยกให้ Server-Side Compaction เป็นกลยุทธ์หลักสำหรับ Long-running Conversations และ Agentic Workflows ช่วยคุม Context ให้อยู่ในขีดจำกัดและมีขนาดกะทัดรัด ป้องกันปัญหาคุณภาพดรอปเมื่อ Context ยาวขึ้น ฟีเจอร์นี้อยู่ในสถานะ Beta สำหรับ Claude 4.6 เป็นต้นไป รวมถึง Claude Mythos Preview"
+        },
+        {
+          "type": "table",
+          "caption": "3 วิธีในการทำ Compaction ให้กับบทสนทนา",
+          "headers": [
+            "แง่มุม (Aspect)",
+            "Compaction on demand",
+            "Compaction at a token threshold",
+            "Your own summarizer"
+          ],
+          "rows": [
+            [
+              "ใครเป็นผู้กำหนดเวลาทำงาน",
+              "ผู้พัฒนา (ส่ง Request ไปเรียก)",
+              "API (ทำงานอัตโนมัติเมื่อ Input Tokens ถึง Trigger ที่ตั้งไว้)",
+              "ผู้พัฒนา"
+            ],
+            [
+              "สิ่งที่ต้องส่งกลับไป",
+              "นำ Block ที่ได้กลับมาใส่เป็นลำดับแรกใน messages เพื่อแทนที่ข้อความเดิมที่ถูกสรุป",
+              "ส่ง Response ต่อท้ายตามปกติ โดย API จะตัดข้อความก่อนหน้า Block นั้นทิ้งเอง",
+              "ส่ง Summary ที่สรุปเองเป็น Message ของตัวเอง"
+            ],
+            [
+              "ทำงานใน Background",
+              "ใช่",
+              "ไม่ใช่ (รันอยู่ภายใน Request ที่ Token ถึงเกณฑ์พอดี)",
+              "ใช่ (รันในโค้ดของคุณเอง)"
+            ],
+            [
+              "การตั้งค่า (Setup)",
+              "ใช้ compact-2026-09-04 Beta พร้อมส่งพารามิเตอร์ compaction ที่ Top-level และทำ Compaction Loop",
+              "ส่งพารามิเตอร์เพิ่มเข้าไปใน Request ปกติเพียงจุดเดียว",
+              "เขียนคำสั่งเรียก Summarization, จัดการ Prompt และเขียน History ทับใหม่เองทั้งหมด"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตาม Official Docs แนะนำให้เลือกใช้ On-Demand Compaction เป็นตัวเลือกหลักเสมอหากรองรับ ส่วน Threshold Compaction จะเหมาะกับกรณีที่ต้องการให้ API คุม Context ระหว่างส่ง Request ปกติให้เองโดยอัตโนมัติ นอกจากนี้ On-Demand Compaction ยังยืดหยุ่นกว่า โดยสามารถตั้งค่าให้เก็บข้อความรอบล่าสุดไว้ครบทุกคำแล้วสรุปเฉพาะข้อความเก่าๆ, สรุปผลใน Background ระหว่างที่รันงานอื่นต่อ, กำหนด Summarization Prompt เองได้กรณีที่ตัวสรุปค่าเริ่มต้นเผลอตัดข้อมูลสำคัญทิ้ง และทำ Compaction ซ้ำได้เรื่อยๆ เมื่อ Context กลับมาโตอีกรอบ สำหรับ TypeScript และ Ruby SDK มีตัวเลือก Client-Side Compaction ผ่าน tool_runner ให้ใช้เช่นกัน แต่แนะนำให้ใช้ Server-Side Compaction เป็นหลัก"
+        }
+      ]
+    },
+    {
+      "heading": "2. สิ่งที่ยังคงอยู่หลังทำ Compaction ใน Claude Code และ Agent SDK",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Claude Code คำสั่ง /compact จะแทนที่ประวัติบทสนทนาด้วยบทสรุปแบบ Structured Summary โดยไฟล์และค่าเริ่มต้นส่วนใหญ่จะถูก Reload ขึ้นมาใหม่โดยอัตโนมัติ จุดสำคัญคือ: ทุกอย่างที่บันทึกอยู่บน Disk จะถูกโหลดกลับมาครบทุกคำ แต่ข้อมูลใดๆ ที่อยู่แค่ใน Memory ของบทสนทนา จะเหลือรอดเฉพาะส่วนที่ปรากฏอยู่ในบทสรุปเท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "สถานะของแต่ละกลไกหลังทำ Compaction ใน Claude Code",
+          "headers": [
+            "กลไก (Mechanism)",
+            "หลังทำ Compaction"
+          ],
+          "rows": [
+            [
+              "System prompt and output style",
+              "ยังคงมีผลใช้งานอยู่ทั้งคู่"
+            ],
+            [
+              "Project-root CLAUDE.md, unscoped rules, auto memory",
+              "ถูก Re-injected โหลดกลับเข้ามาใหม่จาก Disk"
+            ],
+            [
+              "Files Claude read or edited",
+              "อ่านซ้ำใหม่อัตโนมัติสูงสุด 5 ไฟล์ เรียงตามไฟล์ที่มีการแก้ไขล่าสุดขึ้นก่อน"
+            ],
+            [
+              "Invoked skill bodies",
+              "ถูก Re-injected ซ้ำ จำกัดไม่เกิน 5,000 Tokens ต่อ Skill และรวมไม่เกิน 25,000 Tokens"
+            ],
+            [
+              "Context that hooks added earlier",
+              "ถูกย่อสรุปไปพร้อมกับบทสนทนาส่วนอื่นๆ"
+            ],
+            [
+              "SessionStart hooks matching the compact source",
+              "สั่งรันใหม่อีกรอบ และนำ Output เติมเข้าไปใน Compacted Context"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: คำสั่งหรือข้อกำหนดที่ผู้ใช้ป้อนไว้ใน User Prompt ช่วงแรกจะยังคงมีผลอยู่หลังทำ Compaction เพราะ Compaction ตัดทิ้งแค่ Tool Output เท่านั้น — แท้จริงแล้ว Compaction จะแทนที่บทสนทนาทั้งหมดด้วยบทสรุป ข้อมูลที่เซฟอยู่บน Disk อย่าง CLAUDE.md เท่านั้นที่จะถูก Re-injected กลับมาครบทุกคำ ส่วนคำสั่งใดๆ ที่อยู่แค่ในบทสนทนาจะคงอยู่ต่อเมื่อตัวสรุปเลือกเก็บไว้เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "เราสามารถควบคุมทิศทางของบทสรุปได้หลายวิธี เช่น ใช้คำสั่ง `/compact focus on the auth bug fix` เพื่อสั่งให้สรุปเฉพาะประเด็นที่เราเลือก แทนที่จะปล่อยให้ระบบเดาเองว่าอะไรสำคัญ, ใช้ `/autocompact 500k` เพื่อกำหนดขนาด Window ก่อนที่ระบบจะ Compaction ให้อัตโนมัติ ส่วนคำสั่ง `/clear` จะทำงานต่างออกไป คือใช้เมื่อต้องการเปลี่ยนไปทำงานอื่นที่ไม่เกี่ยวข้องกัน เพื่อไม่ให้บทสนทนาเดิมแย่งพื้นที่ Context ของไฟล์ชุดใหม่ สำหรับ Agent SDK ก็ทำงานในรูปแบบเดียวกัน โดย Compactor จะอ่าน CLAUDE.md เข้ามาเป็น Context เหมือนข้อมูลอื่นๆ เราจึงสามารถระบุหัวข้อในนั้นเพื่อกำหนดสิ่งที่ระบบต้องเก็บรักษาไว้ในทุกๆ บทสรุปได้ รวมถึงตั้ง PreCompact Hook ให้รัน Logic เสริมก่อนได้ (เช่น เซฟ Transcript ฉบับเต็มลง Archive) และสามารถส่งสตริง `/compact` เข้าไปใน Prompt เพื่อทริกเกอร์ Compaction แบบ On-Demand ได้ทันที"
+        }
+      ]
+    },
+    {
+      "heading": "3. Context isolation with subagents",
+      "items": [
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? Subagent ฝั่ง research รัน grep และอ่านไฟล์ไป 40 ไฟล์เพื่อตอบคำถามเดียว หลังทำงานเสร็จ ข้อมูลเหล่านั้นจะเข้าไปอยู่ใน Context ของ Parent Agent มากน้อยแค่ไหน? (ทำไมถึงผิด): ไม่จริง: ข้อมูลการอ่านไฟล์และ Tool Calls ทั้งหมดจะไม่ถูกดึงเข้ามาใน Parent Agent เลย มีเพียงข้อความตอบกลับสรุปสุดท้าย (Final Message) เท่านั้นที่ส่งกลับมาเป็น Tool Result"
+        },
+        {
+          "type": "paragraph",
+          "text": "Compaction ช่วยย่อประวัติหลังสะสมจนแน่น แต่ Isolation ป้องกันไม่ให้ Context บวมตั้งแต่แรก Subagent แต่ละตัวทำงานใน Conversation แยกของตัวเอง ซึ่งเริ่มต้นใหม่เสมอ (ยกเว้นกรณี Fork) โดย Tool Calls และผลลัพธ์ระหว่างทางจะอยู่เฉพาะภายใน Subagent เท่านั้น มีเพียงข้อความสรุปสุดท้ายที่จะส่งกลับไปยัง Parent ในฐานะ Tool Result Context ของ Main Agent จึงเพิ่มขึ้นแค่ส่วนสรุป ไม่ใช่ Transcript ทั้งหมด นี่คือเหตุผลที่ Claude Code แนะนำให้โยนงานอ่านไฟล์ขนาดใหญ่ไปให้ Subagent จัดการ เพราะเนื้อหาไฟล์จะถูกจำกัดอยู่ใน Context Window ของมันเอง นอกจากนี้ Isolation ยังมีข้อดีอื่นอีก เช่น รองรับการรัน Subagent แบบ Parallel พร้อมกัน, กำหนด System Prompt เฉพาะทางได้โดยไม่กวนคำสั่งหลักของ Main Agent และจำกัดเฉพาะ Tools ที่จำเป็นเพื่อประหยัด Context เนื่องจาก Tool Definition ทุกตัวล้วนกินพื้นที่ Context ทั้งสิ้น"
+        },
+        {
+          "type": "table",
+          "caption": "ฟิลด์ของ AgentDefinition ที่มีผลต่อ Context ของ Subagent",
+          "headers": [
+            "Field",
+            "Effect on context"
+          ],
+          "rows": [
+            [
+              "prompt (required)",
+              "System Prompt เฉพาะตัวของ Subagent"
+            ],
+            [
+              "tools / disallowedTools",
+              "จำกัดชุด Tools หากไม่ระบุฟิลด์ tools จะ Inherit ทุก Tool ที่เปิดให้ Subagent ใช้งานได้มาทั้งหมด"
+            ],
+            [
+              "skills",
+              "Preload สกิลที่ระบุตั้งแต่เริ่มทำงาน ส่วนสกิลที่ไม่ได้ระบุยังคงเรียกใช้ผ่าน Skill Tool ได้"
+            ],
+            [
+              "omitClaudeMd",
+              "รัน Subagent โดยไม่โหลด CLAUDE.md ของ User, Project และ Local (รองรับเฉพาะ TypeScript SDK)"
+            ],
+            [
+              "maxTurns",
+              "จำกัดจำนวน Agentic Turns หากครบโควตาจะส่ง Output กลับมาในสถานะ Partial และสามารถ Resume ต่อได้"
+            ],
+            [
+              "model",
+              "ระบุโมเดลที่ต้องการ Override เช่น 'sonnet', 'haiku' หรือ 'inherit'"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? ประวัติการอ่านไฟล์และผลลัพธ์ของ Tools ใน Subagent จะถูกรวมเข้ากับ History ของ Parent เมื่อทำงานเสร็จ ดังนั้นการกระจายงานให้ Subagent จึงไม่ได้ช่วยประหยัด Context ของ Parent เลย (ทำไมถึงผิด): ไม่จริง: แต่ละ Turn ของ Subagent จะคงอยู่เฉพาะใน Conversation ของตัวมันเอง Context ของ Parent จะเพิ่มขึ้นเฉพาะข้อความตอบกลับสุดท้าย (Final Response) ของ Subagent เท่านั้น"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55601",
+      "question": "วิศวกรกำลังสร้าง research agent ที่ต้องอ่านไฟล์หลายสิบไฟล์จาก repository ขนาดใหญ่เพื่อตอบคำถามเพียงข้อเดียว โดยไม่ต้องการให้เนื้อหาไฟล์ทั้งหมดสะสมจนล้น context ของการสนทนาหลัก (main conversation) สถาปัตยกรรมการออกแบบใดตอบโจทย์นี้ได้ดีที่สุด?",
+      "options": [
+        "มอบหมาย (Delegate) การสำรวจไฟล์ให้ subagent จัดการ โดย fresh context ของ subagent จะรองรับการอ่านไฟล์ระหว่างทางทั้งหมด และส่งกลับเฉพาะข้อความสรุปผลลัพธ์สุดท้ายไปยัง parent agent เท่านั้น",
+        "อ่านทุกไฟล์โดยตรงใน main agent loop จากนั้นใช้คำสั่ง /compact ทันทีหลังจากอ่านเสร็จ เพื่อลดประวัติ context ที่สะสมอยู่",
+        "อ่านทุกไฟล์โดยตรงใน main agent loop แต่ปรับค่า effort เป็น low เพื่อให้เนื้อหาไฟล์เพิ่มเติมใช้ token น้อยลงในแต่ละรอบ (turn)",
+        "เก็บเนื้อหาไฟล์ทั้งหมดไว้ใน custom MCP resource แล้วให้ main agent ดึงข้อมูลผ่าน combined resource URI เพียงรายการเดียวแทนการอ่านทีละไฟล์"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55603",
+      "question": "Code review workflow หนึ่งรัน style-checker subagent, security-scanner subagent และ test-coverage subagent สำหรับ pull request เดียวกัน ทีมต้องการให้กระบวนการ review เสร็จสิ้นเร็วที่สุดเท่าที่จะทำได้ โดยยังคงแยก context การสำรวจของแต่ละ subagent ออกจากการสนทนาหลัก (main conversation) ทีมควรเลือกวิธีใด?",
+      "options": [
+        "เรียกใช้ (Invoke) ทั้งสาม subagents ให้ทำงานพร้อมกันแบบคู่ขนาน (concurrently) เนื่องจากงานย่อยที่เป็นอิสระต่อกันจะใช้เวลาตามงานที่ช้าที่สุด ไม่ใช่ผลรวมของเวลาทั้งสามงาน",
+        "เรียกใช้ (Invoke) ทั้งสาม subagents ตามลำดับ (sequentially) แบบคงที่ เนื่องจากระบบรองรับการรัน subagent ได้ทีละตัวเท่านั้นในหนึ่งรอบการทำงานของ main agent",
+        "รวมหน้าที่การ review ทั้งสามอย่างไว้ใน system prompt ของ subagent ตัวเดียว เพื่อให้การเรียกใช้ subagent เพียงรอบเดียวครอบคลุมทั้งหมดใน pass เดียว",
+        "รันการตรวจสอบทั้งสามแบบโดยตรงผ่าน tool calls ของ main agent แทนการใช้ subagents เนื่องจากมีเพียง main agent เท่านั้นที่สามารถเรียกใช้ tools พร้อมกันได้"
+      ],
+      "explanation": ""
+    }
+  ]
+}

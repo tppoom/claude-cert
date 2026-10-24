@@ -1,0 +1,183 @@
+{
+  "title": "Agent SDK: query() Loop, Hooks และ Subagents",
+  "objectives": [
+    "ไล่เรียงข้อความที่ query() ส่งออกมา ตั้งแต่ SystemMessage เริ่มต้นจนถึง ResultMessage",
+    "กำหนดสิทธิ์ Tool, จำกัดจำนวน Turn และ Budget ใน Options ของ query() พร้อมตรวจผลลัพธ์ Subtype ว่าหยุดทำงานจากข้อจำกัดใด",
+    "ลงทะเบียน Hook Callback สำหรับ Logging, ทำ Context Injection และจัดการ Lifecycle ของ Agent",
+    "ประกาศ Subagents ผ่านตัวเลือก agents และตรวจจับการเรียกใช้งานใน Message Stream"
+  ],
+  "key_concept": "การควบคุม Execution Loop ของ Agent SDK ด้วยการจัดการ Message Stream, การจำกัดทรัพยากร (Limits), การแทรกการทำงานด้วย Hooks และการประสานงาน Subagents",
+  "sections": [
+    {
+      "heading": "1. การทำงานของ query() ในการรัน Agent ทีละ Turn",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Agent SDK (รองรับทั้ง Python และ TypeScript) ช่วยฝัง Prebuilt Agent Loop ของ Claude Code ที่มาพร้อม Built-in Tools, Permissions, Sessions และ Hooks เข้ามาใน Application ของคุณโดยตรง ทำให้สร้าง Agent พร้อมใช้งานได้ทันทีโดยไม่ต้องเขียน Loop เอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน SDK ฟังก์ชัน query() ทำหน้าที่เป็น Agent Loop หลัก เพียงส่ง Prompt และ Options เข้าไป คุณจะได้ Async Stream ของ Messages กลับมา ขณะที่ SDK จัดการ Tool-use Cycle ให้เบื้องหลัง แม้ Cycle หลักจะถูกกำหนดไว้แล้ว แต่คุณยังควบคุมได้ว่าจะเปิดใช้ Tools ใด, จำกัดขอบเขตการทำงานของ Loop แค่ไหน, เริ่มต้นด้วย Context ใด และจัดการ Response ในแต่ละ Message อย่างไร"
+        },
+        {
+          "type": "paragraph",
+          "text": "ลำดับการทำงาน (Sequence):"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. SDK ส่ง SystemMessage (subtype: init) ที่มี Session Metadata ออกมา 2. Claude ประเมิน State แล้วตอบกลับด้วย Text, Tool Calls หรือทั้งคู่ โดยแต่ละ Content Block จะถูกส่งมาเป็น AssistantMessage แยกกัน 3. SDK รัน Tool ที่ถูกเรียก แล้วส่ง UserMessage พร้อมผลลัพธ์กลับไป 4. ขั้นตอนที่ 2 และ 3 จะวนซ้ำ โดยการครบรอบจะนับเป็น 1 Turn จนกว่า Claude จะตอบกลับโดยไม่มี Tool Calls เพิ่มเติม 5. ปิดท้ายด้วย AssistantMessage ที่บรรจุ Text Answer สุดท้าย ตามด้วย ResultMessage ที่ระบุผลลัพธ์, Token Usage, Cost และ Session ID"
+        },
+        {
+          "type": "paragraph",
+          "text": "การจัดการ Message ขึ้นอยู่กับ Use Case: หากเป็น Batch Job ให้อ่านเฉพาะ ResultMessage, หากต้องการ Progress Display ให้อ่านแต่ละ AssistantMessage เพื่อดูว่าเรียก Tools ใดบ้าง, หรือหากเป็น Live UI ให้เปิด includePartialMessages (TypeScript) เพื่อรับ StreamEvent แบบ Text Deltas ทั้งนี้ใน TypeScript ตัว Assistant และ User Messages จะ Wrap Raw API Message ไว้อีกชั้น Content Blocks จึงอยู่ที่ message.message.content และสำคัญคืออย่าเพิ่งหยุดอ่านที่ ResultMessage เพราะอาจมี System Events อื่นๆ เช่น prompt_suggestion ตามหลังมาได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Stream จะจบลงทันทีที่ ResultMessage ส่งมาถึง จึงสามารถ break ออกจาก Loop ได้เลย? (ทำไมถึงผิด): ไม่จริง: อาจยังมี Trailing System Events (เช่น prompt_suggestion) ถูกส่งตามหลัง ResultMessage มาอีก จึงควรอ่าน Message ต่อเนื่องจนกว่า Stream จะสิ้นสุดจริงๆ"
+        }
+      ]
+    },
+    {
+      "heading": "2. การตั้งค่า Tools, Limits และ Context",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การกำหนดสิทธิ์เข้าถึง Tools ใน SDK ทำได้ผ่าน 3 Options หลัก ตามกฎ Permission Rules (allow / ask / deny):"
+        },
+        {
+          "type": "paragraph",
+          "text": "- allowedTools: ระบุ Tools ที่ต้องการ Auto-approve (Tools อื่นที่ไม่ได้ระบุยังคงเรียกใช้ได้ โดยจะส่งไปตรวจสอบต่อที่ Permission Mode และ canUseTool Callback) - disallowedTools: สั่งบล็อก Tools ที่ระบุทันที ไม่ว่าจะตั้งค่าส่วนอื่นไว้อย่างไร - permissionMode: กำหนดระดับ Human Oversight โดย SDK จะประเมินร่วมกับ Allow และ Deny Rules ตามลำดับที่กำหนด"
+        },
+        {
+          "type": "paragraph",
+          "text": "canUseTool คือ Callback Function ที่คุณกำหนดเองเพื่อ Approve หรือ Reject Tool Call ที่ต้องขอสิทธิ์และไม่อยู่ใน Allow Rules ทั้งนี้ใน Default Mode หาก Tool Call นั้นต้องขอสิทธิ์แต่ไม่มี Callback ลงทะเบียนไว้ คำขอนั้นจะถูก Denied โดยอัตโนมัติ"
+        },
+        {
+          "type": "paragraph",
+          "text": "settingSources: [\"project\"] เป็นการโหลด Context หลัก โดยจะดึง CLAUDE.md, Skills และ Filesystem Hooks จาก Working Directory มาใช้ เพื่อให้ Agent ทำตาม Convention ของโปรเจกต์ตั้งแต่เริ่มต้น ส่วน effort เป็นตัวควบคุม Cost เช่น ตั้งเป็น \"low\" สำหรับ Agent ที่แค่อ่านไฟล์หรือ List Directories เพื่อประหยัด Token และสำหรับป้องกันไม่ให้รันนานเกินไป สามารถใช้ maxTurns เพื่อจำกัดจำนวน Turns และ maxBudgetUsd เพื่อจำกัดงบประมาณ หากไม่กำหนดทั้งคู่ การสั่งด้วย Open-ended Prompt อาจทำให้ Agent รันและใช้จ่ายต่อเนื่องไปเรื่อยๆ จนกว่างานจะจบ"
+        },
+        {
+          "type": "table",
+          "caption": "Subtypes ของ ResultMessage และความหมาย",
+          "headers": [
+            "Result subtype",
+            "สถานะการทำงาน",
+            "มี result field หรือไม่?"
+          ],
+          "rows": [
+            [
+              "success",
+              "Claude ทำงานเสร็จสมบูรณ์ตามปกติ",
+              "Yes"
+            ],
+            [
+              "error_max_turns",
+              "ชนขีดจำกัด maxTurns ก่อนทำงานเสร็จ",
+              "No"
+            ],
+            [
+              "error_max_budget_usd",
+              "ชนขีดจำกัด maxBudgetUsd ก่อนทำงานเสร็จ",
+              "No"
+            ],
+            [
+              "error_during_execution",
+              "เกิดข้อผิดพลาดขัดจังหวะใน Loop (เช่น Request ถูกยกเลิก)",
+              "No"
+            ],
+            [
+              "error_max_structured_output_retries",
+              "ไม่สามารถสร้าง Structured Output ที่ถูกต้องได้ภายในจำนวน Retry ที่กำหนด",
+              "No"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ฟิลด์ subtype จะบอกว่าชน Limit ใด โดยมีเพียง success เท่านั้นที่มี Result Text คืนมา การเรียก query() แบบ Single-shot จะ Yield ผลลัพธ์ Error ออกมาก่อน แล้วจึง Raise Error (เช่น \"Reached maximum number of turns\") ดังนั้นจึงควรครอบ Loop ไว้ด้วย try block เสมอ (Subtype branches ของคุณจะยังทำงานก่อน Exception เสมอ) และหากต้องการรันต่อหลังเจอ error_max_turns ให้บันทึก Session ID ไว้ แล้วนำไป Resume Session เดิมพร้อมขยาย Limit ให้สูงขึ้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การระบุ Tools ใน allowedTools จะเป็นการจำกัดให้ Agent ใช้ได้เฉพาะ Tools เหล่านั้นเท่านั้น? (ทำไมถึงผิด): ไม่จริง: allowedTools มีหน้าที่เพียง Auto-approve เท่านั้น Tools ที่ไม่ได้ระบุไว้ยังคงเรียกใช้ได้ตามปกติ เพียงแต่ต้องผ่านการตรวจสอบจาก Permission Mode และ canUseTool Callback ก่อน ส่วนการบล็อกไม่ให้ใช้เลยต้องตั้งค่าผ่าน disallowedTools"
+        }
+      ]
+    },
+    {
+      "heading": "3. Hooks ในฐานะ Callbacks สำหรับ Logging, Context และ Lifecycle",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Hooks คือโค้ดที่เราเขียนขึ้นเองเพื่อให้ทำงาน ณ จุดที่กำหนดไว้ใน Loop ไม่ว่าโมเดลจะตัดสินใจอย่างไรก็ตาม (ดูรายการ Event และจังหวะการ Trigger ได้ที่ [Hook events and when they fire](lesson:7.3)) แม้เคสยอดนิยมคือการบล็อกคำสั่งอันตราย (Guardrail) แต่ใน SDK App นั้น Hooks ยังใช้จัดการงานประจำที่ต้องทำแน่นอนเสมอ โดยไม่ต้องพึ่งพาให้โมเดลจำเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "เคสการใช้งานทั่วไปที่ไม่ใช่ Guardrail ได้แก่:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Audit logging: ใช้ callback ของ PostToolUse บันทึกทุกการแก้ไขไฟล์ลง Audit Trail โดยมี tool use ID เป็นตัวเชื่อมโยงกับ Event PreToolUse ที่คู่กัน\n- Context injection: ใช้ UserPromptSubmit แทรกลงใน Context เพิ่มเติมให้แต่ละ Prompt ก่อนส่งไปให้ Claude\n- Transcript archiving: ใช้ PreCompact บันทึกประวัติการสนทนาฉบับเต็มไว้ ก่อนที่ SDK จะทำ Compaction ย่อ History ส่วนเก่า โดย Stream จะแสดง System Message ชื่อ compact_boundary เมื่อ Compaction เสร็จสิ้น\n- Lifecycle tasks: ใช้ Stop บันทึก Session State และใช้ SubagentStop รวบรวมผลลัพธ์จาก Subagents ที่รันแบบ Parallel"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทุก Callback จะได้รับ Input Data, tool use ID และ Context Object โดย Input ทุกตัวจะมี session_id, cwd และ hook_event_name เสมอ รวมถึงมี agent_id เพิ่มเข้ามาเมื่อ Hook ทำงานภายใน Subagent ตัว Callback จะ Return ผลการตัดสินใจกลับไป (หาก Return {} จะอนุญาตให้ดำเนินการต่อตามปกติ) ฟิลด์ระดับบนสุดอย่าง systemMessage ใช้แสดงข้อความแจ้งเตือนผู้ใช้ และฟิลด์ continue (หรือ continue_ ใน Python) ใช้กำหนดว่า Agent ควรทำงานต่อหรือไม่ ทั้งนี้ Event ที่รองรับใน 2 SDK แตกต่างกัน โดย SessionStart, SessionEnd และ PostCompact มีเฉพาะใน TypeScript เท่านั้น ดังนั้น Python App จึงต้องจัดการ Telemetry ผ่านช่องทางอื่นแทน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ทุก Hook Event รองรับทั้งบน Python SDK และ TypeScript Agent SDK? (ทำไมถึงผิด): ไม่จริง: Event บางตัว เช่น SessionStart, SessionEnd และ PostCompact มีให้ใช้เฉพาะใน TypeScript เท่านั้น ทำให้ Python App ไม่สามารถ Register Event เหล่านี้ได้"
+        }
+      ]
+    },
+    {
+      "heading": "4. การประกาศ Subagents ผ่าน agents Option",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Orchestrator จะส่งต่องานย่อยที่เฉพาะเจาะจงไปให้ Child Agents ที่เชี่ยวชาญจัดการต่อ (ดูเหตุผลการออกแบบได้ที่ [Orchestrator–subagent hierarchy](lesson:1.1)) ใน Agent SDK เราสามารถประกาศ Child Agent แต่ละตัวไว้ใน agents Option โดยใช้ชื่อเป็น Key ซึ่งฟิลด์ description จะบอก Claude ว่าควรเรียกใช้เมื่อใด, prompt กำหนดพฤติกรรม, tools จำกัดขอบเขตเครื่องมือที่ใช้ได้ และ model สามารถใช้ Override โมเดลเริ่มต้นได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Orchestrator จะเริ่มการทำงานของ Subagent ด้วยการเรียก Tool ที่ชื่อ Agent (เป็นเหตุผลว่าทำไม Agent ถึงปรากฏอยู่ใน allowedTools) ส่วนใน SDK เวอร์ชันเก่าจะเรียก Tool นี้ว่า Task ดังนั้นโค้ดที่ดักจับ Stream จึงควรเช็คทั้งสองชื่อ ใน Stream การเรียกนี้จะแสดงเป็น tool_use Block ที่ส่งค่า subagent_type มาใน Input และ Message ทั้งหมดที่สร้างขึ้นภายใน Child Agent จะมี parent_tool_use_id แนบมาด้วยเสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Subagents ยังช่วยบริหารจัดการ Context ได้อย่างดี เพราะงานที่รันแบบแยกส่วน (Isolated) ภายใน Child จะไม่ถูกนำมารวมในบทสนทนาหลัก ช่วยรักษา Context ของ Orchestrator ให้มีขนาดเล็กอยู่เสมอแม้งานจะยาวนาน หากต้องการอ่าน Transcript ย้อนหลังของ Child จำเป็นต้อง Resume กลับไปยัง Session เดิมเสมอ เนื่องจากคำสั่ง query() แต่ละครั้งจะสร้าง Session ใหม่เป็นค่าเริ่มต้น"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55318",
+      "question": "สตาร์ทอัพแห่งหนึ่งต้องการให้บริการฟีเจอร์ AI teammate ที่สามารถทำงานแบบ asynchronous ต่อเนื่องได้หลายชั่วโมงสำหรับลูกค้า แต่ทีมวิศวกรที่มีขนาดเล็กไม่ต้องการสร้างหรือดูแลระบบโครงสร้างพื้นฐานด้าน sandboxing, container orchestration หรือ session-storage ด้วยตนเอง รูปแบบการ deployment ใดตอบโจทย์ข้อจำกัดเหล่านี้ได้ดีที่สุด?",
+      "options": [
+        "รัน Claude Agent SDK ภายใน AWS Lambda functions และอาศัย execution environment ของ Lambda รวมถึง per-invocation isolation ในการแยก session ของลูกค้าออกจากกันโดยอัตโนมัติ",
+        "เลือกใช้ Managed Agents ซึ่งเป็น hosted REST API ของ Anthropic เพื่อให้ Anthropic เป็นผู้รัน agent และ sandbox แยกราย session ในขณะที่แอปพลิเคชันของทีมทำหน้าที่เพียงส่ง events และ stream ผลลัพธ์",
+        "รัน Claude Agent SDK บน EC2 instance แบบ long-lived เพียงตัวเดียว แล้วสร้าง custom queue ขึ้นมาเพื่อติดตามว่า session ของลูกค้ารายใดกำลัง active อยู่",
+        "ใช้ Claude Agent SDK โดยตั้งค่า permission_mode เป็น bypassPermissions เพื่อไม่ให้ session หยุดรอการอนุมัติ (approval) และสามารถรันแบบ unattended ต่อเนื่องได้หลายชั่วโมง"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55319",
+      "question": "SRE ต้องการให้ Claude Code agent ที่ทำงานแบบ autonomous ไม่แก้ไขไฟล์ secrets โดยเด็ดขาด โดยไม่ว่าจะระบุอะไรใน system prompt ก็ตาม ทุกความพยายามที่จะเขียนลงไฟล์ชื่อ .env ใน working tree จะต้องถูกปฏิเสธก่อนเริ่มทำงานจริง และการบล็อกนี้ต้องยังคงมีผลแม้ว่าเพื่อนร่วมทีมจะรัน session เดียวกันใน bypassPermissions mode ในภายหลัง การ implement แบบใดตอบโจทย์นี้?",
+      "options": [
+        "เพิ่มคำสั่งใน system prompt กำชับไม่ให้ Claude เขียนไฟล์ชื่อ .env โดยอาศัยโมเดลในการปฏิบัติตามนโยบายที่เป็นลายลักษณ์อักษรนี้ในทุก session",
+        "ลงทะเบียน PreToolUse hook ที่ match กับ Write|Edit เพื่อตรวจสอบ tool_input.file_path และส่งค่า permissionDecision เป็น \"deny\" ทุกครั้งที่ชื่อไฟล์คือ .env",
+        "เพิ่ม \"Bash(rm .env)\" เข้าไปใน disallowed_tools เพื่อไม่ให้ agent ลบหรือเขียนทับไฟล์ผ่านคำสั่ง shell ดังกล่าวได้",
+        "ตั้งค่า permission_mode เป็น \"plan\" เพื่อให้ Claude ทำการสำรวจ codebase และเสนอแนวทางการแก้ไขไฟล์ .env โดยไม่มีการ apply การเปลี่ยนแปลงใดๆ โดยอัตโนมัติ"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55320",
+      "question": "ทีมงานต้องการให้ทุกการเรียกใช้ tool Write ของ agent ถูก redirect ไปยัง subdirectory /sandbox โดยอัตโนมัติและโปร่งใส โดยไม่ต้องแจ้งให้โมเดลทราบเรื่องการ redirection และไม่ต้องขออนุมัติการเขียนแต่ละครั้ง ค่า return value ของ hook ในข้อใดทำสิ่งนี้ได้สำเร็จ?",
+      "options": [
+        "hookSpecificOutput ที่มี permissionDecision เป็น \"ask\" และ updatedInput ที่มี file_path ที่ถูกเขียนใหม่ เพื่อให้มนุษย์รีวิวก่อนที่ path ใหม่จะถูกนำไปใช้งาน",
+        "hookSpecificOutput ที่มี permissionDecision เป็น \"allow\" และ updatedInput ที่มี file_path ซึ่งถูกแก้ไขโดยเติม /sandbox นำหน้า เพื่อให้อนุมัติ input ที่แก้ไขแล้วโดยอัตโนมัติ",
+        "systemMessage ระดับบนสุด (top-level) ที่อธิบาย sandbox policy โดยเว้น hookSpecificOutput ว่างไว้ เพื่อให้ flow การขอสิทธิ์เริ่มต้นเป็นตัวตัดสินใจว่าจะใช้ path ที่เขียนใหม่หรือไม่",
+        "hookSpecificOutput ที่มี permissionDecision เป็น \"defer\" และ updatedInput ที่มี path ที่เขียนใหม่ เพื่อหยุดคำสั่งไว้ชั่วคราวจนกว่า session จะกลับมาทำงานต่อด้วย path ใหม่"
+      ],
+      "explanation": ""
+    }
+  ]
+}

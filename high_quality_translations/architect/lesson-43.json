@@ -1,0 +1,254 @@
+{
+  "title": "การสื่อสาร Trade-offs ด้าน Architecture กับ Stakeholders",
+  "objectives": [
+    "นำเสนอทางเลือก Model และ Effort แก่ Non-technical Stakeholders เป็นข้อเสนอแนะเดียวที่ชัดเจนพร้อมระบุราคา/ต้นทุนประกอบ",
+    "อธิบายว่าทำไมต้องเปรียบเทียบด้วย Cost per completed task ไม่ใช่ Per-token price พร้อมชี้จุดลดต้นทุนที่ไม่กระทบต่อ Quality",
+    "ระบุความคุ้มค่าและ Cost ของ Complexity แต่ละระดับ (รวมถึง Multiple Agents) เพื่อปูทางให้การออกแบบที่เรียบง่ายกว่ากลายเป็น Default ร่วมกัน",
+    "สนับสนุนข้อเสนอแนะด้วยผลการ Evaluation บนโจทย์จริงของตนเอง แทนที่จะอิงเฉพาะ Vendor benchmarks",
+    "อธิบาย Residual risk ให้ชัดเจน มีขอบเขต และมีมาตรการ Mitigate ชัดเจน โดยต้องไม่เคลมว่าเป็นศูนย์ (Zero)",
+    "สื่อสารทางเลือกด้าน Context-management, Thinking-mode และ Hosting แก่ Engineers ได้อย่างถูกต้องแม่นยำทางเทคนิค"
+  ],
+  "key_concept": "Evidence-backed, bounded recommendation — การสื่อสาร Trade-off ที่มีประสิทธิภาพต้องมาพร้อมข้อเสนอแนะที่ชัดเจนเพียงทางเลือกเดียว, แจกแจงสิ่งที่ต้องแลกทั้ง Cost, Speed, Quality หรือ Risk, มีหลักฐานจากการ Evaluation บน Workload จริงของตนเอง และกำหนดขอบเขตความเสี่ยงที่อาจเกิดขึ้นไว้ชัดเจน ตัวเลขจาก Vendor มีไว้เพื่อบอกว่าควรทดสอบอะไร แต่ไม่ใช่หลักฐานยืนยันของคุณ",
+  "sections": [
+    {
+      "heading": "1. แปลง Model Trade-offs ให้เป็นคำแนะนำที่ชัดเจนและเข้าใจง่าย",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุกการตัดสินใจเชิง Architecture ของระบบ Claude มักต้อง Trade-off กันระหว่าง 4 ปัจจัยเสมอ: Capability, Speed, Cost และ Risk คนอนุมัติงบไม่ได้ต้องการฟังมิติ Trade-off ทั้งหมด แต่ต้องการคำแนะนำเดียวที่ชัดเจน ต้นทุนเท่าไร และมีเงื่อนไขอะไรบ้างที่จะทำให้ต้องเปลี่ยนแผน ขณะที่ฝั่ง Engineer ต้องการเข้าใจเหตุผลผ่าน Mechanism การสื่อสาร Trade-off ที่ดีจึงต้องตอบโจทย์ทั้งสองมุมได้อย่างแม่นยำ ซึ่งการเลือก Model มักเป็นจุดแรกที่ต้องตัดสินใจเรื่องนี้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude แต่ละโมเดลมีจุดสมดุลระหว่าง Capability, Speed และ Cost ต่างกัน สำหรับ Executive ให้สรุป 3 แกนนี้เป็นประโยคเดียวที่มีทั้ง \"เหตุผล\" และ \"Exit Condition\" เช่น: \"เราเริ่ม Ticket-triage step ด้วย Claude Haiku 5.5 เพราะเป็นงาน High-volume ที่ไม่ซับซ้อน Latency และราคาจึงสำคัญที่สุด และเราจะขยับ Tier ขึ้นก็ต่อเมื่อผลทดสอบชี้ชัดว่ามี Capability gap เท่านั้น\" ประโยคนี้ยึดแนวทาง Cost-first คือเริ่มจาก Haiku 5.5 ทดสอบอย่างเข้มงวด แล้วค่อย Upgrade เมื่อพบจุดที่รับไม่ไหว ส่วนแนวทาง Capability-first จะเหมาะกับ Complex reasoning หรืองาน Agentic ระดับ Autonomy สูง ซึ่งจะวางกรอบต่างกัน: เริ่มที่ Claude Opus 5.5 เพราะต้องการ Accuracy สูงสุด จากนั้นค่อยปรับลด Effort หรือ Downgrade ลงเมื่อ Workflow เข้าที่แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "จงมอง Effort parameter เป็นตัวปรับแรกก่อนคิดจะสลับโมเดล โดย Claude หลายตัวเปิดให้ปรับ Effort เพื่อแลก Intelligence กับ Latency และ Cost ได้ในโมเดลเดิม เมื่อ Stakeholder บ่นว่าระบบแพงเกินไป คำตอบแรกที่ถูกต้องคือ \"เราจะปรับลด Effort ลงแล้ววัดผลใหม่\" ไม่ใช่ \"เราจะย้ายไปใช้โมเดลที่ถูกกว่า\" นอกจากนี้ยังสามารถจ่ายเงินเพื่อซื้อความเร็วได้โดยตรงผ่าน Fast mode บน Opus 5.5, Opus 5 และ Opus 4.8 ซึ่งให้ Output speed เร็วขึ้นสูงสุด 2.5 เท่าในเรทราคาแบบพรีเมียม ให้สื่อสารกับ Stakeholder ตรงๆ ว่านี่คือการจ่ายเงินเพื่อแลก Response time ที่เร็วขึ้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "นำไปปรับใช้กับงานจริง: ลองหยิบเคสการเลือกโมเดลที่คุณเพิ่งทำหรือเคยเห็นมา สามารถสรุปจบในประโยคเดียวที่ระบุชื่อ Model, เหตุผล และผลการวัดที่ทำให้ต้องเปลี่ยนโมเดลได้หรือไม่?"
+        }
+      ]
+    },
+    {
+      "heading": "2. ทำไมราคา Per-token ถึงหลอกตา และ Cost Savings แบบไหนที่ได้มาฟรี",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Stakeholder ที่เปรียบเทียบโมเดลส่วนใหญ่มักเปิดดู Price list แต่ราคา Per-token เป็นตัวเลขที่ผิดจุด ตัวเลขที่แท้จริงคือ Cost per solved task อธิบายในมุมธุรกิจได้ง่ายๆ คือ โมเดลที่ค่า Token ถูกกว่าแต่ต้องใช้ Turns มากกว่า คิดเยอะกว่า หรือต้อง Retries ซ้ำๆ สุดท้ายอาจมีต้นทุนต่อ Ticket ที่ปิดสำเร็จแพงกว่าโมเดลราคาสูงแต่ทำงานจบได้ตั้งแต่รอบแรก ในทางกลับกัน โมเดลมักใช้ Turns น้อยกว่าและ Think time สั้นกว่า ทำให้ Cost per task โดยรวมมักถูกกว่า โดยเฉพาะเมื่อรันที่ Effort ต่ำ"
+        },
+        {
+          "type": "paragraph",
+          "text": "การประหยัดต้นทุนมี 2 รูปแบบ และอย่าปล่อยให้ Stakeholder ต้องเดาเองว่ากำลังเลือกแบบไหนอยู่ Levers บางตัวช่วยลดค่าใช้จ่ายได้โดยไม่กระทบ Quality เลย (Free wins) ขณะที่บางตัวต้องแลก Savings มาด้วย Intelligence ให้วาง Free wins เป็นสิ่งที่เราลงมือทำได้ทันทีโดยไม่ต้องรออนุมัติ ส่วนตัวที่มี Trade-off ให้ระบุราคาที่ต้องแลกด้วย Quality กำกับไว้ข้างๆ ตัวเลข Savings เสมอ"
+        },
+        {
+          "type": "table",
+          "caption": "Cost levers และวิธีสื่อสารกับ Stakeholders",
+          "headers": [
+            "Lever",
+            "กระทบ Quality หรือไม่?",
+            "วิธีสื่อสารกับ Stakeholders"
+          ],
+          "rows": [
+            [
+              "Prompt caching, token trimming",
+              "ไม่กระทบ",
+              "ทำได้ทันทีโดยไม่ต้องตัดสินใจ ได้ประหยัดเพียวๆ โดยไม่มีข้อแลกเปลี่ยน"
+            ],
+            [
+              "Batch processing ลด 50%",
+              "ไม่กระทบ แต่ผลลัพธ์อาจใช้เวลาสูงสุด 24 ชั่วโมง",
+              "ราคาถูกลงสำหรับงานที่รอได้ 1 วัน ไม่เหมาะกับ Live users"
+            ],
+            [
+              "Workspace spend limits",
+              "ไม่กระทบ",
+              "เป็นการตั้งเพดานคุมงบรายเดือน ไม่ได้เปลี่ยน Quality ของระบบ"
+            ],
+            [
+              "ลด Effort",
+              "อาจกระทบ Quality",
+              "ถูกลงและเร็วขึ้น หาก Quality ตกค่อยปรับ Effort กลับขึ้นมา"
+            ],
+            [
+              "รัน Low effort แล้ว Re-run เฉพาะตัวที่ Fail ด้วย High effort",
+              "Pass rate เท่าเดิมจากการทดสอบของ Anthropic แต่ต้องมี Verifier",
+              "ประหยัดได้ราว 40% ถ้าสามารถเช็ค Output ได้แบบอัตโนมัติ"
+            ],
+            [
+              "ส่ง Elapsed time ให้โมเดลเห็น",
+              "เสียคะแนนเล็กน้อยไม่กี่จุด",
+              "Agent รันจบเร็วขึ้น โดยแลกกับ Quality ที่ลดลงเล็กน้อยตามที่วัดผลไว้"
+            ],
+            [
+              "เปลี่ยนไปใช้โมเดลขนาดเล็กลง",
+              "อาจกระทบ Quality",
+              "ใช้ต่อเมื่อผล Eval ยืนยันว่ายังผ่านเกณฑ์มาตรฐานเท่านั้น"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การเลือกโมเดลควรดูที่ราคาต่อ Token ที่ถูกที่สุด เพราะในความเป็นจริงตัวชี้วัดที่ถูกต้องคือ Cost per completed task โมเดลที่มีราคาต่อ Token ต่ำกว่าไม่ได้แปลว่าประหยัดกว่า จนกว่าจะวัดผลเทียบกับจำนวนงานที่รันสำเร็จจริง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: โมเดลที่มีราคา Per-token ต่ำที่สุดคือตัวเลือกที่ประหยัดที่สุดในการแนะนำ เพราะต้องเปรียบเทียบโมเดลจาก Cost per completed task โมเดลที่ฉลาดกว่ามักใช้จำนวน Turns น้อยกว่าและใช้ Thinking time สั้นกว่า จึงอาจมีต้นทุนต่องานโดยรวมต่ำกว่า แม้จะมีราคา Token ต่อหน่วยสูงกว่าก็ตาม"
+        }
+      ]
+    },
+    {
+      "heading": "3. กำหนดต้นทุนให้ชัดเจนในแต่ละ Layer ของความซับซ้อนที่เพิ่มขึ้น (Putting a price on each extra layer of complexity)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Software Architect มักไม่ค่อยถูกขอให้ชี้แจงว่าทำไมถึงเลือก Design ที่เรียบง่าย แต่คุณต้องพร้อมชี้แจงเหตุผลของทุก Layer ที่เพิ่มเข้ามาเสมอ หลักการจับคู่ความซับซ้อนให้ตรงกับ Requirement ได้ระบุไว้ใน [Start simple: match complexity to the requirement](lesson:1.3) แล้ว ทักษะการสื่อสารที่สำคัญคือ การตีราคาของแต่ละ Layer ให้ Stakeholder เห็นอย่างชัดเจน เพื่อให้พวกเขาเลือกเวอร์ชันที่เรียบง่ายเป็น Default แทนที่จะหลงไปกับสถาปัตยกรรมที่ดูหวือหวา ระบบ Agentic Systems มักจะแลก Latency และ Cost ที่สูงขึ้นเพื่อให้ได้ Task Performance ที่ดีขึ้นเสมอ นี่คือประโยคที่คุณควรนำเสนอต่อ Steering Committee: ความสามารถที่เพิ่มขึ้นนั้นเกิดขึ้นได้จริง แต่บิลค่าใช้จ่ายที่ตามมาก็เป็นของจริงเช่นกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ให้อธิบายตัวเลือกสถาปัตยกรรมเป็นขั้นบันได (Ladder) ซึ่งแต่ละขั้นมีต้นทุนที่คุณสามารถระบุได้ชัดเจน:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- การเรียก LLM เดี่ยวๆ (Single LLM call) ร่วมกับ Retrieval และ In-context Examples: เพียงพอสำหรับการใช้งานจำนวนมาก ทั้งยังประหยัดค่าใช้จ่ายและ Debug ง่ายที่สุด\n- Workflows: รัน LLM และ Tools ผ่าน Code paths ที่กำหนดไว้ล่วงหน้า ช่วยเพิ่มความแน่นอนและคาดเดาได้ (Predictability) ให้กับ Task ที่มีขอบเขตชัดเจน\n- Agent: ควบคุม Process และการใช้ Tool ด้วยตัวเอง ช่วยเพิ่ม Flexibility แต่ก็แลกมาด้วย Latency, Cost ที่สูงขึ้น และพฤติกรรมที่คาดเดาได้ยากขึ้น\n- Framework ที่ครอบทับ: อาจซ่อน Prompts และ Responses ภายใน ทำให้เวลาเกิด Failure จะ Debug ได้ยากขึ้นมาก"
+        },
+        {
+          "type": "paragraph",
+          "text": "การออกแบบ Multi-agent ต้องระมัดระวังในการสื่อสารมากที่สุด เพราะ Stakeholder มักคิดไปเองว่ามันจะช่วยให้ทำงานได้เร็วขึ้น เงื่อนไขที่เหมาะสมถูกระบุไว้ใน [When to split into multiple agents](lesson:1.4) แล้ว สิ่งที่ Stakeholder ต้องเข้าใจคือ Trade-off: Parallel agents ช่วยซื้อ 'ความครอบคลุม' (Breadth) ทำให้ค้นหาใน Space ที่กว้างกว่าที่ Agent ตัวเดียวจะทำได้ภายในขีดจำกัด Context แต่ต้องจ่ายคืนด้วย Token ที่มากกว่าเดิม 3 ถึง 10 เท่าสำหรับ Task เดียวกัน เพราะ Context จะถูก Duplicate ไปยังแต่ละ Agent แถม Coordination และ Handoff Summaries ก็ต้องใช้ Message เพิ่มขึ้น แม้จะรันแบบ Parallel แต่เวลารวมมักจะนานกว่า Single Agent เพราะมี Computation รวมมากกว่า นอกจากนี้ยังมี Engineering Cost ในระยะยาว เพราะ Agent แต่ละตัวที่เพิ่มเข้ามาคืออีกหนึ่ง Point of failure, อีกชุด Prompt ที่ต้องคอยดูแลรักษา และอีกหนึ่งแหล่งกำเนิดพฤติกรรมที่คาดเดาไม่ได้ หลายทีมใช้เวลาหลายเดือนสร้าง Multi-agent architectures เพียงเพื่อจะพบว่าการจูน Prompt บน Single Agent ให้ผลลัพธ์ที่ดีพอกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "สถาปัตยกรรมแบบ Multi-model ที่ประหยัดกว่าควรแยกออกจาก Full Multi-agent เพราะเป้าหมายของมันคือการลด Cost ไม่ใช่การขยาย Breadth วิธีนี้จะจับคู่โมเดลราคาถูกเข้ากับ Frontier model เพื่อให้ Token ส่วนใหญ่ถูกคิดเงินในเรตที่ต่ำกว่า รูปแบบแรกคือ Executor ที่คอยรันงานทั่วไปแล้ว Escalate การตัดสินใจยากๆ ไปยัง Advisor model อีกรูปแบบคือ Orchestrator ที่ส่งงานปริมาณมาก (Bulk work) ไปให้ Worker model ที่ราคาถูกกว่า ให้ Pitch วิธีนี้ในฐานะการลด Cost โดยใช้กฎเดียวกันกับ Layer อื่นๆ: จะนำมาใช้ก็ต่อเมื่อมีผลการวัดยืนยันว่าคุ้มค่าจริงเท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การแบ่งงานให้ Parallel agents ช่วยให้ส่งมอบผลลัพธ์ได้เร็วขึ้นจริงหรือไม่? (ทำไมถึงผิด): ไม่จริง: Parallel agents มีไว้เพื่อซื้อความครอบคลุมและละเอียดรอบคอบ (Breadth / Thoroughness) โดยทั่วไปใช้ Token มากกว่าเดิม 3 ถึง 10 เท่า และมักใช้เวลารวมนานกว่า Single Agent เนื่องจากมีปริมาณ Computation โดยรวมสูงกว่ามาก"
+        }
+      ]
+    },
+    {
+      "heading": "4. สนับสนุนคำแนะนำด้วย Evaluation ของคุณเอง (Backing the recommendation with your own evaluation)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "คำแนะนำจะน่าเชื่อถือได้ก็ต่อเมื่อมีหลักฐานรองรับ และตัวเลขจาก Vendor คือหลักฐานที่อ่อนแอที่สุดในการนำเสนอต่อ Stakeholder โดย Anthropic ระบุชัดเจนว่าตัวเลข Cost และ Quality ที่เผยแพร่นั้นเป็นการวัดผลภายในและเป็นเพียงตัวชี้วัดเบื้องต้น (Directional) ไม่ใช่การรับประกัน Benchmark ที่เผยแพร่มีประโยชน์เพียงแค่ใช้เป็นแนวทางว่าควรทดสอบอะไร ตัวอย่างผลทดสอบจาก Vendor เช่น Sonnet 5 ที่มี Fable 5 ทำหน้าที่เป็น Advisor ทำคะแนนบน SWE-bench Pro ได้ใกล้เคียง Fable 5 ในระดับ 10% แต่ใช้ Cost เพียง 63% ตัวเลขนี้เป็นเหตุผลที่ดีในการนำ Advisor pattern มาลองทดสอบกับ Workload ของคุณ แต่มันไม่ได้การันตีว่า Pattern นี้จะคุ้มค่ากับ Workload ของคุณจริงๆ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Public benchmarks มีข้อจำกัดเฉพาะตัวเมื่อทดสอบกับโมเดลระดับท็อป โมเดลที่ทรงพลังอย่าง Opus และ Fable สามารถแก้โจทย์ได้เกือบทั้งหมด จน Benchmark เกิดการอิ่มตัว (Saturate) และไม่สามารถแยกแยะความแตกต่างได้อีกต่อไป แต่ Custom evaluation จะไม่อิ่มตัว เพราะมันคือชุดโจทย์ที่คัดสรรมาจาก Production จริง รวมถึง Edge cases ที่ยากซึ่งเครื่องมือปัจจุบันของคุณจัดการไม่ได้ แล้วให้คะแนนตามเกณฑ์ที่ทีมของคุณกำหนด นี่คือจุดที่ใช้แยกความต่างของ Frontier models ออกจากกันได้อย่างแท้จริง และเป็นผลลัพธ์ที่ Stakeholder สามารถเทียบเคียงกับธุรกิจจริงที่พวกเขาเข้าใจได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "การสร้างหลักฐานดังกล่าวมีกระบวนการสั้นๆ โดยขั้นตอนที่สำคัญที่สุดคือการเตรียม Evaluation set:"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. สร้าง Benchmark tests ที่เจาะจงกับ Use case ของคุณ\n2. รันการทดสอบด้วย Prompts และ Data จริงของคุณ\n3. เปรียบเทียบ Candidates ในด้าน Accuracy, Response quality และการจัดการ Edge cases\n4. ชั่งน้ำหนัก Performance เทียบกับ Cost โดยคำนวณต่อ Completed task"
+        },
+        {
+          "type": "paragraph",
+          "text": "ให้นำเสนอผลลัพธ์เป็นเหตุผลหลักในการตัดสินใจ ไม่ใช่แค่แปะไว้ในภาคผนวก เช่น 'Opus ผ่านเกณฑ์คุณภาพในชุดสัญญาของเรา แต่ Sonnet ไม่ผ่าน ดังนั้นเราจึงเลือก Opus' นี่คือคำแนะนำที่ชัดเจน ในทางกลับกันก็น่าเชื่อถือไม่แพ้กัน: หากโมเดลที่เล็กกว่าผ่านเกณฑ์ ราคาและความเร็วที่เหนือกว่าก็ชนะทันที ตรรกะเดียวกันนี้ใช้ตัดสินใจเมื่อจำเป็นต้องอัปเกรด Tier หาก Eval ชี้ว่า Opus เริ่มรับมือบาง Task ไม่ไหว Fable คือก้าวต่อไป และหลักฐานสำหรับก้าวนี้คือ Eval ของคุณ ไม่ใช่ตาราง Benchmark นอกจากนี้ Eval ของคุณยังช่วยในการวินิจฉัยปัญหา (Diagnosis) ทีมที่เริ่มต้นด้วยโมเดลขนาดเล็กมักแยกแยะได้ยากว่าความล้มเหลวเกิดจากตัวโมเดลหรือการตั้งค่า Setup การรัน Head-to-head eval บน Test harness เดียวกันจะช่วยแยกสองสิ่งนี้ออกจากกัน ทำให้ไม่โทษปัญหาผิดจุด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การใช้ผลการวัด Cost และ Quality ที่ Anthropic เผยแพร่เพียงพอแล้วสำหรับการตัดสินใจเลือกโมเดลใน Workload ของคุณหรือไม่? (ทำไมถึงผิด): ไม่จริง: ผลการวัดผลเหล่านั้นเป็นเพียงข้อมูลบอกทิศทางเบื้องต้น (Directional) ไม่ใช่การรับประกัน หลักฐานที่ใช้สนับสนุนการตัดสินใจต้องมาจากการทำ Evaluation บน Workload ของคุณเอง โดยใช้ Prompts และ Data จริงของคุณ"
+        }
+      ]
+    },
+    {
+      "heading": "5. การระบุ Residual Risk ให้ชัดเจนและจำกัดขอบเขตได้ (Making residual risk legible and bounded)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "\"ไม่มีความเสี่ยงเลย\" คือคำพูดเรื่องความเสี่ยงที่ Architect ไม่ควรพูดเด็ดขาด เพราะระบบ LLM ทุกระบบย่อมมีความเสี่ยงเสมอ และการพูดแบบนั้นทำให้ Approver ไม่รู้จะตรวจสอบอะไรต่อ สิ่งที่ควรทำคือระบุความเสี่ยงให้ชัดเจน (Specific Failure) จำกัดขอบเขตความเสียหายที่อาจเกิดขึ้น (Bound) และวางวิธีตรวจจับเมื่อเกิดปัญหา Approver ยอมรับความเสี่ยงที่มองเห็นขอบเขตชัดเจนได้ แต่ไม่มีทางยอมรับความเสี่ยงที่ประเมินไม่ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "4 คำถามที่ช่วยเปลี่ยนความกังวลลอยๆ ให้กลายเป็นข้อจำกัดความเสี่ยงที่วัดผลได้ (Bounded Statement):"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Untrusted content: มี Input อะไรบ้างที่มาจากภายนอก Trust Boundary?\n- Actions: ระบบได้รับอนุญาตให้ Write, Edit, Delete หรือเรียก Call อะไรได้บ้าง?\n- Blast radius: กรณีเลวร้ายที่สุด (Worst Outcome) ที่อาจเกิดขึ้นได้คือระดับไหน?\n- Observability: หากเกิดสิ่งผิดปกติ ระบบจะตรวจพบได้เร็วแค่ไหน?"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างจาก Incident-Response Agent ของ Anthropic: ฝั่ง Input รับเฉพาะ Internal Logs และ Slack ภายใน ดังนั้นการจะเกิด Prompt Injection ต้องมาจากคนในหรือ Account ที่ถูกยึดเท่านั้น ฝั่ง Actions ตัว Agent อ่านข้อมูลได้กว้างแต่ Write ได้แค่สร้าง Document ใหม่และส่งข้อความใน Slack โดยไม่มีสิทธิ์ Edit, Delete หรือเปลี่ยน Permission ใดๆ Worst Outcome ที่ทีมประเมินไว้คือ Log ที่มีข้อมูลอ่อนไหวเล็กน้อยหลุดไปใน Incident Channel ที่ล็อกสิทธิ์ไว้อยู่แล้ว และทุก Action ถูกส่งเข้า SIEM ซึ่งตรวจพบความผิดปกติได้ภายในหลักนาที สรุปคือ Agent ตัวนี้ไม่ได้ปราศจากความเสี่ยง แต่มี Write Surface ที่จำกัดและมี Audit Coverage ครบถ้วน ทีมจึงยอมรับ Risk Profile นี้ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ขอบเขตความเสี่ยงจะคงอยู่ก็ต่อเมื่อคุณตรวจสอบซ้ำเสมอ เมื่อ Agent ตัวเดิมถูกอัปเกรดจาก Claude Opus 4 เป็น Claude Opus 4.5 โดยไม่ได้เปลี่ยน Tools, Permissions หรือ Prompts เลย ตัวโมเดลที่ฉลาดขึ้นกลับตัดสินใจระหว่างแก้ปัญหาให้สั่ง Agent ตัวอื่นเขียนโค้ดแก้ Production ทันที แต่ขอบเขตความเสี่ยงยังควบคุมได้ เพราะโค้ดแก้ปัญหานั้นถูกส่งไปเป็น Pull Request ที่ต้องมี Human Review ก่อน Deploy เสมอ สิ่งนี้ต้องชี้แจง Stakeholders ล่วงหน้าว่า การอัปเกรดโมเดลคือการเปลี่ยน Risk Profile และมาตรการควบคุม เช่น Human Review สำหรับ Code Changes ถือเป็นส่วนหนึ่งของการออกแบบระบบ ไม่ใช่ตัวเลือกเสริม"
+        },
+        {
+          "type": "paragraph",
+          "text": "Cost Risk ก็ต้องจำกัดขอบเขตด้วยวิธีเดียวกัน: กำหนด Session Budget ใน Claude Managed Agents เพื่อจำกัดค่าใช้จ่ายต่อรอบการทำงานของ Agent ไม่ให้บานปลาย และใช้ Workspace Spend Limits เป็นแนวป้องกันระดับภาพรวมทั้งหมดของ Workspace คำพูดอย่าง \"ค่าใช้จ่ายในเดือนที่แย่ที่สุดจะไม่เกินเพดานของ Workspace\" เป็นเงื่อนไขที่ทีม Finance อนุมัติได้ แต่คำว่า \"ค่าใช้จ่ายน่าจะสมเหตุสมผล\" เป็นสิ่งที่ไม่สามารถอนุมัติได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: งานออกแบบระบบพร้อมเสนออนุมัติเมื่อบอก Stakeholders ได้ว่าไม่มีความเสี่ยงใดๆ เพราะในความเป็นจริง Residual Risk ต้องถูกระบุให้ชัดเจนและจำกัดขอบเขตได้ (Specific and Bounded) เช่น มี Write Surface ที่จำกัด, กำหนด Worst Case ชัดเจน และมี Audit Coverage ที่ตรวจพบปัญหาได้รวดเร็ว เช่นเดียวกับการใช้ Spend Limits เพื่อจำกัด Cost Risk"
+        }
+      ]
+    },
+    {
+      "heading": "6. การอธิบายทางเลือกด้านกลไกการทำงานให้ทีม Engineering (Explaining a mechanism choice to the engineering team)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การสื่อสารกับ Technical Audience จำเป็นต้องอธิบายผ่านกลไกการทำงาน (Mechanism) ซึ่งความถูกต้องแม่นยำคือสิ่งสำคัญ หากอธิบาย Feature ผิดในตอนทำ Design Walkthrough ทีมจะสร้างระบบผิดทิศทางทันที โดยมี 3 ทางเลือกที่พบบ่อยในงาน Long-Running Agent ซึ่งคำอธิบายที่ผิดมักฟังดูน่าเชื่อถือ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Compaction และ Context Editing ช่วยคุม Long Session ให้อยู่ใน Context Window ทั้งคู่ แต่มีกลไกและทำงานคนละส่วนกัน: Compaction ทำงานบน Server เมื่อบทสนทนาใกล้ชน Context Window Limit ระบบจะ Summarize บทสนทนาทั้งหมดโดยอัตโนมัติ ทำให้ Session ดำเนินต่อได้โดยไม่ต้องจัดการ Bookkeeping ฝั่ง Client ส่วน Context Editing จะ Config จากฝั่ง Client เพื่อลบ Content ที่เจาะจง เช่น Tool Results เก่าๆ โดยทั้งสองแบบไม่ต้องใช้ Batch API และไม่ผูกกับ Model Tier ใดเป็นพิเศษ สำหรับ Multi-Hour Coding Agent ให้อธิบาย Compaction ว่า \"ช่วยคุม Active Context ให้เล็กโดยอัตโนมัติ\" และ Context Editing ว่า \"เลือกตัด Stale Tool Output ตามที่เรากำหนด\" และหากมี Fact สำคัญที่ต้องคงอยู่หลังการ Summarize ให้ต่อใช้งานร่วมกับ Memory Tool"
+        },
+        {
+          "type": "paragraph",
+          "text": "Thinking Mode ที่ใช้งานได้จะขึ้นอยู่กับ Model Generation ดังนั้นการอธิบายต้องระบุชื่อโมเดลให้ชัดเจน: Extended Thinking คือ Manual Mode เดิมที่ต้องกำหนด Token Budget ซึ่ง Claude 4.7 ขึ้นไปจะปฏิเสธการใช้งานนี้ด้วย 400 Error โดยในรุ่นเหล่านั้น (รวมถึง Claude Opus 4.8) จะมีเฉพาะ Adaptive Thinking เท่านั้น ซึ่งโมเดลจะตัดสินใจเองว่าจะคิดเมื่อไหร่และคิดยาวแค่ไหน ส่วนใน Claude 4.5 หรือรุ่นก่อนหน้าที่รองรับการคิด (รวมถึง Claude Haiku 4.5) จะรองรับเฉพาะ Extended Thinking และไม่มี Adaptive Thinking หากทีมต้องพัฒนาระบบบนทั้งสองโมเดล จะต้องแยก Code Path เป็น 2 ทาง และหากทีมใดวางแผนจะส่ง Extended Thinking Request ไปยัง Opus 4.8 ต้องเตรียมปรับโค้ดตั้งแต่ตอนนี้ ไม่ใช่รอให้พังจาก Request ล้มเหลวครั้งแรก"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกระหว่าง Claude Managed Agents กับ Claude Agent SDK เป็นการตัดสินใจเรื่อง \"ใครเป็นคนดูแล Infrastructure\" ไม่ใช่เรื่องขีดความสามารถ (Capability) เพราะทั้งสองแบบใช้ Concept เดียวกัน ได้แก่ Agents, Tools และ Sessions โดย Agent SDK จะรันใน Process ที่คุณดูแลเอง พร้อม Custom Tools ที่คุณเขียนขึ้นในโค้ด ส่วน Managed Agents คือ Pre-built Agent Harness ที่ทำงานบน Infrastructure ของ Anthropic ออกแบบมาสำหรับ Long-Running Tasks และงานแบบ Asynchronous โดย Sessions จะรันบน Cloud Sandbox ที่ Anthropic ดูแล (หรือ Self-Hosted Sandbox ตามที่คุณ Config) และ Agent Definition จะถูกเก็บและทำ Versioning ไว้บน Server ดังนั้นหากโจทย์คือต้องการ Agent ที่รันต่อเนื่องโดยที่ทีมของคุณไม่ต้องดูแล Sandbox หรือ Session Infrastructure เอง เหตุผลที่แท้จริงคือให้ Anthropic รับหน้าที่รัน Sandbox และจัดการ Session State แทน ไม่ใช่เพราะ SDK มี Feature ไม่เพียงพอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Extended Thinking ที่กำหนด Token Budget ยังสามารถใช้บน Claude Opus 4.8 ควบคู่กับ Adaptive Thinking ได้ เพราะ Claude 4.7 และรุ่นหลังจากนั้นจะปฏิเสธ Extended Thinking ด้วย 400 Error โดยรองรับเฉพาะ Adaptive Thinking เท่านั้น"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56999",
+      "question": "Autonomous coding agent ที่ทำงานต่อเนื่องเป็นเวลาหลายชั่วโมงมีปัญหา Context Window เต็มอยู่บ่อยครั้ง คุณกำลังตัดสินใจเลือกระหว่าง Server-side Compaction กับ Context Editing เพื่อแก้ปัญหานี้ และต้องอธิบายความแตกต่างให้ทีมเข้าใจ ข้อความใดถูกต้อง?",
+      "options": [
+        "Compaction จะสรุปเนื้อหาบทสนทนาช่วงแรกให้โดยอัตโนมัติเมื่อ Context Window เริ่มเต็ม ในขณะที่ Context Editing จะใช้กลยุทธ์ที่กำหนดค่าได้เอง เช่น การล้าง Tool Results เก่า หรือการจัดการ Thinking Blocks",
+        "Compaction จะลบ Tool Results ทิ้งทันทีโดยไม่มีการสรุปเนื้อหา ในขณะที่ Context Editing จะเขียนบทสนทนาทั้งหมดขึ้นมาใหม่ให้สั้นลงโดยใช้โมเดลสรุปผลแยกต่างหาก ซึ่งคุณต้องทริกเกอร์เองแบบ Manual",
+        "Context Editing รองรับเฉพาะ Claude Haiku 4.5 เท่านั้น ส่วน Compaction จำกัดไว้สำหรับ Claude Opus 4.8 ดังนั้นการเลือกโมเดลจึงเป็นตัวกำหนดว่าสามารถใช้เทคนิคใดได้",
+        "ทั้ง Compaction และ Context Editing จำเป็นต้องใช้ Batch API ดังนั้น Agent Session แบบ Synchronous ที่ทำงานต่อเนื่องยาวนานจึงไม่สามารถใช้ทั้งสองเทคนิคนี้ในการจัดการ Context ได้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57000",
+      "question": "คุณกำลังให้คำปรึกษาแก่ทีมที่พัฒนา Agents บนทั้ง Claude Opus 4.8 และ Claude Haiku 4.5 โดยต้องอธิบายความแตกต่างของ Thinking Modes เพื่อให้ทีมประเมินเวลาในการพัฒนาได้อย่างถูกต้อง จงเลือกข้อความที่ถูกต้อง 2 ข้อ",
+      "options": [
+        "ใน Claude Opus 4.8 นั้น Adaptive Thinking เป็น Thinking Mode เดียวที่มีอยู่ โดยโมเดลจะเป็นผู้ตัดสินใจเองว่าควรคิดเมื่อใดและคิดมากน้อยเพียงใด แทนที่จะมี Toggle แยกสำหรับ Extended Thinking",
+        "Claude Haiku 4.5 รองรับ Extended Thinking ซึ่งช่วยให้เห็นกระบวนการคิดแบบ Step-by-step ของโมเดลก่อนที่จะได้คำตอบสุดท้าย แต่ไม่รองรับ Adaptive Thinking",
+        "Claude Opus 4.8 รองรับทั้ง Extended Thinking และ Adaptive Thinking พร้อมกัน ทำให้ Request เดียวสามารถผสานทั้งสองโหมดการคิดเข้าด้วยกันเพื่อความโปร่งใสสูงสุด",
+        "Adaptive Thinking เป็นฟีเจอร์เฉพาะของ Claude Haiku 4.5 เท่านั้น ในขณะที่โมเดลปัจจุบันตัวอื่น ๆ ต้องพึ่งพา Extended Thinking เพียงอย่างเดียวสำหรับการคิดแบบ Step-by-step",
+        "ทั้ง Extended Thinking และ Adaptive Thinking ไม่มีให้ใช้งานแล้วในโมเดล Claude ปัจจุบัน โดยทั้งคู่ถูกยกเลิกไปก่อนการเปิดตัวของยุค Claude 5"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57082",
+      "question": "บริษัทของคุณต้องการเปิดตัว Production Agent ที่ต้องทำงานแบบ Asynchronous ต่อเนื่องเป็นเวลานาน โดยที่ทีมของคุณไม่ต้องดูแล Sandbox หรือ Session Infrastructure เอง ในระหว่างการนำเสนอ Design คุณต้องอธิบายว่าทำไมถึงเลือก Managed Agents แทน Claude Agent SDK คำอธิบายใดถูกต้อง?",
+      "options": [
+        "Managed Agents ทำงานบน Infrastructure ที่ Anthropic ดูแลจัดการให้ โดยมี Hosted Sandbox สำหรับแต่ละ Session และมี Event Log ที่ Anthropic ดูแลให้ ช่วยลดภาระงานด้าน Operation ในการดูแล Sandboxes และ Session State สำหรับงาน Asynchronous ที่ต้องรันยาวนาน",
+        "Agent SDK ไม่สามารถเรียก Custom Tools หรือเชื่อมต่อกับ MCP Servers ได้ ทำให้ไม่สามารถรองรับ Production Workflows ที่ต้องเชื่อมต่อกับภายนอกได้ จึงต้องใช้ Managed Agents ที่รองรับการเชื่อมต่อกับ Tools, MCP Servers และ External APIs อย่างครบถ้วน",
+        "Managed Agents รองรับ Subagents และ Hooks จึงสามารถมอบหมายงานให้ Child Agents และรัน Custom Lifecycle Callbacks ได้ ในขณะที่ Agent SDK ถูกจำกัดไว้เพียง Flat Agent Loop แบบเดี่ยวที่ไม่สามารถสร้าง Subagents หรือทริกเกอร์ Hooks ได้",
+        "Agent SDK จำเป็นต้องติดตั้ง Claude Code เป็น CLI Dependency แยกต่างหาก ดังนั้นการใช้ Managed Agents จึงช่วยให้ไม่ต้องมี Anthropic Tooling ใด ๆ บน Infrastructure ของคุณเอง เพราะทำงานบน Managed Platform ของ Anthropic ทั้งหมด"
+      ],
+      "explanation": ""
+    }
+  ]
+}

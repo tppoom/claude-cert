@@ -1,0 +1,118 @@
+{
+  "title": "การออกแบบ Claude Application: Surfaces, Instruction Placement และ Output Schemas",
+  "objectives": [
+    "อธิบายสาเหตุที่ Prompt เดียวกันทำงานต่างกันระหว่าง Claude Code CLI และ Agent SDK Application พร้อมวิธีแก้ปัญหาด้วย System Prompt Preset และ settingSources",
+    "จัดสรรข้อความลงใน Instruction File, System Prompt หรือ Per-task Message ได้ถูกต้อง พร้อมป้องกันไม่ให้ Untrusted Text ปะปนใน Instruction Channels",
+    "ออกแบบ Output Schema (Field Names, Required และ Nullable Fields) และส่งผ่าน Messages API, Python SDK และ Agent SDK ได้อย่างถูกต้อง"
+  ],
+  "key_concept": "Instruction Frame — Claude ไม่ได้รับ Prompt ของคุณเพียงลำพัง แต่ละ Surface จะครอบ Prompt ด้วย System Prompt และ Instruction Files ที่โหลดเข้ามา ซึ่ง Wrapper นี้จะแตกต่างกันระหว่าง Claude Code CLI และ Agent SDK Application โดย Agent SDK จะเริ่มต้นด้วย Minimal System Prompt เสมอ เว้นแต่จะระบุให้ใช้ Preset ของ Claude Code",
+  "sections": [
+    {
+      "heading": "1. Prompt เดียวกัน ต่าง Surface: CLI เทียบกับ Agent SDK",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ผลลัพธ์ที่ Claude ตอบสนองต่อ Request ขึ้นอยู่กับ Context รอบข้าง ใน Interactive Claude Code Session ไฟล์ CLAUDE.md, Auto Memory, ชื่อ MCP Tools และคำอธิบาย Skills จะถูกโหลดเข้าสู่ Context ก่อนที่คุณจะพิมพ์อะไรด้วยซ้ำ นอกเหนือจาก System Prompt หลักของ Claude Code เอง ดังนั้นหากคุณย้าย Workflow จาก `claude -p` ไปเป็น Service บน Agent SDK แม้ตัว Prompt จะเหมือนเดิม แต่ Context รอบข้างอาจเปลี่ยนไปอย่างสิ้นเชิงโดยไม่มีการแจ้งเตือน"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดแรกที่ต้องตรวจสอบคือ System Prompt ใน TypeScript SDK ค่าเริ่มต้นของ `systemPrompt` คือ `undefined` (Minimal Prompt) หาก Headless Agent สูญเสียพฤติกรรมเดิมแบบ CLI หลัง Port ระบบ สาเหตุมักเกิดจากการขาด Option: `{ type: 'preset', preset: 'claude_code' }` (หรือ `system_prompt` ใน Python) หากต้องการเพิ่มคำสั่งเสริม ให้ใส่ในฟิลด์ `append` ของ Preset เพื่อขยายความสามารถเดิมแทนที่จะเขียนทับ เพราะถ้าส่งเป็น Plain String ตรงๆ ระบบจะถือว่าเป็น Custom Prompt และปิดการใช้งาน Preset ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agent SDK มี 3 วิธีในการกำหนด System Prompt ตามประเภทของ Use Case: 1) การใช้ Preset (ไม่ว่าจะใส่ `append` หรือไม่) เหมาะสำหรับ Coding Tools ที่มีมนุษย์คอย Monitor และควบคุม 2) การใช้ Custom String เหมาะสำหรับ Agent ที่ต้องการ Identity, Surface หรือ Permission Model แยกต่างหาก เช่น Support Bot โดย SDK จะส่งเฉพาะสิ่งที่คุณระบุเท่านั้น คุณจึงต้องใส่ Tool Guidance และ Safety Instructions ให้ครบถ้วนเอง 3) การเว้นว่าง `systemPrompt` จะได้ Thin Tool-Calling Loop ที่พฤติกรรมทั้งหมดถูกควบคุมผ่าน User Prompt ล้วนๆ"
+        },
+        {
+          "type": "paragraph",
+          "text": "การโหลด Instruction จาก Filesystem จะถูกควบคุมแยกผ่าน Option `settingSources` ซึ่งทำหน้าที่กำหนดว่าจะโหลด Config ระดับ User, Project หรือ Local เข้ามาบ้าง รวมถึง CLAUDE.md, Rules, Skills, Subagents และ Settings หากไม่กำหนดค่า (Unset) ระบบจะยึดตามค่า Default ของ CLI คือโหลดครบทุก Source แต่หากส่งเป็น `[]` จะปิดการโหลด User, Project และ Local Settings ทั้งหมด (ยังคงโหลด Endpoint-Managed Policy อยู่) ทั้งสอง Option ส่งผลต่างกัน: ขาด Preset จะทำให้ Claude ทำงานผิดเพี้ยนไป ส่วนการจำกัด `settingSources` จะทำให้ Team Conventions ไม่ถูกโหลดเข้า Context หาก Port แล้วเกิดปัญหา ให้ตรวจสอบทั้งสองจุดนี้"
+        },
+        {
+          "type": "table",
+          "caption": "สิ่งที่แต่ละค่าของ settingSources โหลดเข้ามาใน SDK Session",
+          "headers": [
+            "Source",
+            "สิ่งที่โหลดเข้า Context"
+          ],
+          "rows": [
+            [
+              "\"project\"",
+              "Project settings.json และ Hooks; Project CLAUDE.md และ .claude/rules/*.md; Project Skills, Commands และ Subagents"
+            ],
+            [
+              "\"user\"",
+              "User settings.json; User CLAUDE.md และ ~/.claude/rules/*.md; User Skills, Commands และ Subagents"
+            ],
+            [
+              "\"local\"",
+              "CLAUDE.local.md และ .claude/settings.local.json"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Code Sessions ไม่ได้จำกัดอยู่แค่ใน Terminal และ Surface ที่คุณเห็นอาจไม่ใช่เครื่องที่ Session รันอยู่จริง Desktop App และ VS Code Extension คือ Surface เพิ่มเติมสำหรับ Claude Code ในขณะที่ claude.ai Chat ไม่ใช่ Claude Code เลย ส่วน Cloud Session จะรันอยู่บน VMs ที่ Anthropic จัดการหรือแบบ Self-Hosted สำหรับ Remote Control จะแสดงผล Session ผ่าน Browser แต่ตัว Session ยังคงรันบนเครื่อง Local ของคุณและใช้งาน Local Files ตามปกติ หากคุณเปลี่ยนชื่อ Remote Control Session จาก claude.ai หรือ Claude App ตัว CLI ก็จะแสดงชื่อที่อัปเดตตรงกัน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ที่คิดว่า SDK Agent สูญเสียพฤติกรรมแบบ Claude Code เพราะไม่ได้โหลด CLAUDE.md เนื่องจากคิดว่า SDK ไม่โหลด Filesystem Settings เป็นค่าเริ่มต้น — ความจริงคือ หากไม่ได้กำหนด settingSources ตัว SDK จะยึดตามค่า Default ของ CLI และโหลดครบทุก Source ตามปกติ ปัญหาที่แท้จริงมักเกิดจาก System Prompt ที่เป็นค่า Minimal Default ซึ่งแก้ไขได้โดยการระบุ preset เป็น claude_code"
+        }
+      ]
+    },
+    {
+      "heading": "2. Instruction File หรือ Prompt: การจัดวางเนื้อหาและการกำหนด Content Boundary",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Instruction File และ Prompt มีหน้าที่ต่างกัน รายละเอียดลำดับการโหลดระบุไว้ใน [CLAUDE.md hierarchy, AGENTS.md and path-scoped rules](lesson:2.6) แต่หัวใจสำคัญของการออกแบบคือการเลือกว่าควรใส่อะไรไว้ที่ไหน Instruction Files จะถูกโหลดในทุก Session จึงควรเก็บข้อมูลที่เป็นจริงเสมอสำหรับทุก Task เช่น Build Commands, Coding Standards และ Architecture ส่วน Prompt จะเก็บเฉพาะบริบทของ Task ปัจจุบันเท่านั้น เช่น รายละเอียด Bug, Ticket หรือไฟล์ที่ต้องแก้ สัญญาณเตือนว่าข้อมูลควรย้ายไปไว้ในไฟล์คือ เมื่อคุณพบว่าตัวเองต้องคอยพิมพ์บอกเรื่องเดิมซ้ำๆ ใน Session ถัดไป หรือตอน Code Review พบจุดผิดพลาดที่ Claude ควรจะรู้เกี่ยวกับ Codebase อยู่แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทุกบรรทัดใน Instruction File กินพื้นที่ Context ในทุกๆ Session จึงต้องรักษาไฟล์ให้กระชับที่สุด ควรตั้งเป้าหมายไม่ให้เกิน 200 บรรทัดต่อ CLAUDE.md, เขียนเฉพาะ Rules ที่ตรวจสอบได้จริง เช่น \"Run npm test before committing\" และตัดคำสั่งที่ขัดแย้งกันออก เพราะ Claude อาจสุ่มเลือกปฏิบัติตามคำสั่งใดคำสั่งหนึ่ง หาก Rule นั้นมีผลเฉพาะบางส่วนของ Repository ให้ใช้ Path-Scoped Rule แทน เพื่อให้โหลดเฉพาะตอนที่ Claude แก้ไขไฟล์ใน Path ที่ตรงกันเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "การแบ่งแยกนี้ยังช่วยกำหนด Content Boundary เพื่อความปลอดภัย System Prompt, Append String, Instruction File และ Plugin Skill ทั้งหมดจะถูกส่งถึง Claude ในฐานะ \"Instructions\" ห้ามนำ Untrusted Text เช่น Email ของลูกค้า, รายละเอียด Ticket หรือ Web Page ที่ Fetch มา ใส่ลงในกลุ่มนี้เด็ดขาด เพราะหากอยู่ใน Instruction File ข้อความแปลกปลอมนั้นจะมีน้ำหนักเทียบเท่ากับ Rules หลักของคุณในทุก Session ให้ส่งข้อมูลเหล่านี้ผ่าน Per-Task Message แทนในฐานะ Material สำหรับประมวลผล ดูรายละเอียดการโจมตีเพิ่มเติมได้ใน [Prompt injection and jailbreaks (two threat models)](lesson:7.1) ทั้งนี้ Claude Code มีระบบป้องกันในตัวส่วนหนึ่ง: หากมีการใช้ `@path` Import ที่ชี้ออกนอก Working Directory ระบบจะบังคับให้คุณ Approve ก่อนโหลดเสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "3. การออกแบบ Output Schema และการส่งผ่านแต่ละ API",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Schema คือข้อตกลง (Contract) ระหว่าง Claude และ Code ที่นำ Output ไปใช้งานต่อ ซึ่ง [Structured outputs (JSON schema via output_config.format)](lesson:6.3) อธิบายถึงการใช้ Constrained Decoding เพื่อบังคับใช้ข้อตกลงดังกล่าว การออกแบบ Schema ที่ดีขึ้นอยู่กับคุณ: ตั้งชื่อ Field ตามความหมาย เช่น ใช้ plan_interest และ demo_requested แทน field2 หรือ flag, กำหนดทุก Field ที่ Downstream Code ต้องอ่านไว้ใน required พร้อมทั้งตั้งค่า additionalProperties: false เพื่อป้องกัน Key แปลกปลอมหลุดเข้ามา หากค่านั้นสามารถเป็นค่าว่างได้ตามปกติ ให้ระบุ Type เป็น Nullable เช่น errors: list[dict] | None เพื่อให้ตัว Schema อนุญาตให้ไม่มีค่านั้นได้โดยตรง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Constraints บางตัวไม่รองรับในระดับ API เช่น minimum, maximum, minLength และ maxLength จะถูกตัดออกจาก Schema ที่ส่งไปยัง API โดย SDK Helper จะคัดลอกค่าเหล่านี้ไปใส่ไว้ใน Description ของ Field นั้นๆ แทน หาก Helper ของคุณมี Validation ในตัว มันจะยังคงนำ Response ไปตรวจสอบกับ Schema ต้นฉบับอยู่ เช่น Field ที่มี minimum: 100 จะส่งไปถึง Claude ในรูปแบบ Integer ธรรมดา แต่ Response ที่ได้กลับมาจะยังคงถูก Validate ตรวจสอบเทียบกับค่า 100 เสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "วิธีการส่ง Schema ขึ้นอยู่กับช่องทางที่คุณใช้: หากใช้ Messages API ให้ใส่ Schema ไว้ใน output_config.format โดยระบุ type: \"json_schema\" ส่วนใน Python คำสั่ง client.messages.parse(output_format=Model) จะแปลง Pydantic Model, ส่งไปประมวลผล, Validate คำตอบ และส่งคืนกลับมาเป็น parsed_output หาก Schema ของคุณมาจากไฟล์หรือ OpenAPI Spec คุณสามารถนำไปใส่ใน output_config เองได้โดยตรง (อาจผ่านฟังก์ชัน transform_schema() ก่อน) และสำหรับ Agent SDK ตัวเลือก outputFormat จะรับค่า { type: 'json_schema', schema: JSONSchema } โดยผลลัพธ์ที่ Parsed แล้วจะส่งกลับมาใน structured_output ของ Result Message"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Constraints เช่น minimum หรือ maxLength จะถูกตัดทิ้งจาก Structured Output Schema อย่างเงียบๆ และไม่มีการบังคับใช้เลยใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: Helper จะนำ Constraints เหล่านั้นออกจาก Schema ก่อนส่ง แล้วย้ายไปใส่ไว้ใน Field Description แทน ซึ่งหาก Helper มีการ Validate ตัว Response มันจะยังคงตรวจสอบตาม Constraints ดั้งเดิมครบทุกตัว"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อรัน Claude Code แบบ Non-interactive ด้วยแฟล็ก -p ร่วมกับ --json-schema หาก Response ไม่ผ่าน Validation ระบบจะ Retry ให้อัตโนมัติ โดยมี MAX_STRUCTURED_OUTPUT_RETRIES เป็นตัวกำหนดจำนวนครั้ง ซึ่งค่า Default อยู่ที่ 5 ครั้ง (รันครั้งแรก + Retry 4 ครั้ง) หากล้มเหลวครบตามโควตาโดยไม่ได้ Output ที่ถูกต้อง การรันจะถือว่า Failed ทันที สำหรับใน Agent SDK ให้ตรวจสอบ Result Message ก่อนอ่าน structured_output เสมอ เพราะ Field errors จะมีข้อมูลเฉพาะเมื่อเป็น Subtype error_* เท่านั้น ทำให้การรันที่ล้มเหลวจะไม่ส่งคืนค่าที่นำไปใช้งานได้จริง"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55461",
+      "question": "Developer ได้กำหนด JSON Schema สำหรับ `outputFormat` ของ Agent ซึ่งอธิบาย Object ที่ซ้อนกันหลายชั้น (deeply nested) และมี required fields จำนวนมากกระจายอยู่หลายระดับ ในระหว่างการทดสอบ พบว่าการรันส่วนใหญ่จบลงด้วยการไม่มีฟิลด์ `structured_output` และ subtype ของข้อความผลลัพธ์ถูกตั้งเป็น `error_max_structured_output_retries` ทั้งๆ ที่ Task หลักมักจะทำงานสำเร็จ การปรับเปลี่ยน 2 ข้อใดมีแนวโน้มมากที่สุดที่จะช่วยลดความล้มเหลวของ Structured Output เหล่านี้? (เลือก 2 ข้อ)",
+      "options": [
+        "ลดความซับซ้อนของ Schema โดยปรับโครงสร้าง Nesting ที่ไม่จำเป็นให้แบนลง (flatten) และลดจำนวน required fields ลง โดยคงไว้เฉพาะฟิลด์ที่ Task สามารถสร้างได้อย่างแน่นอน",
+        "กำหนดให้ฟิลด์ต่างๆ เป็น Optional เมื่อ Task หลักอาจไม่มีข้อมูลนั้นพร้อมใช้งานเสมอ แทนที่จะบังคับให้ทุกฟิลด์เป็น Required โดยไม่มีเงื่อนไข",
+        "เพิ่มค่า `max_tokens` สำหรับการเรียก Model เนื่องจาก structured-output retries หมดลงเพราะความยาวของ Output ไม่เพียงพอเท่านั้น",
+        "เปลี่ยนคีย์เวิร์ด `type` ของ Schema จาก `object` เป็น `string` เพื่อให้ SDK หยุดการทำ JSON Schema Validation กับ Response",
+        "เพิ่มคีย์เวิร์ด `format` เช่น `email` ให้กับทุก string field เพื่อให้ SDK บังคับใช้ Validation ที่เข้มงวดยิ่งขึ้นและสร้างคำแนะนำในการ Retry ที่ชัดเจนขึ้น"
+      ],
+      "explanation": ""
+    }
+  ]
+}

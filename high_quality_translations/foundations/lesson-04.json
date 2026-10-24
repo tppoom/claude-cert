@@ -1,0 +1,217 @@
+{
+  "title": "Agent patterns and frameworks: workflows, subagents และ memory",
+  "objectives": [
+    "เลือกใช้ Prompt Chaining, Routing, Parallelization, Orchestrator-Workers, Evaluator-Optimizer หรือ Autonomous Agent ให้เหมาะกับโจทย์",
+    "ระบุตัวควบคุม Tool-use Loop แต่ละแบบ (Code ของคุณ, Server ของ Anthropic, Agent SDK หรือ Framework) และตัดสินใจว่าเมื่อใดควรเรียก API โดยตรง",
+    "ใช้ Subagents แยกกระบวนการสำรวจ เพื่อลดภาระของ Context Window หลัก",
+    "เรียกใช้งาน Subagent เดิมข้าม `query()` calls ด้วย Session ID และ Agent ID",
+    "เลือกใช้ระหว่าง Memory Files ที่เก็บข้อมูลข้าม Session ได้ กับ Context Window ที่อยู่ได้เพียงใน Session เดียว"
+  ],
+  "key_concept": "Workflow กับ Agent — ใน Workflow นั้น Code ของคุณจะเป็นตัวกำหนดทิศทางการเรียก LLM อย่างตายตัว แต่ใน Agent ตัว Model จะตัดสินใจ Step ถัดไปด้วยตัวเองจากสิ่งที่พบเจอ ให้เลือกโครงสร้างที่เรียบง่ายที่สุดสำหรับแก้งาน และใช้ Agent เมื่อขั้นตอนล่วงหน้าไม่สามารถคาดเดาได้เท่านั้น",
+  "sections": [
+    {
+      "heading": "1. รูปแบบ Workflow ทั้ง 5 แบบ และจังหวะที่ควรเปลี่ยนไปใช้ Agent",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เริ่มจากดีไซน์ที่เรียบง่ายที่สุดก่อนเสมอ และเพิ่ม Structure เข้ามาก็ต่อเมื่อผลลัพธ์ที่วัดผลได้คุ้มค่ากับการลงทุนเท่านั้น ระบบที่เป็น Agentic มักจะต้องแลก Latency และ Cost ที่สูงขึ้นเพื่อให้ได้ประสิทธิภาพงานที่ดีกว่า สำหรับหลายๆ Use case การยิง LLM แค่ครั้งเดียว (Single Call) พร้อม Retrieval และตัวอย่าง (Few-shot) ที่ดีก็เพียงพอแล้ว แต่ถ้าเอาไม่อยู่ เรามี Workflow มาตรฐานอยู่ 5 รูปแบบ ซึ่งแต่ละแบบ Code ของคุณจะเป็นตัวกำหนด Flow ที่แน่นอน และให้ Model จัดการประมวลผลงานในแต่ละ Step"
+        },
+        {
+          "type": "table",
+          "caption": "รูปแบบ Workflow ทั้ง 5 แบบ รวมถึง Autonomous Agent และลักษณะงานที่เหมาะสม",
+          "headers": [
+            "Pattern",
+            "Shape",
+            "Fits when"
+          ],
+          "rows": [
+            [
+              "Prompt chaining",
+              "ยิง Call ตามลำดับแบบตายตัว แต่ละ Call รับ Output จากขั้นตอนก่อนหน้า โดยใช้ Logic ใน Code คอยตรวจสอบระหว่างทางได้",
+              "งานสามารถแบ่งเป็นลำดับขั้นตอนที่ชัดเจนได้ เช่น ร่างข้อความเสร็จแล้วจึงนำไปแปลภาษา"
+            ],
+            [
+              "Routing",
+              "ใช้ Call หนึ่งเป็น Classifier เพื่อคัดแยกและส่ง Input ไปยัง Prompt หรือ Model ที่เฉพาะทาง",
+              "Input แบ่งเป็นหมวดหมู่ชัดเจนและจัดการแยกกันได้ดีกว่า เช่น ส่งคำถามง่ายๆ ไปให้ Model ตัวเล็กจัดการ"
+            ],
+            [
+              "Parallelization",
+              "แบ่งเป็น Sectioning (รัน Subtasks ที่ไม่ขึ้นต่อกันพร้อมกัน) หรือ Voting (รัน Task เดิมซ้ำกันหลายครั้ง)",
+              "Subtasks แยกอิสระจากกันและเน้น Speed หรือต้องการรันหลายรอบเพื่อเพิ่ม Confidence ของผลลัพธ์"
+            ],
+            [
+              "Orchestrator-workers",
+              "มี LLM ตัวกลางคอยแตก Task ย่อยที่ Runtime แล้วส่งให้ Worker ทำงาน ก่อนจะนำผลลัพธ์มารวมกัน",
+              "ไม่สามารถคาดเดา Subtasks ล่วงหน้าได้ เช่น การแก้ Code ที่ไม่รู้จำนวนไฟล์ที่แน่นอน"
+            ],
+            [
+              "Evaluator-optimizer",
+              "Call แรกทำหน้าที่ Generate ส่วนอีก Call ทำหน้าที่ Evaluate พร้อมให้ Feedback แล้ววน Loop ปรับปรุง",
+              "มีเกณฑ์การประเมิน (Evaluation Criteria) ที่ชัดเจน และการ Refine ผลลัพธ์ช่วยเพิ่มคุณภาพงานได้อย่างวัดผลได้"
+            ],
+            [
+              "Autonomous agent",
+              "Model เลือกใช้ Tool ได้เองใน Loop โดยมี Feedback จากสภาพแวดล้อม (Environment) คอยชี้นำ",
+              "จำนวน Step ไม่ตายตัว (Open-ended) และแต่ละ Step สามารถตรวจวัดผลกับความเป็นจริงได้ เช่น การรัน Test ซ้ำเพื่อเช็กผล"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ทั้ง Parallelization และ Orchestrator-workers ต่างก็แบ่งงานเหมือนกัน จึงเป็นคู่ที่คนสอบสับสนบ่อยที่สุด: ใน Sectioning ตัว Subtasks จะถูก Fix ไว้ใน Code ตั้งแต่ก่อนรัน แต่ใน Orchestrator-workers ตัว Model จะเป็นผู้กำหนด Subtasks เองที่ Runtime ส่วน Voting จะต่างออกไป คือการรัน Task เดิมซ้ำหลายครั้ง เช่น ใช้หลาย Prompt ตรวจสอบช่องโหว่ของ Code ชุดเดียวกันแล้วนำ Verdict มารวมกัน นอกจากนี้ การรันแบบขนานยังช่วยลด Wall-clock Time ลง เพราะ Subagents ที่รันพร้อมกันจะเสร็จเมื่อตัวที่ช้าที่สุดเสร็จ ไม่ใช่ผลรวมเวลาของทุกตัวบวกกัน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "งานที่ซับซ้อนและมีหลายขั้นตอน จำเป็นต้องใช้ Autonomous Agent เสมอไปหรือไม่? (ทำไมถึงผิด): ไม่จริง: ควรเริ่มจากระบบที่เรียบง่ายที่สุดก่อน และเพิ่มความซับซ้อนเมื่อจำเป็นเท่านั้น Fixed Workflow หรือแม้แต่ Single LLM Call มักจะชนะเรื่อง Cost และความสามารถในการคาดเดา (Predictability) Agent จะเหมาะสมก็ต่อเมื่อไม่สามารถคาดเดาจำนวนและลำดับขั้นตอนล่วงหน้าได้เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "2. ใครเป็นผู้คุม Tool-use Loop",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Agent ทุกตัวทำงานบน Cycle เดียวกัน: Claude ขอใช้ Tool, ทำการรัน Tool, แล้วส่งผลลัพธ์กลับไปให้ Claude ซึ่ง Loop นี้ถูกอธิบายไว้ใน [Tool-use (Agentic) Loop](lesson:8.1) จุดสำคัญในการออกแบบคือ \"ใครเป็นผู้ขับเคลื่อน Loop นี้\" เพราะคำตอบจะกำหนดว่า Code ของคุณต้องรับผิดชอบอะไรบ้าง และคุณจะมองเห็นการทำงานภายใน Cycle ได้ลึกแค่ไหน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ไม่ว่าใครจะเป็นผู้คุม Loop ระบบจะตัดสินใจว่าจะทำอะไรต่อโดยดูจาก `stop_reason` ใน API Response ซึ่งจะบอกสาเหตุที่ Claude หยุด Generate: ค่า `\"tool_use\"` หมายถึง Claude ต้องการให้ Client รัน Tool และ `\"end_turn\"` หมายถึงได้คำตอบสุดท้ายแล้ว ส่วน `\"max_tokens\"`, `\"stop_sequence\"` และ `\"refusal\"` ก็เป็นสถานะหยุดอื่นๆ ที่ Code ต้องคอย Handle ขณะที่ `\"pause_turn\"` จะใช้กับ Server Tools เนื่องจาก Loop ภายในของ Server Tools มีขีดจำกัดจำนวน Iteration หากถึงลิมิตก่อนงานจะเสร็จ Response จะส่งกลับมาในสถานะ Paused ซึ่งการส่ง Conversation เดิมกลับไป (รวม Response ที่ Pause นั้นด้วย) จะทำให้ Claude สามารถทำงานต่อจากจุดที่ค้างไว้ได้ทันที"
+        },
+        {
+          "type": "table",
+          "caption": "4 วิธีในการขับเคลื่อน Loop และสิ่งที่ Code ของคุณต้องรับผิดชอบในแต่ละวิธี",
+          "headers": [
+            "Who drives the loop",
+            "What your code does",
+            "What you give up or gain"
+          ],
+          "rows": [
+            [
+              "Your own code on the Messages API",
+              "วน Loop ตราบเท่าที่ `stop_reason` เป็น `\"tool_use\"`: สั่งรันแต่ละ Tool, ส่ง `tool_result` blocks กลับไป และคอยจัดการ `end_turn`, `max_tokens` และ `refusal`",
+              "เห็นและควบคุมได้ทุก Request แต่ต้องเขียน Code จัดการ Loop เองทุกบรรทัด"
+            ],
+            [
+              "Anthropic's servers (web_search, web_fetch, code_execution)",
+              "Enable การใช้งาน Tool และส่ง Conversation ซ้ำกลับไปเมื่อได้ `stop_reason` เป็น `\"pause_turn\"`",
+              "มีการวน Iteration หลายรอบเกิดขึ้นภายใน 1 Request โดยซ่อนอยู่เบื้องหลัง ไม่แสดงให้เราเห็น"
+            ],
+            [
+              "Claude Agent SDK query()",
+              "วน Loop อ่าน Messages ที่ Yield ออกมา (`AssistantMessage`, `UserMessage`, `ResultMessage`) โดย SDK จะเป็นผู้รัน Tools ให้เอง",
+              "ได้ Built-in tools, Subagents, Hooks และ Session IDs มาพร้อมใช้ ตัว Loop ถูกจัดการให้อัตโนมัติ"
+            ],
+            [
+              "A third-party framework (e.g. Strands, LangGraph, PydanticAI)",
+              "ทำหน้าที่ Config ตัว Agent Object ของ Framework นั้นๆ",
+              "เริ่มต้นได้ง่ายและไว แต่ Layer ที่ครอบไว้จะบดบัง Prompt และ Response ที่แท้จริง"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อใช้ Agent SDK ตัว Loop จะทำงานอยู่ภายใน Library: Claude ตอบกลับมา, SDK รัน Tool ที่ถูกเรียก, ส่งผลลัพธ์กลับไปให้ Claude และวนซ้ำไปเรื่อยๆ จนกว่า Response จะไม่มีการเรียก Tool ใดๆ อีก จากนั้น SDK จะ Yield `ResultMessage` ออกมาพร้อม Text สุดท้าย, Token Usage, Cost และ Session ID ทำให้ Code ของคุณทำหน้าที่เพียงคอย Subscribe Message Stream แทนที่จะต้องมานั่ง Build Request เอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agent Frameworks เช่น Claude Agent SDK, Strands Agents SDK ของ AWS, LangGraph และ PydanticAI จะเข้ามาจัดการงานระดับ Low-level Wiring ให้ทั้งหมด ไม่ว่าจะเป็นการเรียก Model, การ Define และ Parse Tools รวมถึงการ Chaining Calls เข้าด้วยกัน ทว่าการครอบ Wiring เหล่านี้ก็เป็นการซ่อนรายละเอียดการทำงานไปในตัว เวลาที่ Agent ทำงานผิดพลาด สาเหตุมักเกิดจาก Prompt หรือ Tool Result ที่ Framework ประกอบขึ้นมาโดยที่คุณไม่เคยเห็น นั่นทำให้การเรียก API โดยตรงเป็นทางเลือกที่ดีกว่าใน 2 กรณี: เมื่อ Pattern นั้นเขียน Code แค่ไม่กี่บรรทัดก็เสร็จ และเมื่อคุณจำเป็นต้องตรวจสอบอย่างแม่นยำว่า Claude ได้รับข้อมูลอะไรเข้าไปบ้าง แต่ถ้าคุณเลือกใช้ Framework ควรอ่าน Code ภายในที่มันรันอยู่เสมอ และอย่าเพิ่ม Step โดยไม่จำเป็นเพียงเพราะ Framework ทำให้มันเพิ่มได้ง่าย"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Server tools เช่น web_search ต้องให้ Code ฝั่งเราสั่ง Execute และส่ง tool_result blocks กลับไปใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: Anthropic เป็นผู้รัน Server Tools และจัดการ Loop ภายในให้เอง Code ของเรามีหน้าที่แค่ Enable Tool และคอย Handle `pause_turn` เท่านั้น โดยไม่ต้องสร้างหรือประกอบผลลัพธ์ของ Tool เองเลย"
+        }
+      ]
+    },
+    {
+      "heading": "3. Subagents ในฐานะ Context-Window Strategy",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Context Window เก็บทุกอย่างที่ Claude มองเห็นใน Request: System Prompt, ทุกข้อความ, Tool Results ทั้งหมด และ Tool Definitions ซึ่งการที่ Context เต็มมีต้นทุนที่ต้องจ่าย เพราะเมื่อ Token เพิ่มขึ้น ความแม่นยำและ Recall จะลดลง หรือที่เรียกว่า Context Rot โดยใน Agent Loop สิ่งที่กิน Context เร็วที่สุดคือ Tool Results เช่น การอ่านไฟล์ 20 ไฟล์เพื่อหาฟังก์ชันเดียว จะทิ้งเนื้อหาทั้ง 20 ไฟล์ค้างไว้ใน History สำหรับทุก Turn ถัดไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "Subagents แก้ปัญหานี้ด้วย Isolation โดยแต่ละ Subagent จะรันใน Conversation ของตัวเอง และ Intermediate Tool Calls ทั้งหมดจะอยู่แค่ภายในนั้น มีเพียง Final Message เท่านั้นที่ถูกส่งกลับไปยัง Parent Agent ตัวอย่างเช่น Research Subagent สามารถอ่านไฟล์หลายสิบไฟล์ได้ โดยที่ Main Conversation ได้รับเพียงข้อสรุปสั้นๆ เท่านั้น นอกจากนี้ Subagents ยังมีข้อดีอีก 3 ประการ: สามารถรันพร้อมกันได้หลายตัว (Parallelization), กำหนด System Prompt เฉพาะทางแยกกันได้ และจำกัด Tools ให้ใช้เฉพาะที่จำเป็นได้ ใน Agent SDK คุณสามารถประกาศ Subagents ผ่านออปชัน agents ของ query() หรือสร้างเป็น Markdown Files ใน .claude/agents/ และ Claude ยังสามารถเรียกใช้ Built-in General-Purpose Subagent ผ่าน Agent Tool ได้อีกด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "Isolation ไม่ใช่วิธีเดียว เมื่อ Conversation เดียวจำเป็นต้องทำงานต่อเกินลิมิต Compaction จะช่วยสรุปและแทนที่ Turn เก่าๆ ด้วย Summary ที่ Claude เขียนขึ้นบน Server โดยภาพรวมของศาสตร์การบริหารจัดการสิ่งที่จะเก็บไว้ใน Context นั้นจัดอยู่ในเรื่อง [Context Engineering](lesson:6.1)"
+        }
+      ]
+    },
+    {
+      "heading": "4. การ Resume Subagent ข้าม Queries",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ผลงานของ Subagent จะหายไปทันทีหากคุณไม่บันทึก 2 Identifiers นี้ไว้ สมมติว่า Endpoint-Finder Subagent รวบรวม API Routes ทั้งหมดใน Query แรก แล้วคุณเรียก query() อีกครั้งเพื่อสั่งงานต่อเนื่อง การเรียกครั้งที่สองจะเริ่ม Session ใหม่เอี่ยมโดยไม่มี Memory ของสิ่งที่รวบรวมไว้ ทำให้ต้องค้นหาใหม่ตั้งแต่ต้น หากต้องการทำงานต่อ คุณต้องใช้ Session ID ที่ส่งกลับมาใน ResultMessage และ Agent ID ของ Subagent ซึ่งจะปรากฏอยู่ใน Text ของ Agent Tool Result"
+        },
+        {
+          "type": "paragraph",
+          "text": "คุณจำเป็นต้องใช้ทั้งสอง Identifiers โดยแต่ละตัวมีหน้าที่ต่างกัน: การส่ง resume พร้อม Session ID จะทำให้ Query ที่สองเข้าถึง Transcript ก่อนหน้าได้ ส่วนการใส่ Agent ID ลงใน Prompt จะบอก Claude ว่าต้องการให้ Subagent ตัวไหนใน Transcript นั้นทำงานต่อ นอกจากนี้ การ Resuming ยังใช้กู้คืนสถานะเมื่อชน maxTurns กล่าวคือ เมื่อ Subagent รันจนครบ Turn Limit ผลลัพธ์จะถูกระบุว่าเป็น Partial และการ Resume จะเปิดโอกาสให้มันทำงานต่อจนเสร็จได้โดยใช้ Context เดิมที่สร้างไว้แล้ว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การเรียก query() ต่อเนื่องจะเข้าถึง Subagent ที่รันใน Query ก่อนหน้าได้โดยอัตโนมัติ เพราะ query() แต่ละครั้งจะเริ่มต้น Session ใหม่เสมอ คุณต้องส่ง resume ด้วย Session ID เดิม และระบุ Agent ID เพื่อให้ Subagent นั้นทำงานต่อจาก Transcript เดิม"
+        }
+      ]
+    },
+    {
+      "heading": "5. Memory ที่อยู่ข้าม Session ได้ (Memory that outlives the session)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Context Window คือ Working Memory ชั่วคราวที่จะหายไปเมื่อ Session สิ้นสุดลง แม้ว่าการ Resume จะส่งต่อ Transcript เดิม หรือ Compaction จะช่วยบีบอัดบทสนทนาให้อยู่ในขอบเขต Window ก็ตาม แต่ทั้งสองวิธีไม่สามารถทำให้ Agent เริ่มต้นงานใหม่ในสัปดาห์หน้าพร้อมความรู้เดิมจากสัปดาห์นี้ได้ หากต้องการแบบนั้น ข้อมูลจะต้องถูกย้ายออกจาก Context Window ไปเก็บไว้ใน Storage ถาวร"
+        },
+        {
+          "type": "paragraph",
+          "text": "Memory Tool ทำหน้าที่เป็น Storage ผ่านรูปแบบไฟล์ โดย Claude สามารถสร้าง, อ่าน, อัปเดต และลบไฟล์ในไดเรกทอรี /memories ได้ ซึ่งไฟล์เหล่านี้จะ Persist ข้าม Sessions เมื่อเปิดใช้งาน Tool นี้ Claude จะตรวจสอบไดเรกทอรีดังกล่าวก่อนเริ่มงาน และบันทึกสิ่งที่ได้เรียนรู้ระหว่างทำงาน นี่คือหลักการ Just-in-time Retrieval: Agent จะโหลดไฟล์ Memory ขึ้นมาเฉพาะตอนที่จำเป็นต้องใช้กับงานปัจจุบันเท่านั้น แทนที่จะยัดทุกสิ่งที่เคยเรียนรู้ลงใน Context ตั้งแต่แรก ส่งผลให้ Research Agent ที่รันต่อเนื่องหลายสิบ Sessions มี Active Context ขนาดเล็กอยู่เสมอ แต่ยังคงสร้าง Knowledge Base ได้ต่อเนื่อง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Memory Tool ทำงานแบบ Client-side โดย Claude จะเป็นเพียงผู้ร้องขอ File Operations เท่านั้น ฝั่ง Application ของคุณจะเป็นผู้จัดการ File Operations บน Storage ที่คุณควบคุม และส่งผลลัพธ์กลับไปผ่าน tool_result Block ทำให้คุณควบคุมได้ทั้งตำแหน่งจัดเก็บและการเข้าถึงข้อมูล และเนื่องจาก Anthropic ได้เผยแพร่ Schema มาตรฐานของ Tool นี้ Claude จึงได้รับการเทรนมาโดยเฉพาะ ทำให้การเรียกใช้งานมีความแม่นยำและเสถียรกว่าการเขียน Tool ขึ้นมาเอง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การโหลดข้อมูลที่เคยเรียนรู้ทั้งหมดลงใน Context ตอนเริ่มต้นทุก Session เป็นวิธีที่ถูกต้องในการทำ Long-term Memory ให้กับ Agent? (ทำไมถึงผิด): ไม่จริง: Memory Tool ควรเก็บความรู้ไว้ในรูปแบบไฟล์และโหลดกลับขึ้นมาเฉพาะเมื่อจำเป็นเท่านั้น เพื่อรักษา Active Context ให้กระชับและโฟกัสกับงานปัจจุบัน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55297",
+      "question": "ทีมวิศวกรกำลังสร้าง Agent เพื่อทำการ refactor โค้ดเบส legacy ขนาดใหญ่ ซึ่งไม่สามารถรู้ล่วงหน้าได้ว่าไฟล์ใดบ้างที่ต้องแก้ไข หรือต้องแก้กี่จุด จนกว่าโมเดลจะเริ่มตรวจสอบโค้ดและพบ dependency แต่ละจุดตามลำดับ Workflow pattern ใดจากคำแนะนำการออกแบบ Agent ของ Anthropic ที่เหมาะสมกับงานนี้ที่สุด?",
+      "options": [
+        "ใช้ Orchestrator LLM เพื่อแตกงาน refactor ออกเป็น subtasks ย่อยแบบ runtime แล้วมอบหมายแต่ละงานให้ Worker LLMs ทำ จากนั้นนำ edits ทั้งหมดมารวมเข้าด้วยกัน (Synthesize)",
+        "ทำ Chain ลำดับการเรียก LLM แบบตายตัว (Fixed sequence) โดยให้แต่ละ call แก้ไขไฟล์ที่กำหนดไว้ล่วงหน้า 1 ไฟล์ และมี Gate คอยตรวจ Diff ก่อนจะเริ่มประมวลผลไฟล์ถัดไป",
+        "จำแนก (Classify) แต่ละไฟล์ตามประเภทก่อน จากนั้น Route ไปยัง specialized prompt ตัวใดตัวหนึ่งที่ออกแบบมาเฉพาะสำหรับไฟล์ประเภทนั้น",
+        "รัน Prompt สำหรับ refactor แบบเดียวกัน 2 ตัวคู่ขนาน (Parallel) กันกับทั้งโค้ดเบส แล้วเลือกผลลัพธ์ proposal ที่ได้ความเห็นตรงกันมากที่สุดระหว่างการรันทั้งสองครั้ง"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55298",
+      "question": "ทีมฝ่ายคอนเทนต์ต้องการ Agent ที่เริ่มต้นด้วยการร่างประกาศเปิดตัวผลิตภัณฑ์เป็นภาษาอังกฤษ และหลังจากที่ร่างดังกล่าวผ่านการตรวจสอบความยาวและโทนเสียง (Tone check) แล้วเท่านั้น จึงจะทำการแปลเป็นภาษาฝรั่งเศส, เยอรมัน และญี่ปุ่น โดยแต่ละขั้นตอนจะต้องอ่านเฉพาะ validated output จากขั้นตอนก่อนหน้าเท่านั้น Workflow pattern ใดตรงกับการออกแบบนี้?",
+      "options": [
+        "Orchestrator-workers โดยให้ LLM ที่ทำหน้าที่ประสานงานตัดสินใจแบบ runtime ว่าภาษาใดบ้างที่ต้องแปลตามความต้องการของแต่ละภูมิภาคที่ไม่สามารถคาดเดาได้",
+        "Prompt chaining โดยการร่างเนื้อหาและการแปลแต่ละภาษาจะแยกเป็นการเรียก LLM แต่ละครั้งตามลำดับที่แน่นอน (Fixed sequence) พร้อมมี programmatic gate เพื่อตรวจสอบความถูกต้องของเนื้อหาร่างก่อนเริ่มการแปล",
+        "Routing โดยใช้ LLM ตัวแรกทำหน้าที่เป็น Classifier เพื่อตรวจสอบเนื้อหาร่างและส่งต่อไปยัง prompt เฉพาะของแต่ละภาษา",
+        "Evaluator-optimizer โดยใช้ LLM ตัวที่สองวิจารณ์และตรวจทานผลงานแปลซ้ำ ๆ จนกว่าจะครบจำนวนรอบ refinement iterations ที่กำหนดไว้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55299",
+      "question": "แพลตฟอร์ม Support ต้องการจำแนก Ticket ขาเข้าออกเป็นด้าน billing, technical หรือ account-access ก่อน จากนั้นจึงส่งไปจัดการด้วย Prompt ที่เขียนขึ้นมาเฉพาะสำหรับหมวดหมู่นั้น ๆ เนื่องจากขั้นตอนการแก้ไขปัญหาของแต่ละหมวดหมู่มีความแตกต่างกันอย่างมาก ทีมควรนำ Pattern ใดมาประยุกต์ใช้?",
+      "options": [
+        "Parallelization ผ่านวิธี Sectioning โดยแบ่ง Ticket ออกเป็นส่วน ๆ ที่เป็นอิสระต่อกัน และให้แต่ละ Prompt แยกกันประมวลผลแต่ละส่วน",
+        "Orchestrator-workers โดยให้ LLM ที่ทำหน้าที่ประสานงานสร้างหมวดหมู่ใหม่ขึ้นมาแบบ runtime ขณะอ่านแต่ละ Ticket",
+        "Routing โดยมีขั้นตอน Classifier เพื่อส่งต่อแต่ละ Ticket ไปยังหนึ่งใน 3 downstream prompts ที่ออกแบบเฉพาะมาสำหรับหมวดหมู่นั้น ๆ",
+        "Prompt chaining โดยใช้ Prompt ตัวเดิมประมวลผล Ticket ซ้ำกัน 3 ครั้งตามลำดับ สำหรับแต่ละหมวดหมู่"
+      ],
+      "explanation": ""
+    }
+  ]
+}

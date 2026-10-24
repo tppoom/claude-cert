@@ -1,0 +1,192 @@
+{
+  "title": "สถาปัตยกรรม Agent: Workflows, Agents และลำดับชั้น Orchestrator–Subagents",
+  "objectives": [
+    "แยกความแตกต่างระหว่าง Workflow กับ Agent โดยพิจารณาว่าโค้ดหรือโมเดลเป็นผู้กำหนดขั้นตอนถัดไป",
+    "เลือกระดับ Autonomy ต่ำสุดที่ตอบโจทย์ความต้องการ พร้อมประเมินต้นทุนที่ต้องแลกเมื่อเพิ่ม Autonomy",
+    "อธิบายกลไกที่ Orchestrator Agent กระจายงานให้ Subagents และสิ่งที่ได้รับกลับมา",
+    "ระบุ 3 สถานการณ์ที่ Subagents มีประสิทธิภาพเหนือกว่า Single Agent พร้อมประเมินต้นทุนด้าน Token และ Latency"
+  ],
+  "key_concept": "สิทธิ์การควบคุม Control Flow — เส้นแบ่งระหว่าง Workflow และ Agent คือผู้กำหนดขั้นตอนถัดไป สำหรับ Workflow โค้ดที่เขียนจะล็อกลำดับการเรียก LLM และ Tool ไว้ตายตัว ส่วน Agent ตัวโมเดลจะตัดสินใจเลือกขั้นตอนและ Tool ที่ต้องเรียกใช้เองที่ Runtime",
+  "sections": [
+    {
+      "heading": "1. Workflows และ Agents แตกต่างกันที่ผู้ควบคุม Control Flow",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุกระบบที่นำ LLM มาใช้งานร่วมกับ Tools ล้วนมีจุดตัดสินใจทางสถาปัตยกรรมร่วมกันหนึ่งข้อ: ใครเป็นคนกำหนดว่าจะทำอะไรต่อไป? Anthropic นิยามระบบเหล่านี้ทั้งหมดว่า Agentic Systems และแบ่งออกเป็น 2 ประเภท ได้แก่ Workflow ที่รัน LLM และ Tools ตาม Code Path ที่กำหนดไว้ล่วงหน้า และ Agent ที่ปล่อยให้ LLM กำหนดกระบวนการและเลือกใช้ Tools ด้วยตัวเอง ทำให้ตัว Model เป็นผู้ควบคุมขั้นตอนการทำงานทั้งหมดจนกว่าภารกิจจะสำเร็จ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความแตกต่างนี้เห็นได้ชัดจากโค้ด ใน Workflow ลำดับขั้นตอนจะถูกฮาร์ดโค้ดไว้ในโปรแกรม เช่น เรียก Model มาร่างข้อความ, รันตัวตรวจสอบ, แล้วเรียก Model อีกรอบเพื่อแปลภาษา เมื่ออ่านโค้ดคุณจะรู้ทุก Path ที่ระบบสามารถทำงานได้ แต่ใน Agent โค้ดจะรันเป็น Loop และ Model จะเป็นผู้เลือกตัดสินใจเอง ในแต่ละ Turn Claude จะประเมินสถานะปัจจุบันแล้วตัดสินใจว่าจะตอบกลับ, เรียกใช้ Tool หรือทำทั้งสองอย่าง ผลลัพธ์จาก Tool จะถูกส่งกลับไปให้ Model วน Loop ต่อไปเรื่อยๆ จนกว่า Claude จะตอบกลับโดยไม่เรียก Tool ใดๆ เพิ่ม (รายละเอียดการรัน Loop ดูได้ที่ [the Agent SDK query() loop](lesson:1.2)) สิ่งสำคัญคือทั้งจำนวน Turn และลำดับการเรียกใช้งานไม่ได้ถูกกำหนดไว้ในโค้ดของคุณ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความแตกต่างเพียงข้อนี้ส่งผลต่อทุกมิติ การที่ Workflow มี Path ชัดเจนทำให้คาดเดาและควบคุม Consistency ได้ดี ทดสอบได้ง่าย และรู้ต้นทุนล่วงหน้า ในทางกลับกัน Agent ให้ความยืดหยุ่นสูงสำหรับงานที่ไม่สามารถระบุขั้นตอนล่วงหน้าได้ ตัวอย่างคลาสสิกคืองาน Research เพราะ Search ถัดไปขึ้นอยู่กับผลลัพธ์ของ Search ก่อนหน้า ซึ่ง Pipeline แบบ Linear ทั่วไปไม่สามารถตามสืบข้อมูลที่อยู่นอกเหนือจากที่คาดการณ์ไว้ได้"
+        }
+      ]
+    },
+    {
+      "heading": "2. เริ่มต้นจากขั้นต่ำสุดของ Autonomy Ladder",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "กฎการออกแบบที่ดีคือสร้างระบบที่เรียบง่ายที่สุดที่ยังทำงานได้ และเพิ่ม Complexity ต่อเมื่อมี Requirement บังคับเท่านั้น ซึ่งบางครั้งอาจแปลว่าไม่ต้องสร้าง Agentic System เลยก็ได้ สำหรับหลาย Use Case การใช้ Single LLM Call ร่วมกับ Retrieval และ In-Context Examples ก็เพียงพอแล้ว พึงระลึกเสมอว่าระดับ Autonomy ที่เพิ่มขึ้นแต่ละขั้นต้องแลกมาด้วย Latency และ Cost ที่สูงขึ้น เพื่อแลกกับ Task Performance ที่ดีขึ้น จึงควรพิจารณาความคุ้มค่าก่อนขยับขึ้นไปในบันไดขั้นที่สูงกว่า"
+        },
+        {
+          "type": "paragraph",
+          "text": "เปรียบตัวเลือกต่างๆ เป็นขั้นบันได (Autonomy Ladder) แต่ละขั้นจะส่งมอบ Control Flow ให้กับ Model มากขึ้นเรื่อยๆ โดยมี [Workflow Patterns ทั้ง 5 แบบ (Prompt Chaining, Routing, Parallelization, Orchestrator-Workers, Evaluator-Optimizer)](lesson:1.3) คั่นอยู่ระหว่าง Single Call กับ Fully Autonomous Agent ซึ่งส่วนใหญ่ยังคงลำดับขั้นตอนไว้ในโค้ด ยกเว้น Orchestrator-Workers ที่ Model เริ่มเข้ามามีบทบาทในการกำหนด Subtasks เองแบบ Dynamic ตาม Input ที่ได้รับ โดยไม่ได้ถูกกำหนดไว้ล่วงหน้า"
+        },
+        {
+          "type": "table",
+          "caption": "ขั้นต่างๆ ของ Autonomy Ladder และความเหมาะสมในการเลือกใช้",
+          "headers": [
+            "Rung",
+            "Who decides the steps",
+            "Enough when"
+          ],
+          "rows": [
+            [
+              "Single LLM call with retrieval and in-context examples",
+              "ไม่มีใครกำหนด เพราะมีเพียงขั้นตอนเดียว",
+              "การยิง Prompt คุณภาพสูงครั้งเดียวก็ผ่านเกณฑ์ Quality Bar แล้ว"
+            ],
+            [
+              "Fixed workflow (prompt chaining, routing, parallelization)",
+              "โค้ดของคุณ",
+              "งานสามารถแบ่งเป็น Subtasks หรือ Categories ที่ทราบล่วงหน้าได้อย่างชัดเจน"
+            ],
+            [
+              "Orchestrator-workers",
+              "Central LLM เลือก Subtasks ส่วนโค้ดทำหน้าที่คุม Structure รอบข้าง",
+              "ไม่สามารถคาดเดา Subtasks ล่วงหน้าได้ เช่น ไม่รู้ว่าการแก้โค้ดครั้งนี้จะกระทบกี่ไฟล์"
+            ],
+            [
+              "Autonomous agent",
+              "Model ตัดสินใจเองทีละ Turn",
+              "งานต้องการความยืดหยุ่นและการตัดสินใจจาก Model ในระดับ Scale"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การเปลี่ยนจาก Workflow ที่ผ่านการเทสต์มาอย่างดีไปเป็น Agent ส่งผลมากกว่าเรื่อง Quality เพราะ Agent จะเรียก Tools ไปเรื่อยๆ จนกว่ามันจะตัดสินใจว่างานเสร็จสิ้น คุณจึงไม่สามารถคุมจำนวน Turn, ค่า Token หรือ Response Time ผ่านโค้ดได้อีกต่อไป นอกจากนี้ Path ที่ตายตัวของ Workflow ยังช่วยให้เขียนเทสต์ได้ง่ายกว่า การใช้ Frameworks ยังเพิ่มความเสี่ยงจากการ Abstraction ที่บดบัง Prompts และ Responses ที่แท้จริง ทำให้ Debug ยากขึ้น และเสี่ยงต่อการเพิ่ม Complexity เกินความจำเป็น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Orchestrator-workers ก็แค่ Parallelization ที่เพิ่ม LLM เข้ามาครอบอีกตัว? (ทำไมถึงผิด): ไม่จริง: แม้หน้าตาจะคล้ายกัน แต่ใน Orchestrator-workers ตัว Model จะเป็นผู้กำหนด Subtasks เองที่ Runtime ตาม Input ส่วน Parallelization นั้น Subtasks ทั้งหมดถูกกำหนดตายตัวไว้ล่วงหน้า\n\nAutonomous agent เป็นตัวเลือกที่ดีกว่า Workflow เสมอ? (ทำไมถึงผิด): ไม่จริง: Agentic Systems ต้องแลก Latency และ Cost ที่สูงขึ้นกับ Performance สำหรับงานที่ Requirement ชัดเจนและตายตัว การใช้ Workflow หรือแม้แต่การ Optimize ให้เหลือ Single Call เพียงครั้งเดียว มักเป็นการออกแบบที่มีประสิทธิภาพและเหมาะสมกว่า"
+        }
+      ]
+    },
+    {
+      "heading": "3. Manager/Supervisor Hierarchies: An Orchestrator and its Subagents",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "โครงสร้างแบบ Manager/Supervisor Hierarchy หรือที่นิยมเรียกว่า Orchestrator–Subagent Pattern คือระบบ Multi-Agent System ที่มี Agent หลักระดับบนสุดตัวเดียว Lead Agent จะทำหน้าที่แบ่งงานใหญ่เป็นงานย่อย สร้างและควบคุม Specialized Subagents สำหรับ Subtask นั้นๆ โดย Agent แต่ละตัวจะแยกเป็น LLM Instance อิสระพร้อม Conversation Context ของตนเอง และใช้ Code ในการ Coordinate ระหว่างกัน รูปแบบนี้ถือเป็นจุดเริ่มต้นที่นิยมที่สุด เพราะมี Coordination Model ที่เรียบง่ายที่สุดในบรรดา Multi-Agent Patterns"
+        },
+        {
+          "type": "paragraph",
+          "text": "หัวใจสำคัญเชิงโครงสร้างคือ \"สิ่งที่ถูกส่งกลับขึ้นไปใน Hierarchy\" โดย Subagent จะรันอยู่ใน Conversation ของตัวเอง Intermediate Tool Calls และผลลัพธ์ระหว่างทางทั้งหมดจะอยู่ภายใน Context นั้น และส่งเฉพาะข้อความสุดท้ายกลับไปยัง Parent Agent เท่านั้น ตัวอย่างเช่น Subagent ที่อ่านไฟล์เป็นสิบๆ ไฟล์จะส่งกลับแค่บทสรุปสั้นๆ ไม่ใช่ตัวไฟล์ทั้งหมด ส่งผลให้ Orchestrator ทำงานบนมุมมองที่ถูกบีบอัด (Compressed View) ของแต่ละ Subtask"
+        },
+        {
+          "type": "paragraph",
+          "text": "ฟีเจอร์ Research ของ Anthropic คือตัวอย่าง Production ของโครงสร้างนี้ LeadResearcher จะวางแผนและบันทึก Plan ลง Memory (เพื่อแก้ปัญหา Context ถูกตัดทอนหากเกิน 200,000 Tokens) จากนั้นจะสร้าง Subagents เพื่อทำงาน Research เฉพาะด้าน โดย Subagent แต่ละตัวจะค้นหาข้อมูลอิสระและส่งผลลัพธ์กลับมา Lead Agent จะรวบรวมข้อมูลและประเมินว่าต้องค้นหาเพิ่มหรือไม่ เมื่อข้อมูลเพียงพอ CitationAgent จะทำหน้าที่เชื่อมโยงข้อความกับ Sources ต้นทาง สถาปัตยกรรมนี้ใช้ Claude Opus 4 เป็น Lead และ Claude Sonnet 4 เป็น Subagents ซึ่งทำคะแนนชนะ Single-Agent Claude Opus 4 ได้ถึง 90.2% บน Internal Research Evaluation"
+        },
+        {
+          "type": "paragraph",
+          "text": "การออกแบบโครงสร้างที่ส่งผลต่อประสิทธิภาพมี 2 จุดหลัก: ประการแรก Research Lead ทำงานกับ Subagents แบบ Synchronous คือรอให้แต่ละ Batch เสร็จสิ้นก่อนดำเนินการต่อ ช่วยให้ Coordinate ง่าย แต่ Subagent ที่ช้าเพียงตัวเดียวอาจกลายเป็น Bottleneck ทั้งระบบ ประการที่สอง การส่ง Output ทุกอย่างวนกลับผ่าน Lead Agent จะทำให้เกิดปัญหาข้อมูลตกหล่นและเพี้ยน (Game of Telephone) ทางแก้คือให้ Subagents เขียนข้อมูลลง External Storage แล้วส่งกลับมาเพียง Reference น้ำหนักเบา ซึ่งช่วยรักษาความครบถ้วนของข้อมูลและหลีกเลี่ยงการ Copy ข้อมูลขนาดใหญ่ผ่านบทสนทนา"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Orchestrator มองเห็นทุก Tool Call และไฟล์ทั้งหมดที่ Subagent เปิดทำงาน? (ทำไมถึงผิด): ไม่จริง: Intermediate Work ทั้งหมดของ Subagent จะถูกแยกและกักไว้ใน Conversation Context ของตัวเองเท่านั้น Parent Agent จะได้รับเพียงข้อความสรุปสุดท้าย (Final Message)"
+        }
+      ]
+    },
+    {
+      "heading": "4. เมื่อใดที่ Subagents ช่วยยกระดับผลลัพธ์ และ Trade-off ที่ต้องจ่าย",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Subagents จะช่วยยกระดับงานได้ชัดเจนใน 3 สถานการณ์หลักเท่านั้น หากอยู่นอกเหนือจากนี้ ต้นทุนของ Coordination มักไม่คุ้มค่า หลายทีมใช้เวลาหลายเดือนสร้าง Multi-Agent System แต่กลับพบว่าการปรับ Prompting ให้ดีขึ้นบน Single Agent ตัวเดียวให้ผลลัพธ์เทียบเท่ากันได้ เพราะ Single Agent ที่มี Tools ที่ดีสามารถทำอะไรได้มากกว่าที่ Developer ส่วนใหญ่คาดคิด"
+        },
+        {
+          "type": "table",
+          "caption": "3 สถานการณ์ที่ Subagents ชนะ Single Agent",
+          "headers": [
+            "Situation",
+            "ปัญหาที่พบเมื่อใช้ Single Agent",
+            "สิ่งที่ Subagent เข้ามาช่วยแก้"
+          ],
+          "rows": [
+            [
+              "Context Pollution",
+              "Output จาก Subtask หนึ่ง (เช่น Order History ขนาด 2000+ Tokens) ล้น Context จนเบียดเบียน Reasoning ของงานถัดไป",
+              "แยก Context ให้สะอาดและเป็นอิสระ โดยส่งกลับเฉพาะบทสรุปสั้นๆ เท่านั้น"
+            ],
+            [
+              "Parallel Work",
+              "Agent ตัวเดียวค้นหาข้อมูลทีละขั้นตอน (Step-by-step) ทำให้ครอบคลุมขอบเขตงานได้น้อยเกินไป",
+              "กระจายหลาย Subagents เพื่อสำรวจแต่ละแง่มุมของประเด็นพร้อมๆ กันในเวลาเดียว"
+            ],
+            [
+              "Specialization",
+              "มี Tools มากเกินไป (มักจะ 20+ ตัวขึ้นไป) ข้ามหลากหลาย Domain จนโมเดลสับสนในการเลือก Tool",
+              "จำกัด Toolset และ System Prompt ให้โฟกัสเฉพาะแต่ละ Responsibility"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Context Isolation ให้ผลตอบแทนคุ้มค่าที่สุดเมื่องานย่อยสร้าง Output ขนาดใหญ่ (เกิน 1,000 Tokens) ซึ่งเนื้อหาส่วนใหญ่ไม่ได้สำคัญกับงานหลัก ตัวอย่างคลาสสิกคือ Lookups และ Data Retrieval ที่ต้องกรองก่อนใช้งาน นอกจากนี้ Specialization ยังช่วยเสริมเรื่อง Safety อีกด้วย โดยใน Agent SDK แต่ละ Subagent สามารถมี System Prompt แยกเฉพาะและจำกัด Toolset ได้ เช่น กำหนดให้ Reviewer Agent ถือเฉพาะ Read-only Tools เพื่อวิเคราะห์ไฟล์ได้แต่ไม่มีสิทธิ์แก้ไข"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การกระจายงานให้ Subagents ทำงานแบบ Parallel จะทำให้งานโดยรวมเสร็จเร็วกว่า Single Agent เสมอ? (ทำไมถึงผิด): ไม่จริง: Parallelism มีไว้เพื่อเพิ่ม Coverage (ความครอบคลุมและละเอียดถี่ถ้วน) ระบบ Multi-Agent มีปริมาณ Total Work มากกว่าเดิมมหาศาล ทำให้เวลารวมทั้งหมดมักนานกว่า Single Agent"
+        },
+        {
+          "type": "paragraph",
+          "text": "Cost หลักที่ต้องจ่ายคือ Token Usage โดยในงานเดียวกัน Multi-Agent System มักใช้ Token มากกว่า Single Agent ถึง 3–10 เท่า ปริมาณที่เพิ่มขึ้นมาจากการทำ Context Duplication ในแต่ละ Agent, ข้อความสื่อสารข้าม Agent และการ Generate Summary สำหรับ Handoff แต่ละครั้ง แม้ Parallel Subagents จะใช้เวลาทำงานเท่ากับตัวที่ช้าที่สุด (ไม่ได้บวกเวลาทบกัน) แต่นั่นเป็นเพียงการเร่งความเร็วเฉพาะในส่วนของ Multi-Agent เท่านั้น ประโยชน์ที่แท้จริงของ Parallelism คือ Thoroughness (ความลึกซึ้งละเอียดรอบคอบ) ไม่ใช่ความเร็ว จึงคุ้มค่าที่จะจ่ายต่อเมื่องานนั้นมี Value สูงพอสำหรับผลลัพธ์ที่ดีขึ้นเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "งานบางประเภทไม่เหมาะกับการแบ่งแบบนี้ เช่น งานที่ทุก Agent ต้องใช้ Context เดียวกันทั้งหมด หรืองานที่แต่ละส่วนมี High Dependency ต่อกัน ซึ่งงาน Coding ส่วนใหญ่มีส่วนที่ทำ Parallel ได้จริงน้อยกว่างาน Research มาก นอกจากนี้ Coordination ยังสร้างจุดล้มเหลวใหม่ๆ อีกด้วย เช่น Research System เวอร์ชันแรกๆ เผลอเปิด Subagents ถึง 50 ตัวสำหรับ Simple Query หรือบางทีมแยก Planning, Execution และ Review ออกเป็นคนละ Agent จนเกิดปัญหา Context ตกหล่นทุกครั้งที่มีการ Handoff และเสีย Token ไปกับการ Coordinate มากกว่าการ Execute จริง เพราะ Agent ที่เพิ่มขึ้นมาทุกตัวหมายถึง Failure Point เพิ่มอีก 1 จุด และมี Prompt ที่ต้อง Maintain เพิ่มขึ้นอีก 1 ชุด"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55277",
+      "question": "ทีม Support ต้องการ route ทิกเก็ตที่เข้ามาทั้งหมดไปยัง 1 ใน 5 หมวดหมู่ที่กำหนดไว้ (billing, account access, bug report, feature request หรือ general inquiry) เมื่อระบุหมวดหมู่ของทิกเก็ตได้แล้ว ลำดับขั้นตอน downstream ถัดไป เช่น ระบบที่จะ query, template ที่จะร่าง และผู้ที่จะต้องแจ้งเตือน จะเป็นแบบตายตัวและไม่เปลี่ยนแปลงสำหรับหมวดหมู่นั้นๆ ทีมต้องการสถาปัตยกรรมที่คงพฤติกรรมแบบ dispatch-then-fixed-path นี้ให้ชัดเจนและคาดเดาได้ (explicit and predictable) สถาปัตยกรรมใดที่ทีมควรเลือกใช้?",
+      "options": [
+        "สร้างระบบ Orchestrator-workers โดยให้ LLM ตัวกลางตัดสินใจแบบ runtime ว่าจะ query ระบบใดและร่าง template ใดสำหรับแต่ละทิกเก็ต",
+        "สร้าง Routing workflow ที่ทำการ classify แต่ละทิกเก็ตเข้าหมวดหมู่ จากนั้นจึง execute ลำดับขั้นตอนที่กำหนดไว้ล่วงหน้าแบบตายตัว (predefined, fixed sequence) ของหมวดหมู่นั้น",
+        "Deploy ตัว Autonomous Agent แบบเต็มรูปแบบที่เลือกใช้ tools และกำหนด stopping point ได้เองตาม feedback ต่อเนื่องจากระบบ ticketing",
+        "ทำ Chain เรียก LLM 5 ครั้งแบบตายตัวซึ่งรันตามลำดับเดิมเสมอสำหรับทุกทิกเก็ต ไม่ว่าทิกเก็ตนั้นจะอยู่ในหมวดหมู่ใดก็ตาม"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55279",
+      "question": "ทีม Content ต้องการสร้างข้อความการตลาดฉบับแปลตามแต่ละท้องถิ่น (localized marketing copy) โดยทุกคำขอต้องผ่าน 3 ขั้นตอนเดียวกันตามลำดับเสมอ: ร่างข้อความ, ตรวจสอบ compliance ของฉบับร่างด้วยเกณฑ์ตายตัว, จากนั้นแปลฉบับร่างที่ผ่านการอนุมัติแล้วไปเป็นภาษาเป้าหมาย แต่ละขั้นตอนจะนำ output ของขั้นตอนก่อนหน้ามาใช้ และลำดับขั้นตอนนี้จะไม่มีการเปลี่ยนแปลง รูปแบบ workflow pattern ใดเหมาะสมกับกระบวนการนี้ที่สุด?",
+      "options": [
+        "Orchestrator-workers โดยมี LLM ตัวกลางคอยตัดสินใจว่าขั้นตอนใดใน 3 ขั้นตอนนี้ที่ต้องใช้ โดยพิจารณาจากเนื้อหาของแต่ละคำขอ",
+        "Evaluator-optimizer โดย LLM ตัวหนึ่งทำหน้าที่ร่างข้อความ และ LLM ตัวที่สองทำหน้าที่ iterate ตรวจสอบร่วมกันจนกว่าจะผ่านเกณฑ์ compliance",
+        "Routing โดยจัดหมวดหมู่คำขอก่อน แล้วจึงส่งไปยัง pipeline 3 ขั้นตอนที่แยกกันหลายๆ ชุด",
+        "Prompt chaining โดยการเรียก LLM แต่ละครั้งจะประมวลผล output ที่ตายตัวของขั้นตอนก่อนหน้าโดยตรงตามลำดับที่ไม่เปลี่ยนแปลง"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55280",
+      "question": "ทีม Security ตรวจสอบทุก Pull Request โดยการรัน prompt อิสระหลายชุดกับ diff เดียวกันพร้อมๆ กันในเวลาเดียวกัน เช่น ชุดหนึ่งโฟกัสที่ช่องโหว่ Injection, ชุดหนึ่งโฟกัสที่ปัญหา Authentication, และอีกชุดโฟกัสที่ความเสี่ยงด้าน Dependency จากนั้นจึงรวม (combine) ผลการตรวจพบที่แยกกันนั้นเข้ามาเป็นรายงานฉบับเดียว รูปแบบนี้ตรงกับ Pattern ใด?",
+      "options": [
+        "Parallelization by sectioning ซึ่งงานย่อย (subtasks) ที่เป็นอิสระต่อกันจะตรวจสอบ input เดียวกันพร้อมๆ กัน แล้วนำผลลัพธ์ที่แยกกันมารวมกัน (aggregate)",
+        "Parallelization by voting ซึ่ง prompt สแกนช่องโหว่แบบเดียวกันจะถูกรันซ้ำหลายครั้ง แล้วยึดผลลัพธ์ตามเสียงข้างมาก (majority)",
+        "Evaluator-optimizer ซึ่ง prompt หนึ่งทำหน้าที่ flag ช่องโหว่ และอีก prompt หนึ่งทำหน้าที่ critique และ refine ผลการตรวจพบนั้นแบบ iterative",
+        "Orchestrator-workers โดยมี LLM ตัวกลางคอยตัดสินใจแบบ runtime ว่าหมวดหมู่ช่องโหว่ใดที่คุ้มค่าแก่การตรวจสอบสำหรับ diff นี้"
+      ],
+      "explanation": ""
+    }
+  ]
+}

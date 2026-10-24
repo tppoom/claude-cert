@@ -1,0 +1,83 @@
+{
+  "title": "การวิเคราะห์และแยกแยะ Claude failures: ปัญหาจาก Integration หรือตัว Model",
+  "objectives": [
+    "ใช้อินไซต์จาก HTTP 400 error message เพื่อระบุและแก้ไขโค้ดฝั่ง Integration ที่สร้าง bad request",
+    "ตรวจสอบ stop_reason และ stream error events เพื่อค้นหา silent failures ที่ยังคงส่งสถานะ HTTP 200",
+    "วินิจฉัยปัญหา empty response ที่มี stop_reason เป็น end_turn พร้อมแนวทางแก้ไขในโครงสร้าง Messages"
+  ],
+  "key_concept": "การแยกแยะต้นตอของ Failure ระหว่างข้อผิดพลาดฝั่ง Integration Code (เช่น Request structure, Streaming handling) กับพฤติกรรมฝั่ง Model (เช่น Token limits, Prompt constraints)",
+  "sections": [
+    {
+      "heading": "1. เมื่อเจอ 400 ชี้กลับมาที่ Message History ของคุณ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การ Debug แอปพลิเคชัน Claude เริ่มจากการแยกว่าปัญหาเกิดจากฝั่ง Integration หรือตัว Model ซึ่ง HTTP 400 invalid_request_error ตัดสินเรื่องนี้ได้ทันที: Request ถูกปฏิเสธตั้งแต่ก่อนที่ Model จะเริ่มประมวลผล ดังนั้น Bug จึงอยู่ที่ข้อมูลที่โค้ดของคุณส่งไป ส่วนที่ยากกว่าคือการหาว่าจุดไหนใน Request ที่ผิดพลาด แต่สำหรับโครงสร้าง Messages และ Thinking ใน Tool-use Loops นั้น Error Message มักจะระบุสาเหตุไว้อย่างชัดเจน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน Flow ของ Tool Use และ Extended Thinking ข้อความ Error 400 จะชี้เป้าโค้ดจุดที่ต้องแก้ได้ตรงจุด รูปแบบที่พบได้บ่อยที่สุด ได้แก่:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- tool_use ids were found without tool_result blocks immediately after: มี tool_use id ที่ไม่มี tool_result ตอบกลับ หรือมี Text แทรกอยู่ก่อนหน้าผลลัพธ์ แนวทางแก้ไขคือต้องส่งคืน 1 tool_result ต่อ 1 tool_use โดยวาง Blocks ของผลลัพธ์ไว้ก่อนเสมอ\n- thinking or redacted_thinking blocks in the latest assistant message cannot be modified: โค้ดของคุณไปแก้ไข สลับลำดับ หรือตัดกรอง Thinking Blocks ก่อนส่งกลับไป โดย Error Message จะระบุตำแหน่ง Block ที่มีปัญหา เช่น messages.1.content.0 แนวทางแก้ไขคือต้องส่ง Assistant Message นั้นกลับไปในรูปแบบเดิมโดยห้ามดัดแปลง\n- This model does not support assistant message prefill: บทสนทนาจบลงด้วย Assistant Message แต่ Model ตัวนี้ไม่รองรับการ Prefill แนวทางแก้ไขคือต้องจบลำดับด้วย User Message และควบคุม Output Format ผ่าน Structured Outputs หรือคำสั่งใน System Prompt แทน\n- A message ending but no web_search tool was provided: Request ที่ส่งเพื่อ Resume ลืมใส่ Server Tool ที่รอบก่อนหน้ากำลังรอผลลัพธ์อยู่ แนวทางแก้ไขคือต้องคง Tools Array เดิมไว้ให้ครบถ้วน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การตั้งค่า Thinking ก็อาจเจอปัญหาในลักษณะเดียวกัน หากคุณส่ง thinking.type ที่ Model ไม่รองรับ เช่น ส่ง enabled ไปยัง Model ที่ไม่รองรับ Extended Thinking คุณจะได้ Error 400 พร้อมข้อความที่ระบุค่าที่ถูกปฏิเสธ ดังนั้น หากทุก Call เริ่มพังทันทีหลังการ Upgrade Model สาเหตุมักเกิดจากการตั้งค่าใน Request ที่ต้องอัปเดต ไม่ใช่เพราะระบบล่ม"
+        }
+      ]
+    },
+    {
+      "heading": "2. การแกะรอย stop_reason เมื่อไม่มี Error โยนออกมา",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อผิดพลาดแบบเงียบ (Silent Failures) ตรวจจับได้ยากกว่า: HTTP 200, ไม่เกิด Exception แต่ผลลัพธ์กลับไม่ถูกต้อง ขั้นแรกให้ตรวจสอบ Connection ก่อน สำหรับการ Streaming Response อาจเกิดข้อผิดพลาดขึ้นได้หลังจากสถานะ 200 ส่งมาแล้ว โดยจะมาในรูปของ Error Event ภายใน Server-Sent Events (SSE) Stream หาก Handler ตรวจสอบแค่ Initial Status ก็จะบันทึกว่า Call นั้นสำเร็จทั้งที่ความจริงล้มเหลว จากนั้นให้ตรวจสอบตัว Response เอง โดยทุก Response ที่สำเร็จของ Messages API จะมี stop_reason ซึ่งบันทึกสาเหตุที่ Model หยุด Generate ฟิลด์นี้เพียงฟิลด์เดียวจะบอกได้ว่าปัญหาเกิดจากฝั่งไหน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ค่า stop_reason แต่ละค่าจะชี้ไปยังผู้รับผิดชอบและวิธีแก้ไขที่ต่างกัน: refusal หมายถึง Model ปฏิเสธที่จะตอบ ฝั่ง Integration ส่ง Request ถูกต้องสมบูรณ์แล้ว จึงไม่ต้องเสียเวลาหา Bug ในโค้ด ให้ตรวจสอบ stop_details และทำ Retry ไปยัง Fallback Model แทน, max_tokens หมายถึง Token Limit ของคุณตัด Output ก่อนจะเสร็จสิ้น มักเห็นเป็นข้อความขาดกลางประโยค หรือ tool_use Block สุดท้ายไม่สมบูรณ์ แก้ไขด้วยการเพิ่มค่า max_tokens, model_context_window_exceeded หมายถึง Context เต็มจน Output ถูกตัดเช่นกัน มีเพียง end_turn เท่านั้นที่แสดงว่า Model ทำงานจนจบกระบวนการตามที่ตั้งใจ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ค่า refusal ใน stop_reason บน Response 200 แปลว่า Integration ส่ง Request มาผิดโครงสร้าง? (ทำไมถึงผิด): ไม่จริง: refusal หมายถึง Model ปฏิเสธที่จะตอบคำขอด้วยเหตุผลด้าน Safety แม้ว่า Request จะถูกส่งมาถูกต้องตามโครงสร้างและประมวลผลสำเร็จก็ตาม ให้จัดการโดยอ่าน stop_details และ Retry ไปยัง Fallback Model"
+        },
+        {
+          "type": "paragraph",
+          "text": "พฤติกรรมบางอย่างที่ดูเหมือน Model ตัดสินใจเอง แท้จริงแล้วเกิดจาก Integration เช่น Claude ไม่ยอมทำงานต่อจากผลลัพธ์ของ Tool หรือขอให้ User ยืนยันคำสั่งที่พบในนั้น ให้ตรวจสอบว่าโค้ดของคุณแอบใส่ Instructions ลงไปใน Content ของ tool_result หรือไม่ เพราะ Claude จะมองว่า Instructions ภายใน Tool Results เป็น Untrusted Content จาก Third Party ทางแก้คือส่งเฉพาะ Data เพียวๆ ใน tool_result แล้วย้าย Instructions ไปไว้ใน User Turn ถัดไป หรือส่งผ่าน System Message แทรกกลางบทสนทนา (สำหรับ Model ที่รองรับ) อีกตัวอย่างคือการใช้ Exact String Comparison กับ Tool Inputs ซึ่งอาจพังเมื่อเปลี่ยน Model Version เนื่องจากการทำ Escaping ของ Unicode และ Forward Slash แตกต่างกันระหว่างเวอร์ชัน ให้ใช้การ Parse JSON แทน"
+        }
+      ]
+    },
+    {
+      "heading": "3. ปัญหา Empty end_turn responses",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "อาการ empty end_turn มักแสดงผลใน output ของ Model แต่ต้นเหตุจริงมักมาจากตัว Integration ของเราเอง โดย Response จะมีความยาวเพียง 2–3 tokens ไม่มี content ใดๆ และมี stop_reason: \"end_turn\" ซึ่งมักเกิดขึ้นทันทีหลังส่ง tool results สาเหตุยอดฮิตเกิดจากการเผลอใส่ text block ต่อท้าย tool_result ใน user message เดียวกัน เช่น ข้อความทักทายอย่าง \"Here's the result:\" ทำให้ Claude เรียนรู้ว่าจะมีข้อความตามหลังเสมอ จึงชิงจบ Turn เพื่อรอข้อความนั้น เนื่องจากไม่มี Error throw ออกมา Status code เป็น 200 ปกติ และ stop_reason ก็แจ้งว่าจบตามปกติ ปัญหานี้จึงมักเล็ดลอดสายตาและค้างอยู่ใน Production เป็นเวลานาน"
+        },
+        {
+          "type": "paragraph",
+          "text": "วิธีแก้ต้องแก้ที่โครงสร้าง Message: ให้ user message บรรจุเฉพาะ block ของ tool_result ล้วนๆ เท่านั้น ส่วนสาเหตุที่สองคือการส่ง Response เปล่าที่ Claude จบไปแล้วกลับเข้าไปใหม่โดยไม่แก้ไขอะไร การ Retry ส่ง Conversation เดิมซ้ำจึงแก้ไม่ได้ เพราะ Claude ตัดสินใจจบ Turn ไปแล้ว หากแก้โครงสร้าง Message แล้วยังเจอปัญหานี้อยู่ ให้ส่ง Continuation Prompt เข้าไปเป็น user message ใหม่ แต่ควรใช้เป็นทางเลือกสุดท้าย ไม่ใช่วิธีแก้ปัญหาแรก"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Empty end_turn response เป็นแค่ Glitch ชั่วคราวของ Model การส่ง Conversation เดิมซ้ำจะแก้ปัญหาได้? (ทำไมถึงผิด): ไม่จริง: Claude ตัดสินใจจบ Turn ไปแล้ว การ Retry ซ้ำแบบเดิมจึงไม่ได้ผล ต้องแก้โครงสร้าง Message ก่อนเป็นอันดับแรก และหากจำเป็นค่อยส่ง Continuation Prompt เป็น user message ใหม่ตามเข้าไป"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55522",
+      "question": "ทีมใช้งาน API อยู่ในระดับที่ต่ำกว่าขีดจำกัด Requests-per-minute (RPM) ที่กำหนดไว้มาก แต่กลับเริ่มพบข้อผิดพลาด 429 หลังจากแคมเปญการตลาดส่งผลให้ทราฟฟิกของ API เพิ่มขึ้นเป็น 3 เท่าภายในไม่กี่นาที โดยที่ปริมาณการใช้งานในอดีตนั้นคงที่มาตลอดก่อนเกิดการพุ่งสูงนี้ อะไรคือสาเหตุที่เป็นไปได้มากที่สุด และทีมควรปรับเปลี่ยนสิ่งใดเพื่อป้องกันไม่ให้เกิดขึ้นอีก?",
+      "options": [
+        "ทราฟฟิกที่พุ่งสูงขึ้นอย่างรวดเร็วน่าจะไปกระตุ้นขีดจำกัดด้านอัตราเร่ง (acceleration limits) ที่ออกแบบมาเพื่อตรวจจับปริมาณการใช้งานที่เพิ่มขึ้นอย่างก้าวกระโดด; ทีมควรค่อยๆ เพิ่มทราฟฟิกขึ้นทีละน้อย (ramp up) และรักษาพฤติกรรมการใช้งานให้สม่ำเสมอมากขึ้น",
+        "ขีดจำกัด RPM ที่เผยแพร่นั้นใช้ได้กับ Message Batches API เท่านั้น ดังนั้นทราฟฟิกที่พุ่งสูงขึ้นในรูปแบบ synchronous Messages API จะส่งกลับรหัส 429 เสมอไม่ว่าจะจัดการจังหวะการส่ง (pacing) อย่างไรก็ตาม",
+        "การตอบกลับด้วยรหัส 429 บ่งชี้ว่า API key ขององค์กรถูกเพิกถอนอัตโนมัติเนื่องจากสงสัยว่ามีการใช้งานในทางที่ผิด (suspected abuse) และต้องสร้างคีย์ใหม่ใน Console",
+        "ทราฟฟิกที่พุ่งขึ้นนั้นเกินขีดจำกัดขนาดของคำขอ (request size limit) สำหรับ Messages API ทำให้คำขอแต่ละรายการที่มีขนาดเกินกำหนดถูกปฏิเสธด้วยข้อผิดพลาด rate-limit"
+      ],
+      "explanation": ""
+    }
+  ]
+}

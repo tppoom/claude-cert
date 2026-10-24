@@ -1,0 +1,158 @@
+{
+  "title": "การเลือก Claude model: tiers, effort และ fast mode",
+  "objectives": [
+    "เลือก Claude tier ให้ตรงกับ Workload โดยประเมินจาก Latency, Price และ Capability",
+    "ตัดสินใจแนวทางการเลือกโมเดล ระหว่างเริ่มจากรุ่นเล็กแล้วค่อยขยับขึ้น (scale up) หรือเริ่มจากรุ่นใหญ่แล้วค่อยปรับลดลง (scale down)",
+    "ปรับค่า effort เพื่อบาลานซ์ความละเอียดของคำตอบกับจำนวน Tokens บนโมเดลเดิม",
+    "อธิบายการทำงานของ fast mode รวมถึงโครงสร้างราคาและโมเดลที่รองรับ"
+  ],
+  "key_concept": "Capability–speed–cost tradeoff — การเลือกใช้โมเดลต้องชั่งน้ำหนักระหว่างความสามารถ (Capability), ความเร็วในการตอบสนอง (Speed) และค่าใช้จ่าย (Cost) คุณสามารถปรับสมดุลนี้ได้ทั้งการสลับข้าม tiers หรือปรับแต่งภายในโมเดลเดิมผ่านการตั้งค่า effort และการเปิดใช้ fast mode",
+  "sections": [
+    {
+      "heading": "1. ภาพรวม Claude Lineup ในปัจจุบันและ Use Case ของแต่ละ Tier",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "โมเดล Claude ปัจจุบันมีทั้งหมด 4 โมเดล ครอบคลุมทั้งด้าน Capability, Latency และราคา ทุกโมเดลรองรับฟังก์ชันพื้นฐานเหมือนกันทั้งหมด ได้แก่ Text/Image Input, Text Output, Vision และ Tool Use คำถามสำคัญในการเลือกใช้จึงไม่ใช่ว่าโมเดลทำได้หรือไม่ แต่เป็นโมเดลทำงานนั้นได้ดีแค่ไหน เร็วเท่าไร และมีต้นทุนต่อ Token อยู่ที่เท่าใด"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบโมเดลปัจจุบัน 4 รุ่น ด้าน Latency, ราคา และการรองรับ Thinking",
+          "headers": [
+            "Model",
+            "Latency",
+            "Price (input / output per MTok)",
+            "Thinking",
+            "Default effort",
+            "Context / max output"
+          ],
+          "rows": [
+            [
+              "Claude Fable 5.1",
+              "Slower",
+              "$10 / $50",
+              "Adaptive (always on)",
+              "high",
+              "1M / 128K"
+            ],
+            [
+              "Claude Opus 5.5",
+              "Moderate",
+              "$4 / $20",
+              "Adaptive (always on)",
+              "medium",
+              "1M / 128K"
+            ],
+            [
+              "Claude Sonnet 5.5",
+              "Fast",
+              "$2 / $10",
+              "Adaptive",
+              "high",
+              "1M / 128K"
+            ],
+            [
+              "Claude Haiku 4.5",
+              "Fastest",
+              "$1 / $5",
+              "Extended",
+              "Not supported",
+              "200K / 64K"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "คอลัมน์ Thinking ระบุรูปแบบที่โมเดลใช้ในการ Reason ก่อนตอบ: Adaptive Thinking จะให้ Claude ตัดสินใจเองในแต่ละ Request ว่าจำเป็นต้องคิดหรือไม่และคิดมากน้อยแค่ไหน สำหรับคำถามที่เป็นข้อเท็จจริงทั่วไป โมเดลสามารถตอบได้ทันทีโดยไม่ต้องเข้าสู่ Thinking Process ส่วน Extended Thinking คือ Manual Mode ที่เราต้องกำหนด Thinking Token Budget ในแต่ละ Request ผ่านพารามิเตอร์ budget_tokens เอง แล้ว Claude จะคิดภายใต้ Budget นั้นก่อนตอบ แนะนำให้เลือก Tier ที่รองรับ Adaptive Thinking เมื่อ Request มีความยากง่ายปะปนกัน และเตรียมกำหนด Budget เองเมื่อใช้งานบน Haiku 4.5"
+        },
+        {
+          "type": "paragraph",
+          "text": "แต่ละ Tier ถูกออกแบบมาสำหรับ Workload ที่แตกต่างกัน: Claude Fable 5.1 เป็นโมเดลที่มี Capability สูงสุด เหมาะสำหรับ Agent Sessions ที่รันต่อเนื่องหลายชั่วโมง หรืองาน Deep Research แบบหลายขั้นตอนจนได้เอกสารฉบับสมบูรณ์ Claude Opus 5.5 คือจุดเริ่มต้นสำหรับ Production Workload ส่วนใหญ่ เช่น Autonomous Coding Agents ที่รันระดับหลายชั่วโมง, Large-scale Refactoring, งาน Vision-heavy Workflows และ Computer Use สำหรับ Claude Sonnet 5.5 โดดเด่นเรื่องความสมดุลระหว่างความเร็วและ Capability เหมาะกับงาน Code Generation ทั่วไป, Data Analysis และ Agentic Tool Use สุดท้าย Claude Haiku 4.5 มี Latency ต่ำสุดและราคาถูกที่สุด เหมาะสำหรับ Real-time Applications, High-volume Processing และงานของ Subagents โดยเป็นเพียง Tier เดียวที่ยังคงใช้ Extended Thinking แทนที่จะเป็น Adaptive Thinking"
+        },
+        {
+          "type": "paragraph",
+          "text": "ส่วนต่างของราคามีผลชัดเจนเมื่องานมี Volume สูง Output Token ของ Fable มีราคาสูงกว่า Haiku ถึง 10 เท่า ดังนั้น High-throughput Job ที่ Haiku รองรับได้จะช่วยประหยัดต้นทุนได้อย่างมหาศาล นอกจากนี้ Haiku ยังมีข้อจำกัดเรื่อง Context Window ที่ 200K และ Max Output ที่ 64K ในขณะที่อีก 3 รุ่นรองรับได้ถึง 1M และ 128K ตามลำดับ"
+        }
+      ]
+    },
+    {
+      "heading": "2. แนวทางการเลือก Starting Model สองรูปแบบ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเลือก First Model สำหรับเริ่มต้นมี 2 แนวทางหลักขึ้นอยู่กับลักษณะงาน: Start Small and Step Up เหมาะสำหรับงาน Prototyping, งานที่จำกัด Latency อย่างเข้มงวด, Deployment ที่เน้น Cost-sensitive และ High-volume Tasks ที่ไม่ซับซ้อน โดยเริ่มพัฒนาบน Claude Haiku 4.5 ก่อน แล้วจึงขยับไปใช้โมเดลใหญ่ขึ้นเมื่อพบ Capability Gap ที่ชัดเจน วิธีนี้ช่วยให้ Loop การทำ Iteration รวดเร็ว และต้นทุน Development ต่ำ ซึ่งบ่อยครั้งโมเดลเล็กก็เพียงพอสำหรับ Common Applications จำนวนมาก"
+        },
+        {
+          "type": "paragraph",
+          "text": "Start Capable and Step Down เหมาะกับงาน Complex Reasoning, งานด้านวิทยาศาสตร์หรือคณิตศาสตร์, งานที่ต้องการ Nuanced Understanding, Advanced Coding หรือ Use Case ที่ Accuracy สำคัญกว่า Cost ให้เริ่มสร้างบน Claude Opus 5.5 ปรับแต่ง Prompt ให้เข้าที่ แล้ววัดผลเทียบกับ Requirement จากนั้นค่อยๆ ปรับลด Effort หรือสลับไปใช้โมเดลที่ถูกลง หาก Opus 5.5 ที่ระดับ xhigh หรือ max effort ยังไม่ตอบโจทย์งาน Reasoning ที่ซับซ้อนมาก หรืองาน Long-horizon Agentic ขั้นถัดไปคือการขยับขึ้นไปใช้ Claude Fable 5.1"
+        },
+        {
+          "type": "paragraph",
+          "text": "ไม่ว่าจะเลือกแนวทางใด การตัดสินใจขั้นสุดท้ายควรใช้ Evals เป็นเกณฑ์เสมอ ให้เขียน Benchmark Tests จาก Real Prompts และ Production Data จริง แล้วเปรียบเทียบโมเดลในมิติของ Accuracy, Response Quality และ Edge Cases ในการพิจารณาด้านต้นทุน ให้เปรียบเทียบ Cost per Completed Task แทนที่จะดูเพียง Cost per Token ซึ่งจากข้อมูลการวัดผลของ Anthropic โมเดลรุ่นใหม่สามารถ Solve Task ได้เท่ากันหรือมากกว่ารุ่นก่อนหน้าเสมอ โดยมีค่าใช้จ่ายต่อ Solved Task ที่ถูกลง"
+        }
+      ]
+    },
+    {
+      "heading": "3. Effort: การปรับจูนโมเดลเดิมแทนการสลับโมเดล",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Effort กำหนดจำนวน Tokens ที่โมเดลจะใช้ในการตอบสนอง ซึ่งเป็นการ Trade-off ระหว่างความละเอียดรอบคอบกับความคุ้มค่าของ Token โดยตั้งค่าต่อ Request ผ่าน `output_config.effort` มี 5 ระดับ ได้แก่ `low`, `medium`, `high`, `xhigh` และ `max` ทั้งนี้ Effort มีผลกับทุก Output token ซึ่งครอบคลุมทั้ง Text, Tool Calls พร้อม Arguments และ Thinking Process เมื่อเปิดใช้งาน Thinking การลดระดับ Effort ช่วยประหยัดเวลาและค่าใช้จ่ายแต่ลดทอนประสิทธิภาพบางส่วน ขณะที่การปรับเป็น `max` จะให้ขีดความสามารถสูงสุด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เมื่อค่าใช้จ่ายสูงเกินไป ขั้นตอนแรกคือการเปลี่ยนไปใช้โมเดลที่ถูกกว่า? (ทำไมถึงผิด): ไม่จริง: หากระดับคุณภาพยังยอมรับได้ ให้ลดค่า Effort บนโมเดลเดิมก่อนเป็นอันดับแรก ควรเปลี่ยนโมเดลก็ต่อเมื่อผล Evals ยืนยันว่าจำเป็นเท่านั้น | สำหรับงาน Autonomous Coding ที่มีความเสี่ยงสูงบน Claude Opus 4.8 ควรใช้ค่าเริ่มต้นหรือ max? (ทำไมถึงผิด): ไม่จริง: บน Opus 4.8 และ 4.7 แนะนำให้ตั้งค่าเป็น xhigh (อยู่ระหว่าง high กับ max) สำหรับงาน Coding และ Agentic Work ส่วนใหญ่"
+        },
+        {
+          "type": "paragraph",
+          "text": "ระดับเริ่มต้นและจุดเริ่มต้นที่เหมาะสมขึ้นอยู่กับแต่ละโมเดล โมเดลส่วนใหญ่มีค่า Default อยู่ที่ `high` ซึ่งเป็นจุดเริ่มต้นที่ถูกต้องสำหรับ Claude Fable 5.1 และ Claude Opus 5 ส่วน Claude Opus 5.5 มีค่า Default อยู่ที่ `medium` จึงควรเริ่มต้นที่ระดับดังกล่าว สำหรับ Claude Opus 4.8 และ 4.7 แนะนำให้ใช้ `xhigh` สำหรับงาน Coding และ Agentic Work ส่วนใหญ่ ไม่ใช่ค่า Default ขณะที่ Claude Haiku 4.5 ไม่รองรับการตั้งค่า Effort"
+        },
+        {
+          "type": "paragraph",
+          "text": "ผลลัพธ์จากการใช้งานจะเป็นตัวชี้วัดแนวทางปรับแต่ง: หากต้นทุนสูงเกินไปแต่คุณภาพยังดี ให้ลด Effort บนโมเดลเดิม หากลดแล้วคุณภาพไม่ถึงเกณฑ์ ให้ปรับกลับคืนมา และหากคุณภาพไม่เพียงพอโดยที่ยังไม่เคยลด Effort ให้ลองขยับไปใช้โมเดลระดับสูงกว่าในระดับ `low` Effort ก่อนที่จะตัดสินใจใช้โมเดลใหญ่ที่ค่า Default"
+        }
+      ]
+    },
+    {
+      "heading": "4. Fast mode: โมเดลเดิม เพิ่มเติมคือ Output ที่เร็วขึ้น",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Fast mode ทำงานบนโมเดลเดิมผ่าน Inference Configuration ที่เร็วกว่าเดิม จึงเปลี่ยนเฉพาะความเร็วในการสร้าง Output โดยไม่กระทบตัวโมเดล ทั้ง Model Weights, พฤติกรรม และขีดความสามารถยังคงเดิมทุกประการ แต่อัตรา Output Tokens per second จะเพิ่มขึ้นสูงสุดถึง 2.5 เท่า ความเร็วที่เพิ่มขึ้นนี้เกิดขึ้นที่ Output Speed ไม่ใช่ Time to First Token (TTFT) จึงเห็นผลชัดเจนที่สุดเมื่อ Streaming Response ที่มีความยาว เปิดใช้งานโดยส่ง `speed: \"fast\"` ร่วมกับ Beta Header `fast-mode-2026-02-01`"
+        },
+        {
+          "type": "paragraph",
+          "text": "เฉพาะ Claude Opus 5.5, Claude Opus 5 และ Claude Opus 4.8 เท่านั้นที่รองรับ Fast mode โดย Claude Opus 4.7 จะปฏิเสธการเรียกใช้งาน Fast mode มีการคิดค่าบริการในอัตรา Premium เช่น บน Opus 5.5 คิด $8 ต่อ 1 ล้าน Input tokens และ $40 ต่อ 1 ล้าน Output tokens ซึ่งสูงเป็น 2 เท่าของอัตราปกติ ($4 และ $20) ทำให้มีบทบาทตรงข้ามกับ Effort: โดย Effort ปรับลดปริมาณงานที่โมเดลประมวลผลเพื่อลดต้นทุน ส่วน Fast mode รักษาปริมาณงานไว้เท่าเดิมแต่แลกกับความเร็วที่สูงขึ้น จึงควรใช้ Fast mode เมื่อมี User กำลังรออ่าน Long Response และความเร็วนั้นคุ้มค่ากับต้นทุนที่เพิ่มขึ้น แต่ให้ใช้ Effort เมื่อต้องการแก้ปัญหาเรื่องงบประมาณ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Fast mode สลับไปใช้โมเดลที่มีขนาดเล็กกว่า ทำให้ต้องยอมแลกคุณภาพบางส่วนเพื่อความเร็ว? (ทำไมถึงผิด): ไม่จริง: Fast mode รันบนโมเดลเดิมโดยใช้ Inference Configuration ที่เร็วกว่า ขีดความสามารถของโมเดลยังคงเดิมทุกประการ มีเพียง Output Rate และราคาเท่านั้นที่เปลี่ยนแปลง"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55577",
+      "question": "ทีมพัฒนากำลังสร้าง customer support chat widget แบบ real-time ที่ต้องตอบกลับภายในเวลาไม่เกิน 1 วินาที รองรับปริมาณคำขอสูง (high volume) ภายใต้งบประมาณที่จำกัด แต่ยังคงต้องการคุณภาพการคิดวิเคราะห์ (reasoning) ที่เชื่อถือได้ ทีมควรเริ่มต้นด้วยโมเดลใด?",
+      "options": [
+        "Claude Haiku 4.5 เพื่อให้ได้ reasoning ระดับใกล้เคียง frontier ใน tier ที่เร็วและประหยัดต้นทุนที่สุด",
+        "Claude Opus 4.8 เพื่อให้ได้ reasoning ที่ลึกที่สุดสำหรับงาน agentic coding ที่ซับซ้อน",
+        "Claude Sonnet 5 เพื่อให้ได้ความฉลาดระดับ frontier ในระดับราคาและความเร็วปานกลาง",
+        "Claude Fable 5 เพื่อให้ได้ context window ที่ใหญ่ที่สุดและมี adaptive thinking แบบเปิดใช้งานตลอดเวลา"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55578",
+      "question": "องค์กรวิศวกรรมต้องการรัน autonomous coding agent ที่สามารถทำงานได้อย่างอิสระต่อเนื่องหลายชั่วโมง เพื่อทำ large-scale refactors ทั่วทั้ง enterprise codebase ขนาดใหญ่ การผสมผสานระหว่างโมเดลและการตั้งค่า effort ใดที่เหมาะสมที่สุดสำหรับ workload นี้?",
+      "options": [
+        "Claude Opus 4.8 โดยตั้งค่า effort เป็น xhigh เพื่อให้ได้ reasoning depth สูงสุดสำหรับ long-running agentic coding",
+        "Claude Sonnet 5 โดยตั้งค่า effort เป็น low เพื่อให้ iteration ได้รวดเร็วสำหรับการแก้โค้ดแบบง่าย",
+        "Claude Haiku 4.5 โดยปิด extended thinking เพื่อลดต้นทุนต่อการเรียกใช้ (call) ให้ต่ำที่สุด",
+        "Claude Opus 4.8 โดยเพิ่ม sampling temperature เพื่อให้ได้คำแนะนำการ refactoring ที่สร้างสรรค์มากขึ้น"
+      ],
+      "explanation": ""
+    }
+  ]
+}

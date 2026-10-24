@@ -1,0 +1,153 @@
+{
+  "title": "Message Batches API และการเลือกใช้ Batch แทน Realtime Calls",
+  "objectives": [
+    "ส่ง Message Batch พร้อมกำหนด custom_ids, ทำ Polling จนเสร็จสิ้น และดึงผลลัพธ์มาใช้งาน",
+    "จัดการประเภทผลลัพธ์ทั้ง 4 แบบของ Batch พร้อมควบคุมขีดจำกัดด้านขนาด, เวลา และ Parameters",
+    "ประเมินและเลือกใช้ระหว่าง Realtime Messages Calls กับ Batch ตามประเภท Workload รวมถึงการทำงานร่วมกับ Prompt Caching"
+  ],
+  "key_concept": "การประมวลผลคำขอปริมาณมากแบบ Asynchronous ด้วย Message Batches API เพื่อลดต้นทุนและเพิ่ม Throughput เทียบกับ Realtime Calls",
+  "sections": [
+    {
+      "heading": "1. การ Submit, Poll และ Fetch ข้อมูล Batch",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเรียกใช้ Messages API ทั่วไปจะเป็นแบบ Synchronous คือส่ง Prompt แล้วรอ Response กลับมาทันที ส่วน Message Batches API จะประมวลผล Requests เหล่านี้แบบ Asynchronous ในปริมาณมาก (Bulk) ด้วยราคาเพียงครึ่งเดียว (ลด 50%) คุณสามารถส่งได้สูงสุด 100,000 requests ต่อหนึ่ง Call แทนที่จะต้องรอคำตอบทีละตัว แล้วค่อยมาดึงผลลัพธ์ทั้งหมดภายหลัง โดย Batch ส่วนใหญ่จะประมวลผลเสร็จภายในเวลาไม่ถึง 1 ชั่วโมง เหมาะสำหรับงานแบบ Offline เช่น การรัน Large-scale evaluation, การทำ Content moderation ย้อนหลัง, การสรุป Dataset ขนาดใหญ่ หรือการ Generate คำอธิบายสินค้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "แต่ละ Request ภายใน Batch ประกอบด้วย 2 ส่วนหลัก: `custom_id` ซึ่งเป็น Key ที่คุณกำหนดขึ้นเอง (ความยาว 1-64 ตัวอักษร ประกอบด้วยตัวอักษร, ตัวเลข, hyphens หรือ underscores) และ `params` ซึ่งเก็บพารามิเตอร์มาตรฐานของ Messages API เช่นเดียวกับ Synchronous call ปกติ เนื่องจากแต่ละ Request ถูกประมวลผลแยกจากกันอย่างอิสระ ภายใน Batch เดียวกันจึงสามารถผสมผสานทั้ง Vision, Tool use, Extended thinking และ Multi-turn conversations ได้ เมื่อสร้าง Batch สำเร็จ ระบบจะส่ง `id` และสถานะ `processing_status` เป็น `in_progress` กลับมา ให้คุณใช้ `id` นี้ทำ Polling ตรวจสอบสถานะจนกว่าจะเปลี่ยนเป็น `ended` แล้วจึงดาวน์โหลดผลลัพธ์จาก `results_url` ของ Batch นั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Batches จะผูกอยู่กับระดับ Workspace โดย API Key ใดก็ตามที่ทำงานภายใต้ Workspace นั้นจะสามารถ List รายการ Batches และอ่านผลลัพธ์ได้ทั้งหมด ซึ่ง List endpoint รองรับ Pagination ให้ในตัว หาก Pipeline ของคุณทำ Batch ID หล่นหาย ก็สามารถค้นหาคืนมาได้ผ่านการ List"
+        }
+      ]
+    },
+    {
+      "heading": "2. ผลลัพธ์ของ Batch, ขีดจำกัด (Limits) และพารามิเตอร์ที่ไม่รองรับ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Request ใน Batch ที่สถานะเป็น `ended` จะมีผลลัพธ์ส่งกลับมาเพียง 1 รายการเสมอ โดยฟิลด์ `request_counts` ของ Batch จะสรุปจำนวนรวมตามประเภทผลลัพธ์ คุณสามารถจับคู่ผลลัพธ์กลับไปยัง Input ต้นทางได้ด้วย `custom_id` และระบบจะคิดค่าบริการเฉพาะ Requests ที่ประมวลผลสำเร็จ (`succeeded`) เท่านั้น"
+        },
+        {
+          "type": "table",
+          "caption": "ประเภทผลลัพธ์ทั้ง 4 แบบของ Batched request",
+          "headers": [
+            "Result type",
+            "Meaning",
+            "Billed?"
+          ],
+          "rows": [
+            [
+              "succeeded",
+              "Request สำเร็จ พร้อมผลลัพธ์ Message ที่สร้างขึ้น",
+              "Yes"
+            ],
+            [
+              "errored",
+              "Request ไม่ถูกต้อง (Invalid) หรือเกิด Internal server error ไม่มีการสร้าง Message",
+              "No"
+            ],
+            [
+              "canceled",
+              "Batch ถูกยกเลิกก่อนที่ Request นี้จะถูกส่งไปถึง Model",
+              "No"
+            ],
+            [
+              "expired",
+              "Batch หมดเวลา (24 ชั่วโมง) ก่อนที่ Request นี้จะถูกส่งไปถึง Model",
+              "No"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Batch ที่กำลังประมวลผลอยู่สามารถยกเลิกได้ผ่าน Cancel endpoint ซึ่งทันทีที่ยิงคำสั่ง สถานะ `processing_status` จะเปลี่ยนเป็น `canceling` ให้ทำ Polling ต่อไปจนกว่าสถานะจะเปลี่ยนเป็น `ended` โดย Batch ที่ถูกยกเลิกอาจมีผลลัพธ์บางส่วนของ Requests ที่ประมวลผลเสร็จไปก่อนหน้า ส่วน Requests ที่เหลือจะคืนค่า Result type เป็น `canceled`"
+        },
+        {
+          "type": "paragraph",
+          "text": "ขีดจำกัด (Limits) ของ Batch วัดจากทั้งเวลาและขนาด โดยรับได้สูงสุดไม่เกิน 100,000 requests หรือ 256 MB (แล้วแต่อย่างใดจะถึงก่อน) ผลลัพธ์จะพร้อมให้ดึงเมื่องานทุกตัวเสร็จสิ้น หรือเมื่อครบ 24 ชั่วโมง โดย Request ที่ยังประมวลผลไม่เสร็จภายใน 24 ชั่วโมงจะหมดอายุ (Expire) หากระบบมี Traffic หนาแน่น การประมวลผลอาจช้าลงและมี Requests หมดอายุมากขึ้น ทั้งนี้ ผลลัพธ์สามารถดาวน์โหลดได้นานถึง 29 วัน และเนื่องจากไฟล์อาจมีขนาดใหญ่ ควรใช้วิธี Stream ข้อมูลแทนการดาวน์โหลดทั้งไฟล์ในคราวเดียว นอกจากนี้ เนื่องจาก Batch ทำงานแบบ High concurrency ค่าใช้จ่ายจึงอาจเกิน Spend limit ของ Workspace ไปได้เล็กน้อย"
+        },
+        {
+          "type": "paragraph",
+          "text": "Messages request เกือบทุกรูปแบบสามารถใส่ใน Batch ได้ทั้งหมด รวมถึง Server tools แต่มี 3 พารามิเตอร์ที่จะทำให้เกิด Validation error ได้แก่: `stream: true` (ไม่รองรับ เพราะผลลัพธ์ถูกส่งกลับมาเป็นไฟล์อยู่แล้ว), `speed` หรือ Fast mode (ไม่รองรับ เพราะมีไว้ปรับ Latency ของ Synchronous call) และ `max_tokens: 0` สำหรับ Cache pre-warming (ไม่รองรับ เพราะ Cache มักจะหมดอายุก่อนที่ Request ถัดไปจะเริ่มทำงาน)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Requests ที่ติดสถานะ Errored และ Expired ใน Batch ยังคงถูกคิดค่าบริการในอัตรา Batch rate — เพราะระบบจะคิดค่าบริการเฉพาะ Requests ที่ `succeeded` เท่านั้น สำหรับ Requests ที่ `errored`, `canceled` หรือ `expired` ไม่มีการสร้าง Message เกิดขึ้น จึงไม่มีค่าใช้จ่ายใดๆ ทั้งสิ้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. การเลือกระหว่าง Realtime หรือ Batch",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเรียกแบบ Realtime คือการยิง Messages request แบบปกติ: เป็นแบบ Synchronous โดยได้ 1 คำตอบต่อ 1 request เกณฑ์ในการเลือกระหว่าง Realtime กับ Batch สรุปได้ด้วยคำถามเดียว: มีใครกำลังรอคำตอบอยู่หรือไม่? หาก User หรือ Downstream step ต้องการคำตอบภายในไม่กี่วินาที ให้เลือก Realtime Messages call และใช้ Streaming เมื่อคำตอบมีความยาว แต่หากงานนั้นรอได้ (เช่น การทำ Scoring ข้ามคืน, Data backfill หรือ Evaluation suite) ให้เลือกใช้ Batch เพื่อประหยัดค่าใช้จ่ายลง 50% ตัวอย่างเช่น Claude Opus 5.5 คิดราคา $4 / $20 ต่อ 1 ล้าน Input/Output tokens สำหรับ Realtime และเหลือเพียง $2 / $10 เมื่อใช้ Batch นอกจากนี้ Batching ยังช่วยเพิ่ม Throughput โดยที่คุณไม่ต้องจัดการเรื่อง Rate limits หรือ Pacing สำหรับการยิงซ้ำหลายพันรอบด้วยตัวเอง"
+        },
+        {
+          "type": "table",
+          "caption": "เปรียบเทียบระหว่าง Realtime Messages API กับ Message Batches API",
+          "headers": [
+            "ประเด็นพิจารณา",
+            "Realtime Messages API",
+            "Message Batches API"
+          ],
+          "rows": [
+            [
+              "เวลาที่ได้รับผลลัพธ์",
+              "ได้ทันทีใน Response หรือแบบ Streamed ขณะกำลังประมวลผล",
+              "ส่วนใหญ่เสร็จภายใน 1 ชั่วโมง ผลลัพธ์จะพร้อมใช้งานเมื่อประมวลผลเสร็จทั้งหมด หรือหลังผ่านไป 24 ชั่วโมง โดย Request ที่ยังไม่ถูกประมวลผลจะหมดอายุ (Expire)"
+            ],
+            [
+              "ราคา",
+              "อัตรามาตรฐาน",
+              "ลด 50% จากราคามาตรฐาน"
+            ],
+            [
+              "Streaming และ Fast mode",
+              "รองรับ",
+              "ไม่รองรับ (การตั้งค่า stream: true และ speed จะถูก Reject)"
+            ],
+            [
+              "อัตรา Prompt cache hits",
+              "คาดเดาได้แน่นอนสำหรับ Prefix ที่คงที่",
+              "เป็นแบบ Best-effort เนื่องจาก Requests ทำงานพร้อมกัน (Concurrently) และไม่เรียงลำดับ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Prompt Caching ช่วยนำ Prompt prefix ที่ใช้ซ้ำกลับมาใช้ใหม่เพื่อลด Cost และ Latency แทนที่จะต้องประมวลผลใหม่ทั้งหมด โดยปกติ Cache entry จะมีอายุ 5 นาที และจะถูกต่ออายุทุกครั้งที่มีการเรียกใช้ เว้นแต่จะระบุอายุเป็น 1 ชั่วโมง แม้ว่า Caching และ Batching จะใช้ร่วมกันได้ แต่การประหยัดค่าใช้จ่ายจะคาดเดาได้ยากกว่า เพราะการจะเกิด Cache hit ได้นั้น ต้องมี Request ก่อนหน้าเขียน Cache entry ลงไปก่อน ทว่าใน Batch คำขอจะทำงานแบบ Concurrent และไม่เรียงลำดับ ทำให้หลาย Request เริ่มทำงานก่อนที่ Cache จะถูกสร้าง ส่งผลให้แม้ทุก Request ใน Batch จะใช้ System prompt ขนาดใหญ่ตัวเดียวกัน อัตราการเกิด Cache hit ก็อาจต่ำกว่า 100% อย่างมาก"
+        },
+        {
+          "type": "paragraph",
+          "text": "วิธีแก้ปัญหาตาม Document คือการใช้ Cache แบบ 1 ชั่วโมง ร่วมกับ Priming request โดยให้รวบรวม Request ที่ใช้ Prefix เดียวกัน จากนั้นส่ง Batch ที่มีเพียง Request เดียวพร้อม Prefix นั้นและระบุ Cache block แบบ 1 ชั่วโมง เพื่อสั่ง Write prefix นั้นลง Cache ก่อน เมื่อ Request นี้ประมวลผลเสร็จสิ้น จึงค่อย Submit คำขอที่เหลือทั้งหมดตามไป คุณจำเป็นต้อง Monitor ตัว Job เพื่อให้ทราบเวลาที่เสร็จสิ้น วิธีนี้มีประสิทธิภาพมากกว่า Cache แบบ 5 นาที เนื่องจาก Batch request มักใช้เวลาประมวลผลอยู่ระหว่าง 5 นาทีถึง 1 ชั่วโมง"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับงานที่ใช้รูปภาพจำนวนมาก (Image-heavy jobs) มีข้อจำกัดเพิ่มเติมที่ต้องคำนึงถึงต่อ 1 Request ไม่ว่าจะเป็นแบบ Realtime หรือ Batch โดย API กำหนดให้ส่งรูปภาพได้สูงสุด 100 รูปต่อ Request สำหรับโมเดลที่มี Context window ขนาด 200k tokens และสูงสุด 600 รูปต่อ Request สำหรับโมเดลอื่นๆ ทั้งหมด ดังนั้น Claude Opus 5.5 ที่มี Context window ขนาด 1M tokens จึงรองรับได้สูงสุด 600 รูป ในขณะที่ Claude Haiku 4.5 (200K) จะจำกัดอยู่ที่ 100 รูป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ถ้าทุก Request ใน Batch ใช้ Cached system prompt เดียวกัน อัตรา Cache hit จะเกือบ 100% เสมอใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: Batched requests ทำงานพร้อมกันแบบ Concurrently และไม่เรียงลำดับ Cache hit จึงเป็นแบบ Best-effort (อัตรา Hit rate ระดับ 35% ถือเป็นเรื่องปกติ) แนวทางปฏิบัติที่ถูกต้องคือส่ง Priming request ที่มี Shared prefix พร้อมระบุ Cache block แบบ 1 ชั่วโมงไปก่อน 1 คำขอ เมื่องานเสร็จสิ้นจึงค่อย Submit คำขอที่เหลือตามไป"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55442",
+      "question": "แอปพลิเคชันประมวลผลเอกสารจำเป็นต้องส่งรูปภาพสูงสุด 550 รูปในการเรียก Messages API ครั้งเดียว การตั้งค่า Model configuration ข้อใดจำเป็นต้องใช้เพื่อรองรับปริมาณดังกล่าว?",
+      "options": [
+        "ใช้ Model ที่ไม่มี 200k-token context window เนื่องจากมีเพียง Model กลุ่มนี้เท่านั้นที่อนุญาตให้ส่งรูปภาพได้สูงสุด 600 รูปต่อหนึ่ง API request เทียบกับขีดจำกัด 100 รูปใน Model ที่มี 200k-context",
+        "ใช้ Model ปัจจุบันรุ่นใดก็ได้ เนื่องจากขีดจำกัดจำนวนรูปภาพต่อ Request ถูกกำหนดไว้คงที่ที่ 600 รูปในทุก Model โดยไม่ขึ้นกับขนาดของ Context window",
+        "แบ่ง Request ออกเป็น 2 ครั้ง ครั้งละไม่เกิน 300 รูป เนื่องจากไม่มี Model configuration ใดที่อนุญาตให้ส่งรูปภาพเกิน 300 รูปต่อหนึ่ง Request",
+        "เปิดใช้งาน Files API beta header เนื่องจากมีเพียงรูปภาพที่อ้างอิงผ่าน file_id เท่านั้นที่นับรวมในขีดจำกัด 600 รูป ส่วนรูปภาพแบบ base64 ยังคงจำกัดอยู่ที่ 100 รูป"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "title": "การแปลงโจทย์ธุรกิจสู่โซลูชันด้วย Claude",
+  "objectives": [
+    "ทำแผนภาพ Business Process ทีละขั้นตอนเพื่อระบุจุดที่ Claude สร้างคุณค่าได้จริงก่อนเลือกเทคโนโลยี",
+    "ประเมินเป็นรายขั้นตอนว่าควรใช้ LLM หรือ Conventional Approach จึงจะเหมาะสมกว่า",
+    "เลือก Solution Shape ที่เรียบง่ายที่สุดซึ่งแก้ปัญหาได้ (Single Augmented Call, Workflow หรือ Agent)",
+    "จับคู่ Solution Shape ให้ตรงกับ Build Path: Claude Apps, Messages API, Agent SDK หรือ Managed Agents",
+    "เลือก Model Tier ให้ตอบโจทย์ทั้ง Volume, Latency, Cost และความต้องการด้าน Reasoning ของแต่ละ Workload",
+    "เชื่อมโยง Success Criterion แต่ละข้อเข้ากับ Business Outcome ที่ตอบสนองโดยตรง"
+  ],
+  "key_concept": "Process-first solution design — เริ่มต้นจากการทำความเข้าใจการทำงานและ Pain Point ในปัจจุบันของธุรกิจ แล้วมอบหมายให้ Claude จัดการเฉพาะขั้นตอนที่สร้างคุณค่าชัดเจน โดยเลือก Shape และ Build Path ที่เรียบง่ายที่สุดสำหรับแก้ปัญหานั้นเสมอ เพราะการเลือก Model และ Architecture ต้องเริ่มหลังจากเข้าใจ Process อย่างถ่องแท้แล้วเท่านั้น",
+  "sections": [
+    {
+      "heading": "1. ทำความเข้าใจและวาง Map ขั้นตอน Business Process ก่อนเลือก Model",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "โจทย์ทางธุรกิจมักเริ่มจากปัญหาหน้างานจริง ไม่ใช่ Spec ที่ชัดเจน เช่น Ticket ถูกส่งไปผิดทีม, คิว Support ล้นช่วงเปิดตัว Product หรือฝ่ายกฎหมายเสียเวลาหลายชั่วโมงเพื่อสรุปสัญญา การถามว่า \"ควรใช้ Model ไหนดี?\" ตั้งแต่แรกจึงเป็นการข้ามปัญหาที่แท้จริง: จุดไหนใน Process ปัจจุบันที่เป็นคอขวด? ในคู่มือการทำ Ticket Routing ของ Anthropic จึงเน้นให้เริ่มจากการสำรวจระบบเดิมก่อนเขียน Prompt เสมอ โดยดูว่าทีม Support ปัจจุบันกระจาย Ticket อย่างไร, เกณฑ์กำหนด SLA คืออะไร และการ Route นั้นเป็นการส่งหา Support Tier ทั่วไปหรือ Specialist กันแน่"
+        },
+        {
+          "type": "paragraph",
+          "text": "คำถามสำคัญที่สุดคือ Automation เดิมหลุดตรงไหน? หากมี Rules หรือ Workflows อยู่แล้ว ต้องหาให้เจอว่ามัน Fail ตรงไหน และทีมจัดการ Edge Cases หรือ Ticket ที่กำกวมอย่างไร เพราะจุดที่ระบบเดิมพังมักเป็นจุดที่สร้าง Value ได้สูงสุด เช่น Rule แบบจับ Keyword ส่ง Ticket ทุกใบที่มีคำว่า \"payment\" ไปแผนก Billing จะใช้ได้ดีจนกว่าลูกค้าจะแจ้งบั๊กบนหน้า Payment Page ซึ่งจริง ๆ แล้วเป็นปัญหา Software ปัญหานี้จึงต้องพึ่งคนมาแก้ Routing ด้วยตัวเองทุกครั้ง งาน Manual ที่ต้องคอยแก้นี้คือต้นทุนแฝง และเป็นจุดที่ Claude ควรเข้ามาทำแทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อทำ Map ของ Process เสร็จแล้ว ให้แยก Interaction ออกเป็น Tasks ย่อย ๆ แม้ Customer Support Chatbot จะดูเหมือนเป็น Feature เดียว แต่เบื้องหลังประกอบด้วย Tasks หลายอย่าง ตั้งแต่การตอบคำถาม, การดึงข้อมูล (Information Retrieval) ไปจนถึงการ Execute Actions ตามที่ขอ ตัวอย่างเคสของ Anthropic ใน Chatbot ประกันภัยรถยนต์: ลูกค้าเริ่มแชท, ถามความคุ้มครองของรถ EV, ชวนคุยนอกเรื่อง แล้วขอใบเสนอราคา Tasks ที่ต้องจัดการจึงมีทั้ง การทักทาย (Greeting), การให้ข้อมูล Product, การคุมบทสนทนา (Conversation Management เพื่อให้อยู่ในเรื่องประกัน) และการสร้างใบเสนอราคาผ่าน API โดยแต่ละ Task จะต้องมี Prompt และ Evaluation ของตัวเอง คุณไม่สามารถเทส \"Chatbot\" แบบภาพรวมก้อนเดียวได้ แต่สามารถเทสเจาะจงได้ว่า ขั้นตอนสร้างใบเสนอราคานั้นถามคำถามคัดกรองคุณสมบัติได้ถูกต้องหรือไม่"
+        },
+        {
+          "type": "exam_trap",
+          "text": "สิ่งที่ควรนำไปปรับใช้จริง? (ทำไมถึงสำคัญ): ไม่จริง: การปรับปรุง Process ไม่จำเป็นต้องรื้อทำใหม่ทั้งหมด ให้เลือกกระบวนการที่คุ้นเคย เช่น Invoice Approval, Onboarding หรือ Incident Triage แล้วดูว่าขั้นตอนไหนมีงาน Manual Rework ซ้ำซ้อนมากที่สุด จากนั้นวิเคราะห์ว่าจุดนั้นเป็นเรื่องของการตัดสินใจ (Judgement Call) หรือแค่การค้นหาข้อมูล (Lookup)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ปฏิบัติกับ Customer Support Chatbot เป็น Task เดียว โดยใช้ Prompt เดียว และวัด Quality Score รวมเพียงค่าเดียว? (ทำไมถึงผิด): ไม่จริง: Support Chat ประกอบด้วย Tasks ย่อยหลายส่วน (Greeting, Product Information, Conversation Management, Quote Generation) ต้องแยก Interaction ออกเป็นแต่ละ Tasks เพื่อให้สามารถเขียน Prompt ควบคุมและทำ Evaluation วัดผลแยกตามหน้าที่ได้อย่างแม่นยำ"
+        }
+      ]
+    },
+    {
+      "heading": "2. กำหนดว่าขั้นตอนใดที่ควรส่งให้ Claude จัดการ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ไม่ใช่ทุกขั้นตอนใน Process ที่จำเป็นต้องใช้ LLM Claude จะคุ้มค่าเมื่อนำมาใช้กับงานที่เกี่ยวข้องกับภาษา, การใช้ดุลยพินิจ (Judgement) หรือมีความหลากหลายสูงที่ระบบแบบ Rigid Handle ได้ยาก สำหรับโจทย์ Ticket Classification ทาง Anthropic ได้สรุปสัญญาณบ่งชี้ที่ควรเลือก Claude มากกว่า Traditional ML ไว้ดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Labeled Data มีจำกัด: Claude สามารถทำ Classification ได้โดยใช้ตัวอย่าง Labeled เพียงไม่กี่สิบเคส ขณะที่ Traditional ML ต้องการ Dataset ขนาดใหญ่มาก\n- Categories เปลี่ยนบ่อย: Claude ปรับตัวเข้ากับ Class ใหม่หรือ Class ที่เปลี่ยนนิยามได้ทันทีโดยไม่ต้องทำ Relabeling ใหม่ทั้งหมด\n- Input เป็น Unstructured หรือ Class ถูกนิยามด้วยเงื่อนไขมากกว่าตัวอย่างที่ตายตัว\n- ต้องการ Explainability: Claude สามารถให้เหตุผลเบื้องหลังการจัดหมวดหมู่ที่มนุษย์อ่านเข้าใจได้\n- Ticket มาจากหลายภาษา และไม่ต้องการ Maintain แยก Model สำหรับแต่ละภาษา"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Support Chat สัญญาณจะขึ้นอยู่กับ Volume และ Coverage โดย Claude จะช่วยตอบคำถามซ้ำ ๆ ปริมาณมากได้อย่างมีประสิทธิภาพ ทำให้ทีม Support มีเวลาโฟกัสกับเคสที่ซับซ้อน พร้อมทั้งรองรับการบริการแบบ 24/7 และรับมือกับ Traffic Spikes กะทันหันได้โดยไม่ต้องจ้างคนเพิ่ม แต่หากเงื่อนไขเหล่านี้ไม่ตรง Claude อาจไม่ใช่ทางเลือกที่เหมาะสม เช่น งาน Classification ภาษาเดียว ที่หมวดหมู่คงที่ มี Labeled Data ครบถ้วน และใช้ Traditional ML แก้ปัญหาได้ดีอยู่แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อจำกัดของ Model คือปัจจัยหลักในการ Design สถาปัตยกรรม เนื่องจาก Language Model สร้าง Text โดยการทำนาย Next Token ทุกคำตอบจึงเป็นข้อความต่อเนื่องที่น่าจะเป็นไปได้มากที่สุด ไม่ใช่การค้นหาข้อเท็จจริง (Looked-up Fact) แม้จะทำงานประเภท Summarization และ Classification ได้ดีมาก แต่จะล้มเหลวในจุดเดิม ๆ อย่างคาดเดาได้ เช่น การอ้างอิงแหล่งที่มาที่ดูสมจริงแต่ไม่มีอยู่จริง, ตัวเลขหรือชื่อเฉพาะที่ไม่เคยเรียนรู้, เหตุการณ์หลัง Knowledge Cutoff และข้อมูลภายในเฉพาะขององค์กรที่ไม่อยู่ใน Training Data ซึ่งจุดที่ข้อมูลไม่ครอบคลุมนี้ Model ก็ยังเขียนได้ลื่นไหล ทำให้การแต่งข้อมูล (Fabrication/Hallucination) ดูน่าเชื่อถือเหมือนข้อมูลจริง ดังนั้นขั้นตอนที่ต้องใช้ Fact แบบเรียลไทม์หรือข้อมูลเฉพาะขององค์กร ต้องถูกออกแบบให้มี Retrieval, Web Search หรือ Tools ตั้งแต่ต้น ส่วนขั้นตอนที่ไม่สามารถตรวจสอบ Output ได้ ต้องวาง Human-in-the-loop หรือ Programmatic Gate ดักไว้เสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เมื่อเจอปัญหาทางธุรกิจ ควร Rebuild กระบวนการทั้งหมดใหม่ด้วย LLM? (ทำไมถึงผิด): ไม่จริง: ข้อสอบมักลวงด้วย Solution ที่เปลี่ยนทั้งระบบ ให้มองหาคำตอบที่เลือกแก้เฉพาะขั้นตอนที่เป็น Pain Point และคงขั้นตอนเดิมที่ทำงานได้ดีอยู่แล้วไว้ การรื้อทั้ง Process มาใช้ LLM แทบไม่เคยเป็นคำตอบที่ถูกต้องในการออกแบบระบบจริง"
+        }
+      ]
+    },
+    {
+      "heading": "3. เลือกระดับ Solution ที่เรียบง่ายที่สุด (Pick the simplest solution shape)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "หลักการสำคัญคือ เลือก Solution ที่เรียบง่ายที่สุดที่แก้ปัญหาได้ และเพิ่มความซับซ้อนเมื่อมีหลักฐานชัดเจนว่าจำเป็นเท่านั้น บางกรณีอาจไม่ต้องสร้าง Agentic System เลยด้วยซ้ำ เพราะระบบ Agent มักต้องแลก Latency และ Cost ที่สูงขึ้นเพื่อให้ได้ผลลัพธ์ที่ดีขึ้น ดังนั้นความซับซ้อนที่เพิ่มขึ้นแต่ละขั้นต้องคุ้มค่าจริงๆ โดยเรียงลำดับจากง่ายไปซับซ้อนได้ 3 ระดับดังนี้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ระดับเริ่มต้นคือ Augmented LLM: การยิง API เรียก Model ครั้งเดียวโดยเสริมด้วย Retrieval, Tools หรือ Memory ซึ่ง Retrieval-Augmented Generation (RAG) ก็จัดอยู่ในกลุ่มนี้ โดยจะดึง Documents ที่เกี่ยวข้องมาใส่ใน Prompt ตัวอย่างเช่น Ticket Routing ที่เป็นงาน Classification เพียงแค่ Prompt เรียก Model ครั้งเดียวให้คิดแบบมีเหตุผลพร้อมใส่ Intent Label ก็แก้ปัญหาได้แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "ระดับถัดมาคือ Workflows: การนำ LLMs และ Tools มาร้อยเรียงผ่าน Control Flow หรือ Code Path ที่กำหนดไว้ล่วงหน้าอย่างชัดเจน Code ของคุณจะเป็นตัวคุมลำดับขั้น เช่น สั่ง Classify ก่อน แล้วส่งต่อผลลัพธ์ไปยัง Specialized Prompt ทำให้ระบบมีความแน่นอน คาดเดาผลลัพธ์ได้ง่าย และสม่ำเสมอสำหรับงานที่มีขอบเขตชัดเจน"
+        },
+        {
+          "type": "paragraph",
+          "text": "ระดับสูงสุดคือ Agents: ระบบที่ LLM กำหนดทิศทางการทำงาน เลือกลำดับขั้นตอน และตัดสินใจเรียกใช้ Tools ด้วยตัวเองเพื่อบรรลุเป้าหมาย Agents จะได้เปรียบเมื่องานนั้นไม่สามารถรู้ขั้นตอนล่วงหน้าได้ และจำเป็นต้องอาศัยการตัดสินใจที่ยืดหยุ่นโดย Model ในสเกลใหญ่ เช่น งานแก้ไข Code ที่ไม่รู้ล่วงหน้าว่าจะกระทบไฟล์ใดบ้าง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Process Map จะเป็นตัวบอกว่าคุณควรใช้ Solution ระดับใด: หากขั้นตอนตายตัวเหมือนเดิมทุกรอบ ให้เขียน Code คุมลำดับเป็น Workflow แต่หากจำนวนก้าวหรือลำดับขึ้นอยู่กับ Input ต้องให้ Model ตัดสินใจ ให้สร้างเป็น Agent สำหรับ Pattern ต่างๆ ของ Workflow เช่น Chaining, Routing และ Orchestrator-Workers สามารถดูเปรียบเทียบเพิ่มเติมได้ที่ [architectural patterns](lesson:1.3)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: งาน Business Process ที่ต้องต่อเชื่อมกับหลายระบบจำเป็นต้องใช้ Autonomous Agent เสมอไป — ควรเริ่มจาก Solution ที่เรียบง่ายที่สุดก่อน หากขั้นตอนการทำงานตายตัวและชัดเจน การใช้ Workflow ที่เขียนด้วย Code จะคาดเดาผลลัพธ์ได้ดีกว่าและประหยัดกว่ามาก หรือบางปัญหาก็จบได้ด้วย Augmented LLM เพียงครั้งเดียว ควรเลือกใช้ Agent เฉพาะเมื่องานมีขั้นตอนที่ไม่แน่นอนและขึ้นอยู่กับ Input เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "4. จับคู่ระดับ Solution เข้ากับแนวทางการพัฒนา (Match the shape to a build path)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เมื่อเลือกระดับ Solution ได้แล้ว ขั้นต่อไปคือเลือก Build Path โดยจุดตัดสินใจหลักคือคุณต้องการดูแลและควบคุม Implementation เองมากน้อยแค่ไหน ตัวเลือกทั้ง 3 รูปแบบบน API มี Trade-off ระหว่างระดับการควบคุม (Control) กับภาระงานที่ยกให้ระบบจัดการ (Offload): Messages API ให้การควบคุมสูงสุดเพราะคุณต้องเขียน Agent Loop และจัดการ Tools กับ Infrastructure เอง, Agent SDK จัดเตรียม Loop และ Tool Execution มาให้สำเร็จรูปแต่รันอยู่บน Process ที่คุณดูแลเอง, และ Managed Agents ยกภาระให้ Anthropic มากที่สุด โดย Anthropic จะเป็นผู้ดูแลทั้ง Loop, Tool Execution และ Runtime ทั้งหมด"
+        },
+        {
+          "type": "table",
+          "caption": "Build paths และสิ่งที่คุณจะได้รับในแต่ละแบบ",
+          "headers": [
+            "ความต้องการของคุณ",
+            "สิ่งที่ควรใช้",
+            "สิ่งที่คุณจะได้รับ"
+          ],
+          "rows": [
+            [
+              "เรียกใช้ Claude API โดยตรงจาก Code ของตัวเอง",
+              "Client SDK (Messages API)",
+              "เข้าถึง API โดยตรง โดยคุณเขียน Tool Loop เอง หรือใช้ Beta Tool Runner เป็นตัวขับเคลื่อน Loop"
+            ],
+            [
+              "ฝัง Agent ลงใน Application ภาษา Python หรือ TypeScript บน Process ที่คุณดูแลเอง",
+              "Agent SDK",
+              "เครื่องมือ Built-in Tools, Permissions, Sessions, Hooks และ Subagents แบบเดียวกับ Claude Code ในรูปแบบ Library"
+            ],
+            [
+              "ให้ Anthropic เป็น Host ดูแล Agent ทั้งหมด โดยตั้งค่าและควบคุมผ่าน Claude API",
+              "Managed Agents",
+              "ระบบ Harness สำเร็จรูปที่รัน Loop บน Cloud พร้อมจัดการ Sessions ภายใน Sandbox ของ Anthropic หรือ Self-hosted Sandbox"
+            ],
+            [
+              "พัฒนาแบบ Interactive หรือรันงานสั้นๆ แบบ One-off ผ่าน Terminal",
+              "Claude Code CLI",
+              "ส่วนติดต่อผ่าน Terminal ที่ออกแบบมาสำหรับ Developer เพื่อการใช้งานเชิงโต้ตอบประจำวัน"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Solution แต่ละระดับจะชี้ไปยัง Build Path ที่เหมาะสมโดยธรรมชาติ: การเรียก Single Augmented LLM หรือ Workflow สั้นๆ จะเหมาะกับ Messages API เพราะเขียน Code เพียงไม่กี่บรรทัด และการเริ่มจาก API โดยตรงยังทำให้ Prompt และ Response โปร่งใส ตรวจสอบและ Debug ได้ง่ายกว่า Framework ที่มี Abstraction ซับซ้อน สำหรับ Agent ที่ต้องการ Tools ด้าน File, Shell และ Web ภายใน Service ของคุณเองจะเหมาะกับ Agent SDK ส่วน Workload ที่รันนานเป็นนาทีหรือชั่วโมง ต้องการ Cloud Infrastructure แบบ Sandbox หรือไม่อยากเขียน Loop และ Sandbox เองเลย จะเหมาะกับ Managed Agents ซึ่งยังรองรับการรัน Sandbox บน Infrastructure ของคุณเองเพื่อตอบโจทย์ด้าน Compliance หรือ Data Residency ได้อีกด้วย"
+        },
+        {
+          "type": "paragraph",
+          "text": "โจทย์ทางธุรกิจบางอย่างอาจไม่จำเป็นต้องเขียน Code เลยด้วยซ้ำ บน Claude App มีฟีเจอร์ Artifacts ที่ช่วยให้ทีมทั่วไปสร้าง Interactive App สำหรับแชร์กันได้ผ่านการ Prompt คุยธรรมดา เช่น เครื่องมือ Flashcard Generator หรือแบบฟอร์มช่วยเหลือสั้นๆ ซึ่งช่วยประหยัดเวลาและทรัพยากรของ Developer เพื่อเอาไปมุ่งเน้นกับงานที่ต้อง Integrate เข้ากับระบบหลังบ้านจริงๆ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Managed Agents ก็คือ Agent SDK แค่เปลี่ยนชื่อเรียก จึงเลือกใช้อันไหนก็ได้ไม่ต่างกัน — ทั้งสองตัวต่างกันตรง 'ใครเป็นผู้ดูแล Runtime' โดย Agent SDK จะรัน Agent Loop และ Tools บน Process หรือ Server ที่คุณดูแลเอง ส่วน Managed Agents ทาง Anthropic จะเป็น Host ดูแลทั้ง Loop, Tool Execution และ Runtime ให้ทั้งหมด"
+        }
+      ]
+    },
+    {
+      "heading": "5. เลือก Model Tier ให้เหมาะกับ Workload",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเลือก Model เป็นขั้นตอนสุดท้าย เพราะขึ้นอยู่กับความต้องการของแต่ละ Step ใน Workflow ที่เรา Map ไว้ ทั้งด้าน Capability, Speed และ Cost รายละเอียดเชิงลึกดูได้ที่ [Model selection trade-offs](lesson:2.1) ในแง่การออกแบบ Solution ให้จับคู่ Profile ของแต่ละ Workload กับ Tier ที่ออกแบบมาเพื่อมันโดยเฉพาะ"
+        },
+        {
+          "type": "table",
+          "caption": "การจับคู่ Workload Profile กับ Model Tier เริ่มต้น",
+          "headers": [
+            "ความต้องการ",
+            "เริ่มต้นด้วย",
+            "ตัวอย่าง Workloads"
+          ],
+          "rows": [
+            [
+              "Latency ต่ำสุดและราคาประหยัดที่สุด",
+              "Claude Haiku 5.5",
+              "Real-time applications, Intelligent processing ปริมาณมหาศาล, งานที่จำกัดงบประมาณแต่ต้องการ Reasoning ระดับดี, งานของ Subagents"
+            ],
+            [
+              "ความเร็วและความสามารถที่สมดุลสำหรับ Coding ทั่วไป, Agent และงานระดับ Enterprise",
+              "Claude Sonnet 5.5",
+              "Code generation, Data analysis, Content creation, Visual understanding, Agentic tool use"
+            ],
+            [
+              "Agentic coding ซับซ้อนและงานระดับ Enterprise",
+              "Claude Opus 5.5",
+              "Autonomous coding agents ที่ทำงานต่อเนื่องหลายชั่วโมง, Large-scale refactoring, Complex systems engineering, Computer use"
+            ],
+            [
+              "Capability สูงสุดที่มี",
+              "Claude Fable 5.1",
+              "Agent sessions ที่ทำงานต่อเนื่องหลายชั่วโมง, Deep research แบบ Multi-step, การวิเคราะห์ข้อมูลเชิงลึกจนจบออกมาเป็นเอกสารฉบับสมบูรณ์"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ให้อ่านโจทย์/Requirement ของ Scenario เพื่อถอด Profile ออกมา แล้วจับคู่กับ Model Tier ต่อไปนี้คือ 3 Profiles ยอดนิยม:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Haiku: High volume, Tight latency, Tight cost เช่น Chat widget ที่ต้องตอบภายในไม่กี่ร้อย Milliseconds ในช่วง Flash sale ภายใต้เงื่อนไขควบคุม Cost ต่อบทสนทนาอย่างเข้มงวด Profile แบบนี้ชี้ตรงไปที่ Haiku ทั้งนี้ Haiku ยังออกแบบมาสำหรับงานที่ต้องการ Strong reasoning ด้วย ดังนั้นเพียงแค่เป็น Multi-turn troubleshooting จึงไม่ได้หมายความว่าต้องขยับ Tier ขึ้นเสมอไป ส่วนงาน Ticket routing ก็อยู่ใน Profile นี้เช่นกัน โดย Haiku เร็วที่สุด คุ้มค่าที่สุด และจัดการ High-volume classification ได้ดีมาก\n- Opus: Multi-hour autonomous work, Correctness over cost เช่น Agent ที่ Plan และ Run งาน Refactor โค้ด Legacy ขนาดใหญ่ต่อเนื่องหลายชั่วโมงโดยมี Human checkpoint น้อยมาก งานนี้เหมาะกับ Opus ซึ่งออกแบบมาสำหรับ Long-running agentic coding และ Large-scale refactoring การพยายามรัน Model เล็กขนานกันหลายรอบหรือการอัด Context เพิ่มไม่สามารถชดเชย Reasoning ที่ด้อยกว่าในงานประเภทนี้ได้\n- Sonnet: ค่า Default มาตรฐานสำหรับงานทั่วไป ตอบโจทย์การเป็นตัวเลือกหลักระดับองค์กร ทั้ง Code generation, Data analysis, การร่างเนื้อหา และ Agentic tool use โดย Sonnet ให้ความสมดุลระหว่าง Speed และ Capability ในงานประจำวันโดยไม่ต้องจ่ายราคา Premium ในทุก API Call"
+        },
+        {
+          "type": "paragraph",
+          "text": "Effort เป็น Settings ใน Claude หลายรุ่นที่ช่วย Trade-off ระดับ Reasoning กับ Latency และ Cost ภายใน Model ตัวเดิม การปรับลด Effort จะทำให้ Response เร็วขึ้นและประหยัด Cost ขึ้น ส่วนการปรับเพิ่มจะได้ Reasoning ที่ลึกขึ้นสำหรับโจทย์ยาก การจูน Effort จึงมักเป็นทางเลือกที่ดีกว่าการสลับ Model ไปมา"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับการเริ่มพัฒนา Solution ใหม่ มีแนวทางทดสอบ 2 รูปแบบ: แบบ Cost-first เริ่มต้นที่ Haiku ทดสอบ Use case ให้รอบด้าน แล้ว Upgrade ต่อเมื่อพบ Capability gap ที่แท้จริงเท่านั้น; แบบ Capability-first เริ่มที่ Opus สำหรับ Complex reasoning หรืองาน Agentic ระดับ High autonomy จากนั้นค่อยลด Effort หรือ Downgrade เป็น Model ที่เล็กลงเมื่อ Optimize workflow เข้าที่แล้ว ทั้งนี้ใน Process map จริงมักผสมผสานทั้งสองแบบ เช่น ใช้ Tier ประหยัดคุมงาน Bulk อย่าง Routing และใช้ Tier สูงกว่าจัดการเฉพาะ Step ส่วนน้อยที่ยากจริงๆ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Workload ใดก็ตามที่มี Multi-turn reasoning จำเป็นต้องใช้ Sonnet หรือ Opus เสมอ แม้จะมีข้อจำกัดเรื่อง Latency และ Cost? (ทำไมถึงผิด): ไม่จริง: Haiku ถูกวาง Position มาสำหรับงาน Real-time, High volume และ Cost-sensitive ที่ยังคงต้องการ Strong reasoning ดังนั้น Support chat แบบ Multi-turn troubleshooting ที่ต้องการความเร็วและคุมงบ จึงควรเริ่มต้นด้วย Haiku ก่อน แล้วค่อย Upgrade ต่อเมื่อพบ Capability gap ที่เจาะจงเท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "6. ผูก Success Criteria เข้ากับ Business Outcome",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การวัดผล Solution จะดูว่ามันช่วยแก้ Pain point ที่ระบุไว้ใน Process map ได้จริงหรือไม่ ไม่ได้ดูแค่ว่า Model ทำงานโดดๆ ได้ดีแค่ไหน Criteria ที่ดีต้อง Specific, Measurable, Achievable และ Relevant ตามหลัก [measurable success criteria](lesson:6.1) โดยจุดสำคัญที่สุดคือ Relevant นั่นคือ Metric ทุกตัวต้องสามารถ Trace กลับไปเป็น Business outcome ที่องค์กร Track อยู่แล้วได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน Support guide จะแยก Metric เป็น 2 กลุ่มชัดเจน: Task criteria วัดประสิทธิภาพการทำงานของ Model เช่น Intent comprehension accuracy ≥ 95% หรือ Quote generation accuracy 100%; Business-impact criteria วัดผลลัพธ์ทางธุรกิจจริง เช่น สำหรับ Support chatbot คือ Deflection rate ปกติอยู่ที่ 70–80% (สัดส่วนเคสที่จบได้โดยไม่ต้องพึ่งคน), CSAT ≥ 4/5 และ Average handling time สั้นกว่ามนุษย์ ส่วนงาน Ticket routing ตัววัดทางธุรกิจคือ Agent แก้ไข Ticket ได้เพิ่มขึ้น 10–20%, Escalation rate ต่ำกว่า 20% และ Cost per ticket ลดลง 10–15%"
+        },
+        {
+          "type": "paragraph",
+          "text": "Task metric แต่ละตัวต้องอธิบายได้ชัดเจนว่ามัน Drive ให้เกิด Business metric ได้อย่างไร หากทำไม่ได้ Metric นั้นจะกลายเป็น Vanity metric ทันที ตัวอย่างเช่น Routing accuracy มีความสำคัญเพราะ Ticket ที่ส่งผิดแผนกจะถูก Escalate และต้องทำงานซ้ำสองรอบ ดังนั้นจึงต้องรายงาน Routing accuracy ควบคู่ไปกับ Escalation rate และ Cost per ticket ที่ระบบมีเป้าหมายจะลด นอกจากนี้ควรกำหนด Metric ทั้งสองกลุ่มร่วมกับทีม Support ซึ่งเป็น Process owner ไม่ใช่กำหนดโดยทีม Engineer ฝั่งพัฒนา Solution เพียงฝ่ายเดียว เพื่อให้ Target สะท้อนภาพการทำงานจริง รวมถึง Edge cases ที่ทีมต้อง Manual เองอยู่ในปัจจุบัน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56557",
+      "question": "บริษัทค้าปลีกแห่งหนึ่งกำลังพัฒนา chat widget สำหรับฝ่ายบริการลูกค้า ซึ่งต้องรองรับปริมาณข้อความมหาศาล (high message volume) ระหว่างช่วง Flash Sale, ตอบกลับได้ภายในไม่กี่ร้อยมิลลิวินาที (few hundred milliseconds), และควบคุมต้นทุนต่อบทสนทนาให้อยู่ในงบประมาณที่จำกัดมาก ในขณะที่ยังคงต้องจัดการ multi-turn troubleshooting reasoning ได้อย่างถูกต้อง ทีม Architecture ควรเลือกรุ่นโมเดลใดเป็น primary model สำหรับ workload นี้?",
+      "options": [
+        "Deploy Claude Opus 4.8 เนื่องจากความสามารถด้านการคิดวิเคราะห์ขั้นลึก (deeper reasoning) รับประกันความแม่นยำในการทำ troubleshooting ในทุกบทสนทนา แม้ว่าจะมีต้นทุน per-token ที่สูงกว่าก็ตาม",
+        "Deploy Claude Haiku 4.5 เนื่องจากให้ความสามารถด้าน reasoning ในระดับใกล้เคียงกับ frontier model ด้วยต้นทุน per-token ที่ต่ำที่สุดและมี response time ที่เร็วที่สุด",
+        "Deploy Claude Sonnet 5 เนื่องจากความสมดุลระหว่างความเร็วและความฉลาดคุ้มค่ากับต้นทุนที่เพิ่มขึ้นสำหรับการทำ troubleshooting ภายใต้ปริมาณงานระดับ Flash Sale",
+        "Deploy Claude Fable 5 เนื่องจาก context window ขนาดใหญ่มากช่วยให้สามารถติดตามประวัติทั้งหมดของนักช้อปทุกคนข้ามบทสนทนาพร้อมๆ กันได้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56558",
+      "question": "องค์กรวิศวกรรมระดับ Enterprise ต้องการ Agent ที่สามารถวางแผนและ execute การทำ refactor โค้ดเบสแบบ legacy ขนาดใหญ่และซับซ้อนได้แบบอัตโนมัติ (autonomous) ตลอดระยะเวลาหลายชั่วโมง โดยใช้ human checkpoints น้อยที่สุด และให้ความสำคัญกับความถูกต้อง (correctness) มากกว่าต้นทุน โมเดลใดเหมาะสมที่สุดสำหรับ workload นี้?",
+      "options": [
+        "Claude Haiku 4.5 เพราะต้นทุนที่ต่ำทำให้ทีมสามารถรันการทดลอง refactor แบบ parallel ได้หลายครั้งภายในงบประมาณเท่ากับการรันเซสชันยาวครั้งเดียว",
+        "Claude Sonnet 5 เพราะความเร็วของโมเดลช่วยให้ multi-hour agent loop ยังคงตอบสนองได้ดี ขณะเดียวกันก็ยังรับมือกับงาน agentic coding ส่วนใหญ่ได้ดี",
+        "Claude Opus 4.8 เพราะถูกสร้างมาเพื่อ complex agentic coding และการทำ large-scale refactoring โดยต้องการการกำกับดูแลเพียงเล็กน้อยในระดับ Enterprise",
+        "Claude Haiku 4.5 ควบคู่กับ context window ที่ยาวขึ้น เพราะการขยาย context จะช่วยชดเชยระดับ reasoning depth ที่ต่ำกว่าสำหรับงาน refactor ได้"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56559",
+      "question": "บริษัทแห่งหนึ่งต้องการเลือกโมเดลเริ่มต้นตัวเดียว (single default model) สำหรับ internal tooling ส่วนใหญ่ขององค์กร ซึ่งครอบคลุมทั้ง code generation, data analysis, content drafting และ agentic tool use ในหลากหลายทีม โดยต้องการส่วนผสมที่ดีที่สุดระหว่าง frontier intelligence และความเร็วสำหรับการใช้งานประจำวันโดยไม่ต้องจ่ายราคาพรีเมียมระดับ Enterprise บริษัทควร standardize ด้วยโมเดลใด?",
+      "options": [
+        "Claude Opus 4.8 เพราะความสามารถด้าน reasoning ระดับพรีเมียมคุ้มค่ากับการลงทุนสำหรับงาน coding และงานคอนเทนต์ประจำวันของทุกทีม",
+        "Claude Sonnet 5 เพราะมอบคุณภาพ frontier intelligence ในระดับสเกลสำหรับงาน coding, Agents และ workflows ประจำวันด้วยต้นทุนระดับปานกลาง",
+        "Claude Haiku 4.5 เพราะราคาที่ต่ำมีความสำคัญมากกว่าช่องว่างด้าน reasoning สำหรับทีมที่ทำงาน drafting คอนเทนต์และวิเคราะห์ข้อมูล",
+        "Claude Fable 5 เพราะดีไซน์ที่เน้นงาน long-running agent เหมาะกับรูปแบบงาน coding, drafting และ analysis ของทุกทีม"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -2,6 +2,14 @@ import re
 
 # Comprehensive Thai translation dictionaries for Headings and Sections
 HEADING_THAI = {
+    # Foundations Domain 3 (Claude Code)
+    "skills, commands, and built-in vs custom slash commands": "สกิล, คำสั่ง และข้อแตกต่างระหว่าง Built-in กับ Custom Slash Commands",
+    "agents: built-in and custom subagents": "เอเจนต์: เอเจนต์ย่อยแบบ Built-in และ Custom",
+    "session management": "การจัดการเซสชัน (Session Management)",
+    "headless mode and streaming output": "โหมด Headless และการสตรีมผลลัพธ์",
+    "permission modes and auto mode": "โหมดสิทธิ์ (Permission Modes) และโหมดอัตโนมัติ (Auto Mode)",
+    "practise it for real": "แบบฝึกหัดปฏิบัติจริง (Practise it for real)",
+
     # Foundations Domain 1
     "workflows and agents differ in who owns the control flow": "ความแตกต่างระหว่าง Workflow และ Agent: ใครเป็นผู้ถือสิทธิ์ควบคุมกระบวนการ (Control Flow)",
     "start at the bottom of the autonomy ladder": "เริ่มต้นจากขั้นต่ำสุดของบันไดระดับความเป็นอิสระ (Autonomy Ladder)",
@@ -75,23 +83,29 @@ HEADING_THAI = {
 }
 
 def get_thai_heading(h_en):
-    h_clean = re.sub(r"^\d+\.\s*", "", h_en).strip().lower()
+    if not h_en: return ""
+    try:
+        from quiz_translator import _cache, _norm_cache, clean_thai_spacing
+        h_clean = h_en.strip()
+        if h_clean in _cache:
+            return clean_thai_spacing(_cache[h_clean])
+        num_match = re.match(r"^(\d+\.)\s*", h_clean)
+        prefix = num_match.group(1) + " " if num_match else ""
+        raw_core = re.sub(r"^\d+\.\s*", "", h_clean).strip()
+        if raw_core in _cache:
+            return prefix + clean_thai_spacing(_cache[raw_core])
+        norm_k = re.sub(r'[^a-zA-Z0-9]+', '', raw_core.lower())
+        if norm_k in _norm_cache:
+            return prefix + clean_thai_spacing(_norm_cache[norm_k])
+    except Exception:
+        pass
+
+    h_lower = re.sub(r"^\d+\.\s*", "", h_en).strip().lower()
     for k, v in HEADING_THAI.items():
-        if k in h_clean:
-            # preserve original prefix number if present
+        if k in h_lower:
             num_match = re.match(r"^(\d+\.)\s*", h_en)
             prefix = num_match.group(1) + " " if num_match else ""
             return prefix + v
-    try:
-        from quiz_translator import get_thai_explanation, clean_thai_spacing
-        num_match = re.match(r"^(\d+\.)\s*", h_en)
-        prefix = num_match.group(1) + " " if num_match else ""
-        raw_core = re.sub(r"^\d+\.\s*", "", h_en).strip()
-        th_core = get_thai_explanation(raw_core)
-        if th_core and th_core != raw_core:
-            return prefix + clean_thai_spacing(th_core)
-    except Exception:
-        pass
     return h_en
 
 print("section_translator.py loaded.")

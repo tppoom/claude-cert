@@ -1,0 +1,311 @@
+{
+  "title": "Configuration Management สำหรับ Claude: CLAUDE.md, การตั้งค่า, และการ Pin โมเดลกับ Prompt",
+  "objectives": [
+    "กำหนด Instruction ลงใน Scope ที่ถูกต้องของ CLAUDE.md พร้อมระบุเงื่อนไขการโหลด AGENTS.md และ Path-scoped Rules",
+    "จัดลำดับ Precedence ของ Scope ใน settings.json และเลือกการตั้งค่าที่บังคับใช้ได้เฉพาะผ่าน Managed Settings",
+    "แยกความแตกต่างระหว่าง Pinned Model ID กับ Alias และตรวจสอบได้ว่า Claude Code Session เริ่มทำงานด้วยโมเดลใด",
+    "Pin, Promote และ Roll Back เวอร์ชันของ Prompt แยกตามแต่ละ Environment",
+    "ประกาศ Plugin Dependencies ด้วย Version Range และ Pin Dependency แบบเจาะจงเวอร์ชัน"
+  ],
+  "key_concept": "Pin vs Pointer — Pin คือการระบุเป้าหมายแบบเจาะจงตายตัว เช่น Snapshot Model ID, Exact Plugin Version หรือ Prompt Version ที่มีตัวเลขกำกับ ซึ่งจะทำงานคงที่จนกว่าคุณจะแก้ไข Configuration เอง ส่วน Pointer เช่น Alias, Version Range หรือ Unscoped Default จะ Resolve ไปยังเวอร์ชันล่าสุด ณ ขณะนั้น ทำให้พฤติกรรมการทำงานอาจเปลี่ยนได้โดยที่คุณไม่ได้แก้ไขโค้ดหรือการตั้งค่าใดๆ",
+  "sections": [
+    {
+      "heading": "1. CLAUDE.md scopes, AGENTS.md และ path-scoped rules",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ไฟล์ CLAUDE.md เก็บคำสั่งถาวร (standing instructions) ที่ Claude จะอ่านทุกครั้งเมื่อเริ่ม Session โดยตำแหน่งของไฟล์จะเป็นตัวกำหนดขอบเขต (Scope) การใช้งาน ซึ่งแบ่งออกเป็น 4 ระดับ: Managed policy สำหรับระดับองค์กรที่ IT ติดตั้งผ่าน Path นโยบายส่วนกลาง, Personal file (~/.claude/CLAUDE.md) สำหรับการตั้งค่าส่วนตัวที่จะติดตามไปทุกโปรเจกต์, Project file (./CLAUDE.md หรือ ./.claude/CLAUDE.md) ที่ถูก Commit เข้า Git เพื่อแชร์กับทั้งทีม และ Local file (./CLAUDE.local.md) สำหรับบันทึกส่วนตัวเฉพาะโปรเจกต์นั้นๆ ซึ่งควรใส่ไว้ใน .gitignore"
+        },
+        {
+          "type": "table",
+          "caption": "ระดับ Scope ทั้ง 4 ของ CLAUDE.md",
+          "headers": [
+            "Scope",
+            "Location",
+            "Shared with"
+          ],
+          "rows": [
+            [
+              "Managed policy",
+              "/Library/Application Support/ClaudeCode/CLAUDE.md (macOS), /etc/claude-code/CLAUDE.md (Linux and WSL)",
+              "ผู้ใช้ทุกคนในองค์กร"
+            ],
+            [
+              "User instructions",
+              "~/.claude/CLAUDE.md",
+              "เฉพาะตัวคุณ (ทุกโปรเจกต์)"
+            ],
+            [
+              "Project instructions",
+              "./CLAUDE.md หรือ ./.claude/CLAUDE.md",
+              "สมาชิกในทีมผ่าน Source Control"
+            ],
+            [
+              "Local instructions",
+              "./CLAUDE.local.md",
+              "เฉพาะตัวคุณ (โปรเจกต์ปัจจุบัน)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Scope เหล่านี้ไม่ได้เขียนทับ (Override) กันเอง แต่จะถูกโหลดมารวมกันทั้งหมด (Additive) ดังนั้นต้องระวังข้อขัดแย้ง: หากมี 2 คำสั่งที่ขัดกัน Claude อาจเลือกปฏิบัติตามคำสั่งใดก็ได้ จึงควรตรวจสอบทั้ง Root file, Nested CLAUDE.md ในโฟลเดอร์ย่อย และไฟล์ใน .claude/rules/ ควบคู่กัน การ Import ผ่าน @path เช่น @docs/git-instructions.md ช่วยแยกไฟล์ยาวๆ ให้เป็นระเบียบได้ แต่ไม่ได้ช่วยประหยัด Context เพราะไฟล์ที่ Import จะถูกโหลดตอนเริ่มต้น Session เช่นกัน หากใน Monorepo มีการดึงคำสั่งของทีมอื่นเข้ามา สามารถระบุ Glob pattern ใน claudeMdExcludes เพื่อข้ามไฟล์ที่ไม่ต้องการได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ไม่ใช่ทุกไฟล์ที่จะถูกโหลดทันทีเมื่อเริ่ม Session โดยเฉพาะไฟล์ใน Working Directory และ Directory ลำดับเหนือขึ้นไปเท่านั้นที่จะโหลดตอนเริ่ม Session ส่วนไฟล์คำสั่งใน Subdirectory และ .claude/rules/ ย่อยจะโหลดแบบ On-demand เมื่อ Claude อ่านไฟล์ในโฟลเดอร์นั้นๆ ตัวอย่างเช่นใน Monorepo ไฟล์ frontend/CLAUDE.md จะไม่อยู่ใน Context จนกว่า Claude จะเริ่มทำงานภายใต้ frontend/"
+        },
+        {
+          "type": "paragraph",
+          "text": "Path-scoped rules คือวิธีที่ดีที่สุดในการลดขนาด CLAUDE.md โดยสร้างไฟล์ไว้ใน .claude/rules/ พร้อมกำหนด paths list ใน Frontmatter ไฟล์นั้นจะโหลดเข้ามาก็ต่อเมื่อ Claude ทำงานกับไฟล์ที่ Match กับ Glob เหล่านั้น แนะนำให้คุมขนาด CLAUDE.md ไม่ให้เกิน 200 บรรทัด โดยแยก Rule เฉพาะทางออกไป เช่น API conventions ใน src/api/ และเก็บเฉพาะ Convention ส่วนกลางไว้ในไฟล์หลักที่ต้องโหลดเสมอ ส่วน Personal rules สามารถเก็บไว้ที่ ~/.claude/rules/ ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "AGENTS.md เป็นไฟล์คำสั่งมาตรฐานข้ามเครื่องมือ (Cross-tool) ซึ่งโดย Default จะทำงานเป็น Fallback ไม่ใช่ส่วนเสริม โดย Claude จะอ่าน AGENTS.md ใน Working Directory และไดเรกทอรีด้านบนก็ต่อเมื่อ 'ไม่มี' CLAUDE.md, .claude/CLAUDE.md หรือ CLAUDE.local.md อยู่เลย หากมีไฟล์ใดไฟล์หนึ่งอยู่แล้ว AGENTS.md จะถูกข้ามทันที (ส่วน User CLAUDE.md, Managed CLAUDE.md และ .claude/rules/ จะไม่มีผลต่อเงื่อนไขนี้และยังคงโหลดตามปกติ) หากต้องการโหลดทั้งสองไฟล์ สามารถทำได้ 2 วิธี: ใส่ @AGENTS.md ไว้ใน CLAUDE.md (Claude จะไม่โหลดซ้ำ) หรือตั้งค่า Built-in Plugin agents-md เป็น claude-md-and-agents-md ทั้งนี้บน Windows แนะนำให้ใช้การ Import แทน Symlink เพื่อป้องกันปัญหา Clone บนระบบที่ไม่รองรับ Symlink แล้วได้ไฟล์เปล่าบรรทัดเดียว"
+        },
+        {
+          "type": "exam_trap",
+          "text": "AGENTS.md จะถูกโหลดควบคู่กับ CLAUDE.md ของโปรเจกต์เสมอใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: โดย Default ตัว AGENTS.md จะทำงานเป็น Fallback เท่านั้น และจะโหลดก็ต่อเมื่อไม่มี CLAUDE.md หรือ CLAUDE.local.md อยู่ใน Working Directory หรือลำดับชั้นเหนือขึ้นไป หากต้องการให้โหลดคู่กัน ต้องใช้การ Import ผ่าน @AGENTS.md หรือเปิดใช้การตั้งค่า claude-md-and-agents-md"
+        }
+      ]
+    },
+    {
+      "heading": "2. settings.json scopes, precedence และ managed settings",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ต่างจาก CLAUDE.md ที่นำข้อมูลมารวมกัน settings.json จะถูก Resolve แยกทีละ Key หากมีการกำหนด Key ซ้ำกันในหลายระดับ Scope ที่สูงกว่าจะชนะเสมอ ส่วน Key ที่ไม่ได้ระบุไว้จะใช้ค่าจาก Scope ลำดับรองลงไป โดยการตั้งค่าแบ่งออกเป็น 4 ไฟล์หลัก พร้อมกับ Flag สำหรับควบคุมเฉพาะ Session นั้นๆ"
+        },
+        {
+          "type": "table",
+          "caption": "ลำดับความสำคัญของ Settings scope (เรียงจากสูงไปต่ำ) และวัตถุประสงค์การใช้งาน",
+          "headers": [
+            "Scope",
+            "File",
+            "Use it for"
+          ],
+          "rows": [
+            [
+              "Managed",
+              "managed-settings.json, MDM policy หรือ Server-managed settings",
+              "นโยบายความปลอดภัย (Security policy) และข้อกำหนดด้าน Compliance"
+            ],
+            [
+              "Project local",
+              ".claude/settings.local.json",
+              "Override การตั้งค่าส่วนตัวเฉพาะโปรเจกต์ และใช้ทดสอบก่อนแชร์ให้ทีม"
+            ],
+            [
+              "Shared project",
+              ".claude/settings.json",
+              "กำหนด Permissions ของทีม, Hooks, Plugins และ Environment variables ที่โปรเจกต์ต้องใช้"
+            ],
+            [
+              "User",
+              "~/.claude/settings.json",
+              "Preferences ส่วนตัว เช่น Theme, Editor mode, Default model และกฎ Permission ส่วนตัว"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ลำดับความสำคัญจากสูงไปต่ำ (Strongest to Weakest) คือ: Managed settings, Command-line arguments (รวมถึง JSON ที่ส่งผ่าน --settings), .claude/settings.local.json, .claude/settings.json และ ~/.claude/settings.json ทั้งนี้ Local file เป็นไฟล์เฉพาะบุคคล เมื่อ Claude Code เขียนไฟล์นี้ครั้งแรก ระบบจะเพิ่ม Path ลงใน Global git excludes ให้โดยอัตโนมัติ และจะบันทึกการกดอนุมัติ \"Yes, and don't ask again\" ลงในไฟล์นี้ในรูปแบบ Allow rules"
+        },
+        {
+          "type": "paragraph",
+          "text": "มีบาง Key ที่จะถูกผสานข้อมูล (Merged) แทนการเขียนทับ เช่น permissions.allow จะรวมค่าจากทุก Scope เข้าด้วยกัน และ Allow rule ใน Local file จะไม่สามารถ Override หรืออยู่เหนือกฎ Ask rule ที่มาจาก Project หรือ Managed file ได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Settings ส่วนตัวไม่สามารถ Override ค่าจาก Managed settings ได้ เพื่อให้การบังคับใช้นโยบายมีผลจริง ควรใช้ Managed settings สำหรับการควบคุมเชิง Technical: เช่น permissions.deny เพื่อบล็อก Tools, คำสั่ง หรือ Paths, sandbox.enabled เพื่อบังคับใช้ Isolation, env สำหรับการกำหนด Route ของ Provider, forceLoginMethod และ forceLoginOrgUUID สำหรับควบคุม Sign-in รวมถึง allowManagedPermissionRulesOnly เพื่อละเว้น Allow rules ของผู้อื่นทั้งหมด ส่วนคำแนะนำเชิงพฤติกรรมควรใส่ไว้ใน Managed CLAUDE.md ดังนั้นกฎอย่าง \"ห้าม Push เข้า main เด็ดขาด\" จึงต้องใช้ทั้งสองส่วนร่วมกัน: ระบุ Instruction ใน Managed CLAUDE.md และตั้ง Deny rule ใน Managed settings"
+        },
+        {
+          "type": "paragraph",
+          "text": "Key ด้านความปลอดภัยบางตัวทำงานในทิศทางตรงกันข้าม โดย Scope ใดๆ ก็ตามสามารถปรับให้เข้มงวดขึ้นได้ (Stricter wins) เช่น หากในระดับ Project กำหนด disableClaudeAiConnectors: true ค่านี้จะยังคงมีผลเปิดใช้งาน แม้ว่า Managed source จะตั้งไว้เป็น false ก็ตาม"
+        },
+        {
+          "type": "paragraph",
+          "text": "ค่าต่างๆ ใน Project settings ที่ถูก Commit ลง Git จะไม่มีผลทันทีที่มีคน Clone โปรเจกต์ไป โดยค่าอย่าง permissions.allow, extraKnownMarketplaces และค่า env ส่วนใหญ่ จะต้องรอจนกว่าเพื่อนร่วมทีมจะกดยอมรับ Trust ในโฟลเดอร์นั้นก่อน ยกเว้น Deny และ Ask rules ที่จะมีผลบังคับใช้ทันที นอกจากนี้ บางค่ายังถูกจำกัดไม่ให้ตั้งค่าผ่าน Project หรือ Local settings ได้ เช่น permissions.defaultMode ที่เป็น bypassPermissions จะต้องกำหนดผ่าน User หรือ Managed settings เท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การกำหนด model ใน Managed settings จะป้องกันไม่ให้ผู้ใช้สลับไปใช้ Model อื่นใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: การกำหนด model ใน Managed settings เป็นเพียงการตั้งค่า Default เมื่อเริ่ม Session เท่านั้น ผู้ใช้ยังสามารถเปลี่ยน Model ได้ด้วยคำสั่ง /model หากต้องการจำกัดสิทธิ์การเลือกใช้ Model ต้องกำหนดผ่าน availableModels"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การกำหนด model ใน Managed settings บังคับให้ผู้ใช้ทุกคนต้องใช้ Model นั้นตลอดไปหรือไม่? (ทำไมถึงผิด): ไม่จริง: การระบุ model ใน Managed settings เป็นเพียงการเลือก Model เริ่มต้นของแต่ละ Session โดยผู้ใช้ยังสามารถสลับ Model ผ่านคำสั่ง /model ได้ หากต้องการจำกัด Model ที่อนุญาตให้ใช้งานจริง ต้องใช้การตั้งค่า availableModels"
+        }
+      ]
+    },
+    {
+      "heading": "3. Model IDs, Aliases และการเลือก Model เริ่มต้นของ Session",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Model ID เปรียบเสมือนการ Pin เวอร์ชัน โดย Model ภายใต้ ID นั้นจะไม่มีการเปลี่ยนแปลงตลอดอายุการใช้งาน ตั้งแต่ยุค Claude 4.6 เป็นต้นไป ID จะไม่มีการระบุวันที่ เช่น claude-opus-4-6 หรือ claude-sonnet-5 ซึ่งแต่ละชื่อคือ Canonical Name ของ Snapshot ตัวนั้นโดยเฉพาะ ส่วน Model รุ่นเก่าจะมีวันที่กำกับ เช่น claude-sonnet-4-5-20250929 และบน Claude API จะมี Short Aliases อย่าง claude-sonnet-4-5 ซึ่งชี้ไปยัง Snapshot แบบระบุวันที่ตัวล่าสุดของ Minor Version นั้นๆ ทั้งนี้แต่ละ ID มีกำหนดการ Deprecation และ Retirement แยกกัน แม้การ Pin จะล็อก Weights ไว้แน่นอน แต่ Serving Infrastructure รอบข้างยังเปลี่ยนได้ หาก ID ที่ Pin ไว้เริ่มมีพฤติกรรมเปลี่ยนไป สิ่งแรกที่ควรสงสัยคือการอัปเดตระดับ Infrastructure"
+        },
+        {
+          "type": "paragraph",
+          "text": "รูปแบบของ ID จะขึ้นอยู่กับ Provider ดังนั้นการคัดลอก Pin จากแพลตฟอร์มหนึ่งไปใช้อีกที่หนึ่งจะเกิดข้อผิดพลาด โดย Dateless ID จะเป็น claude-sonnet-4-6 บน Claude API และ Google Cloud ส่วนบน Amazon Bedrock จะเป็น anthropic.claude-sonnet-4-6 สำหรับ Model แบบระบุวันที่ยิ่งมีความแตกต่าง เช่น claude-sonnet-4-5-20250929 บน Claude API, anthropic.claude-sonnet-4-5-20250929-v1:0 บน Bedrock และ claude-haiku-4-5@20251001 บน Google Cloud ซึ่งวันที่อยู่หลังเครื่องหมาย @"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Code ได้เพิ่ม Family Aliases ของตัวเองเข้ามา ซึ่งถูกออกแบบมาให้ขยับเปลี่ยนไปตามเวอร์ชันใหม่ (Drift by design) โดย opus และ sonnet จะ Resolve ไปยัง Model ตัวล่าสุดในตระกูลนั้นๆ ซึ่งขึ้นอยู่กับ Provider ของคุณ เช่น opus จะ Resolve ไปเป็น Opus 5.5 บน Anthropic API แต่เป็น Opus 4.6 บน Microsoft Foundry ส่วน default ไม่ใช่ Alias แต่เป็นการล้างค่า Override ทั้งหมด ทั้งนี้ควรใช้ Alias บนเครื่อง Developer ที่เน้นการใช้ของใหม่ล่าสุดเสมอ และใช้ Full ID ในจุดที่ต้องการให้ทั้งสอง Environment รัน Model ตัวเดียวกันอย่างแน่นอน"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากต้องการใช้ Alias แต่ต้องการล็อก Model ที่ชี้ไว้ ให้ตั้งค่า Environment Variable ได้แก่ ANTHROPIC_DEFAULT_OPUS_MODEL, ANTHROPIC_DEFAULT_SONNET_MODEL, ANTHROPIC_DEFAULT_HAIKU_MODEL หรือ ANTHROPIC_DEFAULT_FABLE_MODEL เป็น Full ID และภายใต้รายการ availableModels ของ Organization ตัวแปรเหล่านี้จะไม่สามารถ Redirect ตัว Alias ที่อนุญาตไปยัง Model ภายนอกรายการได้"
+        },
+        {
+          "type": "table",
+          "caption": "Claude Code model aliases",
+          "headers": [
+            "Alias",
+            "Behavior"
+          ],
+          "rows": [
+            [
+              "opus",
+              "ใช้ Opus รุ่นล่าสุดสำหรับงาน Reasoning ที่ซับซ้อน"
+            ],
+            [
+              "sonnet",
+              "ใช้ Sonnet รุ่นล่าสุดสำหรับงาน Coding ทั่วไปในแต่ละวัน"
+            ],
+            [
+              "opusplan",
+              "ใช้ opus ระหว่าง Plan Mode แล้วสลับไปใช้ sonnet ในขั้นตอน Execution"
+            ],
+            [
+              "default",
+              "ล้างการ Override ค่า Model ทั้งหมด และย้อนกลับไปใช้ค่า Runtime Default ของบัญชีคุณ"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Model เริ่มต้นของ Session จะถูกเลือกลำดับตามลำดับตายตัว: เริ่มจาก Flag --model เป็นลำดับแรก, ตามด้วย Environment Variable ANTHROPIC_MODEL, จากนั้นเป็นค่า Model ใน Settings File ใดๆ (รวมถึงค่าที่บันทึกผ่าน /model), และปิดท้ายด้วยค่าเริ่มต้นระดับ Organization สำหรับ Model ในระดับ Project Settings หรือ Managed Settings จะถูกนำมาใช้อีกครั้งทุกครั้งที่เปิดใหม่ และมีลำดับความสำคัญเหนือกว่าตัวเลือก /model ที่คุณบันทึกไว้ ทั้งนี้บน Startup Header จะแสดงชื่อไฟล์ที่เป็นที่มาของค่านั้น และหากเป็นการ Resume Session ปกติจะใช้ Model เดิมที่เคยรันอยู่ แต่ถ้า Model ที่ร้องขออยู่นอกรายการ availableModels ของ Organization ตัว Claude Code จะสลับ Model ให้อัตโนมัติตอน Startup พร้อมแสดง Warning"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกค่า Default จะขึ้นอยู่กับสิ่งที่ถูกบันทึกไว้ หากไม่มีการตั้งค่าเริ่มต้นระดับ Organization ไว้ ตัว Default สามารถ Resolve ไปยัง Model ที่เคยถูกบันทึกไว้จากการเลือกก่อนหน้าของคุณได้ แต่ถ้าข้อจำกัดของ Model (Model Restrictions) กีดกัน Model ที่บันทึกไว้นั้น หรือบัญชีของคุณใช้งานไม่ได้ Default จะ Resolve เสมือนว่าไม่เคยมีการบันทึกอะไรไว้ ทั้งนี้คำสั่งสลับ /model จะมีผลทันทีใน Session ที่กำลังทำงานอยู่ จึงไม่ต้อง Restart เลย"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Model ID แบบไม่มีวันที่ เช่น claude-sonnet-4-6 เป็น Evergreen Pointer ที่จะอัปเกรดให้อัตโนมัติ? (ทำไมถึงผิด): ไม่จริง: ตั้งแต่เจเนอเรชัน 4.6 เป็นต้นไป Dateless ID คือตัว Snapshot เองเลย โดย Anthropic จะปล่อยการอัปเดตภายใต้ ID ใหม่เสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "4. Prompt Versions: Pin, Promote, Roll Back",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "System Prompt ส่งผลต่อ Output ไม่ต่างจากตัว Model ดังนั้นจึงต้องจัดการด้วยวิธีเดียวกัน: ทำเป็น Immutable Versions, Pin แต่ละ Environment ไว้กับเวอร์ชันใดเวอร์ชันหนึ่ง และทำให้ทุกการเปลี่ยนแปลงเป็นการขยับย้ายระหว่างเวอร์ชันอย่างชัดเจน (Explicit) ซึ่ง Anthropic ใช้แนวทางนี้กับ Model เช่นกัน โดย Model ID จะไม่มีการเปลี่ยนแปลงแบบ In-place และอัปเดตใหม่จะปล่อยมาภายใต้ ID ใหม่เสมอ Prompts ของคุณก็จำเป็นต้องมีการรับประกันแบบเดียวกัน มิฉะนั้นคุณจะไม่สามารถระบุได้เลยว่า Regression ที่เกิดขึ้นเกิดจากตัว Model หรือตัว Prompt กันแน่"
+        },
+        {
+          "type": "paragraph",
+          "text": "Managed Agents เป็นบริการ API ของ Anthropic ที่จัดเก็บ Agent รวมถึง System Prompt ไว้บน Server โดยมี agents.update เป็น Call สำหรับเปลี่ยนแปลง Agent และ sessions.create เป็น Call สำหรับเริ่ม Session ของ Agent นั้น ซึ่งทุกครั้งที่เรียก agents.update จะสร้าง Immutable Version ขึ้นมาใหม่ และ sessions.create สามารถ Pin ให้ Session นั้นใช้เวอร์ชันเจาะจงได้ การ Promote ตัว Prompt จึงกลายเป็นการเปลี่ยนหมายเลขเวอร์ชันใน Config เพียงจุดเดียว ไม่จำเป็นต้องแก้โค้ดเพื่อ Rebuild ใหม่"
+        },
+        {
+          "type": "paragraph",
+          "text": "สิ่งที่คุณส่งเข้าไปใน sessions.create จะเป็นตัวกำหนดว่าคุณกำลังถือ Pointer หรือ Pin: หากส่งเป็นสตริง Agent ID ธรรมดา จะได้เวอร์ชันล่าสุดเสมอ แต่ถ้าส่งเป็น Object ในรูปแบบ {\"type\": \"agent\", \"id\":..., \"version\":...} จะเป็นการ Pin เวอร์ชันที่แน่นอน ดังนั้นฝั่ง Production ที่ส่งแค่ Bare ID ธรรมดาจะได้รับ Prompt ใหม่อัตโนมัติทันทีใน Session ถัดไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "agents.update ไม่มีการตั้งเงื่อนไข Gate ใดๆ และไม่มี Approval Workflow ในตัว API Key ใดๆ ใน Workspace ก็สามารถเรียกได้ ขั้นตอน Review จึงถูกย้ายมาอยู่ที่การ Pin แทน: ฝั่ง Production Caller จะต้องส่ง Explicit Version เสมอ และหมายเลขเวอร์ชันใน Config นั้นจะต้องผ่านกระบวนการ Review ตามปกติ ใครจะสร้างเวอร์ชัน 2, 3 หรือ 10 ก็ได้ แต่เวอร์ชันเหล่านั้นจะอยู่เฉยๆ จนกว่าจะมีการ Approve และ Promote หมายเลขเวอร์ชันนั้นอย่างเป็นทางการ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Workflow ที่ปลอดภัยต้องทำตามขั้นตอนที่รัดกุม: สร้างเวอร์ชัน 1 แล้วประเมินคะแนนเทียบกับชุดทดสอบแบบติดป้ายกำกับ (Labelled Test Set) จากนั้นปล่อยเวอร์ชัน 2 และประเมินคะแนนด้วยวิธีเดียวกัน หากพบ Regression ก็แค่ชี้ให้ Caller กลับไปที่เวอร์ชัน 1 ซึ่งการ Roll Back ทำได้ทันทีโดยไม่ต้อง Deploy ใหม่ เพราะเวอร์ชัน 1 ยังคงอยู่โดยไม่มีการเปลี่ยนแปลงใดๆ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การส่ง Agent ID ไปยัง sessions.create จะช่วยล็อก Session ให้อยู่ในเวอร์ชันที่คุณทดสอบแล้วเสมอ? (ทำไมถึงผิด): ไม่จริง: การส่งสตริง Agent ID แบบธรรมดาจะ Resolve ไปยังเวอร์ชันล่าสุดเสมอ ทำให้ agents.update ครั้งใหม่มีผลกระทบต่อ Production ทันทีใน Session ถัดไป มีเพียงการส่ง Object ที่ระบุเวอร์ชันชัดเจน (Explicit Version) เท่านั้นที่จะเป็นการ Pin"
+        }
+      ]
+    },
+    {
+      "heading": "5. Plugin dependency ranges and exact pins",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Plugin คือแพ็กเกจส่วนขยายของ Claude Code ที่ติดตั้งจาก Marketplace (ดูที่ [Claude Code plugins](lesson:2.5)) โดย Plugin สามารถขึ้นต่อกันเองได้ผ่านอาเรย์ dependencies ใน plugin.json ซึ่งแต่ละรายการระบุได้ทั้งแบบชื่อเปล่าๆ หรือ Object ที่มี name, ช่วงเวอร์ชันตาม Semantic Versioning ใน version และ marketplace (ระบุหรือไม่ก็ได้) Claude Code จะติดตั้ง Git Tag สูงสุดที่ตรงตามช่วงเวอร์ชันที่กำหนด ผู้ดูแล Dependency จึงจำเป็นต้องติด Tag ให้ Release เสมอ หากเป็น Plugin ที่มี Repository ของตัวเอง ผู้สร้างจะเป็นคนติด Tag แต่ถ้าเป็น Plugin ที่อ้างอิงด้วย Relative Path ผู้ดูแล Marketplace จะเป็นผู้ติด Tag โดยคำสั่ง claude plugin tag --push จะสร้าง Tag หลังจาก Validate ตรวจสอบ Plugin แล้ว และจะปฏิเสธการสร้างหาก Tag นั้นมีอยู่แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากไม่มี Tag ที่ตรงตามช่วงเวอร์ชัน ผลลัพธ์จะขึ้นอยู่กับตำแหน่งที่ตั้งของ Dependency นั้น: หาก Plugin แยกมี Repository ของตัวเอง การติดตั้งจะล้มเหลวทันทีพร้อมแจ้งว่าไม่มี Git Tag ที่ตรงเงื่อนไข แต่หากเป็น Plugin ที่อ้างอิงผ่าน Relative Path ระบบจะติดตั้งสำเนาปัจจุบันจาก Marketplace แทน แล้วจึงค่อยตรวจสอบช่วงเวอร์ชันตอนโหลด Plugin หากสำเนาดังกล่าวอยู่นอกช่วงเวอร์ชันที่กำหนด Plugin ที่ต้องใช้ Dependency นั้นจะถูกปิดใช้งาน (Disabled) และคำสั่ง claude plugin list จะแสดงช่วงเวอร์ชันที่ต้องการควบคู่ไปกับเวอร์ชันที่ติดตั้งอยู่จริง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Dependency version range ถูก Resolve เทียบกับค่า String ของ version ใน plugin.json ของ Dependency ตัวนั้น? (ทำไมถึงผิด): ไม่จริง: Version range จะ Resolve เทียบกับ Git Tag เท่านั้น ดังนั้น Release ใดที่ไม่ได้ติด Tag ไว้จะไม่สามารถถูกเลือกใช้งานได้ ส่วน Plugin ที่อ้างอิงผ่าน Relative Path ระบบจะติดตั้งสำเนาปัจจุบันของ Marketplace และจะตรวจสอบช่วงเวอร์ชันตอนโหลด Plugin (Load time)"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความกว้างของช่วงเวอร์ชัน (Range) ที่กำหนดจะมีผลต่อความเข้ากันได้เมื่อมี Plugin สองตัวเรียกใช้ Dependency ตัวเดียวกัน หากช่วงเวอร์ชันมีส่วนทับซ้อนกัน (Overlap) ระบบจะรวมเป็น Single Install เพียงตัวเดียว แต่หากไม่มีส่วนทับซ้อนกันเลย การติดตั้ง Plugin ตัวที่สองจะล้มเหลว ในขณะที่ Plugin ตัวแรกยังคงใช้งานได้ตามปกติ ส่วนการระบุแบบ Exact Pin คือการระบุเวอร์ชันแบบตายตัว เช่น =2.1.0 ใน Dependency Object (เช่น { \"name\": \"secrets-vault\", \"version\": \"=2.1.0\" }) ซึ่งจะระงับ Auto-update ไม่ให้อัปเกรด Dependency ตัวนั้นตราบใดที่ Plugin ที่ปักหมุดยังติดตั้งอยู่ แนะนำให้ใช้ Exact Pin เมื่อผ่านการทดสอบกับ Build นั้นมาโดยเฉพาะ และใช้ช่วงแบบ Caret (^) หรือ Tilde (~) เมื่อต้องการรับ Patch หรือ Bug Fix แบบอัตโนมัติ"
+        },
+        {
+          "type": "table",
+          "caption": "การ Resolve ของสอง Plugin ที่กำหนด Version Range ของ Dependency ตัวเดียวกัน",
+          "headers": [
+            "Plugin A requires",
+            "Plugin B requires",
+            "Result"
+          ],
+          "rows": [
+            [
+              "^2.0",
+              ">=2.1",
+              "ติดตั้งครั้งเดียวที่ Git Tag สูงสุดในสาย 2.x ที่เวอร์ชัน >= 2.1.0 โดยโหลดใช้งานได้ทั้งสองตัว"
+            ],
+            [
+              "~2.1",
+              "~3.0",
+              "การติดตั้ง Plugin B ล้มเหลว พร้อมข้อความแจ้ง Conflicting version requirements"
+            ],
+            [
+              "=2.1.0",
+              "none",
+              "คงอยู่ที่เวอร์ชัน 2.1.0 โดย Auto-update จะข้ามเวอร์ชันใหม่กว่าตราบใดที่ Plugin A ยังคงติดตั้งอยู่"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55499",
+      "question": "ใน monorepo ขนาดใหญ่ มีไฟล์ root `CLAUDE.md` สำหรับข้อตกลงทั่วไปของ repository และไฟล์ `frontend/CLAUDE.md` สำหรับกฎเฉพาะของ React วิศวกรเปิดใช้งาน Claude Code จากภายในโฟลเดอร์ `frontend/` แล้วสั่งให้แก้ไขไฟล์ใน `frontend/components/` เนื้อหาจากทั้งสองไฟล์นี้จะถูกโหลดเข้าสู่ context ในลำดับใด และ `frontend/CLAUDE.md` จะถูกโหลดเมื่อใด?",
+      "options": [
+        "ทั้งสองไฟล์ถูกโหลดตั้งแต่ตอน launch เพราะตั้งอยู่ในหรือเหนือกว่า working directory โดยเรียงลำดับเนื้อหาจาก root ของ filesystem ไล่ลงมา ทำให้ไฟล์ root ปรากฏใน context ก่อนไฟล์ `frontend/CLAUDE.md`",
+        "มีเพียง root `CLAUDE.md` เท่านั้นที่ถูกโหลดตอน launch ส่วน `frontend/CLAUDE.md` จะโหลดแบบ on-demand เฉพาะเมื่อ Claude อ่านไฟล์ภายใน subdirectory ย่อยใต้ `frontend/` เท่านั้น ไม่ใช่ตัว `frontend/` เอง",
+        "โหลดเฉพาะ `frontend/CLAUDE.md` เท่านั้น เนื่องจาก Claude Code จะโหลดเฉพาะ CLAUDE.md ที่ใกล้ working directory ที่สุด และไม่สนใจไฟล์ ancestor ที่อยู่สูงขึ้นไปในโครงสร้างไดเรกทอรี",
+        "ทั้งสองไฟล์ถูกโหลดตั้งแต่ตอน launch แต่ `frontend/CLAUDE.md` จะปรากฏใน context ก่อนไฟล์ root เนื่องจากไฟล์ที่ใกล้กับ working directory มากกว่าจะได้รับ priority ก่อนในลำดับการโหลด"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55498",
+      "question": "วิศวกรแก้ไขไฟล์ `.claude/settings.json` ระหว่าง session โดยเพิ่ม entry ใหม่ภายใต้ `permissions.allow` สำหรับรูปแบบคำสั่ง Bash ที่ทีมเพิ่งอนุมัติ จากนั้นแก้ไขฟิลด์ `model` ในไฟล์เดียวกันเพื่อระบุ Claude version อื่น โดยไม่ได้ restart Claude Code วิศวกรควรคาดหวังผลลัพธ์อย่างไร?",
+      "options": [
+        "การตั้งค่า permission ใหม่จะมีผลทันทีผ่าน hot reloading แต่การเปลี่ยน model จะต้อง restart ก่อนจึงจะมีผล",
+        "การเปลี่ยนแปลงทั้งสองอย่างจะมีผลทันที เนื่องจาก Claude Code ตรวจจับการเปลี่ยนแปลงของไฟล์ settings ทั้งหมดและทำ hot-reload ทุก key โดยไม่ต้อง restart",
+        "ทั้งสองการเปลี่ยนแปลงจะยังไม่มีผลจนกว่าจะ restart เนื่องจากไฟล์ settings จะถูกอ่านเพียงครั้งเดียวตอนเริ่ม process startup และไม่มีการอ่านซ้ำอีก",
+        "การเปลี่ยน model จะมีผลทันที แต่การตั้งค่า permission กำหนดให้วิศวกรต้องรันคำสั่ง `/config` ด้วยตนเองก่อนจึงจะรับรู้การเปลี่ยนแปลง"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55502",
+      "question": "Enterprise admin ตั้งค่า `availableModels: [\"sonnet\", \"claude-opus-4-6\"]` ใน managed settings เพื่อจำกัด model ที่นักพัฒนาสามารถเลือกได้ แต่ไม่ได้กำหนด `enforceAvailableModels` ถ้านักพัฒนาที่ไม่เคยแตะคำสั่ง `/model` มาก่อนเปิด session ใหม่ session นั้นจะเริ่มต้นด้วย model ใด และเพราะเหตุใด?",
+      "options": [
+        "Model ค่าเริ่มต้นของประเภทบัญชี (account-type default model) เพราะ `availableModels` เพียงอย่างเดียวไม่ได้จำกัดตัวเลือก Default และการบังคับใช้ allowlist กับตัวเลือก Default จำเป็นต้องตั้งค่า `enforceAvailableModels` แยกต่างหาก",
+        "Opus version ล่าสุดที่อนุญาต นั่นคือ `claude-opus-4-6` เพราะ allowlist ที่ระบุ entry ของ Opus แบบเจาะจงจะกลายเป็น model เริ่มต้นของ session โดยอัตโนมัติเมื่อไม่มีการกำหนดค่า `model` ไว้อย่างชัดเจน",
+        "Sonnet เพราะเมื่อใดก็ตามที่ `availableModels` มีทั้ง family alias และ version-pinned entry ตัว Claude Code จะเริ่ม session ที่ยังไม่ได้กำหนดค่าด้วย entry ที่เป็น family alias เสมอ",
+        "Session จะ start ไม่สำเร็จและรายงาน error เพราะการมี allowlist โดยไม่มี `enforceAvailableModels` จะถือเป็น configuration ที่ไม่สมบูรณ์"
+      ],
+      "explanation": ""
+    }
+  ]
+}

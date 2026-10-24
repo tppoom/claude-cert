@@ -1,0 +1,152 @@
+{
+  "title": "Context Window Budget และการตัดทอน Tool Output (Pruning)",
+  "objectives": [
+    "ระบุทุกองค์ประกอบใน Claude API request ที่นับรวมใน Context Window รวมถึง Cached Prefixes และ Thinking",
+    "อธิบายว่าทำไม Context Rot จึงทำให้การคัดสรร Context สำคัญไม่แพ้ขนาดของ Context Window",
+    "ตั้งค่า Tool Result Clearing และ Thinking Block Clearing ด้วย Context Editing พร้อมประเมินผลกระทบต่อ Prompt Caching",
+    "เลือกใช้ Tool Search, Programmatic Tool Calling, Prompt Caching หรือ Context Editing ให้ตรงกับจุดเกิด Context Pressure"
+  ],
+  "key_concept": "Context Rot — ยิ่ง Context Window เต็ม ความแม่นยำและการ Recall ข้อมูลของโมเดลจะยิ่งลดลง เป้าหมายจึงเป็นการคัดสรรเฉพาะข้อมูลที่จำเป็น ไม่ใช่การยัดข้อมูลจนเต็มเพียงเพราะยังมีพื้นที่เหลือ",
+  "sections": [
+    {
+      "heading": "1. สิ่งที่กินพื้นที่ใน Context Window จริงๆ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Context Window คือ Working Memory ของโมเดลสำหรับ 1 Request ซึ่งบรรจุข้อความทั้งหมดที่ Claude ใช้อ้างอิงขณะเขียนคำตอบ รวมถึงตัวคำตอบเองก็กินพื้นที่ด้วยเช่นกัน ในการคุยผ่าน API ทั่วไปจะไม่มีข้อมูลส่วนใดหลุดออกไปเอง ข้อความ User และคำตอบ Assistant ของแต่ละ Turn จะถูกเก็บสะสมไว้ครบถ้วน ทำให้ทุก Request ต้องแบกทั้ง History เดิมและข้อความใหม่ไปด้วย แม้โมเดลขนาด 1M Token (เช่น Claude Opus 5.5, Claude Sonnet 5.5 และ Claude Fable 5.1) จะให้พื้นที่มหาศาล และโมเดลอื่น เช่น Claude Sonnet 4.5 มี 200k แต่เอกสารระบุชัดเจนว่า Context ที่ใหญ่กว่าไม่ได้ดีกว่าเสมอไป ยิ่ง Token เยอะ Accuracy และ Recall ยิ่งลดลง ซึ่งใน Exam Guide เรียกว่า \"Context Drift\" ส่วนเอกสารเรียกว่า \"Context Rot\" นี่คือเหตุผลว่าทำไมเนื้อหาส่วนที่เหลือของบทเรียนนี้จึงเน้นเรื่องการ Prune ข้อมูลทิ้ง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ก่อนจะ Prune อะไรออก คุณต้องนับขนาดใน Window ให้แม่นยำก่อน ทุกอย่างใน Request ล้วนถูกนับทั้งหมด: System Prompt, ทุก Message (รวมถึง Tool Results, รูปภาพ และ Documents) ตลอดจน Tool Definitions นอกจากนี้ Output ของ Turn ปัจจุบันก็ถูกนับด้วย รวม Extended Thinking เข้าไปด้วย ในแต่ละ Response ฟิลด์ usage จะรายงานสิ่งที่ Request นั้นใช้งาน และ Token Counting API สามารถช่วย Estimate ล่วงหน้าก่อนส่งได้ สำหรับ Thinking Blocks ก่อนหน้า แต่ละ Generation มีการจัดการต่างกัน: Claude Opus 4.5+ ขึ้นไป, Claude Sonnet 4.6+ ขึ้นไป, Fable และ Mythos จะเก็บไว้เป็นค่า Default และถูกนับเป็น Input ปกติ ส่วนโมเดล Opus/Sonnet รุ่นก่อนหน้าและ Haiku ทุกรุ่นจะ Strip ออกให้อัตโนมัติเมื่อส่งกลับไป"
+        },
+        {
+          "type": "table",
+          "caption": "สิ่งที่นับรวมใน Context Window และผลกระทบ",
+          "headers": [
+            "Item",
+            "นับรวมใน Window หรือไม่?",
+            "คำอธิบาย"
+          ],
+          "rows": [
+            [
+              "System prompt and tool definitions",
+              "นับ",
+              "ถูกส่งไปในทุก Request"
+            ],
+            [
+              "Tool results, images, documents in messages",
+              "นับ",
+              "สะสมเพิ่มขึ้นเรื่อยๆ ในแต่ละ Turn"
+            ],
+            [
+              "Output for the current turn, including extended thinking",
+              "นับ",
+              "Thinking tokens ถูกนับรวมอยู่ใน max_tokens"
+            ],
+            [
+              "Previous thinking blocks",
+              "ขึ้นอยู่กับโมเดล",
+              "เก็บไว้บน Opus 4.5+ / Sonnet 4.6+ / Fable / Mythos; Strip ทิ้งบน Opus/Sonnet รุ่นก่อนหน้า และ Haiku ทุกรุ่น"
+            ],
+            [
+              "Cached prompt prefix",
+              "นับ",
+              "ทั้ง cache_read_input_tokens และ cache_creation_input_tokens ถูกนับรวมทั้งหมด"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "โมเดลบางตัวสามารถรับรู้ Budget ของตัวเองได้ โดย Claude Sonnet 5, Sonnet 4.6, Sonnet 4.5 และ Haiku 4.5 มีฟีเจอร์ Context Awareness ซึ่ง API จะแทรกแท็ก <budget:token_budget> ใน System Prompt และส่ง usage ใน system_warning หลังจบแต่ละ Tool Call เพื่อให้โมเดลประเมินความเร็วในการทำงานกับพื้นที่ที่เหลือได้ โดยคุณไม่ต้องส่งแท็กเหล่านี้เอง ส่วน Claude Opus 4.7+ ขึ้นไป, Claude Sonnet 5.5, Fable และ Mythos จะไม่มีแท็กนี้ แต่สามารถกำหนด Budget แบบระบุชัดเจนผ่านฟีเจอร์ Task Budgets (Beta) ได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Prompt caching ช่วยลดพื้นที่ Context Window ของ Prefix ขนาดใหญ่ที่ไม่เปลี่ยนแปลงได้หรือไม่? (ทำไมถึงผิด): ไม่จริง: Cached tokens ยังคงถูกนับเข้า Context Window เต็มจำนวนเท่าเดิม การทำ Caching ช่วยลดเพียงแค่ค่าใช้จ่าย (Cost) แต่ไม่ได้ช่วยแก้ปัญหา Context Rot หรือขยายขีดจำกัดของ Window เลย"
+        }
+      ]
+    },
+    {
+      "heading": "2. การ Prune สรุปผล Tool Output ที่เก่าแล้วด้วย Context Editing",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Agentic Workflows ผลลัพธ์จาก Tool มักจะโตเร็วที่สุด ไฟล์ที่ Claude อ่านไปเมื่อ 20 Turn ที่แล้ว หรือผลค้นหาที่นำไปใช้แล้ว ยังคงกินพื้นที่และดึง Attention ไปในทุกๆ Request ถัดไป Context Editing จึงเข้ามาแก้ปัญหานี้โดยการเคลียร์เนื้อหาบางส่วนออกจาก History ตาม Rules ที่ตั้งไว้ เอกสารมองว่านี่คือการ Curation ไม่ใช่แค่การลด Cost เพราะ Context มีจำกัด ยิ่งใส่เยอะยิ่งได้ผลตอบแทนลดลง และเนื้อหาที่ไม่เกี่ยวข้องจะบั่นทอน Focus คุณสามารถเปิดใช้งานได้ผ่านเบต้า context-management-2025-06-27 โดยส่ง Object context_management ที่ระบุรายการ Edits เข้าไป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "หลังจากเปิดใช้ Context Editing ฝั่ง Client ต้องลบ Tool Results ที่ถูกเคลียร์ออกจาก Message History ของตัวเองเพื่อ Sync ข้อมูลหรือไม่? (ทำไมถึงผิด): ไม่จริง: Context Editing ทำงานฝั่ง Server ก่อนที่ Prompt จะส่งถึง Claude โดยฝั่ง Client ยังคงเก็บและส่ง History ฉบับเต็มแบบดั้งเดิมไปตามปกติ\n\nการเคลียร์ Tool Results ไม่มีผลกระทบต่อ Caching เพราะเป็นการลบ Token ออกเท่านั้นหรือไม่? (ทำไมถึงผิด): ไม่จริง: การเคลียร์ข้อมูลจะทำให้ Cache Prefix บริเวณที่เนื้อหาถูกลบหลุด (Invalidate) ทันที ส่งผลให้การเคลียร์แต่ละครั้งต้องเสียค่า Cache Write ใหม่ จึงต้องมี clear_at_least เพื่อการันตีว่าการเคลียร์แต่ละรอบคุ้มค่ากับ Cost ที่ต้องจ่าย"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อขนาดข้อมูลถึง Trigger ที่กำหนด API จะเริ่มเคลียร์ Tool Results ที่เก่าที่สุดตามลำดับเวลา โดยแปลงแต่ละผลลัพธ์ให้กลายเป็น Placeholder ค่า Default จะเคลียร์เฉพาะผลลัพธ์ (Results) เท่านั้นและยังคง Tool Calls ของ Claude เอาไว้ หากต้องการเคลียร์ Parameters ของการเรียก Tool ด้วย ให้ตั้งค่า clear_tool_inputs เป็น true การ Edit นี้เกิดขึ้นที่ฝั่ง Server ก่อนส่งไปถึง Claude ฝั่ง Client จึงถือ History ฉบับเต็มตามเดิมโดยไม่ต้อง Sync State ในเครื่องให้ตรงกับเวอร์ชันที่ถูก Edit"
+        },
+        {
+          "type": "table",
+          "caption": "ตัวเลือกและค่าเริ่มต้นของ clear_tool_uses_20250919",
+          "headers": [
+            "Option",
+            "Default",
+            "หน้าที่ควบคุม"
+          ],
+          "rows": [
+            [
+              "trigger",
+              "100,000 input tokens",
+              "เงื่อนไขเริ่มเคลียร์ข้อมูล (input_tokens หรือ tool_uses)"
+            ],
+            [
+              "keep",
+              "3 tool uses",
+              "จำนวนคู่ Tool Use/Result ล่าสุดที่ต้องการเก็บไว้"
+            ],
+            [
+              "clear_at_least",
+              "None",
+              "จำนวน Token ขั้นต่ำที่ต้องเคลียร์ได้ ไม่เช่นนั้นจะข้าม Strategy นี้ไป"
+            ],
+            [
+              "exclude_tools",
+              "None",
+              "รายชื่อ Tools ที่ไม่ต้องการให้เคลียร์ทั้ง Use และ Result"
+            ],
+            [
+              "clear_tool_inputs",
+              "false",
+              "กำหนดให้เคลียร์ Parameters ของ Tool Call ด้วยหรือไม่"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "clear_at_least ถูกออกแบบมาเพื่อ Prompt Caching โดยเฉพาะ เพราะการเคลียร์ Tool Results จะทำให้ Cached Prefix บริเวณนั้นเกิด Invalidation หากเคลียร์เพียงนิดเดียวจะต้องเสียรอบ Cache Write ใหม่โดยได้พื้นที่คืนมาไม่คุ้ม ดังนั้นหาก API ไม่สามารถเคลียร์ได้ถึงจำนวนขั้นต่ำที่ตั้งไว้ ระบบจะข้าม Edit รอบนั้นไป ส่วน Strategy คู่กันอย่าง clear_thinking_20251015 จะใช้ keep (เช่น {type: \"thinking_turns\", value: 2} หรือ \"all\") เพื่อกำหนดจำนวน Thinking Turns ล่าสุดที่ต้องการเก็บไว้ การเก็บไว้จะช่วยรักษา Cache แต่การเคลียร์ทิ้งจะได้พื้นที่คืนแลกกับการ Invalidate Cache ณ จุดนั้น คุณสามารถกำหนดทั้งสอง Strategies ร่วมกันใน edits Array เดียวได้"
+        }
+      ]
+    },
+    {
+      "heading": "3. จับคู่วิธีแก้ปัญหาให้ตรงกับสาเหตุของ Context Bloat",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Context Editing ช่วยลบผลลัพธ์ที่ไม่จำเป็นออกหลังจากใช้งานเสร็จแล้ว แต่นี่เป็นเพียง 1 ใน 4 แนวทาง ซึ่งแต่ละวิธีทำงานคนละจุดใน Pipeline ทั้ง Tool Definitions และบล็อก tool_result ที่สะสมเรื่อยๆ ต่างก็กิน Context Window ดังนั้นต้องเริ่มจากการวิเคราะห์ก่อนว่า Token ของคุณหมดไปกับอะไร: Tool Search ช่วยป้องกันไม่ให้ Tool Definitions เข้ามากิน Window ล่วงหน้า จนกว่า Claude จะเรียกขอ โดยใช้ tool_search เพียงตัวเดียวแทนที่การส่ง Schema ล่วงหน้านับสิบตัว แลกกับ Turn การทำงานเพิ่มขึ้น 1 Turn; Programmatic Tool Calling รวมการเรียก Tool ต่อเนื่องหลายครั้งให้กลายเป็น Script เดียวที่รันใน Code Execution Sandbox ของ Anthropic ทำให้ผลลัพธ์ระหว่างทางไม่ต้องหลุดเข้ามาในประวัติการสนทนา; ส่วน Prompt Caching ไม่ได้ช่วยลดจำนวน Token แค่ช่วยลดค่าใช้จ่ายสำหรับ Prefix ส่วนที่ไม่มีการเปลี่ยนแปลง"
+        },
+        {
+          "type": "paragraph",
+          "text": "คุณสามารถผสมผสานแนวทางเหล่านี้เข้าด้วยกันได้ ลำดับที่แนะนำสำหรับ High-volume Agent คือ: ทำ Cache ให้ Tool Definitions ตั้งแต่วันแรก, เพิ่ม Tool Search เมื่อชุด Tool เริ่มเกินราวๆ 20 ตัว, นำ Context Editing มาใช้เมื่อบทสนทนายาวจนผลลัพธ์ช่วงแรกหมดความสำคัญแล้ว และพิจารณาใช้ Programmatic Tool Calling เมื่อพบการเรียก Tool ย่อยๆ ต่อเนื่องกันซ้ำๆ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55600",
+      "question": "ก่อนที่ session ขนาดยาวจะทำการ compact ทีมงานต้องการจัดเก็บ (archive) transcript ฉบับเต็มที่ยังไม่ถูกสรุปย่อไว้เพื่อใช้ในการตรวจสอบ (audit) พวกเขาควรใช้กลไกใด?",
+      "options": [
+        "PreCompact hook ซึ่งจะรัน custom logic ก่อนการ compaction เกิดขึ้น และสามารถบันทึก transcript ฉบับเต็มไว้ที่อื่นก่อนที่จะถูกแทนที่ด้วย summary",
+        "PostToolUse hook ซึ่งจะทำงานหลังจากแต่ละ tool call เสร็จสิ้น และจัดเก็บสำเนาของทุก tool result ไว้อย่างต่อเนื่องเพื่อการตรวจสอบภายหลัง",
+        "Payload ของ system message แบบ compact_boundary ซึ่งมี transcript ฉบับเต็มช่วงก่อนการ compaction ฝังอยู่เป็น field หนึ่งอยู่แล้ว",
+        "SessionEnd hook เนื่องจาก compaction จะเกิดขึ้นก็ต่อเมื่อ session สิ้นสุดลงโดยสมบูรณ์และ transcript ได้รับการสรุปผลขั้นสุดท้ายแล้วเท่านั้น"
+      ],
+      "explanation": ""
+    }
+  ]
+}

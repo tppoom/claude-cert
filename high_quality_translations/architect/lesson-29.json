@@ -1,0 +1,265 @@
+{
+  "title": "การวินิจฉัยข้อผิดพลาดในระบบ Claude: Hallucination, Prompts, Tools และขีดจำกัดของ Model",
+  "objectives": [
+    "ยืนยันข้อสงสัยเรื่อง Hallucination บนระบบจริง ด้วยการตรวจแหล่งข้อมูล, วัดความสม่ำเสมอข้าม Sample และตรวจสอบ Citation",
+    "ไล่รอยพฤติกรรมที่ตอบตรงตามสั่งแต่ไม่ตรงความต้องการ กลับไปยังคำสั่งใน Prompt ที่เป็นต้นเหตุ",
+    "วิเคราะห์อาการผิดปกติของ Tool Use (เลือก Tool ผิด, ส่ง Argument พลาด, เรียกซ้ำซ้อน) เพื่อชี้เป้าปัญหาใน Description, Schema หรือ Prompt",
+    "ระบุปัญหา Model Mismatch ทั้งกรณีสเปกต่ำหรือสูงเกินไป พร้อมพิสูจน์ด้วย Eval ก่อนตัดสินใจเปลี่ยน Model"
+  ],
+  "key_concept": "Symptom-to-layer diagnosis — Output ที่ผิดพลาดคืออาการ ก่อนจะลงมือแก้ ต้องระบุให้ได้ว่าปัญหาเกิดจาก Layer ไหน: Grounding, Prompt, นิยามของ Tools หรือ Capability ของ Model การแก้ผิด Layer จะทิ้งต้นเหตุที่แท้จริงไว้เหมือนเดิม",
+  "sections": [
+    {
+      "heading": "1. 4 เลเยอร์ที่เป็นต้นตอของความผิดพลาด (Failure Layers)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "เมื่อระบบที่ใช้ Claude รันบน Production ปัญหาจะแสดงออกมาในรูปของอาการ (Symptoms): เช่น ตัวเลขที่ไม่มีอยู่จริงใน Source, JSON Key เปลี่ยนไปเรื่อยๆ, เรียก Tool ผิดตัว หรือคำตอบช้าและเปลือง Token เกินจำเป็น ซึ่งอาการเดียวกันอาจมาจากคนละเลเยอร์ และแต่ละเลเยอร์มีวิธีแก้ต่างกัน การ Debug จึงต้องระบุเลเยอร์ให้ถูกต้องก่อนเริ่มแก้โค้ด"
+        },
+        {
+          "type": "paragraph",
+          "text": "4 เลเยอร์ที่ต้องตรวจสอบ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Grounding: Model ตอบข้อมูลที่ Context/Input ไม่ได้รองรับ\n- Prompt: Model ทำตาม Instruction ครบถ้วน แต่ Instruction นั้นไม่ใช่สิ่งที่เราต้องการจริงๆ\n- Tools: Description หรือ Schema คลุมเครือ จน Model ต้องเดาว่าจะเรียก Tool ตัวไหนหรือส่ง Param อย่างไร\n- Model: เลือกรุ่น Model ไม่เหมาะกับงาน (เล็กเกินไปจนแก้ปัญหาไม่ได้ หรือใหญ่เกินไปจนเปลือง Cost และ Latency เกินจำเป็น)"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทาง Troubleshooting ที่ดีที่สุดคือ: สังเกต Symptom -> หาสาเหตุที่เป็นไปได้ -> กำหนดวิธี Fix เช่นเดียวกับคู่มือ Tool Use ของ Anthropic ซึ่งสิ่งที่ต้องระวังคือการแก้ผิดเลเยอร์ เช่น การบังคับใส่ Citations ไม่ได้ช่วยให้ Model ที่เลือกมาผิดไซส์ทำงานเร็วขึ้น หรือการ Rename Tool ไม่ได้ช่วยแก้ปัญหา Tool Description สองตัวที่นิยามทับซ้อนกัน"
+        }
+      ]
+    },
+    {
+      "heading": "2. การตรวจสอบและยืนยัน Hallucination",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Hallucination คือ Output ที่ผิดจากข้อเท็จจริง หรือขัดแย้งกับ Context ที่ส่งให้ Model ความอันตรายคือ Output เหล่านี้มักดูน่าเชื่อถือและเขียนลื่นไหลมาก Claude อาจสร้าง Quote ที่ดูเป็นทางการแต่ไม่มีอยู่จริง ดังนั้นความลื่นไหลของภาษา (Fluency) จึงใช้วัดความถูกต้องไม่ได้ ต้องใช้การตรวจสอบเชิงระบบเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "3 วิธีตรวจสอบ Hallucination ในระบบจริง:"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. ตรวจสอบ Claim กับ Source Documents: สั่งให้ Claude ดึง Direct Quotes แบบคำต่อคำจาก Document ออกมาก่อนเริ่มทำ Task หาก Claim ใดไม่มี Quote อ้างอิง ให้ถือว่าน่าสงสัย\n2. ตรวจสอบ Consistency ข้าม Sample: รัน Prompt เดิมซ้ำกันหลายครั้งแล้วนำ Output มาเปรียบเทียบ หากข้อเท็จจริงเปลี่ยนไปมาระหว่าง Run แสดงว่าเป็นข้อมูลที่ถูก Generate ขึ้นมา ไม่ได้เกิดจาก Retrieval\n3. ทำ Citation Verification: หลังจาก Claude ทำงานเสร็จ ให้สั่งค้นหา Quote มารองรับแต่ละ Claim หากจุดไหนไม่มี Source รองรับ ให้สั่ง Retract (ถอน Claim) ทันที เช่น การ Prompt ให้ตัด Claim ที่ไม่มีหลักฐานออกแล้วมาร์กด้วยวงเล็บว่าง [] ไว้ เพื่อให้ Reviewer ตรวจสอบต่อได้ง่าย"
+        },
+        {
+          "type": "paragraph",
+          "text": "หาก Output ดูผิดปกติและต้องการตรวจสอบ Root Cause ให้เปิดโหมด Thinking พร้อมกำหนด display: \"summarized\" เพื่ออ่าน Reasoning สรุป ซึ่งจะช่วยเผยให้เห็น Assumption ที่ผิดพลาดระหว่างการประมวลผล"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อยืนยันว่าเกิด Hallucination แล้ว ต้องหาสาเหตุเพื่อเลือกวิธีแก้ให้ตรงจุด โดยสาเหตุที่พบบ่อยมี 3 ประการ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- ขาด Grounding: Output ไม่อิงกับ Text แก้โดยบังคับให้ดึง Quotes ก่อน แล้ววิเคราะห์จาก Quotes นั้นเท่านั้น พร้อมระบุชัดเจนว่าให้ตอบจาก Document ที่แนบไป ห้ามดึงความรู้ทั่วไป (General Knowledge)\n- การบีบให้ต้องตอบ (Forced Answer): Prompt ไม่เปิดช่องให้ตอบว่า \"ไม่รู้\" Model จึงเดาข้อมูลขึ้นมาเติมเต็ม แก้โดยระบุสิทธิ์ให้ Claude ปฏิเสธหรือยอมรับได้ชัดเจนหากไม่มีข้อมูล\n- มี Claim ลอยๆ ปะปนกับข้อมูลจริง: เพิ่มกระบวนการ Cite-or-Retract Pass หลังการ Generate ร่างแรกเสร็จ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น Policy Assistant สร้างตัวเลขอัตราสะสมวันลาขึ้นมาอย่างมั่นใจ ทั้งที่ไม่มีใน PDF สาเหตุเกิดจากขาด Grounding ร่วมกับ Forced Answer การแก้ด้วยการบอกให้ Model ใช้ความรู้ HR ทั่วไปมาเติมช่องว่าง หรือบังคับให้ส่งตัวเลขกลับมาเสมอ ยิ่งทำให้ปัญหารุนแรงขึ้น ส่วนการยัด Document ทั้งหมดซ้ำเข้าไปในทุก Reply ก็มีแต่เพิ่ม Token Cost โดยไม่ได้ช่วยผูก Claim เข้ากับ Quote อ้างอิง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: เมื่อคำตอบมี Fact ที่ไม่มีใน Source Documents วิธีแก้ไม่ใช่การบอกให้ Model ใช้ General Knowledge เสริม หรือบังคับให้ต้องมีคำตอบทุกครั้ง เพราะนั่นคือต้นเหตุของ Hallucination วิธีแก้ที่ถูกต้องคือการบังคับให้ Quote ข้อความก่อน และอนุญาตให้ตอบปฏิเสธได้หากไม่มีข้อมูลใน Source"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: เมื่อ RAG Assistant แต่งตัวเลขขึ้นมาเอง การสั่งให้ดึง General Knowledge มาเติมเต็มช่องว่างของ Document จะยิ่งเปิดช่องให้เกิด Ungrounded Output วิธีแก้ทางเทคนิคที่ถูกต้องคือจำกัด Scope ให้ Claude ใช้เฉพาะ Document ที่ให้ไปเท่านั้น, บังคับทำ Quotes-first และอนุญาตให้ตอบว่าไม่รู้หากไม่มีข้อมูล"
+        }
+      ]
+    },
+    {
+      "heading": "3. Prompt failure: Claude ทำตามที่สั่ง แต่ไม่ใช่สิ่งที่ต้องการจริงๆ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt failure สังเกตได้ง่ายมาก: Output เป็นไปตาม Instruction ทุกประการ แต่ผลลัพธ์กลับไม่ใช่สิ่งที่ต้องการ ไม่ได้เกิด Hallucination และไม่มี Tool ตัวไหนทำงานผิดพลาด Model เพียงแค่เติมเต็มช่องว่างที่ Prompt เว้นไว้ หรือทำตามคำสั่งแบบตรงตัวเกินไป (Literal) ให้คิดว่า Claude เหมือนพนักงานใหม่ไฟแรงที่ฉลาดมากแต่ยังไม่เข้าใจ Norm ในการทำงาน การทดสอบที่ดีคือลองเอา Prompt ให้เพื่อนร่วมงานที่ไม่ค่อยรู้บริบทของงานดู ถ้าเขาทำผิด Claude ก็มีโอกาสทำผิดเช่นกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "หากโครงสร้างผลลัพธ์เปลี่ยนไปเรื่อยๆ (Structure drift) ทั้งที่ Input เหมือนเดิม นั่นเป็นสัญญาณว่า Prompt กำหนดสเปกไม่ละเอียดพอ (Underspecified) จำไว้ว่า Hallucination จะเปลี่ยนข้อเท็จจริง ไม่ใช่เปลี่ยนชื่อ Key ส่วน Rate limit จะทำให้ Request พัง ไม่ใช่เปลี่ยนหน้าตาของ JSON วิธีแก้คือต้องตีกรอบ Format ให้ชัดเจน: ระบุ Fields และการ Nesting ให้ครบถ้วน พร้อมแนบตัวอย่าง Response การใส่ตัวอย่างที่ดีไม่กี่ตัวอย่างจะช่วยเพิ่ม Accuracy และ Consistency ได้อย่างมาก และควรครอบด้วยแท็ก <example> เพื่อแยกออกจาก Instruction ให้ชัดเจน"
+        },
+        {
+          "type": "paragraph",
+          "text": "อีกสาเหตุที่พบบ่อยคือการใส่คำสั่งโดยไม่บอกเหตุผล ทำให้ Model นำไปปรับใช้กว้างเกินไป เช่น คำสั่ง \"ห้ามใช้จุดไข่ปลา (ellipses) เด็ดขาด\" จะถูกบล็อกในทุกกรณี แต่ถ้าเปลี่ยนเป็น \"Response ของคุณจะถูกอ่านออกเสียงโดย TTS engine จึงห้ามใช้จุดไข่ปลา\" Claude จะเข้าใจจุดประสงค์ของ Rule และตัดสินใจได้ยืดหยุ่นขึ้นอย่างถูกต้อง เมื่อเจอพฤติกรรมที่ทำตามคำสั่งเป๊ะจนเกิดข้อผิดพลาด ให้ย้อนกลับไปดูว่ามาจาก Instruction ข้อไหน แล้วเขียนระบุเหตุผลกำกับเข้าไปด้วยเสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างข้อผิดพลาดจริงจาก Prompt ระบบ Support desk ที่ Anthropic ตรวจพบ:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- มีคำสั่งขัดแย้งกัน (Contradictions): บรรทัด 15 สั่งให้ Confirm ก่อน Refund ทุกครั้ง แต่บรรทัด 17 สั่งให้ Process ทุกเคสที่ผ่านเกณฑ์ทันที หรืออีกบรรทัดขอ Recap ฉบับสมบูรณ์แต่จำกัดไม่เกิน 3 ประโยค - ทำตามคำสั่งตรงตัวจนเกินพอดี (Literal over-application): คำสั่ง \"ตรวจสอบอย่างละเอียดแม้ Ticket จะดูง่าย\" ส่งผลให้เกิด Tool calls ถึง 4 ครั้งกับแค่การเช็กสถานะพัสดุทั่วไป - Instruction เก่าตกค้างทำให้เปลืองต้นทุน (Cost from stale instructions): คำสั่ง \"Verify 2 ครั้ง\" ดันค่าใช้จ่ายต่อ Ticket ให้สูงขึ้นโดยไม่จำเป็น"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อความเก่าสองประเภทสร้างผลเสียต่างกัน: Instruction ที่ Model รุ่นใหม่ทำตามอย่างตรงตัวเกินไปจะทำให้เปลืองเงิน (Cost) ส่วนข้อความที่ขัดแย้งกันหรือ Outdated จะทำให้ความถูกต้องลดลง (Accuracy) ซึ่งการลบ Rule ที่ขัดแย้งกันออกสามารถกู้คืน Accuracy กลับมาได้ทันที"
+        },
+        {
+          "type": "exam_trap",
+          "text": "JSON keys เปลี่ยนไปเรื่อยๆ ทั้งที่ Input สม่ำเสมอและ Well-formed แปลว่า Model กำลัง Hallucinate? (ทำไมถึงผิด): ไม่จริง: Format drift บน Input เดิมหมายความว่า Prompt กำหนดโครงสร้างไม่ชัดเจน (Underspecified) แก้ได้โดยระบุ Fields ให้ครบและใส่ตัวอย่าง Response เพราะตัวอย่างจะเป็นตัวช่วยยึด Format ให้คงที่"
+        }
+      ]
+    },
+    {
+      "heading": "4. Tool misuse: วิเคราะห์อาการเพื่อหาสาเหตุที่แท้จริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Tool failures มักมี Pattern ชัดเจน เช่น Agent เรียกผิด Tool, เรียกถูก Tool แต่ส่ง Parameter ผิด, เรียก Tool น้อยเกินไป หรือ Process ผลลัพธ์จาก Tool ไม่ถูกต้อง ซึ่งแต่ละ Pattern จะชี้ไปยังจุดบกพร่องใน Tool definition แต่ละจุดโดยตรง ดังนั้นอาการที่แสดงออกมาจะบอกได้ทันทีว่าต้องไปแก้ที่ไหน"
+        },
+        {
+          "type": "table",
+          "caption": "อาการผิดปกติของการใช้ Tool และสาเหตุใน Tool definition",
+          "headers": [
+            "Symptom",
+            "Likely cause",
+            "Fix"
+          ],
+          "rows": [
+            [
+              "Calls tool A when you wanted tool B",
+              "Description ambiguity",
+              "เขียน Description ให้ชัดเจนขึ้น โดยเน้นระบุให้ชัดว่าควรใช้ Tool แต่ละตัวเมื่อใด"
+            ],
+            [
+              "Never calls your tool",
+              "Tool name collision or overly generic schema",
+              "ตรวจสอบว่ามีชื่อซ้ำกันหรือไม่ หรือเพิ่ม input_examples เข้าไปใน Schema"
+            ],
+            [
+              "Wrong parameter types",
+              "Model guessing at an ambiguous schema",
+              "เปิดใช้ strict: true (ใน Subsets ที่รองรับ) หรือเพิ่ม input_examples"
+            ],
+            [
+              "Parameter that does not exist in the schema",
+              "Over-generation without strict mode",
+              "เปิดใช้ strict: true"
+            ],
+            [
+              "Values outside your enum",
+              "Missing strict mode or too-large enum",
+              "ลดขนาดของ Enum ลง หรือเพิ่ม input_examples"
+            ],
+            [
+              "Refuses to act on a tool result, or asks the user to confirm its instructions",
+              "Your instructions are inside the tool_result content",
+              "ย้าย Instruction ไปไว้ใน User turn ถัดจาก tool_result และเก็บ tool_result ไว้สำหรับส่งเฉพาะ Data เท่านั้น"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ปัญหาส่วนใหญ่ของการเรียกผิด Tool เกิดจาก Tool มีหน้าที่ทับซ้อนกันหรือมีจุดประสงค์คลุมเครือ จนทำให้ Agent สับสน การใช้ Prefix จัดกลุ่มตาม Service เช่น asana_search และ jira_search จะช่วยแยก Tool ให้ชัดเจนขึ้น ส่วนปัญหา Parameter ผิดพลาดมักมาจาก Schema ที่คลุมเครือจน Model ต้องคาดเดาเอาเอง ซึ่งการใช้ strict: true หรือการใส่ input_examples ที่เป็นรูปธรรมจะช่วยตัดปัญหานี้ได้ สำหรับแถวสุดท้ายของตาราง หลายคนมักเข้าใจผิดว่าเป็น Bug ของ Model แต่จริงๆ แล้ว Claude ถูก Train มาให้มอง Instruction ภายใน Tool result ว่าเป็น Third-party content ที่ไม่น่าไว้วางใจ การที่ Claude ปฏิเสธการทำงานจึงแปลว่าคุณวาง Instruction ไว้ผิดที่"
+        }
+      ]
+    },
+    {
+      "heading": "5. Model Mismatch: เมื่อเลือกขนาด Model ไม่เหมาะกับลักษณะงาน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Model Mismatch คือปัญหาที่ไม่สามารถแก้ไขได้ด้วยการเกลา Prompt หรือปรับ Tools เนื่องจากสาเหตุเกิดจากระดับความสามารถของ Model ไม่สอดคล้องกับตัวงาน ซึ่งแบ่งออกเป็น 2 กรณีที่แตกต่างกันอย่างสิ้นเชิง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Over-provisioned Model คือการใช้ Model ที่ตอบคำถามได้ถูกต้อง แต่วิ่งช้าและสิ้นเปลืองต้นทุนเกินความจำเป็น ตัวอย่างเช่น Chat Widget ปริมาณ Request สูง (High-volume) ที่คอยตอบคำถามแบบมี Template สั้นๆ เช่น สถานะคำสั่งซื้อหรือเวลาทำการ โดยรันอยู่บน Frontier Model ในเคสนี้ไม่ได้มีปัญหาเรื่อง Hallucination และคำถามสั้นๆ ก็ไม่ล้น Context Window แต่งานไม่ได้ต้องการ Model สเปกสูงขนาดนั้น สำหรับงาน High-volume ที่ไม่ซับซ้อนและมี Latency Budget จำกัด จุดเริ่มต้นที่แนะนำคือ Tier ที่เร็วและประหยัดที่สุด: Claude Haiku 5.5 เหมาะกับงาน High-volume และ Latency-sensitive ที่ผลลัพธ์สามารถตรวจสอบได้ (Checkable outputs) การพยายามทำให้คำตอบยาวขึ้นหรือเขียน Prompt ให้ละเอียดขึ้นมีแต่จะเพิ่ม Cost โดยไม่ช่วยแก้ปัญหา Mismatch นี้"
+        },
+        {
+          "type": "paragraph",
+          "text": "Under-provisioned Model คือ Model ที่ให้คุณภาพต่ำกว่าเกณฑ์ แม้จะเขียน Prompt ชัดเจนและกำหนด Tools มาเป็นอย่างดีแล้วก็ตาม แต่ก่อนจะขยับ Tier ขึ้นไป ให้ตรวจสอบค่า Effort ดูก่อน เนื่องจากบาง Model มีกลไก Trade-off ระหว่าง Intelligence กับ Latency และ Cost ภายใน Model ตัวเดิมได้ การจูน Effort จึงมักเป็นเครื่องมือแรกที่ดีกว่าการเปลี่ยนข้าม Model หากคุณภาพยังไม่ถึงเกณฑ์และคุณเคยลด Effort ลงไว้ ให้คืนค่าเดิมกลับมา แต่หากยังไม่พอ ให้ลองขยับไป Tier ถัดไปที่ค่า Default Effort โดยลำดับ Tier จากประหยัดสุดไปจนถึงฉลาดที่สุดในปัจจุบัน ได้แก่ Claude Haiku 5.5, Claude Sonnet 5.5, Claude Opus 5.5 และ Claude Fable 5.1"
+        },
+        {
+          "type": "table",
+          "caption": "ข้อมูลการวัดผลภายในของ Anthropic: Model ที่ใหญ่กว่าไม่ได้แปลว่าเหมาะสมกว่าเสมอไป",
+          "headers": [
+            "Benchmark",
+            "Model and effort",
+            "Score",
+            "Cost"
+          ],
+          "rows": [
+            [
+              "SWE-bench Pro subset",
+              "Claude Sonnet 5.5, high (default)",
+              "แก้โจทย์ได้ 87.6%",
+              "$0.11 USD ต่องานที่แก้สำเร็จ"
+            ],
+            [
+              "SWE-bench Pro subset",
+              "Claude Opus 5.5, medium (default)",
+              "แก้โจทย์ได้ 92.8%",
+              "$0.22 USD ต่องานที่แก้สำเร็จ"
+            ],
+            [
+              "SWE-bench Pro subset",
+              "Claude Fable 5.1, high (default)",
+              "แก้โจทย์ได้ 92.3% (รันครั้งเดียว)",
+              "$1.19 USD ต่องานที่แก้สำเร็จ"
+            ],
+            [
+              "GPQA Diamond",
+              "Claude Haiku 5.5, medium (default)",
+              "85% เทียบกับ 91% ของ Opus 5.5 และ Sonnet 5.5",
+              "ประมาณ 1 ใน 20 ของต้นทุน Opus 5.5 ต่อคำตอบที่ถูกต้อง"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตารางข้างต้นแสดงให้เห็นว่าทำไมควรเปรียบเทียบ Model ด้วย Cost ต่องานที่สำเร็จ (Cost per completed task) ไม่ใช่ Cost ต่อ Token ในชุดทดสอบ Benchmark ดังกล่าว Fable 5.1 ให้ผลลัพธ์ใกล้เคียงกับ Opus 5.5 (อยู่ในช่วง Run-to-run noise) แต่มี Cost ต่องานที่แก้สำเร็จสูงกว่าราว 5 เท่า ทั้งนี้ ข้อสงสัยเรื่อง Mismatch ยังคงเป็นแค่สมมติฐานจนกว่าคุณจะทดสอบจริง ควรสร้าง Benchmark Tests จาก Prompts และข้อมูลจริงของคุณเอง จากนั้นเปรียบเทียบ Model ตัวเลือกในด้าน Accuracy, Response Quality และการจัดการ Edge Cases โดยรัน Head-to-head Eval เทียบกับ Baseline ปัจจุบันก่อนตัดสินใจเปลี่ยน ผ่าน [Baselines, Offline Comparisons และ Live A/B Tests](lesson:4.3)"
+        },
+        {
+          "type": "paragraph",
+          "text": "Mismatch ยังอาจเกิดจากการ Migrate เปลี่ยนเวอร์ชัน Model แทนที่จะเป็นเรื่อง Capability Gap ได้เช่นกัน Prompts ที่เคยเขียนไว้สำหรับ Model รุ่นเก่าอาจพังบนรุ่นใหม่ได้ จากตัวอย่างการ Audit ข้างต้น การตั้งค่า budget_tokens ส่งผลให้เกิด Error 400 บน Opus 5 และ Instructions ที่ตกค้างก็ทำให้ Cost พุ่งขึ้นหลังการ Migrate ดังนั้นเมื่อระบบเริ่มมีปัญหาทันทีหลังจากเปลี่ยน Model ให้ Audit ตรวจสอบ Prompts และโค้ด Request กับ Model ตัวใหม่ให้ละเอียด ก่อนด่วนสรุปว่า Model ตัวใหม่นั้นด้อยประสิทธิภาพเกินไป"
+        },
+        {
+          "type": "exam_trap",
+          "text": "นำไปปรับใช้จริง: ลองเลือกหนึ่ง Workload ที่คุณรันอยู่ปัจจุบัน งานนั้นจัดเป็นงาน High-volume ที่เน้น Checkable outputs หรือเป็นงานที่ต้องใช้ Advanced Reasoning? ผล Evals ต้องชี้วัดได้ระดับใดจึงจะคุ้มค่าต่อการปรับ Tier และ Effort Level?"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? ถ้าคุณภาพยังไม่ดีพอ ให้สลับไปใช้ Model ตัวใหญ่ขึ้นทันที (ทำไมถึงผิด): ไม่จริง: Effort คือเครื่องมือแรกที่ต้องปรับ หากเคยลด Effort ไว้ให้คืนค่าเดิมก่อน แล้วจึงค่อยพิจารณาขยับไป Tier ถัดไปที่ค่า Default Effort | คำถามหลอก / สิ่งที่มักเข้าใจผิด? เมื่อคำตอบของคำถาม Template สั้นๆ ทำงานช้าและ Cost สูง ควรเพิ่ม Guardrails หรือเขียน Prompt ให้ยาวขึ้น (ทำไมถึงผิด): ไม่จริง: คำตอบไม่ได้มีข้อผิดพลาด แต่ Model มีขนาดใหญ่เกินความจำเป็นของงาน ควรดาวน์เกรดไปใช้ Tier ที่เร็วและประหยัดกว่า เช่น Claude Haiku ซึ่งเหมาะกับงาน High-volume และงานตรงไปตรงมา"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56885",
+      "question": "ระบบ HR assistant แบบ Retrieval-Augmented Generation (RAG) ตอบคำถามพนักงานโดยอ้างอิงจากไฟล์ PDF นโยบายที่อัปโหลดไว้ ผู้ตรวจสอบพบว่าระบบระบุเปอร์เซ็นต์การสะสมวันลาพักร้อน (vacation-accrual percentage) ที่เจาะจงอย่างมั่นใจ ทั้งที่ไม่มีข้อมูลนี้อยู่ในเอกสารต้นทางเลย การปรับเปลี่ยนคำสั่ง (Instructions) ของ assistant ข้อใดสามารถแก้ปัญหาที่ต้นเหตุ (Root cause) นี้ได้ดีที่สุด?",
+      "options": [
+        "กำหนดให้ assistant ต้องยกข้อความอ้างอิง (Quote) จากเอกสารนโยบายตรงๆ ก่อนตอบ และยอมรับว่าไม่ทราบ/มีความไม่แน่นอนหากไม่มีข้อมูลดังกล่าวระบุไว้",
+        "ให้ assistant นำความรู้ทั่วไปเกี่ยวกับนโยบาย HR ทั่วไปมาเสริมในส่วนที่ข้อมูลในเอกสารขาดหายไป",
+        "กำหนดให้ assistant ต้องระบุตัวเลขที่ชัดเจนเสมอ เพื่อให้พนักงานได้รับคำตอบที่เป็นรูปธรรม",
+        "ให้ assistant ทวนข้อความทั้งหมดของเอกสารนโยบายไว้ที่ส่วนต้นของทุกคำตอบเพื่อเพิ่ม Context"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56887",
+      "question": "เครื่องมือภายในตัวหนึ่งสั่งให้ Claude ส่งค่ากลับเป็น JSON object เพื่อสรุปข้อมูลของแต่ละ Support ticket แต่พบว่าใน Ticket ที่มีลักษณะคล้ายกัน บางครั้ง Field names และโครงสร้าง Nesting กลับเปลี่ยนแปลงไปจนทำให้ Downstream parser ทำงานผิดพลาด ทีมวิศวกรยืนยันว่าข้อมูล Ticket ต้นทางมีรูปแบบที่ถูกต้องและสม่ำเสมอ (Well-formed and consistent) สาเหตุที่เป็นไปได้มากที่สุดคืออะไร และควรแก้ไขอย่างไร?",
+      "options": [
+        "Prompt ไม่ได้ระบุ Schema ไว้อย่างชัดเจน การแก้ไขคือต้องกำหนดรายชื่อ Field ที่แน่นอนและใส่ตัวอย่าง JSON response (Few-shot example) เพื่อล็อกรูปแบบ Output",
+        "Ticket มีข้อมูลที่ขัดแย้งกัน การแก้ไขคือสั่งให้ Claude ทำการ Flag แจ้งเตือน Ticket ที่ไม่สอดคล้องกันแทนการสรุปข้อมูล",
+        "Model เกิดอาการ Hallucination ในรายละเอียดของ Ticket การแก้ไขคือกำหนดให้ Claude ต้อง Quote ข้อความต้นฉบับของ Ticket ก่อนเสมอ",
+        "บัญชีใช้งานติด Rate limit การแก้ไขคือเพิ่ม Retry logic พร้อม Exponential backoff ในการเรียก API แต่ละครั้ง"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56886",
+      "question": "ทีมงานได้ Deploy โมเดล Claude Opus 4.8 ไว้เบื้องหลัง Chat widget สำหรับลูกค้าที่มีปริมาณการใช้งานสูง (High-volume) ซึ่งทำหน้าที่เพียงตอบคำถามสั้นๆ แบบตามเทมเพลต เช่น สถานะคำสั่งซื้อและเวลาเปิด-ปิดร้าน ผู้ใช้ร้องเรียนว่าระบบตอบสนองช้า และค่าใช้จ่าย API รายเดือนสูงกว่าที่คาดการณ์ไว้มาก การวินิจฉัยข้อใดน่าจะเป็นสาเหตุหลักที่สุด?",
+      "options": [
+        "เลือกรุ่นโมเดลไม่เหมาะกับประเภทของภาระงาน (Model mismatch): การใช้โมเดลขนาดเล็กกว่าอย่าง Claude Haiku 4.5 ก็เพียงพอต่อเกณฑ์ความถูกต้องที่ต้องการ แถมยังช่วยลดค่าใช้จ่ายและ Latency ได้",
+        "ภาระงานกำลังเจอปัญหา Hallucination ดังนั้นควรเพิ่มระบบตรวจยืนยันการอ้างอิง (Citation verification) ในทุกคำตอบที่เป็นเทมเพลต",
+        "ภาระงานใช้ Context window เกินขีดจำกัด ทำให้คำตอบถูกตัดทอน (Truncated) ก่อนจะส่งถึงผู้ใช้งาน",
+        "ภาระงานต้องการ System prompt ที่ยาวและมีรายละเอียดมากขึ้น เพื่อให้ Claude มีบริบทเพียงพอสำหรับแต่ละคำตอบที่เป็นเทมเพลตสั้นๆ"
+      ],
+      "explanation": ""
+    }
+  ]
+}

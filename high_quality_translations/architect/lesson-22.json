@@ -1,0 +1,140 @@
+{
+  "title": "RAG Query Time: Reranking, Top-k และ Citable Search Results",
+  "objectives": [
+    "รวมผล Ranking จาก BM25 และ Vector เข้าด้วยกัน แล้วทำ Rerank เพื่อคัดเลือก Top-k Candidates",
+    "กำหนดจำนวน Chunks ที่เหมาะสมเพื่อส่งให้ Claude พร้อมอธิบาย Trade-off ระหว่าง Latency และต้นทุนในการ Rerank",
+    "ส่ง Chunks ที่ค้นคืนได้ในรูปแบบ search_result blocks พร้อมเปิดใช้งาน Citations เพื่อให้อ้างอิงและตรวจสอบแหล่งที่มาของคำตอบได้",
+    "กำหนดตำแหน่ง Cache Breakpoint ให้ถูกต้องเมื่อต้องใช้ Chunks ชุดเดียวกันในหลาย Requests"
+  ],
+  "key_concept": "การ Optimize ขั้นตอน RAG ขณะ Query ด้วยการทำ Hybrid Search, Reranking, การสร้าง Citations อ้างอิงแหล่งที่มา และการใช้ Prompt Caching เพื่อลด Latency และ Cost",
+  "sections": [
+    {
+      "heading": "1. ดึงข้อมูลแบบกว้าง ผสาน Rerank และส่งเฉพาะ Top-k",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ช่วง Query time ตัว Pipeline จะแปลงคำถามของผู้ใช้เป็นลิสต์ Chunk สั้นๆ ที่เรียงลำดับความสำคัญอย่างดี โดยขั้นตอน Ingestion จะสร้างทั้ง BM25 index และ Vector index บน Chunk ที่มี Generated context กำกับไว้เรียบร้อยแล้ว (ดูเหตุผลที่ต้องใช้ทั้งสองแบบได้ที่ [Semantic embeddings vs BM25, and hybrid search](lesson:3.6)) แต่ละ Index จะจัดอันดับของตัวเอง: BM25 จัดอันดับจาก Exact term match ส่วน Vector index จัดอันดับตาม Semantic similarity กับคำถามที่ถูกแปลงเป็นเวกเตอร์ด้วย input_type=\"query\" จากนั้น Rank fusion จะรวมผลลัพธ์ทั้งสองชุด ตัดรายการที่ซ้ำออก เหลือไว้เพียง Candidate ชุดเดียว"
+        },
+        {
+          "type": "paragraph",
+          "text": "Retrieve broadly, then rerank narrowly: ใน Knowledge base ขนาดใหญ่ Retrieval รอบแรกอาจได้ Chunks กลับมาหลายร้อยชิ้นที่มีความเกี่ยวข้องปะปนกัน โมเดล Reranking จะนำ Query และลิสต์ Candidate มาคำนวณคะแนนความเกี่ยวข้องของแต่ละ Chunk แล้วตัดเหลือเพียง Top-k ในการทดสอบของ Anthropic ได้ส่ง Candidate เข้าไป 150 ชิ้นและคัดเหลือ 20 ชิ้นด้วย Cohere reranker ทั้งนี้ Voyage ก็มี rerank-3 สำหรับงานที่ต้องการความแม่นยำสูงสุด และ rerank-3-lite สำหรับงานที่เน้น Latency และ Cost ต่ำ โดยเรียกใช้งานผ่านฟังก์ชัน rerank()"
+        },
+        {
+          "type": "table",
+          "caption": "อัตราความล้มเหลวของการทำ Top-20 Retrieval เมื่อเพิ่มแต่ละเทคนิคเข้าไป (ค่าเฉลี่ยข้ามหลาย Knowledge domain)",
+          "headers": [
+            "Pipeline",
+            "Failure rate",
+            "Reduction vs. baseline"
+          ],
+          "rows": [
+            [
+              "Standard embeddings",
+              "5.7%",
+              "—"
+            ],
+            [
+              "Contextual embeddings",
+              "3.7%",
+              "35%"
+            ],
+            [
+              "Contextual embeddings + contextual BM25",
+              "2.9%",
+              "49%"
+            ],
+            [
+              "Reranked contextual embeddings + contextual BM25",
+              "1.9%",
+              "67%"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Reranking มีต้นทุนที่ต้องแลก: แม้ Claude จะได้รับ Chunk น้อยลง ทำให้ฝั่ง Generation ถูกและเร็วขึ้น แต่ Reranker จะเพิ่มขั้นตอนในทุก Request แม้จะคิดคะแนน Chunk แบบคู่ขนาน (Parallel) แต่การใส่ Candidate จำนวนมากก็ยังเพิ่ม Latency และ Cost อยู่ดี ดังนั้นควรเลือกจำนวน Candidate ให้สอดคล้องกับ Latency budget ของคุณ: Candidate มากได้ผลลัพธ์แม่นยำขึ้น แต่ถ้าน้อยลงจะได้ Latency และ Cost ที่ต่ำกว่า"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกค่า k คือ Trade-off ระหว่าง Recall กับ Distraction: ยิ่งส่ง Chunk มาก โอกาสที่คำตอบจะอยู่ใน Prompt ก็ยิ่งสูงขึ้น แต่ข้อความที่มากเกินไปก็อาจทำให้โมเดลไขว้เขว (Distraction) ได้เช่นกัน ในการทดสอบของ Anthropic ค่า k=20 ให้ผลดีกว่า 5 และ 10 แต่นั่นไม่ได้หมายความว่า 20 คือค่าตายตัว แนะนำให้วัดผลด้วย Pass@k คือตรวจดูว่าในแต่ละ Test query มี Chunk ที่ถูกต้องปรากฏอยู่ใน k อันดับแรกหรือไม่ ซึ่งในชุดทดสอบ Codebase ชุดหนึ่ง Plain embeddings ทำคะแนน Pass@5 ได้ 81% และทำได้ถึง 90% ที่ Pass@20"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ควรส่ง Chunks ให้ Claude ให้น้อยที่สุดเท่าที่จะทำได้ เพราะ Chunk ที่เพิ่มขึ้นมามีแต่จะทำให้โมเดลสับสน? (ทำไมถึงผิด): ไม่จริง: การเพิ่ม Chunk ช่วยเพิ่มโอกาสที่ข้อมูลคำตอบที่ถูกต้องจะหลุดเข้าไปอยู่ใน Context โดยในการทดสอบเปรียบเทียบระหว่าง 5, 10 และ 20 chunks พบว่า 20 ให้ผลลัพธ์ดีที่สุด จึงควรหาค่า k ที่เหมาะสมจากการรัน Eval บน Use case ของตัวเองเสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "2. การส่ง Chunks ให้ Claude ในรูปแบบ Search Results ที่อ้างอิงได้ (Citable)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Chunk ที่แปะลงใน Prompt แบบ Plain text จะสูญเสียการเชื่อมโยงกับแหล่งที่มา แต่ Content block แบบ search_result จะรักษาความเชื่อมโยงนั้นไว้ โดยแต่ละ Chunk ที่ Retrieve มาจะถูกส่งเข้าไปในฐานะ search_result block ที่ระบุ source และ title เมื่อเปิดใช้งาน Citations ทาง Claude จะอ้างอิงแหล่งที่มาของคำตอบจาก Source เหล่านั้นในลักษณะเดียวกับการอ้างอิงผลค้นหาบนเว็บ โดยไม่ต้องใช้ Prompt พิเศษเพิ่มเติม การอ้างอิงจะแนบมากับ Text block ที่ดึงเนื้อหาไปใช้งานโดยตรง"
+        },
+        {
+          "type": "paragraph",
+          "text": "พารามิเตอร์ source รองรับค่า String ถาวรใดๆ เช่น URL หรือ Internal ID เช่น kb://article-1234 เพื่อชี้ไปยังเอกสารต้นทางของ Chunk ใน Data store ของคุณ ส่วน content รองรับเฉพาะ Array ของ Text blocks เท่านั้น ไม่รองรับรูปภาพหรือ Media อื่นๆ ทั้งนี้ Citations จะปิดอยู่เป็นค่า Default จึงต้องกำหนด citations.enabled ให้เป็น true เสมอ และทุก Search result ภายใน Request เดียวกันต้องใช้การตั้งค่า Citations ที่เหมือนกันทั้งหมด"
+        },
+        {
+          "type": "paragraph",
+          "text": "การส่ง Search results ทำได้ 2 รูปแบบ: แบบแรกคือให้ Custom retrieval tool เช่น search_knowledge_base คืนค่า search_result blocks ภายใน tool_result (หากต้องการให้ Retrieve ทุกครั้ง ให้บังคับเรียกด้วย tool_choice) แบบที่สองคือคุณ Fetch ข้อมูล Chunk ขึ้นมาเอง แล้วใส่ Search results เข้าไปใน User message โดยตรง ซึ่งโมเดล Active ทั้งหมดรองรับ Search results พร้อม Citations ยกเว้น Claude Haiku 3"
+        },
+        {
+          "type": "paragraph",
+          "text": "คุณสามารถเลือกได้ว่าต้องการส่งข้อความแบบใดเข้าไปในแต่ละ Block โดยผลลัพธ์อาจดีขึ้นเมื่อส่ง Contextualized chunk ที่แยกส่วน Generated context ออกจากเนื้อหาเดิมของ Chunk ไว้อย่างชัดเจน ทั้งนี้ควรทดสอบด้วย Eval ก่อนสรุป Format สุดท้ายที่จะใช้งาน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "เพียงแค่ส่ง Chunks ในรูปแบบ search_result blocks ก็เพียงพอแล้วที่จะทำให้ Claude สร้าง Citations อ้างอิง? (ทำไมถึงผิด): ไม่จริง: ค่าเริ่มต้นของ Citations จะถูกปิดไว้ (Off by default) คุณจำเป็นต้องกำหนด citations.enabled เป็น true และต้องใช้การตั้งค่านี้กับทุก Search result ภายใน Request เดียวกัน"
+        }
+      ]
+    },
+    {
+      "heading": "3. Caching retrieved context ที่ใช้ซ้ำข้ามหลาย queries",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "บาง Pipeline มีการส่ง Retrieved Content ชุดเดิมซ้ำในทุก Request เช่น Support Bot ที่แนบ Product Documentation ชุดเดียวกันไว้ใน System Prompt แล้วค่อยต่อด้วยคำถามของ User ในแต่ละครั้ง การใช้ Prompt Caching จะช่วยให้อ่าน Prefix ส่วนที่ซ้ำจาก Cache ได้ทันทีโดยไม่ต้องประมวลผลใหม่ แต่จะเวิร์กก็ต่อเมื่อเรียงลำดับและกำหนด Breakpoint ให้ถูกต้องเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "ให้วาง Static Content ไว้ข้างหน้าสุด แล้วกำหนดจุดสิ้นสุดด้วย Cache Prefix โดยระบบจะ Build Prefix ตามลำดับคงที่คือ: tools -> system -> messages ดังนั้น Documentation ต้องมาก่อนคำถาม และวาง `cache_control` breakpoint ไว้ที่ Block สุดท้ายของ Documentation ส่วนคำถามที่เปลี่ยนตลอดเวลาจะอยู่นอก Cached Prefix หากเผลอไปใส่ Breakpoint ที่คำถาม จะกลายเป็นการ Cache Prefix ที่ไม่มี Request อื่นแชร์ร่วมกันได้ หรือถ้าใส่ไว้ที่ประโยคแรกของ System Prompt ตัว Documentation ทั้งหมดก็จะไม่ถูก Cache"
+        },
+        {
+          "type": "paragraph",
+          "text": "Request ไม่จำเป็นต้องมี Final Message เหมือนกันทั้งหมดถึงจะได้ประโยชน์ แค่วาง Breakpoint ตัวเดียวไว้ท้าย Static Content ก็เพียงพอแล้ว เพราะระบบจะค้นหา Longest Prefix ที่มี Request ก่อนหน้าเขียนลง Cache ไว้ นอกจากนี้ Block ประเภท `search_result` ก็รองรับ `cache_control` เช่นกัน จึงสามารถใส่ Breakpoint บนผลการค้นหาที่ส่งเข้ามาใน Messages ได้โดยตรง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Caching ช่วยไม่ได้ถ้า User แต่ละคนถามคำถามไม่เหมือนกัน เพราะ Final Message จะไม่ซ้ำกันเลย? (ทำไมถึงผิด): ไม่จริง: การวาง Breakpoint ไว้ท้าย Static Content จะ Cache ทุกอย่างที่อยู่ก่อนหน้าคำถามไว้ทั้งหมด และระบบจะจับคู่ตาม Longest Prefix ใน Cache เสมอ ดังนั้นคำถามที่เปลี่ยนไปด้านหลังจึงไม่มีผลต่อการ Hit Cache ของ Prefix ส่วนหน้า"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56798",
+      "question": "ทีมแพลตฟอร์มกำลังออกแบบ RAG pipeline ใหม่ หลังจากการตรวจสอบพบอัตราการเกิด retrieval failure สูง โดยมี chunk ที่เกี่ยวข้องอยู่ใน knowledge base จริงแต่ไม่ถูกดึงขึ้นมาตอบ query ที่ตรงกัน ทีมสามารถปรับแก้ได้หลายส่วนก่อนการปล่อยเวอร์ชันถัดไป การเปลี่ยนแปลงในข้อใดต่อไปนี้มีเอกสารยืนยันว่าช่วยลดอัตรา retrieval failure ได้อย่างชัดเจน? (เลือกทุกข้อที่ถูกต้อง)",
+      "options": [
+        "เพิ่ม contextual summary เฉพาะของแต่ละ chunk ไว้ด้านหน้า (Prepend) ก่อนนำไปสร้าง embeddings",
+        "ทำ lexical indexing ด้วย BM25 กับข้อความ chunk ที่เพิ่มบริบทแล้ว ควบคู่ไปกับ embeddings",
+        "เพิ่มขั้นตอน reranking เพื่อ rescore ผลลัพธ์ retrieval เริ่มต้นก่อนส่งต่อไปยังขั้นตอน generation",
+        "เพิ่ม sampling temperature ของ generative model ในขั้นตอนการสร้างคำตอบสุดท้าย",
+        "จัดเก็บ embeddings ทั้งหมดด้วย binary quantization เพื่อลดขนาดของ vector index",
+        "ปิดการใช้งาน overlap ระหว่าง chunk ที่อยู่ติดกันเพื่อเพิ่มความเร็วในการทำ index"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56794",
+      "question": "Pipeline ของ support-bot ดึง chunk เอกสารผลิตภัณฑ์ชุดเดียวกันในทุก session ของผู้ใช้ และนำไปต่อท้าย system prompt ก่อนตามด้วยคำถามที่ผู้ใช้ปัจจุบันพิมพ์เข้ามา ทีมต้องการใช้ prompt caching เพื่อลด latency และค่าใช้จ่ายสำหรับคำถามจำนวนมากที่ใช้เอกสารชุดเดิมซ้ำ ๆ ควรกำหนดตำแหน่ง cache breakpoint ไว้ที่ใด?",
+      "options": [
+        "ที่ content block สุดท้ายของเอกสารที่ดึงมา ก่อนถึงส่วนคำถามของผู้ใช้ที่เพิ่มเข้ามาใน request",
+        "ที่ตัวคำถามของผู้ใช้โดยตรง เนื่องจากเป็นส่วนของ request ที่ถูกส่งบ่อยที่สุด",
+        "ที่ประโยคแรกสุดของ system prompt เท่านั้น โดยปล่อยให้เอกสารที่ดึงมาไม่ถูก cache",
+        "ไม่ต้องกำหนดไว้ที่ใดเลย เพราะ caching จะได้ประโยชน์เฉพาะกับ request ที่มีข้อความสุดท้ายเหมือนกันทุกประการเท่านั้น แต่คำถามในที่นี้มีความแตกต่างกัน"
+      ],
+      "explanation": ""
+    }
+  ]
+}

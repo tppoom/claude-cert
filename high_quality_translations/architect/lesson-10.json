@@ -1,0 +1,123 @@
+{
+  "title": "Guardrails สำหรับ Claude Apps: Jailbreaks, Prompt Injection, Hallucinations และ Prompt Leaks",
+  "objectives": [
+    "แยกแยะ Direct Jailbreaks กับ Indirect Prompt Injection พร้อมเลือกวิธี Mitigation ให้เหมาะสม",
+    "จัด Route ข้อมูล Third-party ที่ไม่น่าเชื่อถือและ Instructions ของระบบไปยังส่วนที่ถูกต้องของ Request",
+    "ใส่ Grounding Guardrails เพื่อลดอาการ Hallucination ในการตอบกลับ",
+    "ประเมินความคุ้มค่าของการทำ Leak-resistant Prompting เทียบกับ Performance Cost ที่เพิ่มขึ้น"
+  ],
+  "key_concept": "การสร้าง Guardrails เพื่อความปลอดภัยของแอปพลิเคชัน Claude ครอบคลุมการป้องกัน Jailbreaks, Prompt Injection, Hallucination และลดความเสี่ยง Prompt Leaks",
+  "sections": [
+    {
+      "heading": "1. Guardrails เมื่อ User คือ Adversary",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Guardrail คือมาตรการควบคุมพฤติกรรมของ Claude ให้ทำงานตามที่เรากำหนด แม้จะมี Input ที่พยายามแทรกแซงการทำงาน Anthropic แบ่ง Threat Model ของการโจมตีออกเป็น 2 รูปแบบ ซึ่งแต่ละแบบมีแนวทางการป้องกันที่แตกต่างกัน แบบแรกคือ Jailbreak และ Direct Prompt Injection ซึ่ง User ของแอปพลิเคชันคือ Adversary ที่เขียน Input มุ่งเจาะหรือบายพาสกฎเกณฑ์ของคุณ ส่วนแบบที่สองคือ Indirect Prompt Injection โดย User เป็นผู้ใช้ที่เชื่อถือได้ (Trusted) แต่ Claude ต้องอ่านคอนเทนต์จากภายนอก (Third-party content) เช่น เว็บไซต์ อีเมล เอกสาร หรือ Tool Results ซึ่งมีคำสั่งไม่พึงประสงค์แฝงอยู่"
+        },
+        {
+          "type": "table",
+          "caption": "Threat Models ทั้งสองแบบและแนวทางป้องกันหลัก",
+          "headers": [
+            "แง่มุม (Aspect)",
+            "Direct jailbreak / prompt injection",
+            "Indirect prompt injection"
+          ],
+          "rows": [
+            [
+              "ใครคือ Adversary",
+              "User ของแอปพลิเคชัน",
+              "บุคคลภายนอก (Third party) ที่ควบคุมคอนเทนต์ที่ Claude อ่าน"
+            ],
+            [
+              "ช่องทางการโจมตี (Attack Vector)",
+              "Input ของ User โดยตรง",
+              "หน้าเว็บ, อีเมล, เอกสาร, OCR text, ผลลัพธ์จาก Tool (tool results)"
+            ],
+            [
+              "แนวทางป้องกันหลัก",
+              "การคัดกรอง Input (Screening), การทำ Input Validation, การกำหนดข้อความปฏิเสธใน System Prompt, การจัดการ User ที่ละเมิดซ้ำ",
+              "ส่ง Untrusted content ผ่าน tool_result blocks เท่านั้น, กำหนด Policy ชัดเจน, เข้ารหัสด้วย JSON, ใช้หลัก Least Privilege, คัดกรอง Tool Output"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การรับมือกับ User ที่ประสงค์ร้ายต้องอาศัยการป้องกันแบบหลายชั้น (Layered Defences) เริ่มจาก Harmlessness Screen โดยรันโมเดลขนาดเล็ก เช่น Claude Haiku 4.5 เพื่อคัดกรอง Input ของ User ก่อนส่งเข้าสู่การสนทนาหลัก แนะนำให้ใช้ Structured Outputs (กำหนด JSON Schema ใน output_config โดยมี boolean เดี่ยว เช่น is_harmful) เพื่อให้โค้ดสามารถ Parse ค่าและทำ Branching ได้ทันที ถัดมาคือ Input Validation เพื่อกรอง Pattern การทำ Injection ที่พบบ่อย หรือใช้ LLM ที่มีตัวอย่าง Jailbreak ยอดนิยมทำหน้าที่เป็นตัวคัดกรองทั่วไป ในส่วนของ System Prompt ควรกำหนดขอบเขตทางกฎหมายและจริยธรรมให้ชัดเจน พร้อมระบุวิธีการปฏิเสธคำขอ เช่น ตัวอย่างระดับ Enterprise ใน Documentation ที่ระบุค่านิยมไว้ในแท็ก <values> พร้อมกำหนดประโยคที่ Claude ต้องใช้ตอบกลับทันทีเมื่อคำขอขัดต่อค่านิยมเหล่านั้น สุดท้ายคือการมอนิเตอร์พฤติกรรมระยะยาว: พิจารณาทำ Throttling หรือแบน User ที่พยายามบายพาส Guardrails อย่างต่อเนื่อง"
+        }
+      ]
+    },
+    {
+      "heading": "2. Guardrails สำหรับ Untrusted Content ที่ Claude อ่าน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การป้องกัน Indirect Injection หัวใจสำคัญอยู่ที่โครงสร้าง (Structure): ต้องแยกความแตกต่างระหว่าง Instructions ของคุณ กับ Content ที่ Claude มีหน้าที่แค่อ่านให้ออกอย่างเด็ดขาด ให้ใส่ Third-party content ลงใน tool_result blocks เท่านั้น เนื่องจาก Claude ถูกเทรนมาให้ระมัดระวังและไม่ปฏิบัติตามคำสั่งที่ปรากฏในบล็อกนี้โดยตรง พร้อมทั้งระบุให้ชัดเจนว่าคอนเทนต์นั้นคืออะไรและมาจากไหน เช่น \"the body of an inbound email from an unknown sender\" ใน Tool Description หรือในตัว Result เอง จากนั้นให้ระบุ Policy กำกับไว้ใน System Prompt"
+        },
+        {
+          "type": "paragraph",
+          "text": "กฎเชิงโครงสร้างเพิ่มเติมอีก 3 ข้อที่ต้องปฏิบัติ: ข้อแรก ให้ทำ JSON-encode กับ Untrusted Strings เสมอแทนที่จะแปะลงไปเป็น Free Text ตรงๆ เพราะการทำ JSON Escaping จะสร้างขอบเขตที่ชัดเจน ป้องกันไม่ให้ผู้โจมตีปิด Quote หรือแท็กเพื่อหลุดออกมาสั่งการในฝั่ง Instruction ข้อสอง ห้ามใส่ Instructions ของตัวเองลงใน Tool Results เพราะ Claude มองว่าคอนเทนต์ในนั้นเป็น Untrusted ทำให้คำสั่งของคุณอาจถูกเมินเฉยหรือถูกมองว่าเป็น Injection เสียเอง หากต้องการส่งคำสั่ง ให้ส่งผ่าน User Turn ถัดจาก tool_result block หรือส่งผ่าน Mid-conversation System Message (บนโมเดลที่รองรับ) ข้อสาม ใช้หลัก Least Privilege เพื่อลดผลกระทบหากเกิด Injection สำเร็จ: ห้ามส่ง Secrets ที่ไม่จำเป็นให้ Claude, รัน Tools ใน Sandbox และจำกัดขอบเขต Permissions ให้แคบที่สุด นอกจากนี้ คุณยังสามารถคัดกรอง Tool Output ด้วย Pattern เดียวกับ Haiku Classifier ที่ใช้กับ User Input โดยเน้นตรวจจับว่ามี 'คำสั่งแฝงอยู่หรือไม่' แทนที่จะดูว่าคำสั่งนั้นจะรันสำเร็จหรือไม่ และก่อน Deploy จริง ควรทำ Red-teaming กับ Agent เสมอโดยทดสอบด้วยเอกสารหรืออีเมลที่มีโค้ด Injection แฝงอยู่"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): การใส่ Instructions ของเรากำกับลงใน tool_result block ไปพร้อมกับข้อมูล เป็นวิธีที่ดีเพื่อให้ Claude อ่านคำสั่งไปพร้อมกับ Data ไม่จริง: Claude ปฏิบัติต่อคอนเทนต์ใน tool_result ในฐานะ Untrusted เสมอ คำสั่งที่ใส่ลงไปอาจถูกเพิกเฉยหรือถูกระบบตรวจจับว่าเป็น Injection ทางที่ถูกต้องคือให้ส่งคำสั่งใน User Turn ถัดไปหลังจาก tool_result block แทน\nคำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): เอกสารที่ดึงมา (Retrieved documents) ควรนำไปใส่ไว้ใน System Prompt เพื่อให้ Claude ให้น้ำหนักความสำคัญสูงสุด ไม่จริง: Third-party หรือ Untrusted content ต้องใส่ใน tool_result blocks เท่านั้น ห้ามใส่ใน System Prompt หรือ Plain User Text เพื่อให้ Claude ประมวลผลข้อมูลเหล่านั้นด้วยความระมัดระวังตามโครงสร้างความปลอดภัยที่เทรนไว้"
+        }
+      ]
+    },
+    {
+      "heading": "3. Guardrails ป้องกัน Hallucination",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Guardrails ไม่ได้มีไว้ป้องกัน Attacker เสมอไป แต่ยังใช้ควบคุมให้คำตอบของ Claude อ้างอิงจากหลักฐานจริง วิธีที่ง่ายและได้ผลดีที่สุดคือการอนุญาตให้โมเดลตอบว่า \"ไม่ทราบ\" โดยระบุประโยคที่ต้องการให้ตอบตรงๆ เมื่อข้อมูลไม่เพียงพอ เช่น ในเอกสารตัวอย่าง M&A-advisor แนะนำให้สั่งโมเดลตอบว่า \"I don't have enough information to confidently assess this\" ซึ่งวิธีนี้ช่วยลดข้อมูลเท็จได้อย่างมหาศาล และสำหรับเอกสารขนาดยาว (เกิน 20k tokens) ควรสั่งให้ Claude ดึงประโยคอ้างอิงแบบคำต่อคำ (word-for-word quotes) ออกมาก่อน แล้วจึงวิเคราะห์จาก Quotes เหล่านั้นเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "เทคนิคตรวจสอบอื่นๆ ที่ต่อยอดจากแนวทางนี้ ได้แก่:\n- Verification with citations: สั่งให้ Claude หา Quote ยืนยันสำหรับทุก Claim หลังจากร่างข้อความเสร็จ และตัด Claim ที่ไม่มีหลักฐานสนับสนุนออก\n- Restricting outside knowledge: บังคับให้ Claude ตอบจากเอกสารที่ให้เท่านั้น โดยไม่ใช้ความรู้ทั่วไปภายนอก\n- Chain-of-thought verification: สั่งให้แสดงกระบวนการคิดแบบ Step-by-step เพื่อให้เห็น Logic ที่ผิดพลาด\n- Best-of-N: ยิง Prompt เดิมซ้ำหลายครั้ง หาก Output มีความขัดแย้งกันถือเป็นสัญญาณเตือน (Warning sign)\n- Iterative refinement: นำ Output เดิมวนกลับเข้าไปใน Prompt เพื่อให้ Claude ตรวจสอบความถูกต้องของตัวเองซ้ำอีกรอบ"
+        }
+      ]
+    },
+    {
+      "heading": "4. Guardrails ป้องกัน Prompt Leaks และผลกระทบต่อประสิทธิภาพ (Cost)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt Leak คือการที่ข้อมูลลับใน Prompt หลุดออกไปสู่ภายนอก ในเอกสารระบุชัดเจนว่าไม่มีวิธีใดป้องกันได้ 100% และการทำ Leak-proofing มีต้นทุนที่ต้องแลก ดังนั้นควรใช้เทคนิคป้องกันการรั่วไหลเฉพาะกรณีที่จำเป็นจริงๆ เท่านั้น เพราะความซับซ้อนที่เพิ่มขึ้นอาจทำให้ประสิทธิภาพและคุณภาพในงานหลักลดลง หากจำเป็นต้องใช้ ต้องทำ Test อย่างละเอียดเพื่อให้มั่นใจว่าคุณภาพของ Output ไม่ตกลง"
+        },
+        {
+          "type": "paragraph",
+          "text": "แนวทางปฏิบัติที่แนะนำเมื่อจำเป็นต้องป้องกัน Prompt Leak:\n- แยก Context สำคัญไว้ใน System Prompt ให้ชัดเจนจาก User Queries และสั่งย้ำคำสั่งสำคัญนั้นซ้ำอีกครั้งใน User turn (เช่น ตัวอย่าง AnalyticsBot ที่ใส่สูตรคำนวณลับไว้ใน System Prompt พร้อมคำสั่งห้ามเปิดเผย และระบุข้อความตอบกลับแบบตายตัวเมื่อถูกผู้ใช้ถามถึงคำสั่ง)\n- ทำ Post-processing ที่ฝั่ง Output ภายนอกโมเดล โดยใช้ Regex หรือ Keyword filters เพื่อดักจับข้อมูลลับที่อาจรั่วไหล\n- ตัดข้อมูลความลับที่ไม่จำเป็นต่อการทำงานของ Claude ออก เพราะ Content ส่วนเกินจะเบี่ยงเบนความสนใจของโมเดลจากคำสั่งห้ามรั่วไหล\n- ทำ Audit ตรวจสอบทั้ง Prompts และ Outputs อย่างสม่ำเสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การใส่คำสั่ง Leak-proofing ในทุก Prompt เป็นการเพิ่มความปลอดภัยฟรีๆ โดยไม่มีผลเสีย? (ทำไมถึงผิด): ไม่จริง: การเขียน Prompt แบบ Leak-resistant เพิ่มความซับซ้อนและอาจลดทอน Performance ในงานหลักของโมเดล จึงควรใช้เฉพาะเมื่อจำเป็นเท่านั้น พร้อมทั้ง Test คุณภาพ และ Balance ความสมดุลระหว่างระดับการป้องกันกับคุณภาพงาน"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56712",
+      "question": "ทีมงานกำลังออกแบบ Guardrails สำหรับ Chatbot ที่เปิดให้บุคคลทั่วไปใช้งาน โดยคาดการณ์ว่าอาจมีการพยายามทำ Jailbreak จากผู้ไม่ประสงค์ดีเพื่อเลี่ยง Content Guidelines ทางทีมต้องการวิธีที่รองรับ Scalability และมี Low-latency ในการดักจับ Request ที่เป็นอันตรายอย่างชัดเจนก่อนที่จะส่งต่อไปยังบทสนทนาหลัก สถาปัตยกรรม (Architecture pattern) รูปแบบใดสอดคล้องกับแนวทางที่ Anthropic แนะนำมากที่สุด?",
+      "options": [
+        "ใช้โมเดลขนาดเล็กที่มีความเร็วสูง เช่น Claude Haiku 4.5 ร่วมกับ Structured Output Schema เพื่อทำ Pre-screen อินพุตของผู้ใช้ในการตรวจสอบเจตนาที่เป็นอันตราย ก่อนส่งไปยังบทสนทนาหลัก",
+        "กำหนด Route ให้อินพุตของผู้ใช้ทุกคนส่งผ่านโมเดลขนาดใหญ่ที่สุดที่มีอยู่สองรอบ รอบแรกเพื่อคัดกรอง (Screen) และรอบที่สองเพื่อสร้างคำตอบจริง เพื่อเพิ่มความแม่นยำในการคัดกรองสูงสุดโดยไม่ต้องคำนึงถึงเรื่อง Latency",
+        "พึ่งพาเฉพาะคำสั่งใน System Prompt ของบทสนทนาหลักเท่านั้น เนื่องจากตามคู่มือระบุว่าการกำหนดบทบาท (Role) และคำสั่งปฏิเสธ (Refusal instructions) ที่รัดกุมนั้นเพียงพอแล้ว โดยไม่จำเป็นต้องมีขั้นตอนการคัดกรองแยกต่างหาก",
+        "ปิดการทำงานในการปฏิเสธคำขอของ Chatbot แล้วเปลี่ยนไปใช้การกรองเอาต์พุตทั้งหมดที่ Client-side หลังจากที่ Response เต็มรูปแบบถูกสร้างและแสดงผลแล้ว"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56713",
+      "question": "นักพัฒนากำลังสร้าง Email-triage agent ที่อ่านเนื้อหาอีเมลขาเข้าผ่าน Tool แล้วทำการร่างอีเมลตอบกลับ เพื่อเพิ่มความปลอดภัยและป้องกันกรณีที่มีคำสั่งแฝงมากับเนื้อหาอีเมล (Prompt Injection) นักพัฒนาควรเลือกใช้การออกแบบข้อใดร่วมกัน? (เลือกข้อที่ถูกต้องทั้งหมด)",
+      "options": [
+        "ระบุ Policy ใน System Prompt ชัดเจนว่าข้อมูลที่ได้จาก Tool คือ Untrusted data และจะต้องไม่เขียนทับหรือแทนที่ System Prompt หรือ Request เดิมของผู้ใช้เด็ดขาด",
+        "ทำ JSON-encode กับเนื้อหาอีเมลเมื่อส่งกลับมาเป็น tool_result เพื่อป้องกันไม่ให้เครื่องหมายคำพูด (Quotes) หรือแท็ก (Tags) ในเนื้อหาหลุดออกมาทำลายโครงสร้างโดยรอบ",
+        "คัดกรอง (Screen) เอาต์พุตของ Tool ด้วย Classifier model ขนาดเล็กก่อนส่งต่อไปยัง Agent หลัก พร้อมทั้งตัดออกหรือทำ Flag แจ้งเตือนหากสงสัยว่ามี Injection",
+        "วางคำสั่งการทำงานของนักพัฒนาไว้ภายในบล็อก tool_result เดียวกันกับเนื้อหาอีเมล เพื่อให้ข้อมูลทั้งสองส่วนถูกส่งไปใน Message เดียวกัน",
+        "กำหนดสิทธิ์ให้ Agent สามารถเข้าถึงกล่องข้อความทั้งหมดและการตั้งค่าบัญชีของผู้ใช้ได้แบบกว้างๆ (Broad, unscoped access) เพื่อไม่จำเป็นต้องขอสิทธิ์เพิ่มเติมระหว่างการทำงาน"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "title": "การประเมินผล (Evaluating) การจัดการเวอร์ชัน (Versioning) และการ Roll Out ระบบ Claude",
+  "objectives": [
+    "วางบทบาทงานที่ Claude ช่วยเหลือลงใน 5 ขั้นตอนของ Development Lifecycle",
+    "เริ่มต้น Eval-driven Development ด้วย Test Set ขนาดเล็ก ผสานการตรวจด้วย LLM-as-a-judge และคงกระบวนการ Human Review ไว้",
+    "ล็อกเวอร์ชัน Prompts อย่างชัดเจนสำหรับ Production Callers (Pinning) และ Rollback ได้ทันทีด้วยการ Re-pinning",
+    "อธิบายความจำเป็นในการทำ Gradual Rollouts (เช่น Rainbow Deployments) สำหรับ Stateful Agents"
+  ],
+  "key_concept": "วงจรการพัฒนาและส่งมอบระบบ Claude สู่ Production อย่างปลอดภัย ผ่าน Eval-driven Development, การทำ Version Pinning สำหรับ Prompts และกลยุทธ์ Gradual Rollout สำหรับ Stateful Agents",
+  "sections": [
+    {
+      "heading": "1. Lifecycle Frame สำหรับระบบที่ขับเคลื่อนด้วย Claude",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ระบบที่ใช้ Claude มีวงจรการพัฒนาเหมือนซอฟต์แวร์ทั่วไป: เริ่มตั้งแต่ค้นหาความต้องการ (Discover), ออกแบบ (Design), พัฒนา (Build), ติดตั้งใช้งาน (Deploy), ไปจนถึงการดูแลและขยายระบบ (Support and scale) บทความของ Anthropic นำเสนอ 5 ขั้นตอนนี้เพื่อชี้ให้เห็นว่า Claude Code สามารถช่วย Developer ได้ในทุก Stage โดยเฉพาะช่วงหลังอย่าง Testing, Deployment และ Monitoring ซึ่งมักเป็นจุดที่ระบบ LLM สร้างปัญหาที่ไม่คาดคิดบ่อยที่สุด"
+        },
+        {
+          "type": "table",
+          "caption": "5 ขั้นตอนของ Lifecycle พร้อมตัวอย่าง Tasks ในแต่ละช่วง",
+          "headers": [
+            "Stage",
+            "Example tasks"
+          ],
+          "rows": [
+            [
+              "1. Discover",
+              "สำรวจ Codebase และ Git history, ค้นคว้า Documentation"
+            ],
+            [
+              "2. Design",
+              "วางแผนโปรเจกต์, จัดทำ Tech specs, กำหนด Architecture"
+            ],
+            [
+              "3. Build",
+              "เขียน Code, เขียนและรัน Tests, จัดการ Commits และสร้าง PRs"
+            ],
+            [
+              "4. Deploy",
+              "ทำ Automation บน CI/CD, กำหนด Environment configs, ดูแลการ Deploy"
+            ],
+            [
+              "5. Support and scale",
+              "Debug ข้อผิดพลาด, ทำ Large-scale refactor, ทำ Monitoring ด้าน Usage และ Performance"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "2. Eval-driven iteration: เริ่มจากจุดเล็กๆ แล้วค่อย Scale ระบบ Grading",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Stage 'Build' การเขียนและรัน Tests สำหรับระบบ LLM คือการทำ Evals ทุกครั้งที่ปรับ Prompt หรือเปลี่ยนโมเดล ทีม Research-agent ของ Anthropic พบว่าการปรับ Prompt ในช่วงแรกส่งผลกระทบมหาศาล (เช่น Success rate พุ่งจาก 30% เป็น 80%) ซึ่งสังเกตเห็นได้แม้ทดสอบกับ Sample เพียงไม่กี่เคส จึงควรเริ่มทำ Evals ทันทีด้วย Test cases ขนาดเล็กจาก Use case จริง อย่ารอจนมีเป็นร้อยเคส เพราะการชะลอการทำ Evals คือความผิดพลาดยอดฮิตของ Developer"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อ Eval set ใหญ่ขึ้น กระบวนการ Grading จะกลายเป็น Bottleneck โดยเฉพาะ Free-form output ที่ไม่มีคำตอบถูกผิดชัดเจน ทีมจึงใช้ LLM Judge ให้คะแนนตาม Rubric ซึ่งครอบคลุมทั้ง Factual accuracy, Citation accuracy, Completeness, Source quality และ Tool efficiency จากการทดลองหลายแบบ พบว่าการยิง Prompt เดียวเพื่อตัดเกรดทุก Criteria พร้อมคืนคะแนน 0.0–1.0 และผล Pass/Fail ให้ผลลัพธ์ Consistent และสอดคล้องกับการตัดสินของมนุษย์มากที่สุด อย่างไรก็ตาม ระบบ Automation ยังไม่สามารถแทนที่คนได้ทั้งหมด เช่น มนุษย์สังเกตพบว่า Agent ยุคแรกๆ เลือกใช้ข้อมูลจาก SEO Content farms แทนที่จะเป็นเว็บ Authority ที่น่าเชื่อถือ ซึ่งระบบ Evals จับจุดนี้ไม่ได้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Evals จำเป็นเฉพาะตอนที่มี Test cases หลายร้อยเคสแล้วเท่านั้น ดังนั้นค่อยสร้างทีหลังได้? (ทำไมถึงผิด): ไม่จริง: การปรับเปลี่ยนในช่วงแรกส่งผลกระทบอย่างเห็นได้ชัด การมี Sample แค่ประมาณ 20 เคสจาก Use case จริงก็เพียงพอที่จะเห็น Impact แล้ว จึงควรเริ่มทำ Evals ทันที"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การ Migrate โมเดลทำได้ทันทีโดยไม่ต้องรัน Test ซ้ำซ้อน? (ทำไมถึงผิด): ไม่จริง: คำแนะนำของ Anthropic คือควรประเมิน Evals กับโมเดลรุ่นใหม่ก่อนโมเดลเดิมจะ Retire เสมอ โดยต้อง Benchmark และวัดผลคะแนนบน Labeled cases ของระบบคุณเอง ก่อนที่จะ Switch traffic จริง"
+        }
+      ]
+    },
+    {
+      "heading": "3. Prompts as versioned, pinned configuration",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "API กำหนดให้ caller ต้องระบุสิ่งที่ตนเองขึ้นต่ออย่างชัดเจนอยู่แล้ว โดยทุก Request ต้องส่ง Header anthropic-version สำหรับ Prompt ก็ต้องทำแบบเดียวกัน ใน Codebase ทั่วไป Prompt มักถูกฝังเป็น String ใน Source Code ทำให้การแก้ไขหรือ Revert ต้องเปิด PR, รัน CI และ Deploy ใหม่ แต่ Claude Managed Agents เก็บ Prompt ไว้บน Server แทน โดยทุกครั้งที่เรียก agents.update จะสร้าง Immutable Version ใหม่ภายใต้ Agent ID เดิม และแต่ละ Session สามารถเลือก Version ที่ต้องการรันได้เอง"
+        },
+        {
+          "type": "table",
+          "caption": "สองวิธีในการอ้างอิง Agent ตอนเรียก sessions.create",
+          "headers": [
+            "สิ่งที่ Caller ส่งไป",
+            "Prompt Version ที่ถูกรัน",
+            "ความเหมาะสมสำหรับ Production"
+          ],
+          "rows": [
+            [
+              "Bare agent ID (agent=AGENT_ID)",
+              "Version ล่าสุด ณ ขณะนั้น",
+              "เสี่ยงสูง: Version ใหม่จะถูกส่งไปให้ Caller ทันทีใน Session ถัดไปโดยไม่มีการ Review"
+            ],
+            [
+              "{\"type\": \"agent\", \"id\":..., \"version\":...}",
+              "Version ที่ Pin ไว้อย่างชัดเจนเท่านั้น",
+              "แนะนำ: Version ใหม่จะยังไม่ถูกใช้งานจนกว่าจะมีการเปลี่ยนค่า Pin"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Cookbook แสดงวงจรการทำงานแบบเต็มรูปแบบ โดยสร้าง Ticket-triage Agent ขึ้นมาเป็น Version 1 และทดสอบวัดคะแนนกับ Ticket ตัวอย่าง 20 เคส จากนั้นอัปเดต Prompt เป็น v2 เพื่อส่ง Ticket ที่เกี่ยวกับ API-usage ไปให้ทีม Platform แต่เมื่อทดสอบใหม่อีกครั้งโดย Pin ไปที่ v2 พบว่าความแม่นยำด้าน Billing ตกลงจาก 4/5 เหลือ 2/5 เนื่องจาก Ticket ที่เกี่ยวกับ Billing บนผลิตภัณฑ์แบบ Usage-based มักกล่าวถึง API Usage ด้วย แต่เพราะ Version 1 ยังคงอยู่บน Server การ Rollback จึงทำได้ทันทีเพียงแค่ให้ Caller ส่ง version: 1 กลับไป โดยไม่ต้อง Rebuild หรือ Deploy ระบบใหม่"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ที่คิดว่า Production สามารถส่ง Bare Agent ID ได้อย่างปลอดภัย เพราะ Prompt Version ใหม่จะมีผลก็ต่อเมื่อผ่านการ Review แล้ว — ในความเป็นจริง Bare ID จะชี้ไปที่ Version ล่าสุดเสมอ ทำให้ Update ใดๆ ถูกนำไปใช้กับ Session ถัดไปทันที แนวทางที่ถูกต้องคือต้อง Pin Explicit Version เสมอ และควบคุม Version Pin นั้นผ่านกระบวนการ Change Control"
+        }
+      ]
+    },
+    {
+      "heading": "4. Change control and gradual rollout",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Server-side Versioning มีสิ่งที่ต้องแลก: API Key ใดๆ ใน Workspace ก็สามารถสั่ง agents.update ได้ และไม่มีระบบ Approval Workflow ในตัว ดังนั้น กระบวนการ Review จะกลับมาได้ก็ต่อเมื่อ Production Caller มีการ Pin Explicit Version ไว้เสมอ และนำเลข Version นั้นไปจัดการผ่าน Change Control ทำให้ใครจะสร้าง Version ใหม่ก็สร้างได้ แต่ตราบใดที่ยังไม่ถูก Promote ก็จะไม่มี Traffic ไหลเข้าไป การ Promote จึงกลายเป็นการแก้ Config ที่ต้องผ่าน Review ตามปกติ ด้วยเหตุนี้ Cookbook จึงแนะนำว่า Version Pin สามารถทำหน้าที่เหมือน Feature Flag ได้ สำหรับ Agent ที่มีความสำคัญสูง ให้แบ่ง Traffic บางส่วนไปยัง Version ใหม่เพื่อเทียบผลลัพธ์ก่อนที่จะ Promote เต็มรูปแบบ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agent ก่อให้เกิดปัญหาด้าน Deployment ที่ Stateless Service ทั่วไปไม่มี เนื่องจาก Agent เป็นระบบ Stateful แบบ Long-running ที่รวม Prompt, Tool และ Execution Logic เข้าด้วยกัน ดังนั้นเมื่อ Deploy อัปเดตใหม่ จะมี Agent บางตัวที่อยู่ระหว่างการทำงานค้างอยู่ ระบบ Research ของ Anthropic จึงไม่เปลี่ยน Agent ทั้งหมดไปใช้ Version ใหม่ในทันที แต่ใช้ Rainbow Deployment ที่รัน Version เก่าและใหม่ควบคู่กันไปพร้อมกับค่อยๆ สลับ Traffic นี่คือเหตุผลที่ Anthropic ชี้ว่าช่องว่างระหว่าง Prototype กับ Production Agent มักกว้างกว่าที่ทีมคาดไว้มาก เพราะในระบบ Agentic ความผิดพลาดจะเกิดเป็นทอดๆ (Compound Errors) และความล้มเหลวเพียงก้าวเดียวก็พา Agent หลุดไปคนละทิศละทางได้ทั้งหมด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ที่คิดว่าสามารถ Deploy Prompt หรือ Tool ชุดใหม่แทนที่ทุก Instance ของ Agent พร้อมกันได้ทันทีเหมือน Stateless Service — ในความเป็นจริง Agent เป็น Stateful และทำงานแบบ Long-running หากแทนที่ทันที In-flight Sessions ที่กำลังประมวลผลอยู่จะพังหรือเกิดข้อผิดพลาดแบบ Compound Errors แนวทางที่ถูกต้องคือต้องใช้การ Rollout แบบค่อยเป็นค่อยไป เช่น Rainbow Deployment เพื่อให้ Session เดิมทำงานจนจบและไม่สะดุด"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55358",
+      "question": "บริษัท Fintech แห่งหนึ่งรัน automated compliance workflows โดยใช้ Claude Opus 4.5 และจำเป็นต้องรับประกันว่าพฤติกรรมของโมเดลจะไม่เปลี่ยนแปลงระหว่างการ deploy แต่ละครั้ง หากไม่มีขั้นตอนการทำ migration ที่ผ่านการ review อย่างชัดเจน บริษัทควรเลือกใช้แนวทางปฏิบัติใดเมื่อระบุโมเดลในการเรียก Messages API?",
+      "options": [
+        "ระบุ convenience alias ซึ่งจะ resolve ไปยัง dated snapshot ใดก็ตามที่ Anthropic กำหนดให้เป็นเวอร์ชันปัจจุบันในขณะนั้น",
+        "ระบุ exact dated snapshot ID และจะอัปเดตเฉพาะเมื่อถึงรอบ scheduled migration ที่มีการวางแผนและควบคุมไว้เท่านั้น",
+        "ระบุโมเดลเป็น unpinned 'latest' pointer เพื่อให้ request ส่งไปยังรีลีสใหม่ล่าสุดของ Anthropic เสมอ",
+        "ละเว้น (omit) พารามิเตอร์ model เพื่อให้ API ใช้ default model selection ของบัญชีนั้นโดยอัตโนมัติ"
+      ],
+      "explanation": ""
+    }
+  ]
+}

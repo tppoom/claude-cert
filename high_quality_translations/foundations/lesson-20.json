@@ -1,0 +1,175 @@
+{
+  "title": "หลักการทำงานของ LLMs: Tokens, Context Windows และ Sampling",
+  "objectives": [
+    "อธิบายความหมายของ Token และประเมินการแปลงข้อความเป็น Tokens ได้",
+    "อธิบายกลไก Next-Token Generation ที่สร้างผลลัพธ์สละสลวยแต่เสี่ยงต่อการ Fabricate และระบุจุดที่มักเกิดความคลาดเคลื่อน",
+    "คำนวณสิ่งที่นับรวมใน Context Window ของแต่ละ Request และเลือกโมเดลที่รองรับขนาด Input ที่กำหนดได้",
+    "อธิบายเหตุผลที่การใส่ Examples ใน Prompt ช่วยชี้นำ Output ได้โดยไม่ต้อง Retrain โมเดล",
+    "อธิบายสาเหตุที่ Prompt เดียวกันให้ Output ต่างกัน พร้อมเข้าใจบทบาทของ Temperature, top_k และ top_p",
+    "ออกแบบ Tests, Caching และ Cost Budget ให้รองรับ Non-Determinism ข้ามรอบการรันและต่าง Provider ได้"
+  ],
+  "key_concept": "Next-token generation — โมเดลภาษาเขียนคำตอบทีละ Token โดยคัดเลือก Token ถัดไปจากความน่าจะเป็นของข้อความก่อนหน้า กระบวนการนี้ทำให้ประโยคมีความลื่นไหลเป็นธรรมชาติ แต่ก็เปิดช่องให้เกิดการแต่งข้อมูลเท็จที่ฟังดูสมเหตุสมผลได้เช่นกัน",
+  "sections": [
+    {
+      "heading": "1. Tokens: หน่วยพื้นฐานที่ Model ใช้อ่านและเขียน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Model ไม่เคยมองเห็นตัวอักษรหรือคำโดยตรง แต่มองเห็นเป็น Tokens โดยก่อนที่ Claude จะอ่าน Prompt ข้อความจะถูกตัดย่อยเป็นลำดับของ Tokens และทุกคำตอบที่ Claude สร้างขึ้นก็ออกมาเป็น Tokens เช่นกัน โดย 1 Token อาจเป็นได้ทั้งคำเต็มคำ, บางส่วนของคำ, ตัวอักษรเดี่ยวๆ หรือแม้กระทั่ง Byte ซึ่ง Tokens ขนาดใหญ่ช่วยให้ประมวลผลได้เร็ว ส่วน Tokens ขนาดเล็กช่วยให้ Model จัดการกับคำหายากที่ไม่เคยพบเห็นมาก่อนได้"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับภาษาอังกฤษ เกณฑ์คร่าวๆ คือ 1 Claude Token จะครอบคลุมข้อความประมาณ 3.5 ตัวอักษร แต่อัตราส่วนนี้จะเปลี่ยนไปตามแต่ละภาษา ส่งผลให้ประโยคความหมายเดียวกันในภาษาอื่นอาจมีจำนวน Token ไม่เท่ากัน เรื่องนี้ส่งผลต่อการพัฒนาระบบจริง เพราะ Token คือหน่วยวัดขนาดของ Context Window, เป็นค่าลิมิตของ max_tokens และเป็นหน่วยคิดเงินต่อ Request เมื่อ API ส่ง Usage กลับมาใน Response จึงแสดงผลเป็นหน่วย Tokens เสมอ ไม่ใช่จำนวนคำหรือตัวอักษร"
+        }
+      ]
+    },
+    {
+      "heading": "2. การสร้าง Next-token และสาเหตุของการ Hallucinate",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "หลักการทำงานของ Generative AI มีความคล้ายคลึงกับระบบ Autocomplete ขั้นสูงมากกว่า Search Engine โดย Model จะสร้างคำตอบทีละ Token และในแต่ละสเต็ปจะเลือก Token ที่น่าจะตามหลังข้อความก่อนหน้ามากที่สุด ไม่มีกระบวนการใดใน Loop นี้ที่ไปค้นหา Fact หรือ Verify ความถูกต้อง Model เพียงแค่ต่อเติม Sequence ไปข้างหน้าตามรูปแบบที่ถูกเทรนมาให้ดูเป็นธรรมชาติที่สุด"
+        },
+        {
+          "type": "paragraph",
+          "text": "กลไกนี้อธิบายได้ทั้งจุดแข็งและจุดล้มเหลวของ Model เมื่องานตรงกับ Pattern ที่เคยเห็นบ่อยครั้ง เช่น การสรุปความ, ปรับ Format หรืออธิบายคอนเซปต์ทั่วไป ข้อความที่น่าจะต่อท้ายที่สุดมักจะเป็นคำตอบที่ถูกต้อง แต่หากเป็นเรื่องแปลกใหม่ ข้อมูลมีน้อย หรือกรณีที่ต้องแยกแยะระหว่าง 'ความจริง' กับ 'สิ่งที่ฟังดูน่าจะจริง' ข้อความที่ต่อท้ายออกมาอาจยังคงสละสลวย มั่นใจ แต่นั่งเทียนขึ้นมาทั้งหมด เช่น Citation ปลอมที่อ่านดูแนบเนียนเหมือนของจริงเป๊ะๆ เพราะมันถูกสร้างขึ้นด้วยกลไกทางสถิติเดียวกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "นำหลักการนี้มาเป็นเกณฑ์ในการตั้ง Guardrails และ Review: ยิ่ง Claim มีความเจาะจงสูง (ตัวเลขสถิติ, URL, Direct Quote, ตำแหน่งงาน) ยิ่งต้องถูกตรวจสอบซ้ำ เทคนิคต่างๆ เช่น Citations, Uncertainty Signalling, Constrained Generation รวมถึง Generator-Verifier Loops จึงถูกนำมาใช้เพื่อก้าวข้ามข้อจำกัดธรรมชาตินี้ของ Model"
+        }
+      ]
+    },
+    {
+      "heading": "3. Context Window คือ Working Memory ของโมเดล",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Context window คือข้อความทั้งหมดที่โมเดลสามารถนำมาอ้างอิงขณะสร้าง response ได้ ซึ่งนับรวมตัว response เองด้วย โดยส่วนนี้จะแยกจากข้อมูลมหาศาลที่โมเดลใช้ pre-train อย่างสิ้นเชิง ให้มองว่ามันคือ working memory สำหรับการเรียกใช้งาน 1 request หากข้อมูลใดไม่ได้อยู่ใน window โมเดลจะไม่สามารถ attend ถึงข้อมูลนั้นใน request นั้นได้เลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทุกอย่างใน request ล้วนกินพื้นที่ context window: ไม่ว่าจะเป็น system prompt, ทุกข้อความใน messages (รวมถึง tool results, รูปภาพ และเอกสาร) ตลอดจน tool definitions นอกจากนี้ output ที่ Claude สร้างขึ้นในแต่ละ turn ก็นับรวมด้วย (รวมถึง extended thinking) ในการสนทนาแบบ multi-turn ผ่าน API แต่ละ response จะกลายเป็นส่วนหนึ่งของ input ใน turn ถัดไป และระบบจะเก็บ turn ก่อนหน้าไว้ครบถ้วน ทำให้ window ค่อยๆ เต็มขึ้นเรื่อยๆ ตามการสนทนา โดยทุก response จะระบุจำนวน token ที่ใช้ไปในฟิลด์ usage"
+        },
+        {
+          "type": "paragraph",
+          "text": "ขนาดของ window ถูกกำหนดตายตัวตามแต่ละโมเดล โดย Claude Opus 5.5, Opus 4.8, Sonnet 5.5, Sonnet 4.6 และโมเดล flagship ปัจจุบันมี context window ขนาด 1M tokens ซึ่ง 1M เป็นค่า default โดยไม่ต้องใส่ beta header ส่วน Claude Sonnet 4.5, Claude Haiku 4.5 และโมเดลรุ่นเก่าจะมีขนาด 200k tokens ดังนั้นเอกสารสัญญาขนาด 700,000 tokens จึงใส่ใน request เดียวของ Opus 4.8 ได้ แต่ใส่ใน Sonnet 4.5 ไม่ได้ อย่างไรก็ตาม ขนาดที่ใหญ่กว่าไม่ได้แปลว่าดีกว่าเสมอไป เมื่อ token เพิ่มสูงขึ้น ความแม่นยำและการ recall ข้อมูลจะลดลง ซึ่งเรียกว่า context rot สิ่งที่คุณใส่ลงไปใน window จึงสำคัญไม่แพ้ขนาดความจุที่มี"
+        },
+        {
+          "type": "table",
+          "caption": "ขนาด Context window ตามรุ่นของโมเดล (เฉพาะบางรุ่น)",
+          "headers": [
+            "Model",
+            "Context window"
+          ],
+          "rows": [
+            [
+              "Claude Opus 5.5, Claude Opus 4.8, Claude Opus 4.7",
+              "1M tokens"
+            ],
+            [
+              "Claude Sonnet 5.5, Claude Sonnet 5, Claude Sonnet 4.6",
+              "1M tokens"
+            ],
+            [
+              "Claude Sonnet 4.5, Claude Haiku 4.5",
+              "200k tokens"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "Prompt caching ช่วยคืนพื้นที่ใน context window เพราะ cached tokens ไม่ต้องถูกส่งซ้ำใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: Caching ช่วยลดราคาและ latency ของ prefix ที่ถูก cache เท่านั้น แต่ token เหล่านั้นยังคงกินพื้นที่ใน context window ตามปกติ"
+        }
+      ]
+    },
+    {
+      "heading": "4. ทำไมตัวอย่างถึงช่วยชี้นำโมเดลได้โดยไม่ต้อง Retrain",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt สามารถกำหนดได้ทั้งแบบไม่มีตัวอย่าง มีหนึ่งตัวอย่าง หรือมีหลายตัวอย่าง ได้แก่ zero-shot, single-shot และ multi-shot prompting ส่วนวิธีการเขียนแต่ละแบบมีอธิบายไว้ใน [Zero-, one- and few-shot prompting](lesson:6.2) แต่ประเด็นสำคัญในที่นี้คือทำไมวิธีเหล่านี้ถึงใช้งานได้ผล"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างทำงานได้เพราะมันอยู่ใน context window โมเดลจะจับ pattern จากตรงนั้นระหว่างประมวลผล request เช่นเดียวกับการ attend ข้อความอื่นๆ โดยไม่มีการเปลี่ยนแปลงตัวโมเดลแต่อย่างใด การเปลี่ยนตัวโมเดลจริงๆ คือการ fine-tuning ซึ่งเป็นการนำ pretrained model มาเทรนต่อด้วยข้อมูลเพิ่มเติม ซึ่งปัจจุบัน Claude API ยังไม่มีฟีเจอร์นี้ สิ่งที่ few-shot prompt สอนโมเดลจะคงอยู่เฉพาะใน request นั้นเท่านั้น request ถัดไปจำเป็นต้องส่งตัวอย่างเข้าไปใหม่ และยังคงกินพื้นที่ context window ทุกครั้ง"
+        },
+        {
+          "type": "paragraph",
+          "text": "กลไกการสร้าง next-token ยังอธิบายได้ว่าทำไมการคัดเลือกตัวอย่างถึงสำคัญ โมเดลจะสานต่อ pattern ใดก็ตามที่ปรากฏใน context รวมถึงสิ่งที่คุณไม่ได้ตั้งใจด้วย เช่น หากทุกตัวอย่างมีความยาวเท่ากันหรือขึ้นต้นประโยคแบบเดียวกัน output ก็จะลอกเลียนแบบรูปแบบนั้นออกมา การใช้ตัวอย่างที่หลากหลายและครอบคลุม edge cases จะช่วยสอน pattern ที่คุณต้องการจริงๆ ไม่ใช่จำกัดอยู่แค่รูปแบบโดยบังเอิญของตัวอย่างที่เขียนขึ้น"
+        }
+      ]
+    },
+    {
+      "heading": "5. Sampling: ทำไม Prompt เดิมถึงได้คำตอบต่างกัน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การยิง Request เดิมซ้ำใน Conversation ใหม่มักจะได้คำตอบไม่เหมือนกัน นี่คือพฤติกรรมปกติของโมเดล Generative ไม่ใช่ Bug เพราะในแต่ละ Step ตัวโมเดลจะมี Next Token ที่เป็นไปได้มากมาย และใช้วิธีการสุ่มเลือก (Sampling) หนึ่งในนั้นแทนที่จะเลือก Token ที่น่าจะเป็นไปได้มากที่สุดเสมอ ความแปรผันในแต่ละ Run เกิดจากกระบวนการ Sampling นี้"
+        },
+        {
+          "type": "paragraph",
+          "text": "มี 3 Parameters หลักที่ใช้ควบคุมการ Sampling:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- temperature: ควบคุมความสุ่มของผลลัพธ์ ค่าเริ่มต้นคือ 1.0 มีช่วงตั้งแต่ 0.0 ถึง 1.0 ยิ่งค่าน้อยจะยิ่งเลือกรูปประโยคที่มีความน่าจะเป็นสูงสุด ส่วนค่ามากจะอนุญาตให้ใช้คำที่แปลกใหม่หรือพบน้อยกว่า แนะนำให้ใช้ค่าใกล้ 0.0 สำหรับงานวิเคราะห์หรือ Multiple-choice และใกล้ 1.0 สำหรับงาน Creative\n- top_k: สุ่มเลือกจาก Token ที่น่าจะเป็นไปได้มากที่สุดเพียง K ลำดับแรก ช่วยตัด Long-tail ของคำที่ไม่ค่อยเกิดขึ้นออกไป\n- top_p (nucleus sampling): ตัดตัวเลือกออกโดยคำนวณจากผลรวมความน่าจะเป็นสะสม (Cumulative Probability) แทนการนับจำนวนตัวเลือก"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อควรระวัง 2 ประการ: ข้อแรก การตั้ง temperature เป็น 0 ไม่ได้ทำให้ Claude กลายเป็น Deterministic เพราะ Input ที่เหมือนกันทุกประการยังคงให้ Output ที่ต่างกันได้ข้าม API calls ดังนั้นควรออกแบบระบบให้รองรับความแปรผันด้วยการ Validate output เสมอ แทนที่จะพึ่งพา Response ที่เหมือนกันระดับ Byte ข้อสอง โมเดลยุคปัจจุบันส่วนใหญ่ล็อก Parameter เหล่านี้ไว้แล้ว บน Claude Opus 5.5, Opus 4.8, Opus 4.7, Sonnet 5.5, Sonnet 5 รวมถึงตระกูล Claude 5 อื่นๆ หากส่งค่า temperature, top_p หรือ top_k ที่ไม่ใช่ค่าเริ่มต้น ระบบจะโยน Error 400 ทันที ส่วนบนโมเดลรุ่นเก่า ข้อจำกัดนี้จะมีผลเฉพาะตอนเปิดใช้งาน Thinking เท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้ง temperature เป็น 0 จะทำให้ Claude ทำงานแบบ Deterministic เต็มรูปแบบ และ Prompt เดิมจะได้ Text เดิมเสมอ? (ทำไมถึงผิด): ไม่จริง: temperature 0 เพียงแต่โน้มเอียงไปทางตัวเลือกที่มีความน่าจะเป็นสูงสุด แต่ Input เดียวกันยังคงสร้าง Output ที่ต่างกันได้ข้าม API calls\n\nการลดค่า temperature สามารถใช้เพิ่ม Consistency ให้กับคำตอบได้บน Claude ทุกโมเดลเสมอ? (ทำไมถึงผิด): ไม่จริง: บนโมเดล Claude 5 และ Opus 4.7 ขึ้นไป การปรับเปลี่ยน temperature, top_p หรือ top_k เป็นค่าอื่นที่ไม่ใช่ Default จะถูก Reject ด้วย 400 Error ทันที ไม่ว่าจะเปิดใช้งาน Thinking หรือไม่ก็ตาม"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ถ้าเจอช้อยส์เสนอ \"ตั้งค่า temperature เป็น 0\" เพื่อการันตีว่าจะได้ Output เดิมทุกครั้ง? (ทำไมถึงผิด): ไม่จริง: temperature 0 ทำให้ผลลัพธ์ Conservative ขึ้นเท่านั้น แต่ไม่ได้ทำให้เป็น Deterministic และบน Claude 5 กับ Opus 4.7 ขึ้นไป การเปลี่ยนค่า temperature จาก Default จะได้ 400 Error กลับมา"
+        }
+      ]
+    },
+    {
+      "heading": "6. Non-determinism: การออกแบบระบบรับมือกับ Output ที่เปลี่ยนแปลงได้ในแต่ละ Run",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Non-determinism คือคุณลักษณะที่ Input แบบเดิมเป๊ะอาจสร้าง Output ที่ต่างกันได้ในการเรียก API แต่ละครั้ง ส่งผลกระทบโดยตรงต่อระบบที่พึ่งพาการเทียบ Response เช่น Regression Test ที่ใช้ Diff คำตอบกับ Baseline เดิม, Cache ที่ใช้ Text ของ Output เป็น Key หรือ Audit Workflow ที่คาดหวังให้การรันซ้ำสร้างผลลัพธ์เดิม ต้นเหตุเกิดจาก Per-token Sampling ตามที่กล่าวไว้ข้างต้น และพฤติกรรมนี้เกิดขึ้นเหมือนกันทั้งบน First-party Inference Service ของ Anthropic และ Third-party Cloud Providers การย้าย Workload ไป Cloud Provider อื่นจึงไม่ได้ช่วยให้ผลลัพธ์เป็น Deterministic แต่อย่างใด"
+        },
+        {
+          "type": "paragraph",
+          "text": "ไม่เคยมีการตั้งค่าใดที่สามารถปิด Non-determinism ได้ การเซ็ต temperature เป็น 0 ไม่เคยการันตีว่าจะได้ Output เหมือนเดิม แม้ในโมเดลรุ่นเก่าที่ยังยอมรับค่านั้น ดังนั้นโค้ดที่ Migrate มายังโมเดลรุ่นใหม่จึงไม่ได้เสียฟังก์ชันอะไรไปเมื่อตัด temperature=0 ออก ให้เลิกสมมติฐานเรื่อง Repeatability ควบคู่ไปกับการตัด Parameter นี้ทิ้ง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความผันแปรนี้ส่งผลไปถึงจำนวน Token ด้วย ไม่ใช่แค่การเลือกคำ ด้วยฟีเจอร์ Adaptive Thinking ตัว Claude จะตัดสินใจ Allocation ของ Thinking Token เองในแต่ละ Request ทำให้การใช้งาน Thinking Token (ซึ่งถูกคิดเงินเป็น Output) เปลี่ยนแปลงไปในแต่ละ Run แม้ใช้ Prompt เดิม การประเมิน Cost จากการยิงเพียง Run เดียวจึงอาจคลาดเคลื่อนได้ ควรคำนวณ Budget และ max_tokens จาก Range ค่าเฉลี่ยที่ได้จากการทดสอบหลายๆ Run แทน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Pipeline ที่ออกแบบมารองรับ Non-deterministic Output ควรตรวจสอบข้อมูลเหมือนที่ห้องแล็บตรวจวัดค่าที่อาจมี Noise:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Validate โครงสร้างและความหมาย (เช่น เป็น JSON Object ที่ Parse ได้, Label ถูกต้อง, มี Required Fields ครบ) แทนที่จะตรวจ Byte Equality\n- รัน Evaluation ซ้ำมากกว่า 1 ครั้งต่อ Test Case เพื่อสังเกตว่าส่วนไหนคงที่ และส่วนไหนมีความผันแปร\n- บันทึก Response ชุดจริงที่นำไปใช้งานเสมอ เมื่อระบบต้องรองรับการ Audit เพราะการรันซ้ำถือเป็นการสุ่ม Sample ใหม่ ไม่ใช่การ Replay คำตอบเดิม"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Non-determinism เป็นเฉพาะข้อจำกัดของ Anthropic API เท่านั้น หากรัน Claude ผ่าน Third-party Cloud Provider จะได้ Output ที่เหมือนเดิมสำหรับ Input เดิมเสมอ? (ทำไมถึงผิด): ไม่จริง: Input เดียวกันสามารถให้ Output ต่างกันได้ ทั้งบน First-party Inference Service ของ Anthropic และ Third-party Cloud Provider เหมือนกันทั้งหมด"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55537",
+      "question": "ทีมพัฒนากำลังสร้าง Autonomous Coding Agent ที่คาดว่าจะต้องทำงานต่อเนื่องนานกว่า 30 นาที มีการเรียก Tool ซ้ำหลายครั้ง และสำรวจ Codebase ขนาดใหญ่ โดยมี Token Budget อยู่ในระดับหลักล้าน ควรเริ่มต้นด้วยระดับ Effort Level ใด?",
+      "options": [
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "explanation": ""
+    }
+  ]
+}

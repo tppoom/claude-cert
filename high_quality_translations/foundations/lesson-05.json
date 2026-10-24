@@ -1,0 +1,163 @@
+{
+  "title": "การเลือกโมเดล Claude จาก Functional Requirements",
+  "objectives": [
+    "แปลงโจทย์ทางธุรกิจเป็นเกณฑ์เลือกโมเดล: Capability, Speed, Cost และ Effort",
+    "ตัดโมเดลที่ Context Window หรือ Maximum Output ไม่รองรับ Workload ออก",
+    "ประเมินและเปรียบเทียบโมเดลด้วย Eval จาก Functional Requirements เพื่อหา Cost ต่อ Completed Task ที่คุ้มค่าที่สุด"
+  ],
+  "key_concept": "Requirements-driven model selection — การเลือกโมเดลเริ่มต้นจากความต้องการของระบบ โดยแปลงโจทย์ทางธุรกิจแต่ละข้อเป็นเกณฑ์ด้าน Capability, Speed, Cost หรือข้อจำกัดด้านขนาด แล้วเลือกโมเดลที่ผ่านทุกเกณฑ์โดยมี Cost ต่อ Completed Task ต่ำที่สุด",
+  "sections": [
+    {
+      "heading": "1. จาก Business Requirements สู่เกณฑ์การเลือกรุ่นโมเดล (Selection Criteria)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Business Requirements มักไม่ได้ถูกระบุมาในรูปแบบพารามิเตอร์ของโมเดล เช่น \"Agents ต้องตอบกลับให้ได้ในขณะที่ลูกค้ายังถือสายอยู่\" หรือ \"งบประมาณฝั่ง Support ต้องไม่บานปลาย\" หากจะนำมาใช้ตัดสินใจเลือกโมเดล ต้องแปลงโจทย์เหล่านี้ให้เป็น Functional Requirements ที่วัดผลได้ โดยข้อความแรกจะกลายเป็น Latency Target ส่วนข้อความหลังจะกลายเป็น Cost per Request ตามปริมาณ Request Volume ที่คาดการณ์ไว้ หัวข้อ [Model lineup and choosing a starting model](lesson:5.3) ได้สรุปภาพรวมของโมเดลแต่ละรุ่นไว้แล้ว ในส่วนนี้จะเน้นการแปลง Requirements ให้กลายเป็นเกณฑ์คัดเลือกโมเดลที่เหมาะสม"
+        },
+        {
+          "type": "paragraph",
+          "text": "4 คำถามหลักในการแปลง Requirements เป็นเกณฑ์การคัดเลือก:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Capabilities: Task นี้ต้องใช้ฟีเจอร์หรือความสามารถระดับใดบ้าง? - Speed: Application ต้องการ Response เร็วแค่ไหน (Latency)? - Cost: Budget สำหรับช่วง Development และ Production เป็นเท่าใด? - Effort: โมเดลตัวเดิมสามารถรองรับโจทย์ได้หรือไม่ หากปรับระดับ Effort Setting ให้สูงขึ้นหรือต่ำลง?"
+        },
+        {
+          "type": "paragraph",
+          "text": "อย่ามองข้ามเรื่อง Effort Setting เนื่องจาก Claude หลายโมเดลสามารถใช้ Effort เพื่อปรับ Trade-off ระหว่างระดับความฉลาด กับ Latency และ Cost ได้ ดังนั้น Requirement ที่ดูเหมือนต้องเปลี่ยนรุ่นโมเดล อาจจัดการได้ง่ายๆ เพียงแค่ปรับ Effort ขึ้นหรือลงบนโมเดลตัวเดิมที่ใช้งานอยู่"
+        },
+        {
+          "type": "paragraph",
+          "text": "Effort เป็นการตั้งค่าแบบ Per-request ผ่านพารามิเตอร์ effort บน Messages API (output_config.effort) เพื่อควบคุมจำนวน Tokens ที่ Claude จะใช้ในการตอบ โดยเป็น Trade-off ระหว่างความละเอียดรอบคอบ (Thoroughness) กับ Token Efficiency ซึ่งสามารถเปลี่ยนค่าได้ทันทีใน Request ถัดไป โมเดลที่รองรับได้แก่ Claude Fable 5.1 (Default: high), Opus 5.5 (Default: medium) และ Sonnet 5.5 (Default: high) ในขณะที่ Claude Haiku 4.5 ไม่รองรับ ทั้งนี้ การเปลี่ยนค่า Effort จะส่งผลให้ Cached Message Prefixes ใช้ต่อไม่ได้ (Cache Invalidation) จึงควรคำนวณ Cost ใหม่อีกครั้งหลังการปรับเปลี่ยน"
+        },
+        {
+          "type": "table",
+          "caption": "การเลือก Starting Model ตาม Requirement หลัก",
+          "headers": [
+            "Requirement หลัก",
+            "เริ่มต้นด้วยโมเดล",
+            "รูปแบบ Workloads ทั่วไป"
+          ],
+          "rows": [
+            [
+              "ต้องการ Capability ระดับสูงสุด",
+              "Claude Fable 5.1",
+              "Agent Sessions ที่รันต่อเนื่องหลายชั่วโมง, งาน Deep Research หลายขั้นตอน"
+            ],
+            [
+              "งาน Enterprise และ Agentic Coding ระดับซับซ้อน",
+              "Claude Opus 5.5",
+              "Autonomous Coding Agents ที่รันนานหลายชั่วโมง, งาน Refactoring ขนาดใหญ่, Computer Use"
+            ],
+            [
+              "ต้องการความเร็วและ Capability ที่สมดุลสำหรับงานทั่วไป",
+              "Claude Sonnet 5.5",
+              "Code Generation, Data Analysis, Agentic Tool Use"
+            ],
+            [
+              "ต้องการ Latency ต่ำที่สุดและราคาประหยัดที่สุด",
+              "Claude Haiku 4.5",
+              "Real-time Applications, High-volume Processing, Sub-agent Tasks"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "หาก Requirements ยังไม่ชัดเจนว่าจะเลือกโมเดลหัวแถวหรือท้ายแถว ให้เริ่มจากตัวเลือกตรงกลาง โดย Workloads ส่วนใหญ่มักเริ่มที่ Claude Opus 5.5 เลือกใช้ Haiku 4.5 เมื่อระบบมี High Volume ผูกกับ Latency Budget ที่จำกัดและต้องการคุม Cost อย่างเข้มงวด และเลือกใช้ Fable 5.1 สำหรับงาน Reasoning ซับซ้อนที่ต้องรันต่อเนื่องหลายชั่วโมง"
+        }
+      ]
+    },
+    {
+      "heading": "2. Context Window และ Maximum Output: ข้อจำกัดแบบ Hard Limits",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Requirements บางอย่างถือเป็นข้อจำกัดขั้นต่ำ (Floor) ที่ไม่สามารถแก้ได้ด้วยการปรับ Prompt โดย [Context window](lesson:5.1) ของโมเดลจะเป็นตัวกำหนดขีดจำกัดสูงสุดของ Input ต่อหนึ่ง Request และ Maximum Output จะกำหนดความยาวสูงสุดที่โมเดลสามารถเขียนตอบได้ในหนึ่งรอบ ซึ่งทั้งสองอย่างนี้เป็น Hard Limits ที่ไม่สามารถ Trade-off ด้วย Cost หรือ Speed ได้ หาก Requirement ระบุว่า \"ต้องวิเคราะห์เอกสารชุดใหญ่ที่รวมกันทั้งหมดใน Request เดียว โดยห้ามทำ Chunking\" โมเดลใดก็ตามที่มี Context Window เล็กกว่าขนาด Input จะถูกตัดออกทันทีก่อนที่จะพิจารณาเรื่องราคา"
+        },
+        {
+          "type": "table",
+          "caption": "Hard Limits และราคาของโมเดลปัจจุบัน",
+          "headers": [
+            "Model",
+            "Context window",
+            "Max output",
+            "Comparative latency",
+            "Price (input / output ต่อ MTok)"
+          ],
+          "rows": [
+            [
+              "Claude Fable 5.1",
+              "1M tokens",
+              "128K tokens",
+              "Slower",
+              "$10 / $50"
+            ],
+            [
+              "Claude Opus 5.5",
+              "1M tokens",
+              "128K tokens",
+              "Moderate",
+              "$4 / $20"
+            ],
+            [
+              "Claude Sonnet 5.5",
+              "1M tokens",
+              "128K tokens",
+              "Fast",
+              "$2 / $10"
+            ],
+            [
+              "Claude Haiku 4.5",
+              "200K tokens",
+              "64K tokens",
+              "Fastest",
+              "$1 / $5"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เนื่องจากข้อจำกัดด้านขนาดแบ่งโมเดลใน Lineup ไว้อย่างชัดเจน จึงมักใช้เป็นเกณฑ์ตัดสินใจได้ทันที หาก Input มีขนาดเกิน 200K แต่ไม่เกิน 1M tokens จะเหลือตัวเลือก 3 รุ่น ซึ่งจะตัดสินกันต่อด้วย Price และ Latency ส่วน Output ก็ใช้หลักการเดียวกัน เช่น หากระบบต้อง Generate รายงานขนาดยาวในรอบเดียว ต้องมั่นใจว่าจะไม่เกิน 64K tokens บน Haiku 4.5 หรือ 128K tokens บนรุ่นอื่นๆ ทั้งนี้ สามารถตรวจสอบขีดจำกัด Token ของแต่ละโมเดลผ่าน Models API ใน Code ได้โดยตรงแทนการดูจากตาราง"
+        },
+        {
+          "type": "exam_trap",
+          "text": "หากมี Input ขนาดใหญ่มากใน Request เดียว ต้องใช้เฉพาะโมเดลตัวท็อปที่มี Capability สูงสุดเท่านั้นใช่หรือไม่? (ทำไมถึงผิด): ไม่จริง: Fable 5.1, Opus 5.5 และ Sonnet 5.5 ล้วนรองรับ Context Window ขนาด 1M tokens เท่ากัน มีเพียง Haiku 4.5 (200K tokens) เท่านั้นที่ไม่รองรับ"
+        }
+      ]
+    },
+    {
+      "heading": "3. เปรียบเทียบ Candidate Models ด้วย Eval ก่อนตัดสินใจเลือก",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "หลังจากกรองด้วย Hard Limits แล้ว มักจะยังเหลือ Model Candidates มากกว่าหนึ่งตัว การตัดสินใจเลือกจะต้องใช้ Benchmark ที่สร้างขึ้นจาก Functional Requirements (อ่านเพิ่มเติมเรื่อง Loop ได้ที่ [Eval-driven iteration](lesson:2.2)) ในขั้นตอน Model Selection หน้าที่ของ Eval คือการแปลงทุก Requirement ให้เป็น Test Case ซึ่งรวมถึง Edge Cases ที่ธุรกิจให้ความสำคัญ แล้วนำ Candidate ทุกตัวมารันเทียบกับ Test Set เดียวกันนี้"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Model ที่คิดราคา Per-token ถูกที่สุด คือตัวเลือกที่ประหยัดที่สุด? (ทำไมถึงผิด): ไม่จริง: ควบคุมและเปรียบเทียบจาก Cost per completed task เท่านั้น เพราะ Model ที่ราคาต่อ Token ถูกกว่า แต่อัตรา Failed สูงหรือต้อง Retry ซ้ำๆ จะทำให้ต้นทุนรวมต่อ Task ที่สำเร็จจริงแพงกว่า"
+        },
+        {
+          "type": "paragraph",
+          "text": "ให้วัดผลจาก Cost per completed task ไม่ใช่ Per-token price เพราะ Model ที่ถูกกว่าแต่รันพลาดไปครึ่งหนึ่ง หรือต้องยิง Prompt ซ้ำหลายรอบ อาจมีต้นทุนเฉลี่ยต่อ Task ที่สำเร็จสูงกว่า Model ตัวท็อปที่ทำผ่านได้ในรอบเดียว ตัวเลข Price per token จะนำมาใช้เปรียบเทียบได้ก็ต่อเมื่อ Eval วัด Success Rate ของแต่ละ Model ออกมาแล้วเท่านั้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ถ้าเจอโจทย์ถามวิธีเลือก Model ควรตอบอย่างไร? (ทำไมถึงผิด): ไม่จริง: การเทียบแค่ List prices เพียงอย่างเดียวคือตัวลวง ช้อยส์ที่ถูกต้องคือการสร้าง Evaluation set จาก Prompts และ Data ที่ใช้งานจริงมาทดสอบ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55341",
+      "question": "ทีม Data ต้องการรันงานวิเคราะห์ข้อมูลจำนวนหลายล้านระเบียน (records) ทุกคืน โดยผลลัพธ์ต้องการใช้งานในเช้าวันทำการถัดไปเท่านั้น และมีเป้าหมายหลักด้านโครงสร้างพื้นฐานคือการลดต้นทุนต่อโทเคน (per-token cost) ให้เหลือน้อยที่สุด สถาปัตยกรรมนี้ควรเลือกใช้แนวทางการประมวลผลแบบใด?",
+      "options": [
+        "การเรียกใช้ Synchronous Messages API",
+        "การใช้งาน Message Batches API",
+        "การรับ Response แบบ Real-time streaming",
+        "การทำ Re-upload ซ้ำๆ ผ่าน Files API"
+      ],
+      "explanation": ""
+    }
+  ]
+}

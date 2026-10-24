@@ -1,0 +1,181 @@
+{
+  "title": "GDPR, Data Residency และ FedRAMP สำหรับการ Deploy Claude",
+  "objectives": [
+    "อธิบายขอบเขตความคุ้มครอง GDPR สำหรับ Claude และข้อกำหนดในการใช้งานผ่านแพลตฟอร์ม Third-party",
+    "กำหนดตำแหน่งรัน Inference และจัดเก็บข้อมูลด้วย inference_geo, ข้อจำกัดของ Workspace และ Workspace Geo",
+    "เลือกเส้นทางที่ผ่านการรับรอง FedRAMP สำหรับ Claude โดยพิจารณาจาก Hosting Environment ไม่ใช่ตัว Model",
+    "ระบุรายการ Audit Records และระยะเวลาจัดเก็บ (Retention Periods) ที่ฝ่าย Compliance ตรวจสอบ"
+  ],
+  "key_concept": "การจัดการ Compliance และ Data Residency (GDPR, FedRAMP) ในการ Deploy Claude ผ่านการตั้งค่า Environment, Geolocation และ Audit Logging",
+  "sections": [
+    {
+      "heading": "1. GDPR มีผลบังคับใช้ผ่าน DPA ในสัญญาของคุณ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อกำหนดทางกฎหมายและมาตรฐานต่างๆ เข้ามาควบคุม Claude ผ่านช่องทางที่ต่างกัน โดยกรณีของ GDPR จะบังคับใช้ผ่านสัญญาทางกฎหมาย ทั้งนี้ Data Processing Addendum (DPA) ของ Anthropic ซึ่งรวมถึง Standard Contractual Clauses (SCCs) ได้ถูกฝังไว้ใน Commercial Terms of Service เรียบร้อยแล้ว องค์กรใดก็ตามที่กดยอมรับ Terms ดังกล่าว จะถือว่ายอมรับ DPA ไปด้วยโดยอัตโนมัติ ไม่ต้องเซ็นสัญญาแยกต่างหาก หรือเข้าไปเปิด Feature ใดๆ เพิ่มเติม (ต่างจาก HIPAA ที่ Admin ต้องไปกดยอมรับ BAA บน Console) นอกจากนี้ Privacy Policy, DPA และบทความช่วยเหลือของ Anthropic ยังระบุรายละเอียดชัดเจนว่า Anthropic จัดการ Personal Data อย่างไรในฐานะ Data Processor ให้กับลูกค้า"
+        },
+        {
+          "type": "paragraph",
+          "text": "สัญญาจะผูกอยู่กับช่องทางการเข้าถึง (Access Path) เสมอ โดย DPA ที่ระบุนี้ครอบคลุมเฉพาะ Commercial Products เช่น Claude API และ Claude for Work เท่านั้น ส่วน Consumer Plans จะมี Terms of Service แยกเป็นของตัวเอง และหากคุณเข้าถึง Claude ผ่านแพลตฟอร์ม Third-party หรือ Service Provider รายอื่น ข้อกำหนดและสัญญาของแพลตฟอร์มนั้นๆ จะเป็นตัวควบคุมการใช้งานของคุณ ดังนั้น การทำ GDPR Review สำหรับการ Deploy บน Amazon Bedrock จึงต้องเริ่มตรวจสอบจากสัญญาของ AWS ไม่ใช่ DPA ของ Anthropic"
+        },
+        {
+          "type": "paragraph",
+          "text": "DPA มีหน้าที่กำหนดความสัมพันธ์ในฐานะ Processor ทางกฎหมาย ส่วนเรื่องที่ว่า Inference รันที่ไหน และ Data ถูกจัดเก็บที่ใด เป็นเรื่องทางเทคนิคที่คุณต้องควบคุมผ่าน Configuration เอง"
+        }
+      ]
+    },
+    {
+      "heading": "2. Data Residency: Inference Geo และ Workspace Geo",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การกำหนดตำแหน่งที่ Claude ใช้จัดการข้อมูลของคุณถูกแยกออกเป็น 2 ส่วนอิสระ: Inference Geo กำหนดตำแหน่งที่โมเดลรัน Inference โดยตั้งค่าได้ทั้งแบบ Per-request หรือกำหนดเป็นค่า Default ของ Workspace ส่วน Workspace Geo กำหนดตำแหน่ง Data at Rest และ Endpoint Processing เช่น การแปลงไฟล์รูปภาพ (Image Transcoding) หรือการทำ Code Execution ทั้งนี้ Inference Geo มีให้เลือกแค่ \"us\" และ \"global\" เท่านั้น ขณะที่ Workspace Geo ปัจจุบันรองรับเฉพาะ \"us\""
+        },
+        {
+          "type": "paragraph",
+          "text": "ค่า Default ของ Inference Geo คือ \"global\" ซึ่งอนุญาตให้รัน Inference ในพื้นที่ใดก็ได้ที่พร้อมให้บริการ โดย Response แต่ละครั้งจะส่งฟิลด์ usage.inference_geo กลับมาด้วยเสมอว่ารันที่ใดจริง เพื่อให้คุณเก็บ Log เป็นหลักฐานได้ พารามิเตอร์นี้รองรับตั้งแต่ Claude 4.6 ขึ้นไป หากส่งไปยัง Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 หรือรุ่นเก่ากว่านั้น จะได้ Error 400 ทันที สำหรับ Batch API แต่ละ Request สามารถกำหนดค่าของตัวเองแยกกันได้อิสระ"
+        },
+        {
+          "type": "paragraph",
+          "text": "คุณสามารถบังคับใช้นโยบาย Data Residency ในระดับ Workspace ได้โดย: allowed_inference_geos จะ Reject ทุก Geo ที่ไม่อยู่ใน List ส่วน default_inference_geo จะถูกนำมาใช้เมื่อ Request ไม่ได้ระบุพารามิเตอร์มา ทั้งสองค่าสามารถตั้งผ่าน Console หรือฟิลด์ data_residency ของ Admin API ซึ่งจะมีผลกับทุก API Key ใน Workspace เพื่อป้องกันไม่ให้ Developer ลืมใส่พารามิเตอร์แล้วส่ง Traffic หลุดออกนอก Geo ที่กำหนด สำหรับองค์กรที่เคย Opt-out จาก Global Routing ภายใต้การตั้งค่าเดิม ระบบจะ Migrate มาเป็น [\"us\"] ให้อัตโนมัติสำหรับทั้งสองฟิลด์"
+        },
+        {
+          "type": "paragraph",
+          "text": "Workspace Geo เป็นค่าถาวร (Permanent) ต้องเลือกตั้งแต่ตอนสร้าง Workspace ในฟิลด์ Workspace Geo บน Console และไม่สามารถแก้ไขได้ในภายหลัง หากเลือก Storage Location ผิด ทางแก้เดียวคือต้องสร้าง Workspace ใหม่เท่านั้น การจำกัด Inference เฉพาะใน US จะมีค่าใช้จ่าย 1.1x จากราคามาตรฐานบน Claude 4.6 ขึ้นไป และ Rate Limits จะแชร์ร่วมกันในทุก Geo การ Pin ไปที่ \"us\" จึงไม่ได้เพิ่ม Capacity พิเศษแต่อย่างใด"
+        },
+        {
+          "type": "table",
+          "caption": "Controls ทั้ง 4 สำหรับ Data Residency และจุดที่ต้องตั้งค่า",
+          "headers": [
+            "Control",
+            "สิ่งที่ควบคุม",
+            "จุดที่ตั้งค่า",
+            "แก้ไขภายหลังได้หรือไม่"
+          ],
+          "rows": [
+            [
+              "inference_geo",
+              "ตำแหน่งที่รัน Inference สำหรับ Request นั้นๆ (\"us\" หรือ \"global\")",
+              "Request Body ของ POST /v1/messages",
+              "ตั้งค่าได้ Per-request"
+            ],
+            [
+              "allowed_inference_geos",
+              "Geo ที่ Workspace อนุญาตให้ใช้ (Geo อื่นจะส่ง Error กลับมา)",
+              "Console หรือฟิลด์ data_residency ใน Admin API",
+              "ได้"
+            ],
+            [
+              "default_inference_geo",
+              "Geo สำรองที่จะใช้เมื่อ Request ไม่ได้ระบุ inference_geo",
+              "Console หรือฟิลด์ data_residency ใน Admin API",
+              "ได้"
+            ],
+            [
+              "Workspace geo",
+              "Storage at Rest และ Endpoint Processing",
+              "หน้า Create Workspace บน Console",
+              "ไม่ได้"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "Workspace ที่สร้างโดยเลือก Storage Geography ผิด สามารถ Reconfigure แก้ไขใหม่ได้ภายหลังเหมือนกับการเปลี่ยนค่า Default ของ Inference Geo? (ทำไมถึงผิด): ไม่จริง: การตั้งค่า Inference Geo สามารถแก้ไขได้ตลอดเวลา แต่ Workspace Geo จะถูกฟิกซ์ถาวรตั้งแต่ตอนสร้าง Workspace หากตั้งค่าผิด ทางแก้เดียวคือต้องสร้าง Workspace ใหม่เท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. FedRAMP: ตรวจรับรองที่ระดับ Environment ไม่ใช่ตัว Model",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "FedRAMP และ DoD Impact Levels ให้การรับรองมาตรฐานแก่ Cloud Services ไม่ใช่ที่ตัว Models ตัวโมเดล Claude ถือเป็น Software Component ที่รันอยู่ภายใน Authorized Environment ซึ่ง Compliance Posture ของลูกค้านั้นขึ้นอยู่กับ Hosting Platform ที่นำไปรัน ดังนั้นคำถามที่ว่า \"Claude ได้รับรอง FedRAMP High หรือไม่?\" จึงเป็นคำถามที่ไม่ถูกต้อง คำถามที่ถูกต้องคือคุณรัน Claude ใน Environment ใด และ Environment นั้นผ่านการรับรองระดับใด"
+        },
+        {
+          "type": "paragraph",
+          "text": "ช่องทางสำหรับ FedRAMP High มี 3 แนวทางหลัก ได้แก่: 1) Claude for Government (C4G) ซึ่งเป็น Application ของ Anthropic เองที่ผ่านการรับรอง FedRAMP High Authorized โดยทำสัญญาและวางบิลตรงกับ Anthropic 2) Claude ผ่าน Amazon Bedrock ใน AWS GovCloud (US) ซึ่งผ่านการรับรองทั้ง FedRAMP High และ DoD IL4/5 Workloads 3) Claude ผ่าน Google Vertex ร่วมกับ Assured Workloads ซึ่งได้รับรอง FedRAMP High เช่นกัน ทั้งนี้ Bedrock รองรับครอบคลุมยิ่งกว่า โดย Claude สามารถใช้งานได้บน AWS Secret Region (IL6) และข้อมูลตามข้อกำหนด ITAR สามารถประมวลผลบน Claude ผ่าน Bedrock ได้ช่องทางเดียวเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับหน่วยงานที่อยู่ภายใต้ขอบเขต GovCloud Authorization Boundary อยู่แล้ว การใช้ Bedrock ใน GovCloud ถือเป็นตัวเลือกที่ตรงจุดที่สุด เพราะรันบนโครงสร้างพื้นฐานที่ควบคุมโดย AWS ซึ่งหน่วยงานมีใช้งานอยู่แล้ว และมี AWS ทำหน้าที่เป็น Data Processor โดยในเอกสาร Claude Platform on AWS เองก็แนะนำให้ส่ง Workload ระดับ FedRAMP High และ IL4/IL5 ไปที่ Bedrock ในทางตรงกันข้าม Standard Claude API ไม่ได้อยู่ในรายการที่ผ่านการรับรอง FedRAMP เช่นเดียวกับ Claude Enterprise ที่ซื้อผ่าน AWS Marketplace ซึ่งไม่ผ่านการรับรอง FedRAMP ส่วน Consumer Plans นั้นไม่สามารถนำมาใช้กับงานภาครัฐได้เลย"
+        },
+        {
+          "type": "table",
+          "caption": "ตัวเลือกการใช้งาน Claude สำหรับ Workload ภาครัฐของสหรัฐฯ (U.S. Government)",
+          "headers": [
+            "Option",
+            "Who operates it",
+            "FedRAMP status"
+          ],
+          "rows": [
+            [
+              "Claude for Government (C4G)",
+              "Anthropic",
+              "FedRAMP High authorized"
+            ],
+            [
+              "Claude via Amazon Bedrock in AWS GovCloud",
+              "AWS",
+              "FedRAMP High and DoD IL4/5"
+            ],
+            [
+              "Google Vertex with Assured Workloads",
+              "Google Cloud",
+              "FedRAMP High"
+            ],
+            [
+              "Claude Enterprise on AWS Marketplace",
+              "Anthropic",
+              "Not FedRAMP authorized"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "การรับรอง FedRAMP เป็นของตัวโมเดล Claude ดังนั้นการเรียกใช้โมเดลไม่ว่าจะผ่านช่องทางใดจะได้รับมาตรฐานนี้โดยอัตโนมัติ? (ทำไมถึงผิด): ไม่จริง: FedRAMP ให้การรับรองระดับ Cloud Services การปฏิบัติตาม Compliance จึงขึ้นอยู่กับการรัน Claude ภายใน Authorized Environment (เช่น Bedrock ใน GovCloud) ไม่ได้ผูกติดกับตัวโมเดล"
+        }
+      ]
+    },
+    {
+      "heading": "4. บันทึกข้อมูลการจัดเก็บ (Retention Records) ที่ Compliance Reviewer มักตรวจสอบ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การ Audit มักจะสรุปเหลือคำถามหลัก 2 ข้อ: มี Records อะไรอยู่บ้าง และเก็บไว้นานเท่าใด ส่วนรายละเอียด Event และการส่งต่อไปยังระบบของคุณจะกล่าวถึงใน [Audit events and their routing](lesson:4.6) ทั้งนี้ Retention Periods จะแยกขาดจากทั้ง ZDR และ HIPAA Readiness โดย Reviewer จะตรวจสอบทีละรายการดังนี้:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Activity Feed: เก็บ 6 ปี - ประวัติ Chat, File และ Project Content บน claude.ai: เป็นไปตาม Policy ขององค์กรที่ตั้งค่าไว้ใน Organization settings > Data and privacy เว้นแต่ User จะเป็นผู้สั่งลบก่อน - Local Session Transcripts (Claude Code, Cowork): ค่าเริ่มต้น 6 ปี หรือตาม Retention Period ที่องค์กรกำหนดไว้ - Remote Cowork Session Transcripts: เก็บ 6 ปี เว้นแต่ User จะลบ Session นั้นทิ้ง - Compliance API: จะไม่บันทึก Local Sessions ที่รันภายใต้ ZDR แต่ในองค์กรที่เป็น HIPAA-Ready API จะบันทึกเฉพาะ Claude Code และ Cowork Local Sessions โดยเก็บ Transcript ไว้นาน 30 วัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับข้อมูลที่ถูก Copy ไว้บนเครื่อง Developer ต้องจัดการแยกต่างหาก: การตั้งค่า `cleanupPeriodDays` ใน Managed Settings จะบังคับให้ทุกเครื่องลบข้อมูล Session เก่าอัตโนมัติหลังจากครบจำนวนวันที่กำหนด เพื่อให้สอดคล้องกับ Records Policy ของคุณ และใน Claude for Government จะมี Hash-chained Audit Log คอยบันทึกทุก Administrative Action ซึ่ง Administrator สามารถเข้ามาตรวจสอบได้โดยตรงผ่านระบบ"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "กำหนดการ inference ของ workspace ให้อยู่เฉพาะใน US จากนั้นตรวจสอบจาก API response เพื่อยืนยันว่าระบบบังคับใช้นโยบายและรันบน US จริง"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56947",
+      "question": "หน่วยงานรัฐบาลกลางของสหรัฐฯ (U.S. federal agency) ที่ดำเนินงานอยู่ภายใต้ขอบเขตการรับรองของ AWS GovCloud (US) อยู่แล้ว ต้องการนำ Claude มาใช้งานสำหรับเวิร์กโหลดที่มีความละเอียดอ่อนสูง (sensitive workload) โดยไม่ต้องการสร้างโครงสร้างพื้นฐานคลาวด์ (cloud infrastructure) ขึ้นมาใหม่ ตัวเลือกใดตอบโจทย์ความต้องการนี้ได้ตรงจุดที่สุดเมื่อพิจารณาจากข้อเสนอสำหรับภาครัฐในปัจจุบันของ Anthropic?",
+      "options": [
+        "เข้าใช้งาน Claude ผ่าน Amazon Bedrock ใน AWS GovCloud (US) ซึ่งได้รับการรับรอง FedRAMP High และ DoD IL4/5",
+        "เรียกใช้งาน Claude API มาตรฐานโดยตรง โดยใช้ commercial key ที่ออกสำหรับการเรียกเก็บเงินของหน่วยงานภาครัฐ",
+        "จัดเตรียมบัญชี Claude Free ให้กับนักวิเคราะห์แต่ละคน เนื่องจากแพ็กเกจสำหรับผู้ใช้งานทั่วไป (consumer plans) มีข้อผูกมัดทางกฎหมายน้อยกว่า",
+        "ใช้ Claude Console Workbench ภายใต้แพ็กเกจ Enterprise ที่กำหนดค่าสำหรับความพร้อมตามมาตรฐาน HIPAA แทน"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,313 @@
+{
+  "title": "การจัดการความคาดหวังของ Stakeholders: SLAs, Limits และ Pilot Feedback",
+  "objectives": [
+    "ระบุข้อตกลงด้าน Availability ของแพ็กเกจ Standard และ Priority รวมถึงขอบเขตที่ไม่ครอบคลุม",
+    "อธิบายกลไกของ Rate Limits และ Spend Caps ระดับองค์กรในการควบคุม Throughput และค่าใช้จ่าย พร้อมระบุ Error ที่เกี่ยวข้องได้ถูกต้อง",
+    "รวบรวมเกณฑ์การเลือก Model ให้ Stakeholders อนุมัติก่อนทำ SLA และแนวทางการทบทวนใหม่หลัง Launch",
+    "ระบุช่องทางติดตาม Incident ฝั่ง Anthropic และประกาศ Model Retirement รวมถึงความแตกต่างบน Partner Platforms",
+    "สร้าง Pilot Feedback Loop เพื่อรวบรวม, จัดลำดับความสำคัญ (Triage) และรายงานผลตั้งแต่วันแรก",
+    "แยกแยะปัญหา Quality Drop ที่เกิดขึ้นจริงออกจาก Normal Variation ก่อนตอบสนองต่อข้อร้องเรียน"
+  ],
+  "key_concept": "Ceilings และ Targets ไม่ใช่ Guarantees — ข้อกำหนด SLA ของ Claude เป็นเพียงค่าสูงสุด (Maximums) และเป้าหมาย (Targets): Rate Limits และ Spend Caps ช่วยจำกัดการใช้งานแต่ไม่รับประกัน Capacity และมีเพียง Priority Tier เท่านั้นที่มี Uptime Target ดังนั้นการตั้งความคาดหวังกับ Stakeholders ต้องอิงจากเพดานเหล่านี้ ไม่ใช่ตัวเลขที่ไม่มีพันธสัญญาจริง",
+  "sections": [
+    {
+      "heading": "1. คำมั่นสัญญาที่แท้จริงของ Standard และ Priority Tier",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Stakeholders มักไม่ถามเรื่อง Service Tiers โดยตรง แต่มักถามว่า \"ระบบจะล่มไหม?\" ซึ่งคำตอบที่แท้จริงขึ้นอยู่กับว่า Traffic วิ่งอยู่บน Tier ไหน Anthropic แบ่ง Tier ออกเป็น 3 ระดับ ได้แก่ Standard ซึ่งเป็นค่า Default สำหรับทุก API Request, Priority Tier ที่ต้องมีการทำ Capacity Commitment ล่วงหน้า และ Batch สำหรับงาน Asynchronous ที่รอได้ การสัญญาเรื่อง Availability โดยไม่ได้จ่ายเงินซื้อ Capacity คือข้อผิดพลาดที่พบบ่อยที่สุดในการตกลง SLA"
+        },
+        {
+          "type": "paragraph",
+          "text": "Standard ให้บริการแบบ Best-effort เท่านั้น Request จะถูกจัด Priority ปะปนกับผู้ใช้อื่นทั้งหมด ดังนั้นช่วง Peak อาจเกิด Error \"server overloaded\" ได้ และไม่มีตัวเลข Uptime อ้างอิง ขณะที่ Priority Tier จะจัดคิว Request ให้อยู่หน้า Traffic อื่น ช่วยลด Overload Errors แม้ในช่วง Peak โดยตั้งเป้าหมาย (Targets) Uptime ไว้ที่ 99.5% จุดสำคัญมี 2 ประการคือ คำว่า \"Targets\" ไม่ใช่ \"Guarantees\" (การันตี) และเป้าหมายนี้ครอบคลุมเฉพาะ Capacity ที่ Commit ไว้เท่านั้น Request ส่วนเกินจะถูกตัดกลับไปเป็น Standard Tier อัตโนมัติ"
+        },
+        {
+          "type": "table",
+          "caption": "สิ่งที่แต่ละ Service Tier มอบให้เมื่อต้องกำหนดความคาดหวังด้าน Availability",
+          "headers": [
+            "Tier",
+            "ผู้ใช้งาน",
+            "สิ่งที่รับรอง",
+            "สิ่งที่ไม่ครอบคลุม"
+          ],
+          "rows": [
+            [
+              "Standard",
+              "ทุก Request โดยค่า Default",
+              "Availability แบบ Best-effort จัด Priority รวมกับ Request อื่นทั้งหมด",
+              "ไม่มีเป้าหมาย Uptime อาจพบ Overload Errors ในช่วง Peak"
+            ],
+            [
+              "Priority Tier",
+              "องค์กรที่มีการทำ Capacity Commitment",
+              "ตั้งเป้าหมาย (Targets) Uptime 99.5% พร้อม Compute ที่ได้ Priority สูงกว่า",
+              "Traffic ส่วนเกินจาก Input/Output Tokens per Minute ที่ Commit ไว้ จะ Fallback เป็น Standard"
+            ],
+            [
+              "Batch",
+              "Asynchronous Workflows",
+              "งานที่รอได้ หรือรันนอกช่วง Capacity ปกติ",
+              "ไม่เหมาะกับ Interactive หรือ Latency-sensitive Workflows"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Priority Tier Commitment ต้องระบุเงื่อนไขเฉพาะเจาะจง ได้แก่ Input Tokens per Minute, Output Tokens per Minute, ระยะเวลาสัญญา (1, 3, 6 หรือ 12 เดือน) และ Model Version ที่เจาะจงตัวเดียว ทั้งนี้ Cache Reads/Writes รวมถึง US-only Inference บนโมเดลรุ่นใหม่ จะถูกคิดรวมใน Capacity ตาม Weighting ของตัวเอง ทำให้ Workload ที่ใช้ Caching เยอะจะกิน Quota Commitment น้อยกว่าจำนวน Raw Tokens จริง ดังนั้นควรตรวจสอบโมเดลก่อนสัญญา Priority Tier เสมอ เพราะโมเดลปัจจุบันบางตัวยังไม่รองรับ เช่น Claude Fable 5.1, Claude Opus 5.5, Claude Sonnet 5.5 และ Claude Haiku 5.5 หากแจ้ง Stakeholders ว่าจะได้ 99.5% Tier สำหรับ Opus 5.5 ถือเป็นสิ่งที่เป็นไปไม่ได้ในทางเทคนิค"
+        },
+        {
+          "type": "exam_trap",
+          "text": "สิ่งที่มักเข้าใจผิดเกี่ยวกับ Availability Promise? (ทำไมถึงผิด): ไม่จริง: การอ้างอิงตัวเลข 99.5% เพียงอย่างเดียวโดยไม่ระบุรายละเอียดให้ครบถ้วนถือเป็นการเคลมเกินจริง เพราะการตกลง Availability ที่ถูกต้องตามข้อสอบต้องระบุให้ครบทั้ง 3 องค์ประกอบเสมอ ได้แก่ Service Tier ไหน, Model Version ใด และขนาด Capacity เท่าใด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Priority Tier การันตี Uptime 99.5% สำหรับทุก Traffic ของลูกค้าบนทุกโมเดล? (ทำไมถึงผิด): ไม่จริง: Priority Tier เพียงแค่ตั้งเป้าหมาย (Targets) Uptime 99.5% เฉพาะ Capacity ที่ Commit ไว้บน Model Version ที่ระบุเท่านั้น โดย Traffic ส่วนเกินจะ Fallback กลับเป็น Standard ทันที อีกทั้งโมเดลปัจจุบันหลายตัวยังไม่รองรับ Priority Tier"
+        }
+      ]
+    },
+    {
+      "heading": "2. Rate Limits และ Spend Caps คือเพดานจำกัดการใช้งาน",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ข้อจำกัดระดับองค์กรที่ควบคุมปริมาณการใช้งานมี 2 ส่วน คือ Rate Limits (จำกัด Requests และ Tokens ต่อช่วงเวลา) และ Spend Limits (จำกัดงบประมาณรายเดือน) ทั้งคู่ขึ้นอยู่กับ Usage Tier ซึ่งระบบจะจัด Tier ให้องค์กรอัตโนมัติตามประวัติการใช้งานและปรับขึ้นตามกาลเวลา โดยองค์กรใหม่อาจเริ่มต้นที่ Evaluation Tier ข้อจำกัดเหล่านี้บังคับใช้ครอบคลุมทั้งองค์กร แต่คุณสามารถกำหนด Limits ให้ต่ำลงเฉพาะแต่ละ Workspace ได้ เพื่อป้องกันไม่ให้ Pilot Project ของทีมหนึ่งไปแย่ง Quota ของอีกทีม"
+        },
+        {
+          "type": "paragraph",
+          "text": "Rate Limits บน Messages API วัดแยกตาม Model Class ได้แก่ Requests per Minute (RPM), Input Tokens per Minute (ITPM) และ Output Tokens per Minute (OTPM) โดยระบบจะคำนวณและบังคับใช้บน Time Window ที่สั้นกว่าระดับนาที เช่น ขีดจำกัด 60 RPM อาจถูกเฉลี่ยเป็น 1 Request ต่อวินาที ทำให้ Burst Traffic เกิด Error ได้แม้ผลรวมทั้งนาทีจะไม่เกิน Limit ทั้งนี้ Prompt Caching คือตัวช่วยสำคัญที่ควรอธิบายให้ Stakeholders เข้าใจ เพราะโมเดลส่วนใหญ่จะนับเฉพาะ Uncached Input Tokens ลงใน ITPM ดังนั้น Cache Hit Rate ที่สูงจะช่วยเพิ่ม Throughput จริงได้โดยไม่ต้องอัปเกรด Tier นอกจากนี้ยังสามารถขอยื่นเพิ่ม Limit ผ่าน Console ได้เมื่อใช้งานถึงอย่างน้อย 50% ของ Limit ปัจจุบัน"
+        },
+        {
+          "type": "table",
+          "caption": "เพดานค่าใช้จ่ายรายเดือน (Monthly Spend Cap) ตาม Usage Tier",
+          "headers": [
+            "Usage tier",
+            "Monthly spend cap"
+          ],
+          "rows": [
+            [
+              "Start",
+              "$500 USD"
+            ],
+            [
+              "Build",
+              "$1,000 USD"
+            ],
+            [
+              "Scale",
+              "$200,000 USD"
+            ],
+            [
+              "Custom",
+              "No cap; กำหนดวงเงินร่วมกับ Account Team"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อชน Spend Cap ระบบจะไม่ใช่แค่ชะลอการทำงานลง แต่จะหยุดให้บริการทันที โดย API Usage ของทั้งองค์กรจะถูก Pause จนถึงเวลา 00:00 UTC ของวันแรกในเดือนถัดไป ส่วน Limit ที่คุณตั้งขึ้นมาเองในระดับ Workspace จะมีพฤติกรรมการตอบสนองที่แตกต่างออกไป Stakeholders จึงควรทราบล่วงหน้าว่าจะพบ Response แบบใดในแต่ละเคส และใครเป็นผู้มีสิทธิ์แก้ไข"
+        },
+        {
+          "type": "table",
+          "caption": "ลักษณะ Response เมื่อชน Limit แต่ละประเภท และวิธีปลดล็อก",
+          "headers": [
+            "Limit ที่ชน",
+            "Response",
+            "Signal ที่ส่งกลับมา",
+            "วิธีแก้ไขเพื่อกลับมาใช้งาน"
+          ],
+          "rows": [
+            [
+              "Rate limit (RPM, ITPM หรือ OTPM)",
+              "HTTP 429 rate_limit_error",
+              "มี header retry-after แนบมาด้วย",
+              "รอตามจำนวนวินาทีที่ระบุ แล้ว Retry ใหม่"
+            ],
+            [
+              "Tier monthly spend cap",
+              "HTTP 429 rate_limit_error",
+              "error_code enforced_spend_limit_reached, ไม่มี header retry-after",
+              "รอเริ่มต้นเดือนถัดไปเวลา 00:00 UTC หรืออัปเกรด Tier ให้สูงขึ้น"
+            ],
+            [
+              "Spend limit ที่ตั้งขึ้นเอง",
+              "HTTP 400 invalid_request_error",
+              "Message ขึ้นต้นด้วย You have reached your specified API usage limits",
+              "ปรับเพิ่ม Limit หรือลบ Limit ดังกล่าวออก"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "Rate Limit คือ Reserved Capacity จึงสามารถการันตี Throughput ตาม Limit ให้ Stakeholders ได้? (ทำไมถึงผิด): ไม่จริง: Rate Limits และ Spend Caps คือเพดานสูงสุด (Ceilings) ไม่ใช่การรับประกัน Capacity ขั้นต่ำ และ Short Bursts สามารถทริกเกอร์ Error ได้แม้ปริมาณรวมใน 1 นาทีจะไม่เกิน Limit"
+        },
+        {
+          "type": "exam_trap",
+          "text": "HTTP 429 ทุกกรณีจะหายเองถ้า Client ส่ง Retry ซ้ำเรื่อยๆ? (ทำไมถึงผิด): ไม่จริง: HTTP 429 ที่เกิดจาก Tier Spend Cap จะไม่มี Header retry-after ส่งมา และการ Retry จะล้มเหลวเสมอจนกว่าจะถึงเวลา 00:00 UTC ของเดือนถัดไป หรือองค์กรต้องอัปเกรด Tier ให้สูงขึ้นเท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "3. เกณฑ์ที่ Stakeholders ต้อง Sign-off ก่อนทำ SLA",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "SLA จะมีประสิทธิภาพได้ก็ต่อเมื่อมีเกณฑ์วัดผลที่ชัดเจนรองรับ ควรกำหนดเกณฑ์ให้สามารถวัดค่าได้จริงตามหลัก [Measurable success criteria](lesson:6.1) แล้วให้ Stakeholders ทำการ Sign-off เป้าหมายของ Sign-off Session คือการเปลี่ยน Requirement ลอยๆ เช่น \"ต้องเร็วและถูก\" ให้กลายเป็นตัวเลือกเชิงเทคนิคและธุรกิจที่ Stakeholders ร่วมรับผิดชอบ การเลือกโมเดล Claude ต้องบาลานซ์ 3 ปัจจัยหลัก ซึ่งทั้งหมดนี้ต้องอาศัยการตัดสินใจจากฝั่ง Business ไม่ใช่หน้าที่ของ Engineering ฝ่ายเดียว"
+        },
+        {
+          "type": "paragraph",
+          "text": "3 คำถามสำคัญที่ต้องถามใน Sign-off Session:"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Capabilities: โมเดลต้องมีความสามารถใดบ้างเพื่อตอบโจทย์ Functional Requirements ของ Workflow - Speed: Application ต้องตอบสนองเร็วแค่ไหน และยอมรับ Premium Pricing ได้หรือไม่ โดย Fast mode บน Claude Opus 5.5, Claude Opus 5 และ Claude Opus 4.8 เพิ่มความเร็ว Output สูงสุด 2.5 เท่าแลกกับราคาที่สูงขึ้น ซึ่งเป็นการตัดสินใจเชิงธุรกิจ - Cost: งบประมาณทั้งช่วง Development และ Production ซึ่งจะกำหนด Usage Tier และ Spend Cap ที่ต้องใช้"
+        },
+        {
+          "type": "paragraph",
+          "text": "รายละเอียดด้าน Architecture เช่น จำนวน Parameter หรือโฮสต์ Weights ไว้ที่ไหน ไม่ใช่เกณฑ์ในการคัดเลือก เพราะ Stakeholders ไม่สามารถประเมินได้และ Model Guidance ก็ไม่ได้กำหนดไว้ ในทางกลับกัน Uptime และ Response Time คือ Operational Metrics ที่ต้องระบุในเกณฑ์ที่ Sign-off โดยกำหนด Target ให้สอดคล้องกับ Tier ที่ใช้งานจริง"
+        },
+        {
+          "type": "paragraph",
+          "text": "เกณฑ์ที่ Sign-off แล้วต้องนำกลับมาทบทวนหลัง Launch เพราะโมเดลที่ใช้งานมีการอัปเดตอยู่เสมอ Prompts และ Guardrails ที่ปรับจูนไว้สำหรับโมเดลเดิมอาจจำกัดประสิทธิภาพของโมเดลรุ่นใหม่ที่เก่งกว่า ทีมจึงต้องรัน Retest เมื่องานมีการเปลี่ยนหรืออัปเกรดโมเดล การมี Eval Suite ช่วยให้การเจรจาต่อรองเกณฑ์เหล่านี้อยู่บนพื้นฐานความจริง โดยช่วงเริ่มต้นจะช่วยบีบให้ทีมกำหนดนิยามของความสำเร็จให้ชัดเจน และในระยะยาวจะช่วยคุมมาตรฐาน Quality Bar ให้คงที่ หากมีการขอยอมรับ Latency ที่สูงขึ้นเพื่อแลกกับโมเดลที่ฉลาดขึ้น หรือการเปลี่ยนไปใช้โมเดลใหม่หลังรุ่นเก่า Retire ก็จะตัดสินด้วยตัวเลข Metrics แทนความรู้สึก"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ความต้องการของ Stakeholder เช่น \"อยากให้ระบบรู้สึกตอบสนองทันที\" เป็น Requirement ที่พร้อมนำไป Implement ทันที ความจริงคือต้องแปลงคำว่า \"รู้สึกเร็ว\" ให้อยู่ในกลุ่ม Speed แล้วกำหนดเป็นตัวเลข Response Time / Latency ที่แน่นอน (เช่น p95 < 800ms) เพื่อให้ Stakeholder ทำการ Sign-off เป็นเกณฑ์ที่วัดผลได้จริง"
+        }
+      ]
+    },
+    {
+      "heading": "4. วิธีติดตาม System Outages และ Model Retirements",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Incident Runbook ของทุกทีมต้องระบุ Public Source กลางสำหรับเช็ก Incident ฝั่ง Anthropic ไว้ที่เดียวคือ status.claude.com ซึ่งจะรายงาน Scope, Impact และ Resolution Progress ของ Incident ที่ได้รับการยืนยันแบบ Real-time ส่วนปัญหาด้าน Account และ Billing ต้องติดต่อแยกต่างหากผ่าน Support ทาง Message Icon ใน Help Center หรือปุ่ม \"Get help\" ใน Claude Console ให้แยกสองช่องทางนี้ออกจากกันใน Runbook โดยช่องทางแรกรายงานสถานะภาพรวมของระบบ ส่วนช่องทางหลังจัดการเคสเฉพาะขององค์กรคุณ"
+        },
+        {
+          "type": "paragraph",
+          "text": "บางสัญญาณอาจดูเหมือนระบบล่มแต่ความจริงไม่ใช่ เช่น Capacity Constraints ที่เกิดจาก Demand สูงแต่ระบบยังทำงานปกติ จะไม่แสดงบน Status Page เพราะถือเป็น Normal Load Management ทั่วไป การเจอ HTTP 429 หมายถึงองค์กรคุณใช้เกิน Rate Limit ไม่ใช่หลักฐานว่าระบบล่ม แม้ Internal Dashboards, Rate-limit Charts และ Model System Cards จะมีประโยชน์ แต่ไม่ใช่ช่องทางประกาศ Incident ของ Anthropic"
+        },
+        {
+          "type": "paragraph",
+          "text": "Model Retirement เป็นอีกหนึ่ง Scheduled Event ที่กระทบต่อ Timeline การพัฒนา Anthropic จะแจ้งเตือนลูกค้าที่ได้รับผลกระทบทาง Email และ Documentation ล่วงหน้าอย่างน้อย 60 วันก่อนโมเดล Public จะ Retire โดยโมเดลสถานะ Deprecated จะยังใช้งานได้ตามปกติแต่มีโมเดลทดแทนและมีกำหนดวัน Retirement ที่ชัดเจน ส่วนโมเดลที่ขึ้นสถานะ Retired แล้วจะ Reject ทุก Request ทันที คุณสามารถตรวจสอบว่า API Keys ไหนยังเรียกใช้โมเดล Deprecated ได้โดย Export ข้อมูลจากหน้า Console Usage เป็น CSV แยกตาม API Key และ Model"
+        },
+        {
+          "type": "paragraph",
+          "text": "วัน Retirement จะขึ้นอยู่กับว่า Traffic ของคุณรันอยู่บน Platform ใด วันที่ Anthropic ประกาศจะมีผลครอบคลุมเฉพาะ Claude API, Claude Platform บน AWS และ Microsoft Foundry เท่านั้น ส่วน Amazon Bedrock และ Google Cloud จะมี Lifecycle เป็นของตัวเอง ดังนั้นโมเดลเดียวกันอาจ Retire บน Claude API ไปแล้วแต่ยังใช้งานได้บน Partner Platforms หากเป็น Direct API Traffic คุณต้อง Migrate ไปยังโมเดลที่ Support ก่อนถึงกำหนดของ Anthropic แต่หากอยู่บน Partner Platform ให้ยึดตาม Timeline ของ Platform นั้น Traffic เดิมจะไม่ได้รับการยกเว้น และเมื่อถึงวัน Retire ระบบจะบล็อก API Requests ทั้งหมด ไม่ใช่แค่ใน Console อ่านขั้นตอนการ Migrate ได้ใน [Lifecycle phases and model migration](lesson:6.5)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: กำหนดการ Retirement ของ Anthropic จะมีผลบังคับใช้พร้อมกันทุกโฮสติ้งแพลตฟอร์ม รวมถึง Amazon Bedrock และ Google Cloud ความจริงคือ กำหนดการของ Anthropic ครอบคลุมเฉพาะ Claude API, Claude Platform บน AWS และ Microsoft Foundry เท่านั้น ส่วน Partner Platforms (Bedrock / Google Cloud) จะเป็นผู้กำหนด Lifecycle และตารางเวลา Retirement ของตนเองแยกต่างหาก"
+        }
+      ]
+    },
+    {
+      "heading": "5. Building the feedback loop into the pilot",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "กำหนดวิธีรวบรวมและนำ Feedback ไปใช้ตั้งแต่ก่อนเริ่ม Pilot เพราะ Feedback ที่เก็บทีหลังโดยไม่วางแผนมักกลายเป็นแค่คำบ่นสะเปะสะปะที่ขาด Context การส่ง Pilot invitation คือจุดเริ่มต้นของ Loop นี้ ควรบอกกลุ่มผู้ใช้งานว่าพวกเขาได้รับเลือกเพื่อให้ทดลองใช้กับงานจริงและต้องการความคิดเห็นตามตรง จากนั้นตั้งโจทย์ให้ชัดเจน: ให้ใช้งานกับงานจริงอย่างน้อยหนึ่งอย่าง แล้วแชร์ว่าอะไรที่เวิร์ก อะไรที่น่าหงุดหงิด และอะไรที่เหนือความคาดหมาย พร้อมปิดท้ายด้วยการบอกว่า Feedback ของพวกเขาจะถูกนำไปใช้อย่างไร เพื่อให้เห็นว่าเสียงของพวกเขามีผลต่อระบบจริง"
+        },
+        {
+          "type": "paragraph",
+          "text": "การรวบรวมต้องมีจุดศูนย์กลางจุดเดียวและมีผู้รับผิดชอบชัดเจน การใช้ Single channel ช่วยให้ทุกคำถามมารวมอยู่ที่เดียว ควรกำหนด Owner คอยดูแลตลอด 48 ชั่วโมงแรก เพราะคำถามช่วง Launch ที่ไม่มีคนตอบจะทำลาย Momentum ทันที และควรตอบคำถามในที่สาธารณะ (In public) เพื่อให้ทุกคนเห็นคำตอบไปพร้อมกัน นอกจากนี้ การตั้ง Weekly prompt ช่วยกระตุ้น Feedback ได้อย่างต่อเนื่องโดยไม่ต้องนัดประชุม เช่น ทุกวันศุกร์ให้ถามว่าสัปดาห์นี้ Tool ช่วยอะไรได้บ้าง และเปิดรับทั้ง Screenshot หรือข้อความสั้นๆ เพียงไม่กี่ประโยค"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำ Triage และรายงานผลกลับช่วยป้องกันไม่ให้ Loop กลายเป็นเพียงกล่องรับข้อเสนอแนะที่ถูกมองข้าม แยกแยะแต่ละรายการก่อนลงมือทำ: เป็นช่องว่างด้าน Capability, ปัญหา Limit หรือ Quota, ข้อผิดพลาดที่ต้องแก้ที่ Prompt หรือ Configuration, หรือเป็นเรื่อง Quality ที่ต้องนำไปเทียบกับ Evals จากนั้นแจ้งผลลัพธ์กลับไปยังผู้ที่แจ้งปัญหาเสมอ ทั้งนี้ Usage data ยังช่วยเป็นสัญญาณเตือนอัตโนมัติ โดย Analytics จะชี้ให้เห็นแนวโน้มการใช้งาน (Adoption trends) หรือช่วงที่ Usage ลดลงซึ่งอาจบ่งชี้ถึงปัญหาหรือ Friction ทำให้รู้ว่าควรเจาะถามจุดไหน ทีมของ Anthropic ทีมหนึ่งควบคุมภาระงานฝั่งคนด้วยการออกรายงานสรุป \"Lessons & missteps\" ประจำสัปดาห์ และรวบรวมคำถามเป็น Batch เพื่อให้ Reviewer ตรวจและตอบได้ในรอบเดียว เพราะ Reviewer attention มีจำกัด จึงต้องออกแบบ Loop ให้ใช้งานอย่างคุ้มค่าที่สุด"
+        },
+        {
+          "type": "table",
+          "caption": "A pilot feedback loop: each stage and what it produces",
+          "headers": [
+            "Stage",
+            "Mechanism",
+            "Output stakeholders see"
+          ],
+          "rows": [
+            [
+              "Collect",
+              "Dedicated channel พร้อมกำหนด Owner; สอบถามว่าอะไรที่เวิร์ก อะไรที่น่าหงุดหงิด และอะไรที่เหนือความคาดหมาย",
+              "ทุกคำถามได้รับคำตอบใน Public"
+            ],
+            [
+              "Prompt",
+              "Weekly show-and-tell thread",
+              "บันทึกผลลัพธ์ทั้งข้อดีและความล้มเหลวจากการใช้งานจริงอย่างต่อเนื่อง"
+            ],
+            [
+              "Observe",
+              "Usage analytics: active users, sessions, spend",
+              "การลดลงของสถิติการใช้งานที่บ่งชี้ถึง Friction ก่อนที่ผู้ใช้จะเริ่มร้องเรียน"
+            ],
+            [
+              "Report back",
+              "สรุปการตัดสินใจประจำสัปดาห์ที่อิงจาก Feedback",
+              "หลักฐานที่แสดงว่า Feedback มีผลต่อการตัดสินใจในการทำ Wider rollout"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "6. Separating real degradation from normal variation",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "\"สัปดาห์นี้รู้สึกว่าแย่ลง\" เป็นคำร้องเรียนที่ทุก Pilot ต้องเจอ และการรีบตอบสนองก่อนตรวจสอบข้อเท็จจริงคือสิ่งที่ทำให้ทีมเสียเวลาเปล่าเป็นสัปดาห์ หากไม่มี Evals การ Debugging จะกลายเป็นแบบ Reactive คือต้องรอให้มีคนบ่น แล้วนำมา Reproduce แบบ Manual ตามแก้ทีละจุด และหวังว่าจะไม่มีอะไรพังเพิ่ม ปัญหาที่แท้จริงคือทีมที่ไม่มี Evals จะไม่สามารถแยกความแตกต่างระหว่าง Regression ที่เกิดขึ้นจริงกับ Noise ได้ เพราะธรรมชาติของโมเดลย่อมให้คำตอบที่แตกต่างกันได้สำหรับ Input ที่คล้ายกัน การเจอ Output แย่ๆ เพียงไม่กี่ครั้งจึงไม่ใช่หลักฐานว่าระบบมีอะไรเปลี่ยนแปลง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตรวจสอบหาสาเหตุตามลำดับขั้นตอนที่กำหนดไว้ โดยเริ่มจากวิธีที่ต้นทุนต่ำที่สุด (Cheapest first):"
+        },
+        {
+          "type": "paragraph",
+          "text": "1. Confirmed incident: มีรายงานปัญหาบน status.claude.com หรือไม่? หากมี สาเหตุเกิดจากภายนอกระบบของคุณ และหน้า Status page จะบอกทั้งขอบเขตและความคืบหน้า 2. Capacity or limits: Error ที่พบเป็น Overload response หรือ 429s หรือไม่? ข้อจำกัดด้าน Capacity ไม่ใช่ระบบล่ม (Outages) และ Error เกี่ยวกับ Limit ก็ไม่ใช่ปัญหาด้าน Quality 3. Measured regression: คะแนนจาก Eval suite ที่รันบน Build ปัจจุบันต่ำกว่า Baseline หรือไม่? ผลลัพธ์นี้เท่านั้นที่รองรับการ Rollback หรือแก้ Prompt ได้อย่างสมเหตุสมผล 4. Normal variation: หากไม่ตรงกับข้อใดข้างต้น ให้นำตัวอย่างที่รายงานเข้ามาใส่เพิ่มใน Eval set แล้วแจ้ง Stakeholder ตามตัวเลขที่วัดผลได้จริง"
+        },
+        {
+          "type": "paragraph",
+          "text": "กำหนดความคาดหวังเรื่อง Variation ไว้ใน Criteria ที่ลงนามตกลงกันตั้งแต่ก่อนจะมีคนร้องเรียน Consistency ถือเป็น Criteria ตัวหนึ่ง: Response ต้องมีความใกล้เคียงกันแค่ไหนสำหรับ Input ที่คล้ายกัน และจำเป็นแค่ไหนที่คำถามเดิมที่ถามซ้ำ 2 ครั้งจะต้องได้คำตอบที่ความหมายเชิง Semantics เหมือนกัน Stakeholder ที่เซ็นรับรองแล้วว่า \"คำตอบอาจใช้ถ้อยคำต่างกันได้แต่สาระสำคัญต้องเหมือนเดิม\" จะมีเกณฑ์มาตรฐานไว้เทียบเมื่อมีข้อร้องเรียน หากไม่มีมาตรฐานนี้ คำตอบที่ไม่คาดคิดทุกครั้งจะถูกมองว่าเป็น Regression เสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: ข้อความเตือนเรื่อง Capacity constraint ไม่ได้แปลว่า Anthropic มีระบบล่ม (Outage) และจะไม่ปรากฏบน Status page เพราะ Capacity constraint เป็นเพียงการจัดการโหลดตามปกติ (Load management) เท่านั้น ส่วน Status page จะแสดงเฉพาะเหตุการณ์ที่มีการยืนยันแล้วว่าเป็น Incidents"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "57010",
+      "question": "ก่อนที่จะทำข้อตกลง SLA สำหรับ agentic workflow ตัวใหม่ Delivery Lead ต้องการจัดเซสชันรับฟีดแบ็กอย่างเป็นระบบร่วมกับ Business Stakeholders เพื่อกำหนดเกณฑ์การเลือกโมเดลตามแนวทางของ Anthropic ปัจจัยใดบ้างที่ Lead ควรเก็บข้อมูลโดยตรงจาก Stakeholders ในระหว่างเซสชันนี้? (เลือกทุกข้อที่ถูกต้อง)",
+      "options": [
+        "Capabilities ที่โมเดลต้องรองรับเพื่อให้ตอบโจทย์ Functional Requirements ของ workflow",
+        "ข้อกำหนดด้าน Speed และ Latency ที่แอปพลิเคชันต้องการ รวมถึงการยอมรับราคาพรีเมียมของ fast-mode ได้หรือไม่",
+        "ข้อจำกัดด้านงบประมาณ (Budget) ทั้งสำหรับการพัฒนา (Development) และการใช้งานจริงบน Production",
+        "จำนวน Parameter ที่แน่นอนของสถาปัตยกรรมโมเดลเบื้องหลัง",
+        "ตู้ Rack ใน Data Center ตำแหน่งใดที่ใช้จัดเก็บ Model Weights ทางกายภาพ"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57009",
+      "question": "ผู้ให้บริการเครื่องมือ Customer Support ยังคงรัน Claude Haiku 3.5 อยู่ในคอมโพเนนต์แบบ Legacy และได้รับแจ้งเตือนจาก Anthropic ว่าโมเดลดังกล่าวถูกเลิกใช้งาน (Retired) ภายนอก Bedrock และ Google Cloud ทีมวิศวกรต้องการทราบว่าเรื่องนี้ส่งผลกระทบต่อ Timeline ที่วางไว้หรือไม่ อย่างไร ความคาดหวังที่ถูกต้องที่ควรแจ้งคือข้อใด?",
+      "options": [
+        "ทราฟฟิกบน Direct API และแพลตฟอร์มอื่นที่ไม่ใช่ Bedrock/Vertex ที่ใช้ Haiku 3.5 จะต้อง Migrate ไปยังโมเดลที่ยังรองรับก่อนวัน Retirement ในขณะที่การ Deploy บน Bedrock หรือ Google Cloud โดยเฉพาะ จะยังคงสามารถรันต่อได้ตาม Timeline ของแพลตฟอร์มนั้นๆ",
+        "การแจ้งเตือนการ Retirement ส่งผลเฉพาะกับลูกค้ารายใหม่ที่สมัครหลังวันประกาศเท่านั้น ดังนั้น Production Traffic เดิมของผู้ให้บริการจะได้รับการยกเว้นถาวรไม่ว่าจะโฮสต์บนแพลตฟอร์มใดก็ตาม",
+        "การแจ้งเตือนการ Retirement มีผลบังคับใช้เหมือนกันหมดทุกแพลตฟอร์ม รวมถึง Bedrock และ Google Cloud ดังนั้นการ Deploy Haiku 3.5 ทั้งหมดทุกที่จะต้อง Migrate ภายในวันเดียวกัน",
+        "การ Retirement โมเดลมีผลจำกัดเฉพาะการเข้าใช้งานผ่าน Console UI สำหรับการ Prompt Haiku 3.5 เท่านั้น ในขณะที่ทราฟฟิก Direct Messages API บนทุกแพลตฟอร์มจะยังคงใช้งานได้ต่อเนื่องไปเรื่อยๆ โดยไม่ได้รับผลกระทบ"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "57012",
+      "question": "Account Manager กำลังร่างเอกสารแนบเกี่ยวกับการสื่อสารเมื่อเกิด Incident สำหรับคู่มือ Stakeholder ของลูกค้า โดยระบุถึงวิธีการรับทราบข้อมูลเกี่ยวกับเหตุการณ์ระบบขัดข้อง (Outages) ฝั่ง Anthropic ที่ส่งผลกระทบต่อ Production Deployment เอกสารแนบนี้ควรอ้างอิงถึงแหล่งข้อมูลใดที่เป็นแหล่งข้อมูลแบบ Real-time และเชื่อถือได้ (Authoritative) แยกต่างหากจากช่องทาง Support ประจำ Account?",
+      "options": [
+        "status.claude.com ซึ่งรายงานสถานะการให้บริการปัจจุบันของ Anthropic ควบคู่ไปกับ Help Center สำหรับคำถามเกี่ยวกับบัญชีและ Billing",
+        "Monitoring Dashboard ภายในของตัวลูกค้าเอง เนื่องจาก Anthropic ไม่ได้เผยแพร่ข้อมูลสถานะการให้บริการสู่สาธารณะ",
+        "System Card ของโมเดล ซึ่งจะได้รับการอัปเดตแบบ Real-time เมื่อใดก็ตามที่มี Incident ส่งผลต่อ API Availability",
+        "กราฟ Rate Limit บน Claude Console เนื่องจาก Error 429 ที่เกิดขึ้นอย่างต่อเนื่องเป็นตัวบ่งชี้ที่เชื่อถือได้เพียงอย่างเดียวของ Outage ฝั่ง Anthropic"
+      ],
+      "explanation": ""
+    }
+  ]
+}

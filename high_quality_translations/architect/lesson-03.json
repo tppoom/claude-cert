@@ -1,0 +1,249 @@
+{
+  "title": "สถาปัตยกรรม Workflow, Agent และ Augmented LLM สำหรับ Claude",
+  "objectives": [
+    "อธิบาย Augmented LLM และเข้าใจว่าทำไมทุกรูปแบบของ Workflow และ Agent ถึงพัฒนาขึ้นมาจากแนวคิดนี้",
+    "แยกความแตกต่างระหว่าง Workflow กับ Agent ด้วยเงื่อนไขว่า 'ใครคุมขั้นตอนถัดไป' พร้อมประเมิน Trade-off ของแต่ละแนวทาง",
+    "อธิบายเหตุผลที่ควรเริ่มจาก Single Optimized Call เสมอ และเพิ่มความซับซ้อนเฉพาะเมื่อผลลัพธ์ไม่ผ่านเกณฑ์วัดผลอย่างชัดเจน",
+    "เลือก Workflow ให้ตรงกับงาน: Prompt Chaining, Routing, Parallelization (Sectioning หรือ Voting) หรือ Orchestrator-Workers",
+    "ประเมินได้ว่าเมื่อใดควรใช้ Evaluator-Optimizer Loop และเมื่อใดที่ Programmatic Check มีประสิทธิภาพมากกว่า"
+  ],
+  "key_concept": "ใครเป็นผู้คุมลำดับถัดไป (Control Flow) — ทุกรูปแบบในบทเรียนนี้ประกอบขึ้นจาก Augmented LLM Calls แต่จุดตัดสำคัญอยู่ที่ว่า โค้ดของคุณเป็นตัวกำหนดเส้นทางตายตัว (Workflow) หรือให้ตัว Model ตัดสินใจเลือก Action ถัดไปแบบ Dynamic ขณะ Runtime (Agent)",
+  "sections": [
+    {
+      "heading": "1. The augmented LLM as the building block",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทุก Architecture ในบทนี้ ตั้งแต่ Pipeline สองขั้นตอนไปจนถึง Autonomous Coding Agent ล้วนสร้างขึ้นจากหน่วยพื้นฐานเดียวกันคือ Augmented LLM ซึ่งก็คือ Model Call ที่เสริมด้วย Retrieval, Tools และ Memory โดย Claude ไม่ได้แค่รับความสามารถเหล่านี้เข้ามาเฉยๆ แต่มันสามารถเขียน Search Query เอง เลือก Tool ที่จะเรียกใช้ และตัดสินใจว่าควรเก็บข้อมูลไหนไว้ Pattern ต่างๆ เป็นเพียงวิธีเชื่อมต่อ Unit เหล่านี้เข้าด้วยกัน ไม่ใช่การเข้ามาแทนที่ Unit พื้นฐานนี้"
+        },
+        {
+          "type": "paragraph",
+          "text": "ในทางปฏิบัติ แต่ละ Call มีข้อมูลมากกว่าแค่ข้อความจาก User เพราะ Claude จะได้รับ Prompt ควบคู่กับ System Prompt, Tool Definitions และ Conversation History จากนั้น Claude จะตอบกลับเป็นข้อความ สั่งเรียก Tool หรือทำทั้งสองอย่างพร้อมกัน ดังนั้นก่อนที่คุณจะเลือก Pattern ใดๆ เพียงแค่ Call เดียวก็สามารถค้นหาข้อมูล ดึงข้อมูล และลงมือปฏิบัติการได้แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "สิ่งสำคัญที่สุดในการ Implement มี 2 ข้อ: ข้อแรก ขีดความสามารถต้องตรงกับ Use Case เช่น Support Assistant ต้องมี Tool ค้นหาออเดอร์ ไม่ใช่ Web Crawler ทั่วไป ข้อสอง แต่ละ Capability ต้องมี Interface ที่ชัดเจน มี Documentation ที่ดีพอที่ Model จะเข้าใจ ซึ่ง Model Context Protocol (MCP) เป็นวิธีหนึ่งในการเชื่อมต่อ Third-party Tools ผ่าน Client อย่างง่าย (การเลือกกลไก Integration จะกล่าวถึงใน [connection protocols](lesson:3.7)) เมื่อแต่ละ Call ได้รับการ Augment อย่างเหมาะสมแล้ว คำถามเชิงสถาปัตยกรรมถัดไปคือคุณจะจัดเรียง Call เหล่านี้อย่างไร"
+        }
+      ]
+    },
+    {
+      "heading": "2. Workflows versus agents: who decides the next step",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ทั้ง Workflows และ Agents จัดเป็น Agentic Systems ด้วยกันทั้งคู่ แต่ต่างกันที่จุดเดียวคือ \"ใครเป็นผู้ควบคุม Sequence\" ใน Workflow ตัวโค้ดของคุณจะเป็นคนกำหนดลำดับของ Call เช่น Classify ก่อน แล้ว Draft แล้วค่อย Translate แต่ใน Agent ตัว Model จะเป็นผู้กำหนดขั้นตอนการทำงานและการใช้ Tool ด้วยตัวเอง การใช้ Tool หรือการยิง Call หลายๆ ครั้ง ไม่ได้แปลว่าระบบนั้นเป็น Agent เสมอไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "กลไกการทำงานของ Agent นั้นเรียบง่าย คือ Model เรียกใช้ Tool ภายใน Loop แล้วตัดสินใจต่อจากผลลัพธ์ที่ได้กลับมา Claude Agent SDK รันรอบการทำงานนี้โดย: Claude ประเมิน State ปัจจุบันแล้วส่ง Request เรียก Tool -> SDK ดำเนินการรัน Tool -> ส่งผลลัพธ์กลับไปให้ Claude ตัดสินใจในสเต็ปถัดไป Loop จะหยุดทำงานก็ต่อเมื่อ Claude ส่ง Response กลับมาโดยไม่มีการเรียก Tool ตัวอย่างเช่น ในงานแก้บั๊ก Claude อาจรันเทส อ่านไฟล์ที่พัง แก้ไขโค้ด และรันเทสซ้ำอีกรอบ จนกว่าจะรายงานว่าเทสทั้ง 3 ตัวผ่านทั้งหมด และเนื่องจาก Model ตัดสินใจความคืบหน้าจากผลลัพธ์จริงเหล่านี้ Agent จึงต้องมี Stopping Conditions เสมอ เช่น กำหนดจำนวน Maximum Iterations เพื่อควบคุมการทำงานให้อยู่ในขอบเขต"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agents เหมาะกับโจทย์แบบ Open-ended ที่ไม่สามารถคาดเดาจำนวนขั้นตอนล่วงหน้าหรือ Hardcode เส้นทางไว้ได้ เช่น การแก้ Task ใน SWE-bench ที่ต้องแตะหลายไฟล์ ทว่า Autonomy นี้ก็แลกมาด้วยต้นทุน: ค่าใช้จ่ายที่สูงขึ้นและความเสี่ยงจาก Compounding Errors (ความผิดพลาดที่สะสมต่อเนื่อง โดยการตัดสินใจที่ผิดพลาดในก้าวแรกจะส่งผลเสียต่อก้าวถัดไป) การใช้ Agents จึงต้องอาศัยการทดสอบอย่างเข้มงวดใน Sandbox Environment มี Guardrails ที่รัดกุม และมั่นใจในการตัดสินใจของ Model มากพอที่จะปล่อยให้มันรันต่อเนื่องได้หลาย Turn"
+        },
+        {
+          "type": "table",
+          "caption": "การเปรียบเทียบ Workflow และ Agent ตามคุณสมบัติที่ใช้ในการตัดสินใจเลือก",
+          "headers": [
+            "Property",
+            "Workflow",
+            "Agent"
+          ],
+          "rows": [
+            [
+              "Who decides the next step",
+              "Predefined code paths (กำหนดไว้ล่วงหน้าด้วยโค้ด)",
+              "The model ตัดสินใจตอน Run Time โดยอิงจากผลลัพธ์ของ Tool"
+            ],
+            [
+              "Predictability",
+              "สูง: งานที่กำหนดไว้ชัดเจนจะได้ Path เดิมเสมอในทุกครั้ง",
+              "ต่ำกว่า: จำนวน Turn แปรผันตามแต่ละ Task"
+            ],
+            [
+              "Cost and risk",
+              "ถูกจำกัดไว้ชัดเจนตามจำนวน Call ที่เขียนไว้ในโค้ด",
+              "ต้นทุนสูงกว่า และมีความเสี่ยงที่จะเกิด Compounding Errors"
+            ],
+            [
+              "Wins when",
+              "ทราบขั้นตอนการทำงานทั้งหมดล่วงหน้า",
+              "โจทย์ประเภท Open-ended ที่ไม่สามารถคาดเดาขั้นตอนล่วงหน้าได้"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "3. เริ่มต้นจาก Simple แล้วค่อยเพิ่ม Complexity เมื่อคุ้มค่าเท่านั้น",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ค่า Default ที่ดีที่สุดคือ Design ที่เรียบง่ายที่สุดที่ยังทำงานได้ ซึ่งส่วนใหญ่มักไม่จำเป็นต้องใช้ Agentic system เลย สำหรับหลาย Use Case แค่การยิง Single LLM call ที่เสริมด้วย Retrieval และ In-context examples ก็เพียงพอแล้ว โมเดล Claude ปัจจุบันสามารถจัดการ Multi-step reasoning ได้จบภายใน Call เดียว ดังนั้น Pipeline ที่คุณสร้างขึ้นมาเพื่อเลียนแบบกระบวนการคิดนั้นอาจไม่ได้เพิ่มคุณค่าอะไรขึ้นมาเลย"
+        },
+        {
+          "type": "paragraph",
+          "text": "ทุก Layer ที่เพิ่มเข้ามาล้วนมี Cost เสมอ โดยทั่วไป Agentic system จะแลก Latency และ Cost ที่สูงขึ้นเพื่อให้ได้ Task performance ที่ดีขึ้น คำถามสำคัญจึงอยู่ที่ว่าความคุ้มค่านั้นตอบโจทย์งานนี้จริงหรือไม่ ทุกๆ Call ที่เพิ่มขึ้นหมายถึง Round trip และ Token ที่มากขึ้น และทุกจุด Handoff ก็คือจุดเสี่ยงที่ระบบจะ Fail ได้ จงเพิ่ม Workflow ก็ต่อเมื่อ Single call ให้ผลลัพธ์ไม่ถึงเกณฑ์ที่วัดผลได้ และเพิ่ม Agent เฉพาะตอนที่คุณต้องการ Flexibility ในการตัดสินใจของโมเดลเท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเลือกใช้ Framework ก็ต้องระมัดระวังเช่นกัน เครื่องมืออย่าง Claude Agent SDK ช่วยให้เริ่มต้นง่ายเพราะจัดการ Model calls, Tool parsing และ Chaining ให้อัตโนมัติ แต่ก็อาจบดบัง Prompts และ Responses เบื้องหลัง ทำให้ Debug ได้ยากขึ้น รวมถึงล่อใจให้เพิ่ม Complexity ที่เกินความจำเป็น รูปแบบ Pattern จำนวนมากสามารถเขียนโค้ดเรียก API ตรงๆ ได้เพียงไม่กี่บรรทัด หากจำเป็นต้องใช้ Framework ต้องเข้าใจการทำงานเบื้องลึกของมันอย่างถ่องแท้ เพราะความเข้าใจผิดเกี่ยวกับ Framework มักเป็นต้นตอของบั๊กเสมอ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "นำไปปรับใช้กับงานของคุณ: ลองนึกถึงฟีเจอร์ LLM ที่คุณเคยเห็นสร้างเป็น Multi-step pipeline คุณจะใช้ Metric หรือเกณฑ์วัดอะไรเพื่อพิสูจน์ว่า จริงๆ แล้ว Single call ที่ Prompt มาอย่างดีร่วมกับ Retrieval ก็ให้ผลลัพธ์ที่ดีเพียงพอแล้ว?"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Agents ให้ Performance ดีกว่า Workflows เสมอ ดังนั้น Production design ควรตั้งต้นเป็น Agent เสมอ เพราะ Agentic systems ต้องแลก Latency และ Cost ที่สูงขึ้นเพื่อให้ได้ Performance ขณะที่ Workflows ให้ Predictability สำหรับงานที่มีขั้นตอนชัดเจน และบ่อยครั้งแค่ Single optimized call ก็เพียงพอแล้ว"
+        }
+      ]
+    },
+    {
+      "heading": "4. Prompt Chaining และ Routing: Fixed Steps และ Distinct Categories",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การเลือก Workflow ที่เหมาะสมวัดกันที่คำถามเกี่ยวกับตัว Task: ขั้นตอนของงานตายตัวหรือไม่? Input แบ่งเป็น Category ชัดเจนหรือไม่? สามารถรัน Parallel ได้ไหม? สามารถ Predict งานย่อยก่อนเห็น Input จริงได้หรือไม่? และมีเกณฑ์วัดผลด้านคุณภาพที่ชัดเจนหรือเปล่า? แต่ละคำตอบจะชี้ไปที่ Pattern ที่ต่างกัน โดยตัวเลือกที่ผิดในการทำ Design review มักเป็นตัวเลือกที่ตอบโจทย์สิ่งที่ Scenario ไม่ได้ต้องการตั้งแต่แรก"
+        },
+        {
+          "type": "table",
+          "caption": "โจทย์ของแต่ละ Workflow Pattern",
+          "headers": [
+            "ลักษณะของ Task",
+            "Pattern ที่ควรใช้",
+            "เหตุผลทางเทคนิค"
+          ],
+          "rows": [
+            [
+              "แบ่งเป็น Subtasks ตามลำดับแบบตายตัวได้ชัดเจน",
+              "Prompt chaining",
+              "แต่ละ Call รับผิดชอบงานที่ง่ายขึ้น และใช้ Gates ตรวจสอบ Intermediate output ได้"
+            ],
+            [
+              "มี Category ของ Input ชัดเจนที่เหมาะกับการแยกจัดการ",
+              "Routing",
+              "ใช้ Specialized prompts แยกตามหมวดหมู่ โดยไม่มี Input ประเภทอื่นมารบกวน Context"
+            ],
+            [
+              "มีชิ้นส่วนที่เป็นอิสระต่อกัน หรือต้องรันหลาย Attempt เพื่อเพิ่ม Confidence",
+              "Parallelization (Sectioning หรือ Voting)",
+              "เพิ่มความเร็ว โฟกัส Attention ไปที่แต่ละส่วนของงาน หรือสร้างผลลัพธ์ที่หลากหลาย"
+            ],
+            [
+              "Subtasks ขึ้นอยู่กับ Input ที่เข้ามาแบบ Dynamic",
+              "Orchestrator-workers",
+              "ใช้ Central LLM ตัดสินใจเลือก Subtasks แบบ Run-time"
+            ],
+            [
+              "มีเกณฑ์ Evaluation ที่ชัดเจน และพัฒนาคุณภาพได้ผ่าน Feedback",
+              "Evaluator-optimizer",
+              "Generate, Critique และ Refine ซ้ำใน Loop"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Prompt chaining จะแบ่ง Task ออกเป็นลำดับขั้นตอนที่ตายตัว โดยแต่ละ Call จะนำ Output ของขั้นตอนก่อนหน้ามาประมวลผลต่อ เหมาะกับงานที่สามารถ Decompose ออกเป็น Subtasks ที่ชัดเจนล่วงหน้าได้ Pattern นี้ยอมแลก Latency เพื่อเพิ่ม Accuracy เพราะแต่ละ Call รับผิดชอบงานที่ง่ายลง และระหว่าง Step คุณสามารถแทรก Gates ซึ่งเป็น Programmatic checks เพื่อยืนยันว่ากระบวนการยังถูกต้องอยู่ Gate คือโค้ดธรรมดา เช่น การเช็ก Character limit, Schema validation หรือ Required fields ตัวอย่างคลาสสิกคือการเขียน Marketing copy แล้วนำไปแปลต่อ หากทีมคอนเทนต์ต้องแปล Copy เป็น 3 ภาษาและต้องคุมความยาวไม่ให้เกิน UI character limit นี่คือ Fixed sequence บวกกับ Deterministic check ซึ่งจัดเป็น Chain ที่มี Gate โดยไม่จำเป็นต้องใช้ LLM มาตรวจความยาว และไม่ต้องใช้ Orchestrator เลือกว่าต้องแปลเป็นภาษาอะไร เพราะภาษาถูกกำหนดไว้อยู่แล้ว"
+        },
+        {
+          "type": "paragraph",
+          "text": "Chaining ยังช่วยให้คุณ Run และ Observability ระบบได้ง่ายขึ้น การใช้ Explicit chain มีประโยชน์มากเมื่อต้องการ Inspect intermediate outputs หรือบังคับ Pipeline structure เพราะแต่ละ Step จะเป็น API call แยกกันที่คุณสามารถ Log, Evaluate หรือทำ Branching ได้ นอกจากนี้ Subtasks ขนาดเล็กที่ตายตัวยังช่วยลด Inconsistency ในระดับ Scale ได้ดีขึ้น เพราะโมเดล Claude จะโฟกัส Attention ได้เต็มที่ในแต่ละงาน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Routing คือการทำ Classify ตัว Input ก่อน แล้วค่อยส่งต่อไปยังกระบวนการเฉพาะทาง (Specialized follow-up) เช่น Prompt, Tool set หรือ Process ที่ต่างกัน หัวใจหลักคือ Separation of concerns เพราะหากไม่มี Routing การพยายามปรับจูน Prompt เดียวเพื่อรองรับ Input ทุกรูปแบบอาจทำให้ประสิทธิภาพของงานด้านอื่นลดลง Routing จะเหมาะมากเมื่อ Category มีความชัดเจนและ Classification มีความแม่นยำสูง (ไม่ว่าจะใช้ LLM หรือ Traditional classifier) เช่น Support queue ที่มีทั้งคำถามเรื่อง Billing, Technical bugs และ Cancellation ซึ่งแต่ละเคสต้องใช้ Prompt เฉพาะตัว การรันทุก Ticket ผ่านทั้ง 3 Prompts ใน Chain จะเปลือง Call ไปกับ 2 อันที่ไม่เกี่ยวข้อง ส่วนการรันแบบ Parallel แล้วเอาอันที่เสร็จก่อน ก็ขัดกับจุดประสงค์ของการมี Specialist prompts นอกจากนี้ Routing ยังใช้ส่งคำถามง่ายๆ ไปหาโมเดลขนาดเล็กที่ถูกกว่า และส่งโจทย์ยากไปหาโมเดลที่ Capable สูงกว่าได้ ซึ่งแนวทางการเลือกโมเดลจะอธิบายใน [model selection](lesson:2.1)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: สามารถนำ Routing ไปใช้ได้กับทุกระบบโดยไม่ต้องคำนึงถึงความชัดเจนของหมวดหมู่ เพราะ Routing จะมีประสิทธิภาพเท่ากับคุณภาพของ Categories เท่านั้น หากหมวดหมู่คลุมเครือ Tickets จะถูก Misroute ส่งผลให้ Specialized prompts ไม่ได้รับ Input ที่ออกแบบไว้แต่แรก ดังนั้นก่อนเลือกใช้ Routing ต้องมั่นใจว่า Categories ถูกนิยามไว้อย่างชัดเจนและขั้นตอน Classification มีความแม่นยำน่าเชื่อถือ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: Quality check ทุกรูปแบบใน Pipeline จะต้องใช้ Evaluator-optimizer loop เพราะเงื่อนไขหรือ Rule ที่แน่นอน เช่น Character limit หรือ Schema check ควรเขียนเป็น Programmatic gate คั่นระหว่าง Chained steps ธรรมดา โดย Evaluator-optimizer จะใช้เฉพาะกับเกณฑ์ที่ต้องให้ LLM เป็นผู้ Critique และพัฒนาผลลัพธ์ผ่านการ Loop ซ้ำเท่านั้น"
+        }
+      ]
+    },
+    {
+      "heading": "5. Parallelization และ Orchestrator-Workers: Known vs. Emergent Subtasks",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Parallelization คือการยิง LLM calls หลายตัวพร้อมกัน แล้วนำ Output มารวมกันผ่าน Code โดยแบ่งออกเป็น 2 รูปแบบหลัก (วิธีแยกแยะคือดูว่าแต่ละ Call ทำงาน 'ต่างกัน' หรือ 'เหมือนกัน'):\n1. Sectioning: แตก Task ใหญ่เป็น Subtasks ย่อยที่ทำงานอิสระต่อกันและรันขนานกัน เช่น Call หนึ่งตรวจ Vulnerabilities อีก Call ตรวจ License บนโค้ดชุดเดียวกัน แล้วให้ Code นำผลลัพธ์มารวมเป็น Report เดียว\n2. Voting: รัน Task เดิมซ้ำกันหลายครั้งเพื่อให้ได้ Output ที่หลากหลาย เช่น ส่ง Code เดิมไปให้ Prompt ตรวจ Vulnerabilities หลายรอบ หากมีตัวใดตัวหนึ่งเจอ Flag ก็ถือว่าไม่ผ่านทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "Sectioning ช่วยเพิ่มทั้งคุณภาพและความเร็ว เนื่องจาก LLM ทำงานได้แม่นยำกว่าเมื่อโฟกัสทีละเรื่อง เช่น Guardrails: Instance หนึ่งตอบ User ขณะที่อีก Instance ตรวจสอบเนื้อหาไม่เหมาะสมพร้อมกัน ซึ่งดีกว่าการใช้ Call เดียวทำทั้งสองหน้าที่ และเคสนี้ไม่ควรใช้ Prompt Chaining (เพราะผลลัพธ์ไม่ได้ขึ้นต่อกัน) และไม่ใช่ Evaluator-Optimizer (เพราะไม่มีตัวไหนคอย Critique อีกตัว)"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): Pipeline ที่รัน Review Prompts 5 ตัวขนานกันตายตัวทุกรอบ ถือเป็น Orchestrator-Workers ใช่หรือไม่? ไม่จริง: นั่นคือ Sectioning เพราะจำนวนและประเภท Subtasks ถูกกำหนดไว้ล่วงหน้าแบบคงที่ ไม่ได้ถูกสร้างแบบ Dynamic ตาม Input"
+        },
+        {
+          "type": "paragraph",
+          "text": "Orchestrator-Workers มีลักษณะคล้าย Parallelization โดยมี LLM กลาง (Orchestrator) คอยย่อยงาน แจกจ่ายให้ Worker LLMs แล้วนำผลกลับมารวมกัน แต่จุดต่างสำคัญคือ Subtasks ไม่ได้ถูกฟิกไว้ล่วงหน้า Orchestrator จะเป็นผู้กำหนด Subtasks แบบ Dynamic ตาม Input ณ Run time (เช่น งานแก้ไข Code ที่ต้องอ่าน Request ก่อนถึงจะรู้ว่าต้องแก้กี่ไฟล์และแก้อะไรบ้าง ทำให้ไม่สามารถเขียน Fan-out รอไว้ได้ล่วงหน้า) หากเป็นเซ็ต Prompt คงที่ 5 ตัวจะถือเป็น Sectioning ทันที ห้ามใช้ Orchestrator-Workers กับงาน Output เดียวที่เรียบง่าย, งานที่ซีเรียสเรื่อง Latency, หรืองานที่กำหนด Subtasks ชัดเจนได้ล่วงหน้า เพราะในกรณีนั้น Parallelization ธรรมดาจะเหมาะสมและตรงไปตรงมากว่า"
+        },
+        {
+          "type": "paragraph",
+          "text": "เมื่อ List ของ Subtasks ได้มาจาก decompose_query ทำให้ในแต่ละ Query มีงานไม่เหมือนกัน จุดนี้เองที่เปลี่ยนจาก Sectioning ให้กลายเป็น Orchestrator-Workers และเมื่อ Workers ถูกพัฒนาเป็น Full Agents ที่มี Context Window แยกเป็นของตัวเอง จะกลายเป็นระบบ Multi-Agent System ทันที (ดูเรื่อง Token Cost และ Context Isolation เพิ่มเติมได้ที่ [multi-agent orchestration](lesson:1.4))"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด):\n- งานที่มีหลาย Subtasks ต้องใช้ Orchestrator-Workers เสมอ? ไม่จริง: ถ้าเรารู้ Subtasks ล่วงหน้าอยู่แล้ว การใช้ Parallelization (Sectioning) ธรรมดาจะ Simple และเหมาะสมกว่า Orchestrator-Workers มีไว้สำหรับงานที่ Subtasks จะปรากฏชัดเจนเมื่อเห็น Input เท่านั้น\n- การรันเช็กสองแบบต่างกันบน Code เดียวกันพร้อมกันคือ Voting? ไม่จริง: การรันเช็กคนละแบบขนานกันคือ Sectioning ส่วน Voting ต้องเป็นการรัน Task เดิมซ้ำๆ เพื่อหาคำตอบที่หลากหลายหรือนำมาโหวต"
+        }
+      ]
+    },
+    {
+      "heading": "6. Evaluator-Optimizer Loop",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Evaluator-Optimizer Loop ประกอบด้วย Call แรกสร้าง Response ขึ้นมา และ Call ที่สองทำหน้าที่ Critique ผลลัพธ์เทียบกับเกณฑ์ที่กำหนด แล้ววน Loop ปรับปรุงจนกว่าจะผ่านเกณฑ์ เปรียบเสมือนวงจร Draft, Review และ Revise ของมนุษย์ ใน Claude รูปแบบนี้คือ Chaining Pattern ที่พบบ่อยที่สุด: สร้าง Draft -> Review ตามเกณฑ์ -> Refine ตามผล Review"
+        },
+        {
+          "type": "paragraph",
+          "text": "Pattern นี้ต้องการ 2 เงื่อนไขหลัก: มีเกณฑ์การประเมิน (Evaluation Criteria) ที่ชัดเจน และการ Refine ต้องทำให้ผลลัพธ์ดีขึ้นอย่างวัดผลได้ โดยสัญญาณที่บ่งบอกว่าเหมาะกับการใช้ Pattern นี้คือ: 1. ผลลัพธ์ดีขึ้นชัดเจนเมื่อมนุษย์ให้ Feedback 2. LLM สามารถให้ Feedback นั้นได้เอง เช่น งานแปลวรรณกรรม (Evaluator เก็บ Nuances ที่ตกหล่นได้) หรือ Complex Search (Evaluator ช่วยตัดสินใจว่าต้องค้นหาเพิ่มอีกรอบหรือไม่)"
+        },
+        {
+          "type": "paragraph",
+          "text": "จุดตัดสินใจสำคัญ: ให้ใช้ LLM Evaluator เมื่องานต้องอาศัยการตัดสินเชิงคุณภาพ (Judgment) เช่น Tone, Nuance หรือ Completeness ที่โมเดลอธิบายออกมาเป็น Feedback ให้ Generator นำไปปรับแก้ต่อได้ และให้ใช้ Programmatic Gate (Code) เมื่อเกณฑ์การทดสอบเป็นกฎที่ตรวจสอบด้วย Code ได้โดยตรง ที่สำคัญคือทุก Loop จะเพิ่ม Cost อย่างน้อย 1 Call ต่อรอบ จึงต้องตั้ง Pass Condition เพื่อ Break Loop ให้ชัดเจน ไม่ปล่อยให้วนอย่างไร้ที่สิ้นสุด (ดูเรื่องการกำหนด Metrics เพิ่มเติมได้ที่ [evaluation metrics](lesson:4.1))"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56657",
+      "question": "ทีมคอนเทนต์ต้องการสร้าง marketing copy แล้วนำไปแปลเป็น 3 ภาษา โดยมี programmatic check ตรวจสอบว่าข้อความที่แปลในแต่ละภาษาไม่เกิน UI character limit ที่กำหนดก่อนที่จะนำไป publish รูปแบบ Architectural pattern ใดเหมาะสมกับความต้องการนี้มากที่สุด?",
+      "options": [
+        "Prompt chaining โดยใช้ sequential LLM calls ร่วมกับ programmatic gate เพื่อตรวจสอบความยาวของข้อความที่แปลก่อน publish",
+        "Routing เพื่อ classify คำขอแปลแต่ละภาษาแล้วส่งไปยัง specialized translation prompt ที่ปรับแต่งตามบริบทของ locale นั้นๆ",
+        "Orchestrator-workers โดยให้ central LLM ตัดสินใจว่าภาษาใดต้องแปลบ้างตาม real-time traffic analysis",
+        "Evaluator-optimizer โดยให้ LLM ตัวที่สองให้คะแนนการแปลแต่ละครั้งและวน loop จนกว่าคุณภาพการแปลจะผ่าน threshold ที่กำหนด"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56658",
+      "question": "ระบบ Customer Support ได้รับคำถามเกี่ยวกับ billing, technical bugs และ account cancellations โดยแต่ละหมวดหมู่จำเป็นต้องใช้ prompt ที่ปรับแต่งมาต่างกัน และต้องมีขั้นตอนแรกในการตัดสินใจก่อนว่า ticket นั้นจัดอยู่ในหมวดหมู่ใดก่อนที่จะประมวลผลขั้นต่อไป ทีมควรนำ pattern ใดมาใช้งาน?",
+      "options": [
+        "Parallelization โดยรัน prompt สำหรับ billing, technical และ cancellation พร้อมกัน แล้วเลือกใช้ผลลัพธ์จากอันที่ทำงานเสร็จก่อน",
+        "Routing โดยใช้ LLM call แรกทำหน้าที่ classify ตัว ticket แล้วส่งต่อ (direct) ไปยัง specialized prompt สำหรับหมวดหมู่นั้น",
+        "Prompt chaining โดยนำแต่ละ ticket ส่งผ่านลำดับ prompt ของ billing ต่อด้วย technical และ cancellation ตามลำดับ",
+        "Orchestrator-workers โดยให้ central LLM ตัดสินใจตอน runtime ว่า ticket นั้นต้องใช้ subtasks ใดบ้าง แล้วมอบหมายงานให้ worker LLMs"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56659",
+      "question": "ทีม Security ต้องการให้มี LLM call หนึ่งทำการตรวจสอบ vulnerabilities ใน generated code พร้อมๆ กับให้ LLM call ตัวที่สองซึ่งเป็นอิสระต่อกันตรวจสอบประเด็น licensing ของโค้ดชุดเดียวกัน แล้วนำ output ทั้งสองมารวมเป็น report เดียว คำอธิบายนี้ตรงกับ pattern ใด?",
+      "options": [
+        "Parallelization by sectioning โดยรันการตรวจสอบ vulnerability และ licensing เป็น LLM calls ที่เป็นอิสระและทำงานพร้อมกัน",
+        "Parallelization by voting โดยรัน prompt ตรวจสอบ vulnerability ตัวเดียวกัน 3 ครั้ง แล้วเลือกใช้ผลการตัดสินตามเสียงส่วนใหญ่ (majority verdict)",
+        "Evaluator-optimizer โดยให้ตัวตรวจ licensing ให้คะแนนผลลัพธ์ของตัวตรวจ vulnerability และขอให้แก้ไขซ้ำๆ จนกว่าทั้งคู่จะเห็นตรงกัน",
+        "Prompt chaining โดยนำ output จากการตรวจสอบ vulnerability ส่งต่อไปเป็น additional context ให้กับการตรวจสอบ licensing"
+      ],
+      "explanation": ""
+    }
+  ]
+}

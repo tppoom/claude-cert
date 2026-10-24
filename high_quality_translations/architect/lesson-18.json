@@ -1,0 +1,253 @@
+{
+  "title": "Trade-offs ระหว่าง Accuracy และ Latency: Effort, Fast Mode, Streaming และการตั้งค่าอย่างสมเหตุสมผล",
+  "objectives": [
+    "ระบุได้ว่าแต่ละ Lever ส่งผลต่อ Latency ส่วนใด: Time to First Token, Output Speed หรือ Total Elapsed Time",
+    "เลือก Model Tier และ Effort Level ให้เหมาะกับ Latency-bound Workload พร้อมอธิบาย Trade-offs ที่ยอมแลก",
+    "วิเคราะห์ได้ว่าการใช้ Fast Mode, Streaming หรือการซ่อน Thinking Display แก้ปัญหา Latency ได้ในกรณีใดและไม่ได้ในกรณีใด",
+    "พิสูจน์ความคุ้มค่าของการตั้งค่าด้วยผลทดสอบ Effort-and-model Sweep เทียบ Cost ต่อ Solved Task (รวมต้นทุนการ Re-run กรณี Failure)"
+  ],
+  "key_concept": "Effort คือปุ่มปรับสมดุล Accuracy-Latency — Effort กำหนด Output Tokens ที่ Model จะใช้ต่อ Request (ครอบคลุมทั้ง Thinking, Tool Calls และ Text Output) การเพิ่มค่าจะช่วยเพิ่ม Accuracy โดยแลกกับเวลาและค่าใช้จ่าย การลดค่าจะให้ผลตรงข้าม ทั้งหมดนี้ปรับแต่งได้โดยไม่ต้องสลับ Model",
+  "sections": [
+    {
+      "heading": "1. กลไกและ Latency Clock ที่แต่ละตัวแปรส่งผล",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การแก้ปัญหา Latency ให้ตรงจุด ต้องเริ่มจากการระบุให้ชัดเจนว่ากำลังแก้ที่ \"Clock\" ไหน Latency คือเวลาที่ Model ใช้ประมวลผล Prompt จนถึง Generate Output เสร็จสิ้น ขึ้นอยู่กับขนาด Model, ความซับซ้อนของ Prompt และ Infrastructure เบื้องหลัง ในมุม User จะสัมผัสได้ 2 มิติ คือ เวลารอจนกว่าตัวอักษรแรกจะเริ่มแสดงผล (Time to First Token หรือ TTFT) และเวลารอจนคำตอบเสร็จสมบูรณ์ ส่วนใน Agent Run จะมี Clock ที่ 3 เพิ่มขึ้นมา คือ Elapsed Time รวมตลอดทุก Turns การปรับแต่งแต่ละจุด (Lever) จะส่งผลต่อ Clock เหล่านี้แตกต่างกัน"
+        },
+        {
+          "type": "table",
+          "caption": "ตัวแปรลด Latency, Clock ที่ส่งผล และข้อแลกเปลี่ยน (Trade-offs)",
+          "headers": [
+            "Lever",
+            "Clock it moves",
+            "What you give up"
+          ],
+          "rows": [
+            [
+              "Smaller model tier (เช่น Claude Haiku 5.5)",
+              "Total time และ Cost",
+              "Capability ในการจัดการ Task ที่ซับซ้อนสูง"
+            ],
+            [
+              "Lower effort (output_config.effort)",
+              "Total time: ลด Thinking, Tool-call และ Text tokens",
+              "Capability บางส่วน"
+            ],
+            [
+              "Shorter prompts and outputs, max_tokens",
+              "Total time",
+              "Output อาจถูก Truncated หากตั้ง Cap ไว้ต่ำเกินไป"
+            ],
+            [
+              "Streaming",
+              "Time to first visible output เท่านั้น",
+              "ไม่มีผลเสีย Total time รวมยังคงเท่าเดิม"
+            ],
+            [
+              "Fast mode (speed: \"fast\")",
+              "Output tokens per second (ไม่กระทบ TTFT)",
+              "จ่ายราคา Premium โดย Intelligence ยังคงเท่าเดิม"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวแปรปรับแต่งแบ่งออกเป็น 2 กลุ่มหลักตามแนวคิด [Free wins versus real trade-offs](lesson:4.5): กลุ่ม Free Win เช่น การใช้ Streaming หรือการตัด Token ที่ไม่จำเป็น ช่วยให้ระบบเร็วขึ้นโดยไม่เสียคุณภาพ ส่วนกลุ่ม Real Trade-off เช่น การลด Model Tier, การลด Effort หรือการจำกัด Cap ให้แคบลง เร็วขึ้นได้เพราะ Model ใช้ Reasoning น้อยลง ทั้งนี้ Fast Mode ถือเป็นกลุ่มที่สาม ซึ่งได้ความเร็วเพิ่มขึ้นโดย Accuracy คงเดิม แต่ต้องจ่ายเพิ่มขึ้น หากพบข้อเสนอที่อ้างว่าลด Latency ได้โดยที่ต้นทุนและ Accuracy เท่าเดิม ให้ตรวจสอบเสมอว่าตัวแปรที่ใช้อยู่ในกลุ่มใดกันแน่"
+        }
+      ]
+    },
+    {
+      "heading": "2. เริ่มต้นจาก Tier ที่เร็วที่สุดและแม่นยำเพียงพอ",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Workload ที่มี Latency เป็นคอขวด การเลือก Model คือตัวแปรที่ส่งผลโดยตรงที่สุด Anthropic แนะนำแนวทางเริ่มต้น 2 กลยุทธ์: 1) Cost-first เริ่มต้นด้วย Tier ที่เร็วและประหยัดที่สุดอย่าง Claude Haiku จากนั้นทดสอบ Use Case ให้ละเอียด แล้วค่อย Upgrade เมื่อพบ Capability Gap ที่ชัดเจน เหมาะสำหรับระบบที่จำกัด Latency เคร่งครัด, ต้องคุม Budget หรือ Task ปริมาณมากที่ไม่ซับซ้อน 2) Capability-first เริ่มจาก Claude Opus แล้วค่อยลดสเปกลงมา เหมาะกับงาน Complex Reasoning หรือเคสที่ Accuracy สำคัญกว่า Cost"
+        },
+        {
+          "type": "paragraph",
+          "text": "ตัวอย่างเช่น Support Chat ที่ต้องตอบกลับภายใน 1-2 วินาที ต้อง Classify Intent ง่ายๆ จำนวนมหาศาลภายใต้ Budget ที่จำกัด ทุก Constraint ชี้ชัดว่าควรเลือก Haiku เนื่องจาก Intent Classification ไม่จำเป็นต้องพึ่ง Frontier Reasoning การใช้ Model ใหญ่ขึ้นมีแต่จะเพิ่ม Latency และ Cost โดยไม่เห็นความต่างของ Accuracy นอกจากนี้ Haiku ยังเป็น Tier ที่แนะนำสำหรับ Real-time Application และ Subagent Tasks โดยมี Effort เป็นตัวควบคุมความเร็วหลัก สำหรับ Request ที่มี Time Limit แน่นหนา จึงควรจับคู่ Haiku เข้ากับ Low Effort"
+        },
+        {
+          "type": "paragraph",
+          "text": "การเปลี่ยน Model ข้าม Tier ไม่จำเป็นต้องเป็นตัวเลือกแรกเสมอไป การปรับลด Effort มักเป็นตัวแปรที่มีประสิทธิภาพมากกว่า เพราะช่วยปรับลดทั้งความเร็วและ Cost ได้ทันที โดยที่ยังรักษา Model ตัวเดิมที่ Prompt ถูก Tuned ไว้แล้วได้อย่างสมบูรณ์"
+        }
+      ]
+    },
+    {
+      "heading": "3. Effort: ตัวปรับสมดุล Accuracy และ Latency ภายในโมเดลเดียว",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Effort มีผลกับทุก Output Token ไม่ใช่เฉพาะ Thinking โดยเป็นตัวกำหนดขนาดของคำตอบ, Tool Calls พร้อม Arguments รวมถึง Thinking เมื่อเปิดใช้งาน ดังนั้น Effort จึงทำงานเสมอไม่ว่าจะเปิดหรือปิด Thinking และการลด Effort ยังช่วยให้ Tool Calls สั้นลงและมีจำนวนรอบน้อยลงด้วย ซึ่งสำคัญมากสำหรับ Agents เพราะเวลาส่วนใหญ่จะหมดไปกับ Tool Round Trips การลด Effort จึงช่วยลดทั้งเวลาตอบสนองต่อรอบและเวลาทำงานทั้งหมดของ Agent ทั้งนี้ให้ตั้งค่า Effort ผ่าน output_config.effort ไม่ใช่ใน thinking object"
+        },
+        {
+          "type": "table",
+          "caption": "ระดับ Effort: พฤติกรรม Thinking และ Use Case ทั่วไป",
+          "headers": [
+            "Level",
+            "Thinking behaviour",
+            "Typical use"
+          ],
+          "rows": [
+            [
+              "max",
+              "คิดอย่างเต็มที่และลึกที่สุด ไม่จำกัดความยาว Thinking",
+              "งานที่ต้องใช้เหตุผลซับซ้อนระดับลึก มักมีค่าใช้จ่ายสูงแต่ได้ผลลัพธ์ดีขึ้นเพียงเล็กน้อย"
+            ],
+            [
+              "xhigh",
+              "คิดลึกกว่า high เหมาะกับการสืบค้นและสำรวจเชิงลึก",
+              "งาน Agentic และ Coding Tasks ที่ต้องรันระยะยาว"
+            ],
+            [
+              "high",
+              "คิดในคำขอส่วนใหญ่ที่ได้ประโยชน์ เป็นค่าเริ่มต้นในโมเดลส่วนใหญ่",
+              "การให้เหตุผลที่ซับซ้อน, งาน Coding ยากๆ และงาน Agentic ทั่วไป"
+            ],
+            [
+              "medium",
+              "คิดระดับปานกลาง อาจข้าม Thinking สำหรับคำของ่ายๆ (เป็นค่าเริ่มต้นใน Claude Opus 5.5 และ Claude Haiku 5.5)",
+              "งาน Agentic ที่ต้องการสมดุลระหว่าง Speed, Cost และ Performance"
+            ],
+            [
+              "low",
+              "ลด Thinking ให้น้อยที่สุด และข้าม Thinking ในงานที่ไม่ซับซ้อน",
+              "งานง่ายๆ ที่เน้น Speed สูงสุดและ Cost ต่ำสุด เช่น งานของ Subagents"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับ Swarm ของ Subagents ที่รันแบบ Parallel เพื่อทำ Lookup ง่ายๆ การตั้งค่า low คือตัวเลือกที่ออกแบบมาเพื่องานนี้โดยเฉพาะ เพราะช่วยให้แต่ละ Call จบเร็วขึ้นและประหยัด Cost มากกว่า อีกทั้งงาน Lookup ไม่ได้ประโยชน์จากการคิดลึกอยู่แล้ว ในทางกลับกัน ระดับที่สูงกว่าไม่เหมาะด้วยเหตุผลของตัวเอง: max ไม่ได้รับประกันว่าจะได้ผลลัพธ์ Lookup ที่ดีขึ้น เพราะ Effort เป็นเพียง Soft Guidance ไม่ใช่การันตี Claude ยังคงตัดสินใจเป็นราย Request ว่าจำเป็นต้องคิดหรือไม่ และใน Workload ส่วนใหญ่ max มักเพิ่ม Cost สูงมากเมื่อเทียบกับ Quality ที่เพิ่มขึ้นเพียงเล็กน้อย ส่วน xhigh เหมาะสำหรับงาน Agentic ระยะยาวที่ต้องใช้ Token Budget สูง ซึ่งตรงข้ามกับงาน Lookup รวดเร็ว และการปล่อยไว้ที่ค่าเริ่มต้น high ก็ไม่ช่วยลด Latency ตามเป้าหมาย"
+        },
+        {
+          "type": "paragraph",
+          "text": "3 จุดที่มักพลาดเมื่อตั้งค่า Effort: ข้อแรก Effort ไม่ได้กำหนดความยาวของข้อความคำตอบที่มองเห็น (Visible Answer) โดยเฉพาะบน Claude Opus 5 การลด Effort ไม่ได้ช่วยให้คำตอบสั้นลงอย่างแน่นอน หากต้องการคำตอบสั้น ให้ระบุใน Prompt แทน ข้อสอง ค่า Effort ที่ถูกประมวลผลแล้วจะถูก Render เข้าไปใน Prompt ดังนั้นการเปลี่ยนระดับ Effort ระหว่าง Request จะทำให้ Cache Breakpoints ถูก Invalidate เกิด Cache Misses และเพิ่ม Latency กลับมา จึงควรใช้ระดับ Effort เดียวกันตลอดทั้ง Conversation และใช้ Per-message Effort (Beta) หากรองรับ เพื่อรักษา Cache ไว้ ข้อสาม หากระดับ Effort ที่ต่ำทำให้ได้การคิดที่ตื้นเกินไปในโจทย์ยาก วิธีแก้ตาม Documentation คือการปรับเพิ่ม Effort ไม่ใช่การพยายามเขียน Prompt เพื่อเลี่ยงผลของระดับ Effort ที่ต่ำ"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การตั้งค่า Effort เป็น max รับประกันว่าจะได้การใช้เหตุผลที่ลึกที่สุดและขจัดความเสี่ยงที่ผลลัพธ์จะไม่สมบูรณ์? (ทำไมถึงผิด): ไม่จริง: Effort เป็นเพียง Soft Guidance และ Claude ยังตัดสินใจเป็นราย Request ว่าต้องคิดหรือไม่ สำหรับ Workload ส่วนใหญ่ max จะเพิ่ม Cost มหาศาลแต่ได้ Quality เพิ่มขึ้นเพียงเล็กน้อย และงาน Subagents ง่ายๆ ควรใช้ low มากกว่า\n\nการลด Effort เป็นวิธีทำให้คำตอบของ Claude สั้นลง? (ทำไมถึงผิด): ไม่จริง: Effort ควบคุมปริมาณ Thinking ไม่ได้ควบคุมความยาวของคำตอบที่มองเห็น (Visible Reply) โดยเฉพาะใน Claude Opus 5 ซึ่งไม่ได้ทำให้คำตอบสั้นลงอย่างแน่นอน หากต้องการให้คำตอบสั้นลงควรกำหนดผ่าน Prompt โดยตรง"
+        }
+      ]
+    },
+    {
+      "heading": "4. Streaming, Fast Mode และ Hidden Thinking: เพิ่ม Speed โดยไม่ลดทอนการใช้เหตุผล",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Streaming ช่วยปรับปรุง Perceived Latency (ความรู้สึกของผู้ใช้ว่าเร็วขึ้น) ไม่ใช่ Real Latency เนื่องจากระบบจะส่งคำตอบกลับมาทันทีขณะกำลัง Generate ผู้ใช้จึงอ่านข้อความได้แบบเรียลไทม์ และ Application สามารถอัปเดต UI หรือประมวลผลแบบ Parallel ไปด้วยได้ แต่ Total Generation Time ยังคงเท่าเดิม ดังนั้น Streaming จึงเป็นทางแก้ที่ถูกต้องสำหรับปัญหา \"ระบบดูเหมือนค้าง\" แต่ไม่ใช่ทางแก้สำหรับปัญหา \"Batch Job ใช้เวลารันนานเกินไป\""
+        },
+        {
+          "type": "paragraph",
+          "text": "Fast Mode เหมาะสำหรับกรณีที่กระบวนการ Generate Output กลายเป็นคอขวด โดยจะรันบน Model Weights เดิมแต่ให้ Output Tokens ต่อวินาทีเร็วขึ้นสูงสุด 2.5 เท่า โดยไม่มีการลดทอนความฉลาดหรือขีดความสามารถลง แต่จะมีค่าใช้จ่ายแบบคิดตัวคูณเพิ่มจาก Standard Rates รองรับบน Claude Opus 5.5, Claude Opus 5 และ Claude Opus 4.8 เปิดใช้งานผ่าน speed=\"fast\" ร่วมกับ Beta Header ประสิทธิภาพจะเห็นได้ชัดเจนที่สุดเมื่อใช้ร่วมกับ Streaming เหมาะกับงานสร้างผลลัพธ์ยาวๆ เช่น งาน Refactor โค้ดชุดใหญ่ แต่แทบไม่เห็นผลกับคำตอบสั้นๆ ที่ต้องรอ Time to First Token"
+        },
+        {
+          "type": "paragraph",
+          "text": "โจทย์ยากที่ต้องใช้ Thinking มีอีกเครื่องมือหนึ่งคือ ฟิลด์ Display สำหรับ Thinking เมื่อกำหนด display: \"omitted\" ระบบจะยังรัน Thinking เต็มรูปแบบ แต่บล็อก Thinking ที่ตอบกลับมาจะมีฟิลด์ thinking เป็นค่าว่าง โดยจะส่ง Signature Field ที่เข้ารหัสกระบวนการคิดทั้งหมดกลับมาแทน เพื่อให้คุยต่อใน Multi-turn Conversation ได้ ประโยชน์หลักคือช่วยลด Time to First Text Token เมื่อใช้งานแบบ Streaming เพราะ Server ไม่ต้อง Stream ข้อความ Reasoning ออกมา ตัวอย่างเช่น Valuation Tool ที่แก้ปัญหาหลายขั้นตอนด้วย Extended Thinking ซึ่งผู้ใช้ไม่ต้องการรอ การใช้ Display แบบ Omitted จะช่วยลดระยะเวลารอที่มองเห็นได้โดยที่คงคุณภาพการคิดไว้ครบถ้วนทุกประการ การปิด Thinking หรือจำกัด budget_tokens ไว้ที่ค่าน้อยๆ แบบตายตัวในทุก Request จะทำให้คำตอบเร็วขึ้นด้วยการลดทอนคุณภาพในโจทย์ที่จำเป็นต้องคิด และการเพิ่ม Budget ให้มากขึ้นก็ไม่ได้ช่วยลด Latency ลงเลยแม้แต่น้อย"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Fast Mode คือโมเดลขนาดเล็กที่มีความสามารถต่ำกว่า การเปิดใช้จึงเป็นการแลก Accuracy เพื่อให้ได้ Speed? (ทำไมถึงผิด): ไม่จริง: Fast Mode รันบนโมเดลตัวเดิมด้วย Inference Configuration ที่เร็วกว่า โดยมีความฉลาดเท่าเดิมทุกประการ แต่มีค่าใช้จ่ายพรีเมียมสูงขึ้นตามตัวคูณ\n\nStreaming ช่วยลดเวลารวมในการ Generate คำตอบ (Total Generation Time)? (ทำไมถึงผิด): ไม่จริง: Streaming ส่ง Output ทันทีที่ถูกประมวลผลเสร็จ ซึ่งช่วยเพิ่ม Perceived Responsiveness แต่เวลารวมทั้งหมดในการสร้างคำตอบยังคงเท่าเดิม"
+        }
+      ]
+    },
+    {
+      "heading": "5. การเลือก Setting ที่สมเหตุสมผลด้วยการ Sweep เทียบ Cost per Solved Task",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Configuration ที่ดีต้องพิสูจน์ได้จากการทำ Eval บน Effort Levels และ Models ของคุณเอง การยก Settings เก่าจากโมเดลรุ่นก่อนมาใช้ หรือเลือกตามความรู้สึกถือเป็นวิธีที่ไม่ถูกต้อง เพราะ Effort Levels จะถูก Calibrate ใหม่เสมอในแต่ละรุ่นโมเดล แนะนำให้รัน Effort Sweep ใหม่ทุกครั้งแทนที่จะใช้ค่าเดิม และให้วัดผลที่ Cost per Completed Task ไม่ใช่ Cost per Token เพราะ Configuration ที่ดูราคาถูก แต่รัน Fail ไปครึ่งหนึ่ง แท้จริงแล้วไม่ได้ถูกเลย"
+        },
+        {
+          "type": "table",
+          "caption": "ผลการทำ Sweep ภายในสำหรับ Agentic-coding (370 Repository Tasks): Pass Rate เทียบกับ Cost ต่อครั้งที่ลอง",
+          "headers": [
+            "Configuration",
+            "Solved",
+            "Cost per attempt"
+          ],
+          "rows": [
+            [
+              "Claude Opus 5.5, low",
+              "74.8%",
+              "$0.35 USD"
+            ],
+            [
+              "Claude Opus 5.5, medium (default)",
+              "86.6%",
+              "$0.84 USD"
+            ],
+            [
+              "Claude Opus 5.5, high",
+              "88.4%",
+              "$1.38 USD"
+            ],
+            [
+              "Claude Opus 5.5, xhigh",
+              "91.1%",
+              "$4.11 USD"
+            ],
+            [
+              "Claude Sonnet 5.5, high (default)",
+              "77.8%",
+              "$0.33 USD"
+            ],
+            [
+              "Claude Sonnet 5.5, medium",
+              "62.7%",
+              "$0.16 USD"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "การนำเคสที่ Fail มารันซ้ำ (Re-running failures) ควรถูกนับเป็นหนึ่งใน Configuration ของการ Sweep ด้วย ในกรณีที่สามารถตรวจสอบ Output ได้ผ่าน Test Suite หรือ Verifier คุณสามารถรันทุก Task ด้วย Low Effort ก่อน แล้ว Re-run เฉพาะ Task ที่ Fail ด้วย High Effort จากการทดสอบของ Anthropic แนวทางนี้ช่วยลด Cost ได้ราว 40% เมื่อเทียบกับการรันทุกอย่างด้วย High Effort โดยที่ยังได้ Pass Rate เท่าเดิม อีกทั้งยังช่วยลด Latency เพราะ Task ส่วนใหญ่จบได้บน Fast Path และจะยอมจ่ายเวลาเพิ่มเฉพาะเคสที่ยากจริงๆ เท่านั้น ตัวเลขเหล่านี้เป็นการทดสอบภายใน จึงควรนำไปวัดผลกับ Workload จริงของคุณเองเสมอ"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agent Runs จำเป็นต้องจำกัดทั้ง Elapsed Time รวม และเวลาในแต่ละ Turn การใช้ Output Caps และ Session Budgets (ตามที่อธิบายใน [max_tokens, task budgets and re-running failures](lesson:4.5)) จะช่วยกำหนด Hard Ceiling ของระยะเวลาทำงาน การ Prompt บอกโมเดลว่าเวลามีความสำคัญ พร้อมทั้งส่งค่า Elapsed Time ให้โมเดลรับรู้ ช่วยลดเวลาการทำงานลงได้ 7% ถึง 47% จากการทดสอบของ Anthropic โดยแลกกับคะแนนที่ลดลงเพียงเล็กน้อย นอกจากนี้ Multi-model Setups ก็เพิ่ม Latency ที่ต้องนำมาคิดในการเปรียบเทียบเช่นกัน เช่น การมี Advisor จะเพิ่ม Frontier-model Calls อีกประมาณ 1-2 ครั้งต่อ Task บน Critical Path และใน RAG Pipeline การเลือกจำนวน Chunks ที่จะ Retrieve และการตัดสินใจว่าจะ Rerank หรือไม่ ก็เป็น Trade-off ระหว่าง Accuracy กับ Time ในลักษณะเดียวกัน (ดูเพิ่มเติมใน [Reranking and how many chunks to pass](lesson:3.5)) ซึ่ง Settings เหล่านี้ก็ควรนำมาร่วมทำ Sweep ด้วยเช่นกัน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ควรเลือก Configuration จากความคุ้มค่าของ Cost per Token หรือประเมินจาก Latency เพียงอย่างเดียว? (ทำไมถึงผิด): ไม่จริง: การตัดสินใจเลือก Settings ต้องวัดที่ Cost per Solved Task เป็นหลัก เพราะ Configuration ที่ถูกหรือเร็วกว่า แต่อัตราความสำเร็จ (Pass Rate) ต่ำ จะทำให้เกิด Re-run Cost แฝงที่สูงกว่ามาก และต้องพิจารณา Trade-off ระหว่าง Accuracy Drop กับ Latency ที่เพิ่มขึ้นตามโจทย์ธุรกิจจริงก่อนเสมอ"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56777",
+      "question": "ทีมพัฒนากำลังสร้างฟีเจอร์แชต Customer Support แบบ Real-time ที่ต้องตอบกลับภายใน 1-2 วินาที รองรับคำถามประเภท Simple Intent-Classification ในปริมาณมหาศาล และมีงบประมาณจำกัดมาก ควรเลือกเริ่มต้นด้วยโมเดลใดเพื่อตอบโจทย์ทั้งด้าน Latency และ Cost โดยที่ยังคงความแม่นยำในระดับที่ยอมรับได้สำหรับงานนี้?",
+      "options": [
+        "Claude Opus 4.8",
+        "Claude Haiku 4.5",
+        "Claude Fable 5",
+        "Claude Sonnet 5"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56778",
+      "question": "ทีมวิศวกรกำลังรัน Subagents แบบ Parallel จำนวนมากเพื่อทำ Simple Lookups ภายใน Agentic Workflow ขนาดใหญ่ โดยต้องการลดทั้ง Latency และ Token Cost ต่อการเรียก Subagent แต่ละครั้งให้เหลือน้อยที่สุด โดยไม่ลดทอนคุณภาพที่จำเป็นสำหรับงาน Simple Lookups ดังกล่าว การตั้งค่าพารามิเตอร์ effort ข้อใดตอบโจทย์ความต้องการนี้ได้ดีที่สุด?",
+      "options": [
+        "ตั้งค่า effort เป็น low สำหรับการเรียก Subagent เนื่องจากระดับ low ถูกออกแบบมาสำหรับงานประเภท Simple, High-Volume เช่น การ Lookup ของ Subagent ซึ่งเรื่องความเร็วและต้นทุนมีความสำคัญมากกว่าคุณภาพที่เพิ่มขึ้นเพียงเล็กน้อย",
+        "ตั้งค่า effort เป็น max สำหรับการเรียก Subagent เนื่องจากระดับ max รับประกันการทำ Deepest Reasoning และกำจัดความเสี่ยงที่ Subagent จะส่งผลลัพธ์การ Lookup ที่ไม่สมบูรณ์กลับมา",
+        "ตั้งค่า effort เป็น xhigh สำหรับการเรียก Subagent เนื่องจากระดับ xhigh ออกแบบมาสำหรับ Long-Horizon Agentic Work และจะจัดสรร Token Budget ที่เพียงพอสำหรับ Extended Tool Use ของแต่ละ Subagent",
+        "คงค่า effort ไว้ที่ high ซึ่งเป็นค่า Default สำหรับการเรียก Subagent เนื่องจากระดับ high มีค่าเทียบเท่ากับการไม่ระบุพารามิเตอร์ และไม่จำเป็นต้องแก้ไขการตั้งค่าเพิ่มเติม"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56779",
+      "question": "แอปพลิเคชันวิเคราะห์ข้อมูลทางการเงินใช้ Extended Thinking เพื่อแก้ปัญหาการประเมินมูลค่า (Valuation) ที่ซับซ้อนหลายขั้นตอน แต่ Response Latency เริ่มช้าจนผู้ใช้งานปลายทางยอมรับไม่ได้ ในขณะที่ผลลัพธ์ยังจำเป็นต้องมีความแม่นยำสูงเนื่องจากความซับซ้อนของปัญหา การปรับแต่งใดช่วยรักษาสมดุลระหว่างข้อจำกัดเหล่านี้ได้ดีที่สุด?",
+      "options": [
+        "คง Thinking Budget เดิมไว้ แต่ตั้งค่า display เป็น \"omitted\" เพื่อให้เริ่ม Streaming ข้อความได้ทันที เนื่องจาก Thinking Tokens ทั้งหมดยังคงถูกประมวลผลตามปกติ แต่ช่วยตัด Overhead จากการ Stream คิดเลข/เหตุผลออกไป โดยไม่ได้ไปตัดทอนกระบวนการ Reasoning",
+        "ปิดการใช้งาน Extended Thinking โดยสิ้นเชิง แล้วพึ่งพา Default Response Generation ของโมเดลแทน เนื่องจากเมื่อตัด Thinking ออก ย่อมตัด Token Cost และ Latency ที่เกิดจากการคิดเหตุผลออกไปด้วย",
+        "ลด budget_tokens ลงเหลือค่าคงที่ขนาดเล็ก เช่น 1,000 tokens สำหรับทุก Request เนื่องจาก Thinking Budget ที่น้อยจะช่วยรับประกันการตอบกลับที่รวดเร็ว ไม่ว่าโจทย์การประเมินมูลค่าแต่ละข้อจะซับซ้อนแค่ไหนก็ตาม",
+        "เพิ่ม budget_tokens ให้สูงกว่าค่าปัจจุบันอย่างมาก และเปลี่ยนไปใช้ Summarized Display เนื่องจาก Budget ที่ใหญ่ขึ้นจะทำให้ Latency ต่ำลงตามสัดส่วนเสมอ เมื่อโมเดลเริ่ม Stream สรุปเหตุผลออกมา"
+      ],
+      "explanation": ""
+    }
+  ]
+}

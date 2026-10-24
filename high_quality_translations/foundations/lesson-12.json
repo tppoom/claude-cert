@@ -1,0 +1,147 @@
+{
+  "title": "Claude Code ใน Git, CI, การทำ Code Review และ Refactoring",
+  "objectives": [
+    "รัน Workflow แบบ Plan, Implement, Commit และ PR ด้วย Claude Code",
+    "เชื่อมต่อ Claude Code เข้ากับ GitHub Actions พร้อมกำหนดสิทธิ์และ Trigger ที่เรียกใช้งานได้",
+    "ตั้งค่า Automated PR Review พร้อมคุม Scope ผลการรีวิวให้ตรงจุด",
+    "Refactor โค้ดทีละสเต็ปพร้อม Test ยืนยันผล และแบ่ง Migration งานใหญ่เป็นรอบย่อยที่ Verify ได้จริง"
+  ],
+  "key_concept": "การผสาน Claude Code เข้ากับ Git และ CI/CD เพื่อสร้าง Workflow อัตโนมัติตั้งแต่เขียนโค้ด ทำ Code Review จนถึง Refactoring อย่างปลอดภัย",
+  "sections": [
+    {
+      "heading": "1. การจัดการ Branches, Commits และ Pull Requests ด้วย Claude Code",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Claude Code ทำงานร่วมกับ Version Control เหมือน Developer ทั่วไป: วาง Plan, เขียนโค้ดพร้อม Tests, จากนั้นจึง Commit และเปิด Pull Request โดยลำดับขั้นตอนมีความสำคัญมาก การเริ่มจากการถามว่าต้องแก้ไฟล์ไหนบ้างและมี Flow อย่างไร จะช่วยให้ได้ Plan ที่เราสามารถรีวิวตรวจสอบก่อนลงมือเขียนโค้ดจริง จากนั้น Implementation Prompt จะอ้างอิงกลับไปยัง Plan นั้น สั่งให้เขียน Tests, รัน Test Suite และแก้ข้อผิดพลาดจนผ่าน เมื่อทุกอย่างเรียบร้อย Claude จึงจะ Commit พร้อมเขียน Commit Message ที่ชัดเจน แล้วเปิด PR ให้ทันที"
+        },
+        {
+          "type": "paragraph",
+          "text": "การทำงานแบบขนาน (Parallel Work) จำเป็นต้องแยก Checkout ออกจากกัน Git Worktrees ช่วยให้คุณรัน CLI Sessions แยกกันบน Git Checkout ที่แยกเป็นอิสระ เพื่อป้องกันไม่ให้ 2 Sessions ที่แก้ Repo เดียวกันเขียนทับกันเอง การแยกสภาพแวดล้อมแบบนี้ยังเหมาะกับรูปแบบ Writer และ Reviewer อีกด้วย เช่น ให้ Session แรกเขียนโค้ด Rate Limiter แล้วให้ Session ที่สองซึ่งมี Context ที่สดใหม่ (Fresh Context) ทำการ Review ไฟล์ @src/middleware/rateLimiter.ts เพื่อหา Edge Cases และ Race Conditions จากนั้นจึงส่ง Feedback กลับไปให้ Session แรกแก้ไข"
+        }
+      ]
+    },
+    {
+      "heading": "2. การรัน Claude Code บน GitHub Actions",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "บน CI นั้น Claude Code จะทำงานแบบ Non-interactive (ไม่มี Terminal) เหมือนกับ Headless Mode (claude -p) ซึ่งถูก Packaged มาเป็น GitHub Action ภายใต้ anthropics/claude-code-action วิธี Setup ที่เร็วที่สุดคือสั่งรัน /install-github-app ผ่าน Claude Code คำสั่งนี้จะช่วยติดตั้ง Claude GitHub App, ใส่ Authentication Secret และเปิด Pull Request พร้อมไฟล์ Workflow ให้โดยอัตโนมัติ สำหรับ Secret สามารถเลือกใช้ ANTHROPIC_API_KEY จาก Console หรือ CLAUDE_CODE_OAUTH_TOKEN จาก Claude Subscription ก็ได้ หากใช้ในระดับองค์กร แนะนำให้ติดตั้ง App ในระดับ Organization และเก็บ Secret ไว้ที่ระดับ Organization-level Actions Secret"
+        },
+        {
+          "type": "paragraph",
+          "text": "แต่ละบรรทัดใน Workflow ล้วนมีหน้าที่ชัดเจน: actions/checkout ทำการ Clone โค้ดลง Runner, actions: read เปิดให้ Claude อ่านผล CI บน PR ได้, ส่วน if: จะช่วยป้องกันไม่ให้ Runner ทำงานถ้า Comment นั้นไม่ได้ Mention @claude พฤติกรรมของ Action จะขึ้นอยู่กับว่ามีการกำหนด Prompt Input หรือไม่ หากไม่กำหนด จะรันใน Interactive Mode คือรอ Trigger Phrase แล้วตอบกลับเป็น Comment บน Issue หรือ PR แต่หากมีการกำหนด Prompt จะรันใน Automation Mode ทันทีโดยไม่ต้องรอ Mention และผลลัพธ์จะถูกบันทึกไว้ใน Workflow Run Log เว้นแต่จะระบุใน Prompt ให้ Claude โพสต์ผลลัพธ์และมี Tool ที่รองรับ"
+        },
+        {
+          "type": "paragraph",
+          "text": "มีระบบป้องกัน 2 ชั้นเพื่อจำกัดสิทธิ์การรัน: สำหรับ Event บน Issue และ PR ผู้ใช้ที่เป็นคน Trigger จะต้องมีสิทธิ์ Write Access ต่อ Repository และสำหรับทุกๆ Event ระบบจะปฏิเสธ Bot Actors เสมอ ยกเว้นจะมีชื่ออยู่ใน allowed_bots เพื่อป้องกันไม่ให้ Bot ตอบโต้กันเองจนเกิด Trigger Loop ส่วน Scheduled Runs จะอ้างอิงสิทธิ์ตาม User ของ Repository ซึ่งหาก User นั้นเป็น Bot ก็ต้องถูกใส่ชื่อไว้ใน allowed_bots ด้วยเช่นกัน"
+        },
+        {
+          "type": "exam_trap",
+          "text": "Bot ตัวอื่น (เช่น ตัวอัปเดต Dependency) สามารถ Trigger ให้ Claude Action ทำงานได้เพียงแค่ Mention @claude? (ทำไมถึงผิด): ไม่จริง: Action จะปฏิเสธ Bot Actors ในทุก Event เสมอ เว้นแต่ Bot นั้นจะถูกเพิ่มชื่อไว้ใน allowed_bots เพื่อตัดปัญหา Trigger Loops"
+        }
+      ]
+    },
+    {
+      "heading": "3. Automated pull request review ที่โฟกัสและนำไปแก้ไขได้จริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การให้ Claude ช่วย Review ทุก PR ทำได้ 2 วิธี: วิธีแรกคือ Managed Code Review ซึ่งตั้งค่าผ่าน Claude Code Admin Settings ร่วมกับ Claude GitHub App โดยไม่ต้องเขียน Workflow file เอง ระบบจะรันการวิเคราะห์แบบ Multi-agent และจัดหมวดหมู่ Findings ออกเป็น 🔴 Important (ต้องแก้ก่อน Merge), 🟡 Nit (จุดเล็กน้อย ไม่บล็อกการ Merge) หรือ 🟣 Pre-existing (Bug เดิมที่มีอยู่แล้ว PR นี้ไม่ได้สร้างขึ้น) อีกวิธีคือการเขียน Workflow ขึ้นมาเองเพื่อรัน code-review plugin ผ่าน GitHub Action"
+        },
+        {
+          "type": "paragraph",
+          "text": "Trigger ของการ Review มีผลโดยตรงต่อ Noise และ Cost โดยแต่ละ Repository สามารถเลือก Trigger ที่เหมาะสมได้ และผู้ที่มีสิทธิ์ Write Access ก็สามารถเรียก Review ผ่าน Comment บน PR ได้เช่นกัน"
+        },
+        {
+          "type": "table",
+          "caption": "Trigger ของ Code Review และผลกระทบต่อ Cost",
+          "headers": [
+            "Trigger",
+            "ช่วงเวลาที่รัน Review",
+            "ผลกระทบต่อ Cost"
+          ],
+          "rows": [
+            [
+              "Once after PR creation",
+              "เมื่อเปิด PR หรือเปลี่ยนสถานะเป็น Ready for review",
+              "Review 1 ครั้งต่อ PR"
+            ],
+            [
+              "After every push",
+              "ทุกครั้งที่มีการ Push ไปยัง PR Branch พร้อม Auto-resolve Thread ที่แก้แล้ว",
+              "Cost เพิ่มขึ้นตามจำนวน Push"
+            ],
+            [
+              "Manual",
+              "เมื่อสั่งผ่าน @claude review หรือ @claude review always เท่านั้น",
+              "คิด Cost เฉพาะเมื่อมีคนเรียก Review เท่านั้น"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "แค่เพิ่ม code-review plugin ลงใน Workflow ก็เพียงพอที่จะให้ Findings แสดงบน PR แล้ว? (ทำไมถึงผิด): ไม่จริง: หากไม่มี Flag --comment ตัว Claude จะไม่ Post อะไรลง PR เลย และ Findings จะปรากฏอยู่แค่ใน Workflow run log เท่านั้น | การเลือก \"After every push\" มีค่าใช้จ่ายเท่ากับการ Review ครั้งเดียวแค่ได้ผลลัพธ์ที่ใหม่กว่า? (ทำไมถึงผิด): ไม่จริง: ทุก Push จะ Trigger การ Review แบบเต็มรูปแบบ ทำให้ Cost แปรผันตรงตามจำนวน Push บน PR"
+        },
+        {
+          "type": "paragraph",
+          "text": "Review จะโฟกัสได้ตรงจุดเมื่อคุณระบุสิ่งที่สำคัญให้ชัดเจน: CLAUDE.md เก็บ Project Context ทั่วไป ซึ่ง Code Review จะมองว่าการละเมิดกฎใหม่ในนี้เป็นแค่ระดับ Nit ส่วน REVIEW.md ใช้เก็บ Review-only Rules โดยเฉพาะ ทั้งสิ่งที่ต้องตรวจ, ระดับ Severity และรูปแบบการรายงาน ผลลัพธ์ที่ดีใน REVIEW.md ควรจำกัดระดับ Important ไว้สำหรับเคสที่กระทบการทำงาน (Break Behavior) หรือข้อมูลรั่วไหล (Data Leak), กำหนดโควตาจำนวน Nit สูงสุด และคัดสิ่งที่ CI ตรวจสอบอยู่แล้วออกไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อผิดพลาดที่พบบ่อยที่สุดใน Self-built Review Workflow คือการลืม Step การ Post หากขาด Flag --comment ตัว Plugin จะเขียน Findings ลงเฉพาะ Workflow run log เท่านั้น และไม่มีอะไรแสดงขึ้นบน PR"
+        }
+      ]
+    },
+    {
+      "heading": "4. การทำ Refactoring ทีละ Step และการ Migrate โค้ดแบบ Batch",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การ Refactor หรือแก้ไขจุดเล็กๆ จะปลอดภัยเมื่อทุกขั้นตอนถูกตรวจสอบด้วย Test เสมอ: กรณีแก้ Bug ให้ Claude เขียน Failing Test ขึ้นมา Reproduce ก่อน แล้วจึงแก้โค้ดจนกว่า Test จะผ่าน ส่วนการปรับแก้ตามแผน ให้ใช้ Subagent ตรวจสอบ Diff เทียบกับ PLAN.md เพื่อเช็กว่า Implementation ครบถ้วนตาม Requirement และไม่มีการแก้ไขนอกเหนือ Scope ของงาน พร้อมทั้งรายงานเฉพาะ Gap มากกว่าเรื่อง Style Preference โดยต้องคุม Scope ให้กระชับ เนื่องจากการ Refactor ที่ลามไปแตะไฟล์ที่ไม่เกี่ยวข้องจะ Review ยากกว่าการแยกเป็น 2 PR"
+        },
+        {
+          "type": "paragraph",
+          "text": "การ Migration ขนาดใหญ่ต้องใช้แนวทางที่ต่างออกไป เนื่องจากมีไฟล์มากเกินกว่าจะจัดการใน Session เดียว แต่ละไฟล์มีความซ้ำและเป็นงานอิสระต่อกัน แพทเทิร์นที่เหมาะสมคือ: สร้าง Task List ขึ้นมา, เขียน Script เพื่อรัน Headless Claude แยกไฟล์ละหนึ่งรอบ, ทดสอบ Script กับไฟล์จำนวนน้อยๆ ก่อน แล้วค่อยรันจริงกับไฟล์ทั้งหมด โดยจำกัด --allowedTools ให้ใช้ได้แค่การ Edit และ Git Commit เพื่อให้แต่ละไฟล์มี Commit ของตัวเองและป้องกันการทำคำสั่งอื่น การกำหนด Output ให้ตอบเป็น OK หรือ FAIL จะช่วยให้ Loop ตรวจสอบผลได้ง่าย และหากต้องรันหลาย Batch พร้อมกัน ให้แยกแต่ละ Batch ไปยัง Worktree ของตัวเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "วัตถุประสงค์ของ Trial Run คือการปรับปรุง Prompt และ Instructions ไม่ใช่การมุ่งหน้าทำงานจริง ในโปรเจกต์ Migration หนึ่งของ Anthropic การทดสอบรัน 3 ไฟล์แรกช่วยตรวจพบ Critical Issue ได้ 2 จุด ซึ่งหากไม่ทดสอบก่อน ปัญหาจะลามไปทั่วทั้ง 1,448 ไฟล์ โดย Output จากการทดสอบนั้นจะถูกลบทิ้ง จากนั้นทุก Batch จึงเข้าสู่ Loop มาตรฐานเดียวกัน: Implement, Review, Fix"
+        }
+      ]
+    },
+    {
+      "heading": "ลงมือปฏิบัติจริง",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ตั้งค่า automated Claude review ให้กับ repository ของคุณ แล้วทดลองดูผลการ review และ comment บน Pull Request จริง"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55419",
+      "question": "ทีมงานต้องการให้ทุกการแก้ไขไฟล์ที่ทำโดย autonomous coding agent ถูกบันทึกลงใน audit log ที่เป็นมิตรกับ version control ก่อนที่การเปลี่ยนแปลงจะถูกเขียนลงดิสก์ เพื่อให้ประวัติการแก้ไขสามารถตรวจสอบย้อนหลังควบคู่ไปกับ git commit ปกติได้ ทีมงานควรใช้กลไกใดของ Agent SDK?",
+      "options": [
+        "ลงทะเบียน PreToolUse hook ที่จับคู่กับ Edit และ Write tools เพื่อบันทึกการเปลี่ยนแปลงที่ต้องการลงใน audit log ก่อนที่ tool จะถูก execute",
+        "พึ่งพาประวัติของ git commit เพียงอย่างเดียว เนื่องจากทุกการเรียกใช้ Edit tool จะสร้าง git commit พร้อมข้อความอธิบายให้โดยอัตโนมัติอยู่แล้ว",
+        "ตั้งค่า permission_mode เป็น acceptEdits ซึ่งจะทำการเขียน structured audit trail ของทุกการเปลี่ยนแปลงไฟล์ลงใน log file ให้โดยอัตโนมัติ",
+        "กำหนดค่า subagent ชื่อ auditor โดยไม่ต้องกำหนด tools ใดๆ เพื่อให้คอยสังเกตการณ์และบันทึกทุกการเรียกใช้ Edit และ Write ของ main agent ในเบื้องหลัง"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55422",
+      "question": "นักพัฒนาต้องการให้ผู้ช่วยที่ทำงานด้วย Agent SDK ทำการ refactor โค้ดเฉพาะจุดเล็กๆ คือการเปลี่ยนชื่อตัวแปรที่ตั้งชื่อไม่ดีเพียงตัวเดียวภายในฟังก์ชันหนึ่งใน utils.py Built-in tool ใดเหมาะสมที่สุดสำหรับการเปลี่ยนแปลงที่เฉพาะเจาะจงและตรงจุดนี้?",
+      "options": [
+        "Edit tool เนื่องจากถูกออกแบบมาเพื่อแก้ไขไฟล์เดิมอย่างแม่นยำ โดยไม่ต้องเขียนเนื้อหาส่วนอื่นที่ไม่เกี่ยวข้องซ้ำทั้งหมด",
+        "Write tool เนื่องจากเป็นการเขียนทับทั้งไฟล์เสมอ และเป็นวิธีที่แนะนำสำหรับการเปลี่ยนชื่อตัวแปรเพียงตัวเดียว",
+        "Bash tool เนื่องจากคำสั่ง find-and-replace ใน shell เป็นกลไกตามเอกสารสำหรับการ refactor ซอร์สโค้ดทั้งหมด",
+        "Glob tool เนื่องจากสามารถค้นหาตำแหน่งของตัวแปรและเขียนทับทุกจุดที่พบในไฟล์ได้พร้อมกันในขั้นตอนเดียว"
+      ],
+      "explanation": ""
+    }
+  ]
+}

@@ -1,0 +1,252 @@
+{
+  "title": "Task Decomposition Patterns: Chaining, Routing, Parallelization และ Orchestrator-Workers",
+  "objectives": [
+    "เลือกใช้ Prompt Chaining, Routing, Parallelization หรือ Orchestrator-Workers โดยพิจารณาว่าทราบ Subtasks ล่วงหน้าหรือไม่",
+    "เลือก Model ให้เหมาะกับแต่ละ Subtask ตามระดับความซับซ้อนและความถี่ในการเรียกใช้",
+    "ย่อยงานหลายมิติออกเป็น Subagents บน Agent SDK พร้อมกำหนด Tools และ Descriptions ที่เจาะจง",
+    "ระบุได้ว่าเมื่อใดควรเปลี่ยน Tool Calls ที่ทำงานแบบ Tight Loop ไปประมวลผลด้วย Code ผ่าน Programmatic Tool Calling"
+  ],
+  "key_concept": "Task Decomposition — การย่อยงานซับซ้อนออกเป็น Subtasks ย่อย โดยแต่ละงานจะใช้ Model Call, Prompt, ชุด Tools หรือ Model ที่เจาะจงแยกกัน หัวใจสำคัญของการออกแบบคือการตัดสินใจว่า ใครเป็นผู้กำหนด Subtasks: คุณ (ตอนพัฒนาระบบ) หรือ Model (ขณะ Runtime)",
+  "sections": [
+    {
+      "heading": "1. Why decomposition improves results (ทำไมการแยกส่วนงานจึงให้ผลลัพธ์ที่ดีกว่า)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การใช้ model call เดียวทำงานทุกอย่างทำให้โมเดลโฟกัสแต่ละส่วนได้ไม่เต็มที่ เช่น หาก Prompt เดียวต้องทั้งคัดกรองเนื้อหาที่ไม่ปลอดภัยและตอบคำถามไปพร้อมกัน คุณภาพของทั้งสองงานจะแย่ลง การแยกงาน (Decomposition) เพื่อให้แต่ละ call รับผิดชอบเพียงเรื่องเดียวจึงเป็นหัวใจพื้นฐานของทุก Pattern ในบทนี้ วิธีนี้เหมาะที่สุดเมื่อมีงานย่อยที่ขอบเขตชัดเจนหลายงานประกอบกันเพื่อเป้าหมายรวม"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความแตกต่างของแต่ละ Pattern อยู่ที่ว่า \"ใครเป็นผู้กำหนด subtasks\" สำหรับ Prompt Chaining, Routing และ Parallelization นักพัฒนาจะกำหนด subtasks ตายตัวไว้ตั้งแต่ตอนเขียนโค้ด แต่ใน Orchestrator-Workers โมเดลจะเป็นผู้วางแผน subtasks เองแบบ dynamic ตาม input แต่ละรอบ ณ Run time ซึ่งเป็นหลักการเดียวกับ [Workflows versus agents](lesson:1.3) นั่นคือ หากสามารถระบุ subtasks ล่วงหน้าได้ทั้งหมด ให้เขียนเป็น Code แต่ถ้าขึ้นอยู่กับ Input ที่เข้ามา ให้ส่งต่อให้ Model เป็นผู้วางแผน"
+        },
+        {
+          "type": "paragraph",
+          "text": "การแยกส่วนงานไม่ได้ฟรี ทุก call ที่เพิ่มขึ้นมาแลกมาด้วย Latency และ Token Cost เสมอ อีกทั้งทุกรอยต่อของการส่งต่องาน (handoff) อาจทำให้ Context หล่นหายได้ แต่ละ Pattern ถัดไปจะระบุต้นทุนและเกณฑ์ความคุ้มค่าในการเลือกใช้"
+        }
+      ]
+    },
+    {
+      "heading": "2. Prompt chaining: fixed steps with gates between them (ขั้นตอนตายตัวพร้อม Gate ตรวจสอบระหว่างทาง)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Prompt Chaining คือการแบ่งงานออกเป็นลำดับขั้นตอนตายตัว (Sequential steps) โดย Output ของ call ก่อนหน้าจะถูกส่งเป็น Input ของ call ถัดไป ระหว่างขั้นตอนสามารถแทรก Code ตรวจสอบที่เรียกว่า Gates เพื่อยืนยันความถูกต้องก่อนเริ่ม call ต่อไป ตัวอย่างมาตรฐาน: การเขียนข้อความการตลาดแล้วนำไปแปลภาษา หรือการเขียนเค้าโครง (Outline) ตรวจสอบตามเกณฑ์ให้ผ่าน แล้วจึงค่อยเขียนเอกสารฉบับเต็ม"
+        },
+        {
+          "type": "paragraph",
+          "text": "Chaining เหมาะกับงานที่แบ่งเป็น subtasks ตายตัวได้ชัดเจน ตัวอย่างการใช้งานจริง: การแปลงสรุปผลการดำเนินงานประจำไตรมาสให้เป็นตารางใช้ 4 calls — Call ที่ 1 ดึง metrics และค่าต่างๆ, Call ที่ 2 ปรับ format ของค่าให้เป็นมาตรฐานเดียวกัน, Call ที่ 3 เรียงลำดับจากมากไปน้อย, Call ที่ 4 Render เป็นตาราง Markdown แต่ละขั้นตอนเป็นงานง่ายๆ สำหรับโมเดล และการมี Code ตรวจสอบระหว่างขั้นตอน (เช่น \"Step 1 ดึง metrics ครบทุกตัวหรือไม่?\") จะช่วยตัดตอนความผิดพลาดไม่ให้ลุกลามไปยังขั้นตอนถัดไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "รูปแบบเดียวกันนี้พบได้ใน Dynamic Workflows ของ Claude Code เช่นกัน โดย Agent call แรกจะ return รายการไฟล์ตาม Schema ที่กำหนดไว้ จากนั้นนำรายการนั้นไปขับเคลื่อนขั้นตอนถัดไปเพื่อ audit แต่ละไฟล์"
+        },
+        {
+          "type": "exam_trap",
+          "text": "การแบ่ง Prompt ออกเป็น Chain ทำให้ระบบทำงานเร็วขึ้นเพราะแต่ละ Call มีขนาดเล็กลง? (ทำไมถึงผิด): ไม่จริง: Chain ทำงานแบบเรียงลำดับ (Sequential) จึงส่งผลให้ระบบทำงานช้าลง (Latency สูงขึ้น) โดยแลกกับความแม่นยำ (Accuracy) ที่เพิ่มขึ้นเนื่องจากโมเดลโฟกัสกับงานที่ง่ายลงในแต่ละ Call"
+        }
+      ]
+    },
+    {
+      "heading": "3. Routing: แยกตามประเภทของ Input และจับคู่ Model ให้เหมาะกับ Subtask",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Routing คือการทำ Classification ให้กับ Input ก่อน แล้วจึงส่งต่อไปยังขั้นตอนถัดไปที่ออกแบบมาเฉพาะสำหรับหมวดหมู่นั้นๆ ซึ่งแต่ละขั้นตอนสามารถใช้ Prompt, Tools หรือ Model ของตัวเองได้ เหตุผลหลักที่ต้องใช้ Routing คือเพื่อแก้ปัญหา Interference เพราะหากใช้ Prompt เดียวรองรับ Input ทุกประเภท การปรับแต่ง Prompt ให้ดีกับเคสหนึ่งมักส่งผลให้ประสิทธิภาพกับเคสอื่นแย่ลง ตัวอย่างเช่น ระบบ Customer Service อาจ Route คำถามทั่วไป, คำขอคืนเงิน และ Technical Support แยกออกเป็น 3 Process อิสระ โดยแต่ละ Process มี Prompt และ Tools เป็นของตัวเอง"
+        },
+        {
+          "type": "paragraph",
+          "text": "Routing จะได้ผลดีเมื่อแต่ละหมวดหมู่มีความแตกต่างกันชัดเจน และระบบสามารถจำแนกประเภทได้อย่างแม่นยำ ไม่ว่าจะใช้ LLM หรือ Traditional Classifier เพราะหากเกิด Misclassification งานจะถูกส่งต่อไปยัง Specialist ที่ไม่ได้ถูกออกแบบมาเพื่อรองรับงานนั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "Routing ยังเป็นจุดสำคัญในการเลือก Model ให้เหมาะกับแต่ละ Subtask เนื่องจาก Model แต่ละระดับมีความสามารถในการจัดการโจทย์ยาก ความเร็ว และค่าใช้จ่ายต่างกัน คำของ่ายๆ ที่พบบ่อยควรส่งให้ Model ขนาดเล็กที่ราคาประหยัด ส่วนงานยากหรือซับซ้อนควรส่งให้ Model ที่มีความสามารถสูงกว่า ตัวอย่างเช่น Support Pipeline ที่มี 2 Subtask: การจำแนกประเภท Ticket จำนวนมากส่งให้ Haiku ทำงาน ส่วนการร่างแผนแก้ไขปัญหาโดยละเอียดซึ่งต้องใช้หลายขั้นตอนและเป็นเคสใหม่ ให้ส่งต่อไปยัง Model ระดับสูงอย่าง Opus การรันทุกอย่างด้วย Model ตัวใหญ่สุดจะทำให้เสียค่าใช้จ่ายสูงเกินจำเป็นกับงาน Routine ทั่วไป ในทางกลับกัน การรันทุกอย่างด้วย Haiku ก็เกินขีดความสามารถที่มันจะจัดการได้อย่างแม่นยำ และการสุ่มเลือก Model ไม่ถือว่าเป็น Routing เพราะไม่ได้นำลักษณะของ Input มาเป็นเงื่อนไขในการตัดสินใจ สามารถดูข้อดีข้อเสียเพิ่มเติมได้ที่ [model selection trade-offs](lesson:2.1)"
+        },
+        {
+          "type": "table",
+          "caption": "การจับคู่ Model Class ให้เหมาะกับ Subtask แต่ละประเภท",
+          "headers": [
+            "Model class",
+            "เหมาะกับ Subtask ประเภท"
+          ],
+          "rows": [
+            [
+              "Haiku",
+              "งานที่เกิดถี่ (High-frequency) โดยคำนึงถึง Latency และ Cost เป็นหลัก เช่น การทำ Classification หรือ Simple Extraction"
+            ],
+            [
+              "Sonnet",
+              "งาน General-purpose ทั่วไป รวมถึง Subagents ที่มีปริมาณงานสูงในระบบ Multi-agent"
+            ],
+            [
+              "A more capable class (e.g. Opus)",
+              "งานที่ต้องคิดช้าๆ ซับซ้อนหลายขั้นตอน หรือโจทย์ใหม่ที่ไม่เคยเจอมาก่อน (Hard Tail ของ Workload)"
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "ในระบบ Agents นั้น Routing หมายถึงการกระจายงานไปยัง Specialist Agent แทนที่จะส่งไปยัง Specialist Prompt โดยใน Agent SDK มีฟิลด์ model ในการนิยาม Subagent แต่ละตัว ทำให้ Classifier ตัวประหยัดและ Drafter ตัวใหญ่ที่มีความสามารถสูงสามารถทำงานร่วมกันในระบบเดียวกันได้"
+        }
+      ]
+    },
+    {
+      "heading": "4. Parallelization: Sectioning และ Voting",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Parallelization คือการเรียก Model หลายตัวพร้อมกัน (Concurrent) แล้วรวม Output เข้าด้วยกันผ่าน Code ซึ่งแบ่งออกเป็น 2 รูปแบบเพื่อตอบโจทย์ที่ต่างกัน"
+        },
+        {
+          "type": "paragraph",
+          "text": "- Sectioning คือการแตก Task ออกเป็น Subtasks อิสระที่รันพร้อมกัน เช่น Instance หนึ่งสร้างคำตอบให้ผู้ใช้ ขณะที่อีก Instance ทำการตรวจสอบเนื้อหาที่ไม่เหมาะสมไปพร้อมกัน ซึ่งให้ผลลัพธ์ดีกว่าการให้ Model เดียวทำทั้งสองหน้าที่ในการเรียกครั้งเดียว นอกจากนี้ยังใช้กับ Automated Evals ได้ด้วย โดยแต่ละ Call จะตรวจประเมินคุณภาพในแต่ละด้านแยกกัน\n- Voting คือการรัน Task เดิมซ้ำกันหลายครั้ง แล้วนำผลลัพธ์มาผสานกันเพื่อเพิ่ม Confidence เช่น ใช้หลาย Prompt ตรวจสอบโค้ดเดียวกันเพื่อหาช่องโหว่ความปลอดภัย และแจ้งเตือนทันทีหากมี Prompt ใดตรวจพบปัญหา หรือใช้ในระบบ Content Moderation เพื่อปรับ Threshold คะแนนโหวต ช่วยรักษาสมดุลระหว่าง False Positives และ False Negatives"
+        },
+        {
+          "type": "paragraph",
+          "text": "ต้องแยกความแตกต่างระหว่าง Speed กับ Cost ให้ชัดเจน การรัน Subtasks อิสระแบบ Concurrent จะใช้เวลาเท่ากับ Task ตัวที่ช้าที่สุด ไม่ใช่ผลรวมเวลาของทุกตัว ทำให้ Wall-clock Time ในขั้นตอนนี้ลดลง แต่หากมองภาพรวมของ Multi-agent ทั้งระบบ มักจะใช้ Token มากกว่า Single Agent ถึง 3 ถึง 10 เท่า และมักใช้เวลาโดยรวมนานกว่าเนื่องจากปริมาณการประมวลผลเพิ่มขึ้นอย่างมาก ดังนั้นจงเลือกใช้ Parallelization เพื่อขยาย Coverage หรือเพิ่ม Confidence และเตรียมรับมือกับค่าใช้จ่ายที่สูงขึ้น"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: เหตุผลหลักในการรัน Agents แบบขนานกัน (Parallel) คือเพื่อให้งานเสร็จไวขึ้นและประหยัดค่าใช้จ่าย แต่ในความเป็นจริง Parallel Agents ทำเพื่อเพิ่ม Coverage และ Confidence โดยการใช้งาน Token รวมจะพุ่งสูงขึ้นอย่างมาก และระบบ Multi-agent โดยรวมมักใช้เวลาประมวลผลนานกว่า Single Agent"
+        }
+      ]
+    },
+    {
+      "heading": "5. Orchestrator-workers: การแตก Subtasks แบบไดนามิกที่ Run Time",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Pattern แบบ Orchestrator-workers ตัวโมเดลหลัก (Orchestrator) จะวิเคราะห์ Task, ตัดสินใจเลือก Subtasks ที่จำเป็น, มอบหมายงานให้ Worker models แต่ละตัว แล้วนำผลลัพธ์มารวมกัน รูปแบบนี้อาจคล้ายกับ Sectioning แต่ต่างกันตรงที่ Subtasks ไม่ได้ถูกกำหนดไว้ล่วงหน้า (Pre-defined) โดย Orchestrator จะเป็นผู้กำหนด Subtasks ตาม Input แต่ละครั้ง ตัวอย่างคลาสสิกคือการแก้ไขโค้ด ซึ่งเราไม่สามารถรู้ล่วงหน้าได้ว่าจะต้องแก้กี่ไฟล์หรือต้องแก้จุดใดบ้าง"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความยืดหยุ่นนี้แลกมาด้วยต้นทุน: แต่ละรอบจะเรียกโมเดล N+1 ครั้ง (1 ครั้งสำหรับ Orchestrator และอีก N ครั้งตามจำนวน Workers) ประสิทธิภาพการแตกงานขึ้นอยู่กับ Plan ของ Orchestrator ล้วนๆ ทำให้ Prompt Engineering ส่วนใหญ่จะทุ่มไปที่ตัว Orchestrator เราสามารถคุม Cost ได้โดยการแยก Model Tier เช่น ใช้ Opus สำหรับวางแผน และใช้ Haiku เป็น Workers คอยรันงาน ข้อควรระวัง: ห้ามใช้ Pattern นี้กับ Task ง่ายๆ ที่ได้ Output เดียว, งานที่ซีเรียสเรื่อง Latency หรือกรณีที่ Subtasks เหมือนเดิมตลอดเวลา เพราะหาก Subtasks ตายตัว การใช้ Pre-defined Parallelization จะตอบโจทย์กว่าโดยไม่ต้องมีระบบซับซ้อน"
+        },
+        {
+          "type": "paragraph",
+          "text": "Claude Managed Agents รองรับรูปแบบนี้ผ่าน Dynamic Workflows โดย Agent จะเขียนโปรแกรมเพื่อรัน Agents หลายตัวเป็น Phases และรวมผลลัพธ์เข้าด้วยกัน จากนั้น Server จะรันให้ใน Background เคสใช้งานหลักๆ คือการ Audit, Data Migration, Deep Research และ Cross-checking จำไว้ว่า Agent ทุกตัวใน Run มีการบริโภค Token ดังนั้นควรกำหนด Session Budget เสมอ"
+        },
+        {
+          "type": "table",
+          "caption": "ผู้กำหนด Subtasks ใน Decomposition Patterns แต่ละรูปแบบ",
+          "headers": [
+            "Pattern",
+            "Subtasks decided by",
+            "Reach for it when"
+          ],
+          "rows": [
+            [
+              "Prompt chaining",
+              "Designer กำหนดเป็นลำดับขั้นตอนตายตัว (Fixed sequence)",
+              "Task แบ่งเป็นขั้นตอนชัดเจน และให้ความสำคัญกับ Accuracy มากกว่า Latency"
+            ],
+            [
+              "Routing",
+              "Designer กำหนดเป็นหมวดหมู่ (Categories)",
+              "Input แยกเป็นประเภทชัดเจนและสามารถจัดกลุ่มได้อย่างแม่นยำ"
+            ],
+            [
+              "Parallelization: sectioning",
+              "Designer กำหนดเป็นส่วนๆ ที่อิสระต่อกัน",
+              "ประเด็นที่ต้องพิจารณาแยกจากกันและควรโฟกัสทีละเรื่องผ่านโมเดลคนละ Call"
+            ],
+            [
+              "Parallelization: voting",
+              "Designer กำหนดให้ทำซ้ำหลายรอบ",
+              "ต้องการความมั่นใจสูงขึ้นจากการรันซ้ำหลายครั้งหรือมองจากหลายมุมมอง"
+            ],
+            [
+              "Orchestrator-workers",
+              "Orchestrator model กำหนดตามแต่ละ Input ณ Run Time",
+              "ไม่สามารถคาดการณ์ Subtasks ล่วงหน้าได้"
+            ]
+          ]
+        },
+        {
+          "type": "exam_trap",
+          "text": "Orchestrator-workers เป็น Default ที่ดีกว่าสำหรับทุก Task ที่มีหลาย Subtasks? (ทำไมถึงผิด): ไม่จริง: จุดเด่นของมันคือการตัดสินใจเลือก Subtasks ที่ Run Time หาก Subtasks คาดเดาได้ล่วงหน้าอยู่แล้ว การใช้ Pre-defined Parallelization จะเรียบง่ายกว่าและไม่เปลือง Extra Call ของ Orchestrator"
+        }
+      ]
+    },
+    {
+      "heading": "6. การแตกงานด้วย Agent SDK Subagents",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Claude Agent SDK การแตกงานจะใช้รูปแบบ Subagents โดยนิยามผ่านออปชัน `agents` ในโค้ด หรือสร้างเป็น Markdown Files ไว้ใน `.claude/agents/` ซึ่ง Main Agent จะเรียกใช้ผ่าน `Agent` Tool แต่ละ Subagent จะรันใน Conversation Context ของตัวเอง ทำให้ Tool Calls ระหว่างทางไม่ปนเปื้อนออกมา มีเพียง Final Message เท่านั้นที่ส่งกลับไปยัง Parent Agent Isolation นี้เป็นเหตุผลที่ [Coordinator pattern and isolated subagent context](lesson:1.4) ถูกนำมาใช้ แม้ว่าจะไม่มีงานที่รันคู่ขนานกันเลยก็ตาม เพราะเป้าหมายหลักมักเป็นการป้องกันไม่ให้ Output ยาวเหยียดของ Tools หลุดเข้าไปรก Context ของ Main Agent"
+        },
+        {
+          "type": "paragraph",
+          "text": "การกำหนด Subagent ประกอบด้วย 3 Fields สำคัญ: `description` คือคำอธิบายรูปแบบภาษาธรรมชาติว่าควรเรียกใช้ Agent นี้เมื่อใด (Orchestrator จะอ่านค่านี้เพื่อเลือกว่าจะกระจายงานไปที่ไหน), `tools` คือ Whitelist ของ Tools ที่อนุญาตให้ใช้ (หากเว้นว่างไว้ Subagent จะ Inherit Tools ทุกตัวที่มี ทำให้สูญเสีย Scoping ไป), และ `prompt` ซึ่งเป็น System Prompt ของ Specialist แต่ละตัว"
+        },
+        {
+          "type": "paragraph",
+          "text": "ลองนึกภาพ Codebase Audit ที่มี 3 มิติ (Security Vulnerabilities, Code Quality และ Test Coverage) ซึ่งแต่ละด้านต้องใช้ Tools และโฟกัสคนละแบบ Architecture ที่เหมาะสมคือ Orchestrator 1 ตัวพร้อม Subagents 3 ตัว ที่กำหนด `description` และ `tools` ตรงตามขอบเขตงาน จากนั้น Security Scanner, Style Checker และ Coverage Checker จะสามารถรันพร้อมกันได้ทันที แทนที่จะต้องรอคิวรันทีละตัว"
+        },
+        {
+          "type": "paragraph",
+          "text": "เปรียบเทียบกับทางเลือกอื่น: \n- **ใช้ Prompt เดียวสั่งให้ Main Agent ทำทั้ง 3 ด้านต่อกัน**: Tool Outputs ของทุกมิติจะสะสมใน Context เดียว ทำให้คุณภาพและประสิทธิภาพลดลงเรื่อยๆ ตามขนาด Context ที่โตขึ้น \n- **ใช้ MCP Server ตัวเดียวเปิด Tools ทุกตัวให้ Main Agent**: เป็นการเพิ่ม Tools โดยไม่มีการแยก Context เมื่อ Agent มี Tools จากหลายโดเมนที่ไม่เกี่ยวข้องกัน จะเริ่มสับสนว่าควรใช้ Domain ไหน ยิ่งมี 20 Tools ขึ้นไปจะยิ่งเลือก Tool ผิดพลาดได้ง่าย \n- **ขยาย Context Window ให้ใหญ่ขึ้นพร้อม Extended Thinking**: พื้นที่ Context ที่มากขึ้นไม่ได้แก้ปัญหา เพราะโมเดลจะ Performance Drop ได้เมื่อ Context รก การเพิ่มพื้นที่ให้ข้อมูลขยะจึงยิ่งทำให้แย่ลงกว่าเดิม"
+        }
+      ]
+    },
+    {
+      "heading": "7. การย้าย Tight Tool Loop ไปประมวลผลในโค้ด (Moving a tight tool loop into code)",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "บางครั้ง Overhead หรือต้นทุนที่สูงไม่ได้เกิดจาก Subtasks แต่เกิดจากการเรียก Tool ซ้ำๆ หากสเต็ปใดต้องยิง Tool ย่อยๆ หลายสิบครั้งใน Loop การใช้ Tool Use แบบมาตรฐานจะต้องทำ Round Trip ผ่าน Model ทุกครั้ง และผลลัพธ์แต่ละครั้งจะสะสมใน Context การใช้ Programmatic Tool Calling จะเข้ามาตัด Overhead ตรงนี้ โดย Claude จะเขียนโค้ดเพื่อเรียกใช้ Tools เหล่านั้นภายใน Code Execution Container ทำให้ Loop ทำงานจบใน Container ทันที แทนที่จะต้องวิ่งกลับมาผ่าน Model ทุกรอบ"
+        },
+        {
+          "type": "paragraph",
+          "text": "ข้อดีหลักมาจาก Data Filtering ข้อมูลจะถูกประมวลผลและกรองก่อนส่งเข้า Context Window ของ Model ส่งผลให้ Latency ลดลงและประหยัด Token อย่างเห็นได้ชัด ฟีเจอร์นี้ต้องใช้ Code Execution Tool เวอร์ชัน `code_execution_20260120` ขึ้นไป"
+        },
+        {
+          "type": "paragraph",
+          "text": "อีก 2 ทางเลือกที่ดูคล้ายกันแต่แก้ปัญหาไม่ตรงจุด ได้แก่: Message Batches API ซึ่งประมวลผลแบบ Asynchronous และแยกอิสระจากกัน (ส่วนใหญ่เสร็จภายใน 1 ชั่วโมง) เหมาะกับงาน Bulk ที่ไม่ต้องรอผลทันที แต่ไม่สามารถส่งผลลัพธ์ของ Tool หนึ่งไปยังอีก Tool หนึ่งใน Live Loop ได้ ส่วนการ Wrap แต่ละ Tool Call เป็น Subagent แม้จะช่วยให้ Context ของ Orchestrator คลีน แต่การเพิ่ม Agent เข้ามาต่อหนึ่ง Call ในระบบ Multi-agent มักใช้ Token เปลืองกว่าเดิม 3 ถึง 10 เท่า ยิ่งทำให้ปัญหา Overhead แย่ลงไปอีก"
+        },
+        {
+          "type": "exam_trap",
+          "text": "จุดเน้นข้อสอบ: เลือกวิธีแก้ปัญหาให้ตรงจุด — หาก Overhead เกิดจากการเรียก Tool ย่อยๆ จำนวนมากในสเต็ปเดียว ให้ใช้ Programmatic Tool Calling, หากเกิดจาก Context บวมเพราะมีงานหลายส่วนปนกัน ให้ใช้ Subagents, หากเป็นงานประมวลผลแบบ Bulk ที่ไม่ต้องรอผลลัพธ์ทันที ให้ใช้ Message Batches"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การยัด Tight Loop ของ Tool Calls ย่อยๆ เข้า Message Batches API จะช่วยลด Overhead ต่อรอบได้ — เพราะ Batch Requests ทำงานแบบ Asynchronous และเป็นอิสระต่อกัน จึงไม่สามารถนำผลลัพธ์ของ Call หนึ่งไปป้อนต่อให้อีก Call หนึ่งได้ หากต้องการรัน Loop ต่อเนื่องโดยไม่เกิด Model Round Trip ทุกรอบ ต้องใช้ Programmatic Tool Calling ที่รัน Loop ในระดับโค้ด"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "56670",
+      "question": "Support-automation pipeline ถูก decompose ออกเป็น 2 subtasks: การจำแนกประเภท (classifying) ทิคเก็ตที่เข้ามาเป็นจำนวนมาก (high volume) และการร่างแผนแก้ไขปัญหาทางเทคนิคแบบละเอียด (detailed technical remediation plans) สำหรับกลุ่มที่ต้องให้ทีม engineering ติดตามต่อ ควรเลือกใช้โมเดล (model selection) อย่างไรกับ subtasks เหล่านี้?",
+      "options": [
+        "กำหนดให้ใช้ Claude Haiku 4.5 สำหรับ subtask การจำแนกประเภทที่มีปริมาณมาก และใช้ Claude Opus 4.8 สำหรับ subtask การร่างแผนแก้ไขปัญหา เพื่อจับคู่โมเดลให้เหมาะกับความซับซ้อนของงาน (matching model to complexity)",
+        "รันทุก subtask บน Claude Opus 4.8 โดยตั้งค่า effort ไว้ต่ำสำหรับการจำแนกประเภท เพื่อให้งานร่างแผนแก้ไขปัญหายังคงได้รับประสิทธิภาพเต็มที่ของโมเดล",
+        "รันทุก subtask บน Claude Haiku 4.5 และชดเชยคุณภาพของแผนแก้ไขปัญหาด้วย prompt ที่ยาวขึ้นซึ่งมี worked examples เพิ่มเติม",
+        "สลับโมเดลแบบสุ่ม (randomly) ไปมาระหว่าง subtasks ในทุกๆ request เพื่อเฉลี่ยค่าใช้จ่าย (cost) และ latency ตลอดทั้ง pipeline"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56669",
+      "question": "ทีมพัฒนาต้องการสร้าง Agent เพื่อตรวจสอบ codebase ขนาดใหญ่ใน 3 มิติที่ต่างกัน ได้แก่: ช่องโหว่ความปลอดภัย (security vulnerabilities), คุณภาพโค้ด (code quality), และความครอบคลุมของการทดสอบ (test coverage) ซึ่งแต่ละมิติต้องใช้ชุดเครื่องมือ (tools) และโฟกัสที่ต่างกัน วิธีการใด decompose ปัญหานี้ได้เหมาะสมที่สุดเมื่อใช้ Agent SDK?",
+      "options": [
+        "กำหนด Orchestrator agent ที่เรียกใช้ specialized subagents ผ่าน Agent tool โดยแต่ละ subagent ถูก configure ด้วยชุด tools ที่จำกัดขอบเขตและ description ที่ตรงกับ domain ของ subtask นั้นๆ",
+        "ส่ง prompt เดียวไปยัง main agent เพื่อสั่งให้ทำการตรวจสอบ code quality, จากนั้นทำ security scanning, และตามด้วย test coverage analysis ตามลำดับ โดยไม่ต้องตั้งค่า configuration เพิ่มเติม",
+        "ตั้งค่า MCP server ตัวเดียวที่เปิดให้เรียกใช้ security, quality, และ coverage checks เป็น 3 tools แยกกัน แล้วให้ primary agent เรียกใช้งานแต่ละ tool โดยตรงแทนที่จะมอบหมายงาน (delegating)",
+        "เพิ่ม context window ของ primary agent และพึ่งพา extended thinking เพื่อให้ agent สามารถให้เหตุผลครอบคลุมทั้ง 3 มิติของการรีวิวได้ภายใน continuous session เดียว"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "56672",
+      "question": "Decomposed data-processing workflow ต้องการให้ Claude เรียกใช้เครื่องมือขนาดเล็ก (small tools) หลายสิบตัวใน tight loop ซึ่งการส่งแต่ละ call ผ่าน conversational tool-use turn แบบมาตรฐานนั้นทำให้เกิด latency และ token overhead สูง เทคนิคใดช่วยแก้ปัญหานี้ได้?",
+      "options": [
+        "ใช้ Programmatic tool calling เพื่อให้ Claude เรียกใช้ tools ได้โดยตรงจาก code execution container ซึ่งช่วยลดรอบการส่งข้อมูลไปกลับ (round trips) และ token overhead ในแต่ละ call",
+        "ครอบการเรียก tool แต่ละตัวไว้ใน subagent ของตัวเอง เพื่อให้ orchestrator มองเห็นเฉพาะผลลัพธ์สุดท้าย ซึ่งช่วยลดจำนวน calls ที่ primary agent ต้องคอยติดตาม",
+        "รวมทุก tool calls แบบ batch เข้าเป็น request เดียวใน Message Batches เพื่อให้การเรียกใช้งานย่อยๆ จำนวนมากทำงานแบบ asynchronous ภายนอก conversation",
+        "เพิ่มค่า parameter effort บน primary model เพื่อให้โมเดลวางแผน calls ล่วงหน้าได้ไกลขึ้น และใช้ conversational turns น้อยลงในการทำงานให้เสร็จสิ้น"
+      ],
+      "explanation": ""
+    }
+  ]
+}

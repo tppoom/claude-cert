@@ -1,0 +1,160 @@
+{
+  "title": "MCP Transports และการเชื่อมต่อ Servers กับ Claude Code และ Agent SDK",
+  "objectives": [
+    "ประยุกต์ใช้กฎ stdio transport สำหรับ stdout, stderr และการ shutdown",
+    "Deploy Streamable HTTP server อย่างปลอดภัย พร้อมระบุ endpoints แบบ SSE และ WebSocket",
+    "ใช้ official SDKs ในการสร้าง server และเชื่อมต่อ client กับ Claude",
+    "ลงทะเบียน stdio, HTTP, SSE และ WebSocket servers ใน Claude Code",
+    "ตั้งค่า MCP servers และ tool permissions ใน Agent SDK พร้อมจัดการปัญหา startup timeouts"
+  ],
+  "key_concept": "กลไกการรับส่งข้อมูลของ MCP (stdio, HTTP, SSE, WebSocket) และการเชื่อมต่อ servers เข้ากับ Claude Code และ Agent SDK พร้อมการจัดการ permissions และ lifecycle",
+  "sections": [
+    {
+      "heading": "1. The stdio transport",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ในรูปแบบ stdio ตัว Client จะรัน Server เป็น Child Process โดย Server จะอ่านข้อความ JSON-RPC จาก stdin และส่งกลับผ่าน stdout ข้อความแต่ละชุดคือ Request, Notification หรือ Response ที่คั่นด้วย newline หนึ่งบรรทัด และห้ามมี newline แทรกอยู่ในตัวข้อความ สำหรับการ Logging เซิร์ฟเวอร์สามารถส่งข้อความแบบ UTF-8 ไปยัง stderr ได้ ซึ่ง Client อาจเลือกเก็บ Forward หรือ Ignore ก็ได้ โดย Client ต้องไม่ถือว่าข้อความใน stderr คือ Error"
+        },
+        {
+          "type": "exam_trap",
+          "text": "จุดที่มักเข้าใจผิดในข้อสอบ? (ทำไมถึงผิด): ไม่จริง: สามารถ print log ทั่วไปลง stdout ได้ — เหตุผลทางเทคนิคคือ stdout ถูกสงวนไว้สำหรับ Protocol Traffic เท่านั้น หากมีคำสั่ง print() หรือ Debug Log หลุดเข้าไปจะทำให้ Message Stream เสียหายทันที ดังนั้น Log ทั้งหมดต้องส่งไปที่ stderr เท่านั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "การ Shutdown จะถูกจัดการโดย Client โดยเริ่มจากปิด Input Stream ของ Server รอให้ Process ปิดตัวลง และจะบังคับ Terminate ทันทีหาก Process ไม่ยอมปิดภายในเวลาที่กำหนด"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: stdio Server สามารถพิมพ์ Debug Output ลง stdout ได้ แล้ว Client จะ Filter ออกให้เอง — เหตุผลคือ stdout รับได้เฉพาะ MCP Message ที่ถูกต้องตาม Spec เท่านั้น Logging ทั้งหมดต้องส่งผ่าน stderr ซึ่ง Client จะไม่นับว่าเป็นสัญญาณของ Error"
+        }
+      ]
+    },
+    {
+      "heading": "2. Streamable HTTP, sockets, และ remote deployment",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "Remote Server จะใช้ Streamable HTTP โดยเปิด MCP Endpoint เดียวที่รับคำขอแบบ POST ซึ่ง Client จะส่งแต่ละ Request หรือ Notification ของ JSON-RPC แยกเป็นแต่ละ POST โดยตรง Header Accept ของ Client จะต้องระบุทั้ง application/json และ text/event-stream ฝั่ง Server จะตอบกลับ Request เป็น JSON Object เดี่ยวๆ หรือเป็น SSE Stream สำหรับ Request นั้นๆ ก็ได้ ซึ่ง Stream นี้สามารถส่ง Notification ที่เกี่ยวข้อง เช่น Progress อัปเดตก่อนส่ง Response ตัวสุดท้าย แต่ Server ห้ามส่ง Request อิสระขึ้นมาบน Stream โดยการโต้ตอบจาก Server สู่ Client เช่น Sampling หรือ Elicitation จะถูกฝังไว้ใน Result ในฐานะ Input Request แทน หาก Client ยิง Notification เข้ามาและ Server ยอมรับ Server จะตอบกลับ 202 Accepted แบบไม่มี Body นอกจากนี้ แต่ละ POST จะต้องมี Metadata Headers แนบมาด้วย ได้แก่ Mcp-Method ในทุก Request และ Mcp-Name สำหรับ tools/call, resources/read และ prompts/get"
+        },
+        {
+          "type": "paragraph",
+          "text": "สำหรับการ Deployment มีกฎด้านความปลอดภัยหลัก 3 ข้อ: Server ต้องตรวจสอบ Origin Header ทุก Connection เพื่อป้องกันการโจมตีแบบ DNS Rebinding และต้องตอบกลับด้วย 403 Forbidden หาก Header ไม่ถูกต้อง, กรณี Server รันแบบ Local ควร Bind ไว้ที่ 127.0.0.1 ห้ามใช้ 0.0.0.0, และ Server ควรทำ Authentication ทุก Connection นอกจากนี้ Claude Code ยังรองรับการเชื่อมต่อไปยัง Legacy SSE Endpoints (--transport sse) และ WebSocket Endpoints (\"type\":\"ws\" พร้อม URL แบบ wss://) ได้อีกด้วย"
+        },
+        {
+          "type": "exam_trap",
+          "text": "คำถามหลอก / สิ่งที่มักเข้าใจผิด? (ทำไมถึงผิด): ไม่จริง: การรัน HTTP MCP Server ภายในเครื่องควร Bind เข้ากับ 0.0.0.0 เพื่อให้ทุก Client เข้าถึงได้ — เหตุผลคือ Local Server ต้อง Bind เฉพาะ localhost (127.0.0.1) เท่านั้น และต้องตรวจสอบ Origin Header เสมอเพื่อป้องกันช่องโหว่ DNS Rebinding"
+        }
+      ]
+    },
+    {
+      "heading": "3. Authoring with the official SDKs",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ในทางปฏิบัติเราแทบไม่ต้องเขียน JSON-RPC เอง สำหรับ Python แพ็กเกจ mcp มี FastMCP ให้ใช้งาน เพียงใช้ decorator @mcp.tool() ครอบฟังก์ชัน พร้อมระบุ type hints และ docstring ฟังก์ชันนั้นจะกลายเป็น tool ทันที จากนั้นสั่งรันผ่าน HTTP ด้วย mcp.run(transport=\"streamable-http\") ส่วนฝั่ง Client ใน TypeScript จะใช้ @modelcontextprotocol/sdk โดยสร้าง transport, สร้าง Client แล้วสั่ง connect นอกจากนี้ TypeScript SDK ของ Anthropic ยังมี helper functions (mcpTools, mcpMessages, mcpResourceToContent) ที่ช่วยแปลง tools, prompts และ resources จาก server ให้อยู่ในรูปแบบ types ของ Claude API ได้โดยตรง"
+        }
+      ]
+    },
+    {
+      "heading": "4. Connecting a server to Claude Code",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "การลงทะเบียน server ด้วยคำสั่ง claude mcp add ขึ้นอยู่กับรูปแบบของ server ปลายทาง: หากเป็น URL (remote server) ให้ใช้ --transport http (หรือ sse), หากเป็นคำสั่ง launch command (local server) ให้ใช้ --transport stdio โดยวางคำสั่งไว้หลังเครื่องหมาย -- และส่ง secrets ผ่านแฟล็ก --env สำหรับรูปแบบอื่นๆ เช่น WebSocket endpoint ให้ใช้คำสั่ง claude mcp add-json พร้อมส่ง config ในรูปแบบ JSON"
+        },
+        {
+          "type": "paragraph",
+          "text": "ใน JSON config รายการที่มีฟิลด์ url จำเป็นต้องระบุ type ให้ชัดเจนเสมอว่าเป็น http, sse หรือ ws เพราะหากไม่ระบุ type ตัว Claude Code จะมองว่าเป็น stdio server ส่งผลให้ connection ล้มเหลวทันที ทั้งนี้ ชื่อ server ต้องประกอบด้วยตัวอักษร, ตัวเลข, hyphens และ underscores เท่านั้น คุณสามารถจัดการ server ได้ผ่านคำสั่ง claude mcp list, claude mcp get <name> และ claude mcp remove <name> หรือพิมพ์ /mcp ภายใน session เพื่อตรวจสอบ server status นอกจากนี้ server ระดับ project scope ที่กำหนดใน .mcp.json จะมีสถานะเป็น pending จนกว่าจะได้รับการ approve ใน interactive claude session และ Claude Code จะแจ้งเตือนเมื่อพบ hidden whitespace ในค่า config หรือมีการตั้งชื่อ server ซ้ำกันข้าม scope"
+        },
+        {
+          "type": "exam_trap",
+          "text": "ใน JSON config ใส่แค่ url ก็เพียงพอ เพราะ Claude Code จะ infer เป็น HTTP ให้อัตโนมัติจาก URL? (ทำไมถึงผิด): ไม่จริง: config entry ที่ไม่ระบุ type จะถูกอ่านเป็น stdio เสมอ ดังนั้นรายการที่มี url จึงต้องระบุ type เป็น http, sse หรือ ws อย่างชัดเจนเสมอ"
+        }
+      ]
+    },
+    {
+      "heading": "5. การเชื่อมต่อ Server เข้ากับ Agent SDK",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ใน Agent SDK คุณส่ง Server ผ่าน option `mcpServers` (หรือ `mcp_servers` ใน Python) ซึ่งใช้ Schema เดียวกัน: ระบุ `type` และ `url` สำหรับ Remote Server หรือ `command` และ `args` สำหรับ stdio Server (สามารถตั้งค่าในไฟล์ `.mcp.json` ได้เช่นกัน) ทั้งนี้ การ Config Server เพียงอย่างเดียว **ไม่ได้** แปลว่าอนุญาตให้ Agent เรียกใช้ Tools นั้นได้ทันที คุณต้องกำหนด Permission ใน `allowedTools` เสียก่อน โดย Tool แต่ละตัวจะใช้รูปแบบชื่อ `mcp__<server>__<tool>` เช่น การระบุ Wildcard `mcp__claude-code-docs__*` จะเป็นการอนุญาตทุก Tool บน Server นั้น"
+        },
+        {
+          "type": "paragraph",
+          "text": "ความเร็วในการเชื่อมต่อ Server ช่วง Startup มีผลต่อ First Turn ของ Agent โดย Tool Search ซึ่งเปิดใช้งานเป็นค่าเริ่มต้น จะทำให้ First Turn รอเฉพาะ Server ที่ตั้งค่า `alwaysLoad: true` เท่านั้น ส่วน Server ที่เหลือจะทำการเชื่อมต่อใน Background ต่อไป"
+        },
+        {
+          "type": "table",
+          "caption": "กรณีที่ MCP Server ทำให้ First Turn ของ Agent ล่าช้า",
+          "headers": [
+            "Server type",
+            "Delays first turn?",
+            "Timeout"
+          ],
+          "rows": [
+            [
+              "stdio server, or HTTP/SSE server without a cached tool list",
+              "ใช่ จนกว่าจะเชื่อมต่อสำเร็จ",
+              "MCP_TIMEOUT (ค่าเริ่มต้น 30 วินาที)"
+            ],
+            [
+              "Remote server with a cached tool list",
+              "ไม่; Tool ที่ถูก Cache ไว้จะพร้อมใช้งานตั้งแต่ First Turn ทันที",
+              "ไม่มีผลต่อ Startup (การเชื่อมต่อแบบ Deferred จะมี Timeout แยกต่างหาก)"
+            ],
+            [
+              "In-process SDK server",
+              "ใช่ จนกว่าจะเชื่อมต่อและ List Tool สำเร็จ",
+              "MCP_TIMEOUT ต่อรอบการเชื่อมต่อ"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "Practise it for real",
+      "items": [
+        {
+          "type": "paragraph",
+          "text": "ลงทะเบียน Local stdio MCP Server ใน Claude Code ตรวจสอบสถานะการเชื่อมต่อ และทดลองลบออก"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "55757",
+      "question": "Platform engineer กำลัง integrate MCP server ตัวใหม่เข้ากับ internal Claude Code agent โดยเอกสารของผู้ให้บริการระบุให้รัน `npx internal-tools-mcp` เป็น local process บนเครื่องเดียวกันกับที่โฮสต์ agent และไม่ได้ให้ network endpoint มา ทาง engineer ควรตั้งค่า transport type แบบใดสำหรับ server นี้?",
+      "options": [
+        "stdio",
+        "SSE",
+        "Streamable HTTP",
+        "WebSocket"
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55758",
+      "question": "ทีมต้องการเชื่อมต่อ agent เข้ากับ third-party analytics MCP server โดยเอกสารของผู้ให้บริการระบุ hosted endpoint URL มาเป็น `https://analytics.example.com/mcp` แทนที่จะเป็นคำสั่ง local สำหรับรัน การตั้งค่า (configuration) ข้อใดเหมาะสมที่สุดสำหรับ integration pattern นี้?",
+      "options": [
+        "กำหนด \"type\" ของ server เป็น \"http\" และระบุ URL ที่กำหนดให้",
+        "กำหนด \"type\" ของ server เป็น \"stdio\" และรันคำสั่ง local binary",
+        "ห่อหุ้ม (wrap) analytics API เป็น in-process SDK MCP server แทน",
+        "ชี้ server ไปยัง URL โดยใช้คู่คำสั่ง \"command\" และ \"args\""
+      ],
+      "explanation": ""
+    },
+    {
+      "id": "55759",
+      "question": "Developer กำลังตั้งค่า MCP server ชื่อ `github` ที่มี tool ชื่อ `list_issues` หากต้องการทำ auto-approve เฉพาะ tool นี้ตัวเดียว โดยไม่อนุญาต tool อื่นๆ บน server ควรเพิ่ม entry ใดลงใน `allowedTools`?",
+      "options": [
+        "mcp__github__list_issues",
+        "github__list_issues",
+        "mcp__github__*",
+        "list_issues__github"
+      ],
+      "explanation": ""
+    }
+  ]
+}
