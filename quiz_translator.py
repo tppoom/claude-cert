@@ -19,26 +19,7 @@ def load_cache():
 
 load_cache()
 
-TERM_REPLACEMENTS = [
-    (r"\bเจ้าหน้าที่\s*SDK\b", "Agent SDK"),
-    (r"\bตัวแทน\s*SDK\b", "Agent SDK"),
-    (r"\bSDK\s*ของลูกค้า\b", "Client SDK"),
-    (r"\bSDK\s*ของไคลเอ็นต์\b", "Client SDK"),
-    (r"\bSDK\s*ของไคลเอนต์\b", "Client SDK"),
-    (r"\bเครื่องมือวิ่ง\b", "Tool Runner"),
-    (r"\bนักดนตรีประสานเสียง\b", "Orchestrator"),
-    (r"\bผู้เรียบเรียง\b", "Orchestrator"),
-    (r"\bตัวแทนที่มีการจัดการ\b", "Managed Agents"),
-    (r"\bตัวแทนหลัก\b", "Lead Agent"),
-    (r"\bตัวแทนย่อย\b", "Subagent"),
-    (r"\bเจ้าหน้าที่ย่อย\b", "Subagent"),
-    (r"\bเจ้าหน้าที่ชั้นรอง\b", "Subagent"),
-    (r"\bระบบเจ้าหน้าที่\b", "ระบบเอเจนต์"),
-    (r"\bเจ้าหน้าที่คนเดียว\b", "เอเจนต์คนเดียว"),
-    (r"\bตะขอ\b", "Hooks"),
-    (r"\bเปลือกหอย\b", "Shell"),
-    (r"\bกระแสการควบคุม\b", "Control Flow"),
-]
+from naturalizer import naturalize_text
 
 def clean_thai_spacing(text):
     if not text:
@@ -46,15 +27,14 @@ def clean_thai_spacing(text):
     # Remove HTML entities like &quot; if any
     text = text.replace("&quot;", '"').replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&#39;", "'")
     
-    # Clean inaccurate literal translations
-    for pat, rep in TERM_REPLACEMENTS:
-        text = re.sub(pat, rep, text, flags=re.IGNORECASE)
+    # Clean inaccurate literal translations and restore English tech terms
+    text = naturalize_text(text)
 
     # Clean jammed English labels from extraction
-    text = re.sub(r'Exam traps?\s*', 'Exam Trap: ', text)
-    text = re.sub(r'Predict first\s*', 'Predict First: ', text)
-    text = re.sub(r'On the exam\s*', 'On the Exam: ', text)
-    text = re.sub(r'Why is that wrong\?\s*', ' (ทำไมถึงผิด): ', text)
+    text = re.sub(r'Exam traps?\s*', 'Exam Trap: ', text, flags=re.I)
+    text = re.sub(r'Predict first\s*', 'Predict First: ', text, flags=re.I)
+    text = re.sub(r'On the exam\s*', 'On the Exam: ', text, flags=re.I)
+    text = re.sub(r'Why is that wrong\?\s*', ' (ทำไมถึงผิด): ', text, flags=re.I)
     
     # Proper spacing between Thai and English/Digits
     text = re.sub(r'([\u0e00-\u0e7f])([A-Za-z0-9])', r'\1 \2', text)

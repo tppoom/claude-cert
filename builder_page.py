@@ -136,8 +136,8 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
         # Collect raw paragraphs for synthesis & English reference
         raw_paras = [clean_thai_spacing(it["text"]) for it in sec.get("items", []) if it["type"] == "paragraph"]
         
-        # Generate rich Thai prose
-        thai_prose_html = generate_thai_section_prose(h, raw_paras)
+        # Generate rich Thai prose (prose is rendered cleanly via sec_elements)
+        thai_prose_html = ""
         
         # Render section elements in original narrative order
         sec_elements = ""
@@ -153,9 +153,10 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
                 sec_elements += render_predict_first_html(it, i)
             elif itype == "exam_trap":
                 trap_raw = it["text"]
-                clean_trap_en = clean_thai_spacing(re.sub(r'^(?:Exam Trap:?\s*|กับดักการสอบ:?\s*)', '', trap_raw).strip())
+                trap_clean_pat = re.compile(r'^(?:(?:จุดที่ข้อสอบชอบหลอก|กับดักการสอบ|หลุมพรางการสอบ|Exam\s*Trap)[\s:\(\)]*)+', re.I)
+                clean_trap_en = clean_thai_spacing(trap_clean_pat.sub('', trap_raw).strip())
                 trap_th = get_thai_explanation(trap_raw)
-                clean_trap_th = clean_thai_spacing(re.sub(r'^(?:Exam Trap:?\s*|กับดักการสอบ:?\s*)', '', trap_th).strip())
+                clean_trap_th = clean_thai_spacing(trap_clean_pat.sub('', trap_th).strip())
                 trap_sents = split_thai_sentences(clean_trap_th)
                 if len(trap_sents) > 1:
                     th_trap_body = '<ul class="space-y-2 mt-2">' + "".join(f'<li class="flex items-start gap-2 text-xs sm:text-sm text-amber-200/90 leading-relaxed"><span class="text-amber-400 font-bold shrink-0 mt-0.5">▸</span><div class="grow">{highlight_tech_terms(s)}</div></li>' for s in trap_sents) + '</ul>'

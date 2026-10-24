@@ -7,124 +7,76 @@ CODE_TOKENS = [
     r'messages\.batches', r'tool_choice', r'PreToolUse', r'PostToolUse', r'StopHook',
     r'/v1/messages', r'/v1/batches', r'agent\.tool_use', r'sandbox', r'sys\.stdout',
     r'temperature', r'top_p', r'top_k', r'max_tokens', r'stop_sequences',
-    r'asyncio\.gather', r'stream=True', r'tools=\[', r'thinking\.budget_tokens'
+    r'asyncio\.gather', r'stream=True', r'tools=\[', r'thinking\.budget_tokens',
+    r'inputSchema', r'outputSchema', r'output_config\.effort'
 ]
 
 # Conceptual, architectural, and framework terms
 CONCEPT_TERMS = [
     r'Client SDK', r'Agent SDK', r'Managed Agents', r'Claude Code',
     r'Orchestrator', r'Subagents?', r'Workflows?', r'Autonomous Agents?',
-    r'Context Windows?', r'Prompt Caching', r'Model Context Protocol',
-    r'MCP', r'Zero Data Retention', r'ZDR', r'Human-in-the-[lL]oop',
+    r'Context Windows?', r'Context Pollution', r'Context Isolation',
+    r'Prompt Caching', r'Model Context Protocol', r'MCP Server', r'MCP Client',
+    r'MCP', r'Zero Data Retention', r'ZDR', r'Human-in-the-[lL]oop', r'HITL',
     r'JSON Schema', r'Tool Runner', r'Messages API', r'Evaluator-Optimizer',
-    r'Chain-of-Thought', r'Few-shot', r'Prompt Injection', r'Jailbreak',
-    r'Server-Sent Events', r'SSE', r'Thinking Modes?', r'Fast Mode',
+    r'Chain-of-Thought', r'Few-shot', r'Zero-shot', r'Prompt Injection', r'Jailbreak',
+    r'Server-Sent Events', r'SSE', r'Thinking Modes?', r'Thinking Budget', r'Fast Mode',
+    r'Model Pinning', r'Pinned Version', r'Capability Bloat', r'Single Agent',
+    r'Parallelization', r'Tool Output Pruning', r'Augmented LLM', r'Building Blocks?',
+    r'Prompt Engineering', r'System Prompt', r'AssistantMessage', r'UserMessage', r'ResultMessage',
     r'Claude 3\.5 Sonnet', r'Claude 3\.5 Haiku', r'Claude 3 Opus',
     r'Claude 3 Sonnet', r'Claude 3 Haiku'
 ]
 
+# Clean discourse and sentence starters (never slicing inside existing clauses)
 STARTERS = [
-    # Pronouns & Direct Subjects
-    r'คุณ(?:เขียน|จัดการ|สามารถ|ไม่|ต้อง|จะ|กำหนด|เลือก|ส่ง|นำ|ลอง|ให้|ยังคง|เริ่ม|ใช้|ประเมิน|ดู|พบ|สร้าง|รัน)',
-    r'(?:Claude|คลอดด์|Anthropic)\s*(?:จะ|อาจ|สามารถ|ประเมิน|ตอบสนอง|ได้|จัดกลุ่ม|แนะนำ|ช่วย)',
-    r'โมเดล(?:จะ|สามารถ|ต้อง|ให้|นี้|ที่|เหล่านั้น|นั้น)',
-    r'ระบบ(?:จะ|สามารถ|มี|นี้|ที่|อัตโนมัติ|เหล่านั้น)',
-    r'เอเจนต์(?:จะ|สามารถ|ทุก|นี้|ที่|ปล่อย|เรียก|คือ|ช่วย|ย่อย|หลัก|เหล่านั้น)',
-    r'ตัวแทน(?:จะ|สามารถ|ทุก|นี้|ที่|ปล่อย|เรียก|คือ|ช่วย|ย่อย|หลัก|เหล่านั้น)',
-    r'เวิร์กโฟลว์(?:เรียกใช้|มี|สามารถ|จะ|คือ|นี้|ที่)',
-    r'ไคลเอ็นต์(?:จะ|อาจ|สามารถ|มี|ของ|อ่าน|เขียน|รับ|ส่ง)',
-    r'เซิร์ฟเวอร์(?:จะ|อาจ|สามารถ|มี|อ่าน|เขียน|รับ|ส่ง)',
-    r'ผู้ใช้(?:ที่|จะ|สามารถ|เหล่านั้น)',
-    r'นักพัฒนา(?:ที่|จะ|สามารถ|ของ)',
-    r'ทีม(?:วิศวกร|พัฒนา|ความปลอดภัย|ที่)',
-    r'บริการนี้(?:เหมาะ|ช่วย|จะ)',
-    r'สิ่งนี้(?:ช่วย|ทำ|เป็น|หมายถึง)',
-    r'บาง(?:งาน|ครั้ง|ระบบ|กรณี)',
-    
-    # Quantifiers & Noun phrases
-    r'ทุก(?:ระบบ|ครั้ง|ขั้นตอน|กรณี|ตัวเลือก|โมเดล|เอเจนต์|คน)',
-    r'แต่ละ(?:เลเยอร์|ตัวเลือก|ขั้นตอน|แบบ|รุ่น|รอบ|งาน|เซสชัน|ส่วน|ID|ฟิลด์|คีย์|พารามิเตอร์|โมเดล|เอเจนต์|เครื่องมือ|รายการ|ข้อความ)',
-    r'ประการ(?:แรก|ที่สอง|ที่สาม|สุดท้าย)',
-    r'การ(?:วิจัย|ค้นหา|ประเมิน|ทำงาน|ทดสอบ|สลับ|เลือก|สร้าง|กำหนด|ใช้งาน|จัดการ|เรียก|ตอบสนอง|ตั้งค่า|ปักหมุด|วิ่งซ้ำ|ประสานงาน|รวม|ดำเนินการ|บีบอัด|เขียน|เข้าถึง|สนทนา|ตอบกลับ|แลกเปลี่ยน|เชื่อมต่อ|กระตุ้น|แยกบริบท|ตรวจสอบสิทธิ์)',
-    r'ความ(?:แตกต่าง|สามารถ|เป็นไปได้|เสี่ยง|ถูกต้อง)',
-    r'(?:ต้นทุน|ค่าใช้จ่าย|ความเสี่ยง|ข้อดี|ข้อเสีย|เป้าหมาย|ผลลัพธ์|กฎ|ข้อแตกต่าง|จุดประสงค์|จุดเด่น|สิ่งสำคัญ)(?:หลัก|การออกแบบ|นี้)?คือ',
-    r'งานแบบ(?:แบตช์)?',
-    r'งาน(?:วิศวกรรม|แบบ|ย่อย)',
-    r'จอแสดงผล(?:ความคืบหน้า)?',
-    r'UI\s*(?:แบบสด)?',
-    r'ปลั๊กอิน(?:ที่|นี้|จะ)?',
-    r'กลไก(?:เดียวนี้|นี้)?',
-    r'มี(?:สองวิธี|หลายวิธี|ข้อดี|ข้อเสีย|ตัวเลือก)',
-    r'การคิดแบบ(?:ปรับตัวได้|ขยาย)?',
-    r'งบประมาณ(?:ต้อง|โทเค็น)?',
-    r'หน้าต่างบริบท(?:คือ|จะ|มี)?',
-    r'สคีมา(?:คือ|จะ|มี)?',
-    r'รูปแบบที่(?:ง่าย|ซับซ้อน|เหมาะ)?',
-    r'ขั้นตอน(?:สุดท้าย|แรก|ที่สอง|ที่สาม)',
-    r'ยืนยันว่า',
-    r'ตั้งแต่(?:รุ่น|เวอร์ชัน|วันนี้|นั้น|เริ่ม|ระดับ|ปี|เดือน|Claude)',
-    r'(?<!ใน)รุ่น(?:เก่า|ใหม่|ก่อนหน้า)(?:จะ|มี|เป็น)?',
-    r'ปัญหา(?:ใน|ด้าน|เรื่อง)',
-    r'ความยุติธรรม(?:เป็น|คือ)',
-    r'ความลับ(?:ที่)?',
-    r'คำจำกัดความ(?:ของ)?',
-    r'ชื่อ(?:เครื่องมือ|โมเดล|ฟังก์ชัน|พารามิเตอร์)?(?:ต้อง|ควร|มี)',
-    r'กฎ(?:เช่น|ที่|สิทธิ์|ข้อกำหนด|ความปลอดภัย)',
-    r'ข้อความ(?:ใดก็ตาม|ที่สร้างขึ้น|ตอบกลับ)',
-    r'แพลตฟอร์ม(?:ที่|จะ)?',
-    r'เครื่องมือ(?:ที่|นี้|จะ|มากเกินไป)',
-    r'ทั้งสอง(?:ฝ่าย|อย่าง|วิธี)?(?:ต่างกัน|แตกต่าง)',
-    r'สถาปัตยกรรม(?:ที่)?',
-    r'เกตเวย์(?:จัดการ|นี้)?',
-    r'โค้ด(?:แอปพลิเคชัน|ของคุณ)?(?:จะ)?',
-    r'สถานการณ์(?:แรก|ที่สอง|ที่สาม|สุดท้าย)(?:คือ)?',
-    r'แทนที่จะ(?:ทําเช่นนั้น|ทำเช่นนั้น)?',
-    
-    # Connectives & Adverbs
+    # Discourse Connectives & Transitions
     r'นอกจากนี้', r'อย่างไรก็ตาม', r'ตัวอย่างเช่น', r'ในทางกลับกัน', r'ในขณะเดียวกัน',
-    r'อันที่จริง', r'โดยสรุป', r'ท้ายที่สุด', r'นอกเหนือจาก(?:นั้น|พวกเขา|นี้)',
-    r'โดย(?:ปกติแล้ว|ทั่วไปแล้ว|ค่าเริ่มต้น|อัตโนมัติ|ธรรมชาติ)',
-    r'ดังนั้น', r'ทั้งนี้',
-    r'(?<!หลัง)จากนั้น(?:จะ|ก็)?',
+    r'อันที่จริง', r'โดยสรุป', r'ท้ายที่สุด', r'ดังนั้น', r'ทั้งนี้', r'แทนที่จะ(?:ทำเช่นนั้น)?',
     
-    # Prepositional & Temporal
-    r'ใน\s*(?:TypeScript|Python|กรณี|บทเรียน|การรัน|การวิจัย|สตรีม|ระบบ|เซสชัน|ที่สุด)',
-    r'สำหรับ\s*(?:แอปพลิเคชัน|งาน|กรณี|ระบบ|โมเดล|เอเจนต์|ผู้ใช้|การ|สิ่งนั้น|ข้อมูลนี้|สิ่งนี้)',
-    r'สําหรับ\s*(?:แอปพลิเคชัน|งาน|กรณี|ระบบ|โมเดล|เอเจนต์|ผู้ใช้|การ|สิ่งนั้น|ข้อมูลนี้|สิ่งนี้)',
-    r'ภายใต้\s*(?:การ|โหมด|สภาวะ|auto)',
-    r'เมื่อ\s*(?:รันไทม์|คุณ|นักพัฒนา|โมเดล|ระบบ|เซสชัน|เกิด|งาน|ID|โค้ด|เครื่องมือ|ข้อมูล|ได้รับ)',
-    r'หาก\s*(?:คุณ|นักพัฒนา|โมเดล|ระบบ|เพื่อนร่วมงาน|ผลลัพธ์|ต้องการ|ค่า|ไม่มี|ID|โค้ด|เครื่องมือ|เซสชัน|ข้อมูล)',
-    r'ถ้า\s*(?:คุณ|นักพัฒนา|โมเดล|ระบบ|ID|โค้ด|เครื่องมือ|เซสชัน|ข้อมูล)',
-    r'เนื่องจาก\s*(?:เวิร์กโฟลว์|ระบบ|โมเดล|เอเจนต์|การ)?',
-    r'ข้อ(?:แรก|ที่สอง|ที่สาม|สุดท้าย|สำคัญ)',
-    r'ส่วน(?:นี้|ที่)',
+    # Conditional & Temporal Clauses
+    r'หาก\s+[ก-๙a-zA-Z0-9_]+', r'ถ้า\s+[ก-๙a-zA-Z0-9_]+', r'เมื่อ\s+[ก-๙a-zA-Z0-9_]+',
     
     # Imperatives & Advice
-    r'อย่า\s*(?:หยุด|ลืม|ใช้|ปล่อย|พึ่งพา)',
-    r'โปรด\s*(?:ระบุ|ตรวจสอบ|ใช้)',
-    r'ระวัง\s*(?:การ|ว่า)',
-    r'ควร\s*(?:ใช้|ระบุ|กำหนด)',
-    r'ให้\s*(?:เริ่มต้น|พิจารณา|ใช้|ส่ง|ถาม)',
-    r'ตั้ง(?:ชื่อ|ค่า)',
-    r'เพิ่ม(?:ฟิลด์|เติม|โค้ด)',
-    r'ไม่มี(?:สิ่งใด|อะไร|ใคร)'
+    r'อย่า\s+[ก-๙a-zA-Z0-9_]+', r'โปรด\s+[ก-๙a-zA-Z0-9_]+', r'ระวัง\s+[ก-๙a-zA-Z0-9_]+',
+    r'ข้อควรระวัง\b', r'คำเตือน\b', r'จุดสังเกต\b',
+    
+    # Quantifiers & Structure
+    r'ขั้นตอนที่\s*\d+', r'ประการ(?:แรก|ที่สอง|ที่สาม|สุดท้าย)',
+    r'สำหรับ\s+[ก-๙a-zA-Z0-9_]+', r'สําหรับ\s+[ก-๙a-zA-Z0-9_]+',
+    
+    # Specific Architectural Topic Subjects
+    r'งานแบบ(?:แบทช์|แบตช์)', r'จอแสดงผลความคืบหน้า', r'หน้าจอแสดงผล',
+    r'UI\s*แบบสด', r'ตัววงจร(?:นั้น)?', r'คุณยังคง'
 ]
 
 PAT_STARTERS = '|'.join(STARTERS)
-BAD_CONJUNCTIONS = {'และ', 'หรือ', 'แต่', 'ว่า', 'โดย', 'เพื่อ', 'ซึ่ง', 'ที่', 'กับ', 'เช่น', 'รวมถึง', 'ทั้ง', 'ของ', 'คือ', ':', ',', 'ให้'}
+
+TRANSITIVE_VERBS = [
+    "ต้องการ", "ปรับ", "เลือก", "สร้าง", "เรียก", "ใช้", "รัน", "ส่ง", "พบ", 
+    "มี", "เป็น", "คือ", "ได้", "ให้", "เริ่ม", "ช่วย", "ทำ", "รู้", "เห็น", 
+    "ระบุ", "กำหนด", "จัด", "ทดสอบ", "ประเมิน", "รองรับ", "ครอบคลุม", "รวม",
+    "นำ", "ถือ", "เขียน", "อ่าน", "รับ", "ส่งผ่าน", "ผ่าน", "เข้าสู่", "เชื่อมต่อ"
+]
+
+PREPOSITIONS_CONJUNCTIONS = [
+    "และ", "หรือ", "แต่", "ว่า", "โดย", "เพื่อ", "ซึ่ง", "ที่", "กับ", "เช่น", 
+    "รวมถึง", "ทั้ง", "ของ", "จาก", "สู่", "ต่อ", "ระหว่าง", "ตาม", "ด้วย",
+    "ใน", "บน", "ใต้", "เกี่ยวกับ", "ด้าน", "ทาง", "เพื่อที่", "โดยที่", "เนื่องจาก",
+    "ไม่", "ไม่ได้", "มิได้", "ที่จะ", "ซึ่งจะ", "อันจะ", "ที่ต้อง", "ที่ควร"
+]
+
+ALL_BAD_ENDINGS = set(TRANSITIVE_VERBS + PREPOSITIONS_CONJUNCTIONS)
 
 def is_bad_prefix(prefix):
     prefix = prefix.strip()
     if not prefix:
         return False
-    if prefix in BAD_CONJUNCTIONS:
+    if len(prefix) < 25:
         return True
-    if any(prefix.endswith(c) for c in ['และ', 'หรือ', 'แต่', 'ว่า', 'โดย', 'เพื่อ', 'ซึ่ง', 'กับ', 'รวมถึง', ' ให้', 'ยังมี', 'เพื่อให้', 'โดยที่', 'และใน', 'แต่ใน', 'ที่อยู่', 'รอบๆ']):
-        return True
-    if prefix.endswith('ที่') and not any(prefix.endswith(w) for w in ['คงที่', 'หน้าที่', 'สถานที่', 'พื้นที่', 'เต็มที่', 'ทันที', 'ทุกที่', 'เหล่านี้']):
-        return True
-    if prefix.endswith('ของ') and not any(prefix.endswith(w) for w in ['สิ่งของ', 'ข้าวของ']):
-        return True
+    for w in ALL_BAD_ENDINGS:
+        if prefix.endswith(w) or prefix.endswith(w + " ") or prefix.endswith(w + ":"):
+            return True
     return False
 
 def highlight_tech_terms(text):
@@ -239,8 +191,8 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
     p_th = clean_thai_spacing(p_th)
     
     # Clean glued exam labels
-    p_th = re.sub(r'^(?:กับดักการสอบ|Exam Trap:?\s*)(.+)$', r'⚠️ จุดที่ข้อสอบชอบหลอก: \1', p_th)
-    p_th = re.sub(r'^(?:คาดการณ์ก่อน|Predict First:?\s*)(.+)$', r'🔮 คาดการณ์ก่อนตอบ: \1', p_th)
+    p_th = re.sub(r'^(?:(?:จุดที่ข้อสอบชอบหลอก|กับดักการสอบ|หลุมพรางการสอบ|Exam\s*Trap)[\s:\(\)]*)+', '⚠️ จุดที่ข้อสอบชอบหลอก: ', p_th)
+    p_th = re.sub(r'^(?:(?:คาดการณ์ก่อนตอบ|คาดการณ์ก่อน|Predict\s*First)[\s:\(\)]*)+', '🔮 คาดการณ์ก่อนตอบ: ', p_th)
 
     # 1. Numbered Sequence Step List (Cards with step badges)
     th_steps = extract_numbered_steps(p_th)
@@ -333,22 +285,13 @@ def format_readable_content(p_th, p_raw, is_first_para=False):
                 normal_points.append(pt)
                 
         bullet_lis = ""
-        lead_topic_pat = re.compile(
-            r'^((?:งานแบบแบตช์|จอแสดงผลความคืบหน้า|UI\s*แบบสด|ใน\s+[A-Za-z]+|ประการ(?:แรก|ที่สอง|ที่สาม|สุดท้าย)|ตัวแทน|เอเจนต์(?:ย่อย)?|เวิร์กโฟลว์|การวิจัย|การค้นหา|การทดสอบ|การประเมิน|การแยกบริบท|การเฉพาะทาง|การจัดการ|การควบคุม|ความแตกต่าง|ผลลัพธ์|ต้นทุน|ข้อกำหนด|เป้าหมาย|กฎการออกแบบ|สคีมา|หน้าต่างบริบท|โมเดล|ระบบ|ไคลเอ็นต์|เซิร์ฟเวอร์))'
-            r'[:\s]*(.*)$'
-        )
         for pt in normal_points:
-            m_colon = re.match(r'^([^:]{2,35}):\s*(.+)$', pt)
+            m_colon = re.match(r'^([^:–—]{2,35})[:–—]\s*(.+)$', pt)
             if m_colon:
                 term, desc = m_colon.group(1), m_colon.group(2)
                 pt_fmt = f'<strong class="text-indigo-300 font-semibold">{highlight_tech_terms(term)}:</strong> <span class="text-slate-200">{highlight_tech_terms(desc)}</span>'
             else:
-                m_lead = lead_topic_pat.match(pt)
-                if m_lead and len(m_lead.group(2).strip()) > 3:
-                    head, rest = m_lead.group(1), m_lead.group(2).strip()
-                    pt_fmt = f'<strong class="text-indigo-300 font-semibold">{head}:</strong> <span class="text-slate-200">{highlight_tech_terms(rest)}</span>'
-                else:
-                    pt_fmt = f'<span class="text-slate-200">{highlight_tech_terms(pt)}</span>'
+                pt_fmt = f'<span class="text-slate-200">{highlight_tech_terms(pt)}</span>'
                 
             bullet_lis += f"""
             <li class="flex items-start gap-3 p-3 rounded-xl border border-slate-800/80 bg-slate-950/40 text-xs sm:text-sm leading-relaxed hover:border-indigo-500/30 transition-colors shadow-xs">

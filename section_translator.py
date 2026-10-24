@@ -65,6 +65,12 @@ HEADING_THAI = {
     "a/b testing prompts: baselines, segments and versioned rollout": "การทำ A/B Testing สำหรับพร้อมต์: ค่ามาตรฐานอ้างอิง, การแบ่งกลุ่มทดสอบ และการ Rollout แบบเวอร์ชัน",
     "human approval checkpoints in claude code and the agent sdk": "จุดตรวจการอนุมัติโดยมนุษย์ (Human Approval Checkpoints) ใน Claude Code และ Agent SDK",
     "hipaa, baas and zero data retention for claude": "การปฏิบัติตามกฎหมาย HIPAA, ข้อตกลง BAA และนโยบายไม่เก็บรักษาข้อมูล (Zero Data Retention)",
+    "augmented llm as the building block": "Augmented LLM ในฐานะ Building Block พื้นฐาน",
+    "the augmented llm as the building block": "Augmented LLM ในฐานะ Building Block พื้นฐาน",
+    "workflow, agent and augmented llm patterns for claude": "รูปแบบสถาปัตยกรรมสำหรับ Claude: Workflows, Single Agent และ Augmented LLM",
+    "multi-agent design: when to split and how to brief subagents": "การออกแบบระบบ Multi-Agent: เกณฑ์การแบ่งงานและวิธีกำหนดบทบาทของ Subagents",
+    "business requirements to model selection criteria": "จากข้อกำหนดทางธุรกิจสู่เกณฑ์การเลือกโมเดล (Model Selection Criteria)",
+    "from business requirements to selection criteria": "จากข้อกำหนดทางธุรกิจสู่เกณฑ์การเลือกโมเดล (Model Selection Criteria)",
     "structured discovery and requirement gathering for claude solutions": "การค้นหาความต้องการและการรวบรวมข้อกำหนดเชิงโครงสร้างสำหรับโซลูชัน Claude",
 }
 
@@ -77,13 +83,13 @@ def get_thai_heading(h_en):
             prefix = num_match.group(1) + " " if num_match else ""
             return prefix + v
     try:
-        from quiz_translator import get_thai_explanation
+        from quiz_translator import get_thai_explanation, clean_thai_spacing
         num_match = re.match(r"^(\d+\.)\s*", h_en)
         prefix = num_match.group(1) + " " if num_match else ""
         raw_core = re.sub(r"^\d+\.\s*", "", h_en).strip()
         th_core = get_thai_explanation(raw_core)
         if th_core and th_core != raw_core:
-            return prefix + th_core
+            return prefix + clean_thai_spacing(th_core)
     except Exception:
         pass
     return h_en
