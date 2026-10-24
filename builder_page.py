@@ -6,6 +6,7 @@ from section_translator import get_thai_heading
 from domain_knowledge import get_thai_objective, get_thai_key_concept
 from quiz_translator import get_thai_explanation, clean_thai_spacing
 from rich_formatter import format_readable_content, highlight_tech_terms, split_thai_sentences
+from exam_summary import render_exam_summary_section
 
 def build_sidebar_html(catalog, current_idx, course_type):
     domains_map = {}
@@ -111,6 +112,7 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
         th_h = clean_thai_spacing(get_thai_heading(h))
         clean_id = re.sub(r"[^a-zA-Z0-9]+", "-", h).lower().strip("-")
         toc_links += f'<li><a href="#{clean_id}" class="text-slate-400 hover:text-indigo-300 transition-colors flex items-center gap-2"><span class="text-indigo-500 text-xs">▸</span><span>{th_h}</span></a></li>'
+    toc_links += f'<li class="pt-2 border-t border-slate-800/80"><a href="#exam-summary" class="text-amber-400 hover:text-amber-300 font-semibold transition-colors flex items-center gap-2"><span class="text-amber-400 text-xs">⚡</span><span>สรุปสำคัญก่อนสอบ (Exam Cram Sheet)</span></a></li>'
     toc_html = f"""
     <nav class="my-6 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 text-xs sm:text-sm">
       <div class="font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
@@ -318,6 +320,10 @@ def render_lesson_page(lesson_data, catalog, current_idx, course_type):
           {eng_details_html}
         </section>
         """
+        
+    # Exam Cram Summary section at the end of every lesson
+    exam_summary_html = render_exam_summary_section(p, catalog, current_idx, course_type)
+    sections_html += exam_summary_html
         
     # Sources
     sources_html = ""
